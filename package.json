@@ -1,0 +1,20 @@
+{
+  "name": "kya-pehnu-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kya Pehnu? — hyper-local fashion delivery for Nagpur. Backend + customer app + vendor app.",
+  "scripts": {
+    "dev": "concurrently -n backend,customer,vendor -c magenta,cyan,yellow --kill-others-on-fail \"npm:dev:backend\" \"npm:dev:customer\" \"npm:dev:vendor\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:customer": "npm --prefix customer-app run start -- --port 8081",
+    "dev:vendor": "npm --prefix vendor-app run start -- --port 8082",
+    "start:backend": "npm --prefix backend start",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix customer-app install && npm --prefix vendor-app install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20.19.4"
+  }
+}
