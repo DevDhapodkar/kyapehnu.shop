@@ -32,7 +32,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kya Pehnu? uses your location to show clothing from shops nearest to you and to track your delivery.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
