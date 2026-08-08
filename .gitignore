@@ -29,6 +29,7 @@ yarn-error.*
 .DS_Store
 *.swp
 
-# Local agent tooling
+# Local agent tooling — shared .claude/settings.json is tracked, the rest is not
 .claude/settings.local.json
+.claude/skills/
 skills-lock.json
