@@ -1,56 +1,64 @@
-# Welcome to your Expo app 👋
+# Kya Pehnu? — Vendor App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo (SDK 57) app for shop owners: incoming orders, order lifecycle, and catalog
+management. Scaffolded from `create-expo-app` and then converted off `expo-router`
+onto React Navigation's native stack, matching `customer-app`.
 
-## Get started
+## Structure
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+index.js                     registerRootComponent entry
+App.js                       SafeAreaProvider + navigator
+src/navigation/              native-stack, obsidian dark theme
+src/screens/
+  OrderListScreen.js         order queue, filtered by status
+  OrderDetailScreen.js       item breakdown + Accept / Mark Ready
+  CatalogManagerScreen.js    availability toggles + new listing form
+src/components/              GlassCard, GlassButton, StatusPill, FilterTabs, OrderCard
+src/api/vendorApi.js         axios client for /backend
+src/store/useVendorStore.js  zustand: orders + catalog
+src/theme/colors.js          obsidian / charcoal palette (mirrors customer-app)
+src/utils/format.js          rupee, age, address formatters
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Running
 
-### Other setup steps
+From the monorepo root:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```
+npm run dev:vendor
+```
 
-## Learn more
+Standalone:
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+npm start
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Backend connection
 
-## Join the community
+`app.json` → `expo.extra.apiBaseUrl` points at the Express server
+(`http://localhost:5000` by default). On Android emulators the client rewrites
+`localhost` to `10.0.2.2`; on a physical device set the LAN IP there instead.
 
-Join our community of developers creating universal apps.
+Requests are authenticated with a Firebase ID token. Until the auth screens
+exist, set `expo.extra.devAuthToken` in `app.json`, or call
+`setAuthToken(token)` from `src/api/vendorApi.js` once sign-in lands.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Endpoints used
+
+| Action | Request |
+| --- | --- |
+| Shop profile | `GET /api/vendors/me` |
+| Order queue | `GET /api/orders/vendor/mine` |
+| Accept order | `PATCH /api/orders/:id/status` `{ status: 'ACCEPTED' }` |
+| Mark ready for pickup | `POST /api/orders/:orderId/ready` |
+| Catalog (incl. out of stock) | `GET /api/products/mine` |
+| Toggle availability | `PATCH /api/products/:id` `{ isAvailable }` |
+| New listing | `POST /api/products` |
+
+`POST /api/orders/:orderId/ready` is the one call with physical-world side
+effects: the backend dispatches a Porter driver to the store and sends a
+WhatsApp confirmation, in parallel. It responds with
+`{ order, logistics: { porter, whatsapp } }` — either leg can fail
+independently, so the UI reports both outcomes.
