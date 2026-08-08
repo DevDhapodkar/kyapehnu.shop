@@ -42,6 +42,48 @@ const notifyVendorNewOrder = async (vendor, order) => {
   }
 };
 
+// Confirmation sent to the vendor the moment they mark an order ready for
+// pickup, so the shop has a WhatsApp paper trail of the handover alongside the
+// Porter driver that was dispatched in the same request.
+const notifyVendorOrderReady = async (vendor, order) => {
+  try {
+    const response = await axios.post(
+      META_API_URL,
+      {
+        messaging_product: 'whatsapp',
+        to: vendor.whatsappNumber,
+        type: 'template',
+        template: {
+          name: 'order_ready_confirmation',
+          language: { code: 'en' },
+          components: [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', text: vendor.shopName },
+                { type: 'text', text: order._id.toString() },
+                { type: 'text', text: `${order.items.length}` },
+                { type: 'text', text: `₹${order.totalPrice}` },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('WhatsApp ready confirmation failed:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 // Placeholder: incoming webhook from Meta Cloud API for vendor replies
 // (e.g. vendor managing inventory via WhatsApp chat commands).
 const handleIncomingWebhook = async (req, res) => {
@@ -70,4 +112,4 @@ const verifyWebhook = (req, res) => {
   return res.sendStatus(403);
 };
 
-export { notifyVendorNewOrder, handleIncomingWebhook, verifyWebhook };
+export { notifyVendorNewOrder, notifyVendorOrderReady, handleIncomingWebhook, verifyWebhook };
