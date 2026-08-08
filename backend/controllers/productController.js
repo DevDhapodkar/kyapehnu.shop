@@ -18,6 +18,20 @@ const listByVendor = async (req, res) => {
   }
 };
 
+/**
+ * Catalog feed for the vendor app. Unlike `listByVendor` (the customer-facing
+ * storefront query) this returns out-of-stock listings too — the vendor has to
+ * see a hidden item in order to switch it back on.
+ */
+const listMyProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ vendor: req.vendor._id }).sort({ updatedAt: -1 });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to list catalog', error: error.message });
+  }
+};
+
 const getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate('vendor', 'shopName address location');
@@ -42,4 +56,4 @@ const updateProduct = async (req, res) => {
   }
 };
 
-export { createProduct, listByVendor, getProduct, updateProduct };
+export { createProduct, listByVendor, listMyProducts, getProduct, updateProduct };
