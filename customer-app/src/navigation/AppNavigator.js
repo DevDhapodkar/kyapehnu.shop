@@ -5,9 +5,25 @@ import HomeScreen from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import LiveTrackingScreen from '../screens/LiveTrackingScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
+import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
+import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
+import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
 
-const Stack = createNativeStackNavigator();
+/**
+ * Two distinct navigator instances, not one reused twice.
+ *
+ * Both flows render at the same position under NavigationContainer, so if they
+ * shared a factory React would reconcile them as the same component and carry
+ * navigation state across the role change — flipping to Vendor Mode from the
+ * Profile screen would land on the vendor stack's Profile instead of the order
+ * desk. Separate component types force an unmount, which is what discards the
+ * old flow's history.
+ */
+const CustomerStack = createNativeStackNavigator();
+const VendorStack = createNativeStackNavigator();
 
 /**
  * Navigation theme.
@@ -46,23 +62,80 @@ const screenOptions = {
   animation: 'slide_from_right',
 };
 
-export default function AppNavigator() {
+/** Buyer side: the scrollytelling storefront through to live delivery tracking. */
+function CustomerFlow() {
   return (
-    <NavigationContainer theme={navTheme}>
-      <Stack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen
-          name="ProductDetail"
-          component={ProductDetailScreen}
-          options={{ headerShown: false, animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
-        <Stack.Screen
-          name="LiveTracking"
-          component={LiveTrackingScreen}
-          options={{ headerShown: false, animation: 'fade' }}
-        />
-      </Stack.Navigator>
+    <CustomerStack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
+      <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <CustomerStack.Screen
+        name="ProductDetail"
+        component={ProductDetailScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <CustomerStack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
+      <CustomerStack.Screen
+        name="LiveTracking"
+        component={LiveTrackingScreen}
+        options={{ headerShown: false, animation: 'fade' }}
+      />
+      <CustomerStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: 'Profile' }}
+      />
+    </CustomerStack.Navigator>
+  );
+}
+
+/** Shop-owner side: the order desk and catalogue controls. */
+function VendorFlow() {
+  return (
+    <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={screenOptions}>
+      {/* VendorOrders draws its own header so the shop name can sit under the status bar. */}
+      <VendorStack.Screen
+        name="VendorOrders"
+        component={VendorOrderListScreen}
+        // `title` is still read for the back-button label on pushed screens,
+        // even though this screen paints its own header.
+        options={{ headerShown: false, title: 'Orders' }}
+      />
+      <VendorStack.Screen
+        name="VendorOrderDetail"
+        component={VendorOrderDetailScreen}
+        options={{ title: 'Order' }}
+      />
+      <VendorStack.Screen
+        name="CatalogManager"
+        component={CatalogManagerScreen}
+        options={{ title: 'Catalog', animation: 'slide_from_bottom' }}
+      />
+      <VendorStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: 'Profile' }}
+      />
+    </VendorStack.Navigator>
+  );
+}
+
+/**
+ * One binary, two flows. `role` in the auth store is the only switch: changing
+ * it unmounts one stack and mounts the other, which also throws away the
+ * navigation history — deliberate, since a customer's back stack has no
+ * meaning inside the vendor desk.
+ */
+export default function AppNavigator() {
+  const role = useAuthStore(selectRole);
+
+  return (
+    // Keyed by role on purpose. NavigationContainer owns the navigation state
+    // and rehydrates a remounting child navigator from it, so without this the
+    // two flows share history by route name — flipping Vendor Mode from the
+    // customer Profile would land on the vendor Profile instead of the order
+    // desk. Changing the key tears the container down and starts the new flow
+    // at its own initial route.
+    <NavigationContainer key={role} theme={navTheme}>
+      {role === ROLES.VENDOR ? <VendorFlow /> : <CustomerFlow />}
     </NavigationContainer>
   );
 }

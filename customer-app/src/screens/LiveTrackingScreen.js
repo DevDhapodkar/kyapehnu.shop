@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   driverHalo: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 17,
     backgroundColor: colors.crimson,
     opacity: 0.28,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   circleButton: {
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   sheetHighlight: {

@@ -1,17 +1,24 @@
 import { Dimensions, FlatList, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassCard from '../components/GlassCard';
+import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
-import ScrollytellingScene from '../components/ScrollytellingScene';
+import RevealText from '../components/RevealText';
+import ScrollytellingSequence from '../components/ScrollytellingSequence';
 import { formatINR, productsByProximity } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
+import { ROLES, useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// The story sells the product in four beats, each one timed to a beat of the
+// drone shot behind it: what this is, where the clothes come from, how they are
+// ranked, and what actually happens when you tap. A fifth panel — the sign-up
+// call to action — closes it out over the drone's arrival on the dress.
 const SECTIONS = [
   {
     eyebrow: 'Kya Pehnu?',
@@ -20,108 +27,73 @@ const SECTIONS = [
   },
   {
     eyebrow: 'Chapter I — The Shirt',
-    title: 'Cut for the evening.',
-    body: 'Obsidian cotton from an independent tailor in Sitabuldi. Every piece on this app comes from a shop with a name, a shutter, and an owner who picked the fabric.',
+    title: 'Every piece has a shutter.',
+    body: 'Obsidian cotton from an independent tailor in Sitabuldi. Nothing here is drop-shipped: each garment sits on a rail in a real Nagpur shop, and you are seeing what is in stock right now.',
   },
   {
     eyebrow: 'Chapter II — The Dress',
-    title: 'Red, and nothing else.',
-    body: 'Scroll to fall past the shirt and land on the dress. Local fashion, indexed by how close it is to you — then brought to your door.',
+    title: 'Sorted by how close it is.',
+    body: 'Not by who paid for placement. Turn on location and the whole catalogue reorders itself around you — the dress three lanes away comes before the one across the city.',
+  },
+  {
+    eyebrow: 'How it works',
+    title: 'Tap it. Wear it tonight.',
+    body: 'Pick a piece, and the shop is told the moment you check out. A rider collects it from the counter and brings it over while you watch the map. One hour, door to door.',
   },
 ];
 
-// Total scrollable distance the camera path is mapped onto. The product feed
-// below adds more content height, but the drone move still completes at the end
-// of the third chapter and holds there.
-const SCROLL_RANGE = SCREEN_HEIGHT * (SECTIONS.length - 1);
+// Total scrollable distance the camera path is mapped onto. There are
+// SECTIONS.length story panels plus one closing CTA panel, so the number of
+// full-height gaps the drone move spans is exactly SECTIONS.length — the shot
+// lands on the dress just as the CTA scrolls into frame.
+const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
-  const scrollY = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const { areaLabel, status, refresh } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
   const cartTotal = useCartStore(selectCartTotal);
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+  // The scrollytelling is a first-run marketing funnel: it only runs for a
+  // visitor who has not signed in. Once there is a session token the home
+  // screen is a returning customer's storefront, so the drone shot and the
+  // pitch are dropped and the catalogue is shown straight away.
+  const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+  const signIn = useAuthStore((state) => state.signIn);
+
+  // No real auth flow is wired yet (Firebase is pending), so both routes open a
+  // demo customer session. Splitting sign-up from sign-in happens when Auth
+  // lands; the CTA already calls the two handlers separately.
+  const handleJoin = useCallback(() => {
+    signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
+  }, [signIn]);
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
 
-  return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+  const header = (
+    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
+      <View pointerEvents="none" style={styles.headerFill} />
 
-      {/* 3D canvas sits behind everything and never intercepts touches. */}
-      <ScrollytellingScene scrollY={scrollY} scrollRange={SCROLL_RANGE} />
-
-      <Animated.ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+      <Pressable
+        onPress={status === 'denied' ? refresh : undefined}
+        style={styles.headerLeft}
       >
-        {SECTIONS.map((section, index) => (
-          <View key={section.title} style={styles.section}>
-            <GlassCard style={styles.card} strong={index === 0}>
-              <Text style={styles.eyebrow}>{section.eyebrow.toUpperCase()}</Text>
-              <Text style={styles.title}>{section.title}</Text>
-              <Text style={styles.body}>{section.body}</Text>
-            </GlassCard>
-          </View>
-        ))}
+        <Text style={styles.headerEyebrow}>DELIVERING TO</Text>
+        <Text style={styles.headerArea} numberOfLines={1}>
+          {areaLabel}
+          {status === 'denied' ? '  ·  enable GPS' : ''}
+        </Text>
+      </Pressable>
 
-        {/* Commerce feed — the scrollytelling hands off to the catalogue here. */}
-        <View style={styles.feed}>
-          <View style={styles.feedHeader}>
-            <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
-            <Text style={styles.feedTitle}>In stock, minutes away.</Text>
-            <Text style={styles.feedBody}>
-              Sorted by distance from where you are standing, not by who paid for
-              placement.
-            </Text>
-          </View>
-
-          <FlatList
-            data={productsByProximity}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ProductCard product={item} onPress={() => openProduct(item)} />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.feedList}
-            // The parent ScrollView already virtualises the vertical axis; this
-            // row is short enough that windowing it adds jank rather than saving.
-            initialNumToRender={5}
-          />
-
-          <Text style={styles.feedFootnote}>
-            {productsByProximity.length} pieces across 5 independent Nagpur stores.
-          </Text>
-        </View>
-
-        <View style={{ height: insets.bottom + spacing.xl * 2 }} />
-      </Animated.ScrollView>
-
-      {/* Floating glass header — sits above the scroll, below nothing. */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View pointerEvents="none" style={styles.headerFill} />
-
+      <View style={styles.headerRight}>
         <Pressable
-          onPress={status === 'denied' ? refresh : undefined}
-          style={styles.headerLeft}
+          onPress={() => navigation.navigate('Profile')}
+          accessibilityRole="button"
+          accessibilityLabel="Profile and settings"
+          style={({ pressed }) => [styles.profileButton, pressed && styles.bagPressed]}
         >
-          <Text style={styles.headerEyebrow}>DELIVERING TO</Text>
-          <Text style={styles.headerArea} numberOfLines={1}>
-            {areaLabel}
-            {status === 'denied' ? '  ·  enable GPS' : ''}
-          </Text>
+          <Text style={styles.profileGlyph}>◇</Text>
         </Pressable>
 
         <Pressable
@@ -141,6 +113,132 @@ export default function HomeScreen({ navigation }) {
       </View>
     </View>
   );
+
+  if (isLoggedIn) {
+    return (
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" />
+        <Storefront insets={insets} onOpenProduct={openProduct} />
+        {header}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" />
+      <MarketingScrollytelling
+        insets={insets}
+        onJoin={handleJoin}
+        onLogin={handleJoin}
+      />
+      {header}
+    </View>
+  );
+}
+
+/**
+ * The logged-out cinematic pitch: the 3D drone shot behind a stack of glass
+ * story cards, closing on the sign-up CTA.
+ */
+function MarketingScrollytelling({ insets, onJoin, onLogin }) {
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  return (
+    <>
+      {/* Pre-rendered drone-shot frames sit behind everything and never
+          intercept touches. */}
+      <ScrollytellingSequence scrollY={scrollY} scrollRange={SCROLL_RANGE} />
+
+      {/* The ScrollView is now just the scroll *engine*: empty full-height
+          spacers give the drone move its distance and carry the closing CTA.
+          The story copy is NOT in here — it rides the pinned overlay below, so
+          it reads as a layer of the film rather than text scrolling over it. */}
+      <Animated.ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {SECTIONS.map((section) => (
+          <View key={section.title} style={styles.section} />
+        ))}
+
+        {/* Closing frame — the drone arrives on the dress as this scrolls in. */}
+        <View style={[styles.section, styles.ctaSection]}>
+          <AuthCta onJoin={onJoin} onLogin={onLogin} />
+        </View>
+
+        <View style={{ height: insets.bottom + spacing.xl }} />
+      </Animated.ScrollView>
+
+      {/* Pinned caption layer: each beat jumps in, holds, and jumps out off the
+          shared scrollY. pointerEvents:none so the ScrollView underneath still
+          takes the drag and the CTA buttons stay tappable. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {SECTIONS.map((section, index) => (
+          <RevealText
+            key={section.title}
+            scrollY={scrollY}
+            index={index}
+            eyebrow={section.eyebrow}
+            title={section.title}
+            body={section.body}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
+/**
+ * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
+ * base, with no 3D scene behind it.
+ */
+function Storefront({ insets, onOpenProduct }) {
+  return (
+    <Animated.ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.scrollContent, styles.storefront]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.feed}>
+        <View style={styles.feedHeader}>
+          <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
+          <Text style={styles.feedTitle}>In stock, minutes away.</Text>
+          <Text style={styles.feedBody}>
+            Sorted by distance from where you are standing, not by who paid for
+            placement.
+          </Text>
+        </View>
+
+        <FlatList
+          data={productsByProximity}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ProductCard product={item} onPress={() => onOpenProduct(item)} />
+          )}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.feedList}
+          initialNumToRender={5}
+        />
+
+        <Text style={styles.feedFootnote}>
+          {productsByProximity.length} pieces across 5 independent Nagpur stores.
+        </Text>
+      </View>
+
+      <View style={{ height: insets.bottom + spacing.xl * 2 }} />
+    </Animated.ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -155,32 +253,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     backgroundColor: colors.transparent,
   },
+  storefront: {
+    // Clears the floating header the storefront scrolls under.
+    paddingTop: SCREEN_HEIGHT * 0.14,
+  },
   section: {
     height: SCREEN_HEIGHT,
     justifyContent: 'flex-end',
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl * 1.5,
   },
-  card: {
-    width: '100%',
-  },
-  eyebrow: {
-    color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 3,
-    marginBottom: spacing.sm,
-  },
-  title: {
-    color: colors.ivory,
-    fontSize: 34,
-    fontWeight: '300',
-    letterSpacing: -0.5,
-    marginBottom: spacing.sm,
-  },
-  body: {
-    color: colors.platinum,
-    fontSize: 15,
-    lineHeight: 23,
+  ctaSection: {
+    // The CTA reads as the resting frame, so it sits a touch higher than the
+    // story cards rather than hard against the bottom edge.
+    justifyContent: 'center',
   },
 
   // Feed
@@ -239,7 +325,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   headerLeft: {
@@ -257,6 +343,26 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: -0.2,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  profileButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileGlyph: {
+    color: colors.platinum,
+    fontSize: 14,
+    lineHeight: 17,
   },
   bagButton: {
     paddingVertical: spacing.xs,

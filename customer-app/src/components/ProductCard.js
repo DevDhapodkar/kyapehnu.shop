@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   footerFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   footerHighlight: {

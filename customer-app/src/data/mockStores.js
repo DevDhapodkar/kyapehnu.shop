@@ -328,8 +328,11 @@ export function getProductById(productId) {
   return allProducts.find((product) => product.id === productId) ?? null;
 }
 
-export function formatINR(amount) {
-  return `₹${Number(amount).toLocaleString('en-IN')}`;
-}
+/**
+ * Kept as a named export because every customer screen already imports it from
+ * here, but the implementation now lives in `utils/format` so the vendor flow
+ * and the customer flow render rupees identically.
+ */
+export { formatCurrency as formatINR } from '../utils/format';
 
 export default mockStores;

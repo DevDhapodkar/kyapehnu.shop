@@ -29,7 +29,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-const PORT = process.env.PORT || 5000;
+// Not 5000: macOS AirPlay Receiver listens there and answers requests as
+// "AirTunes" with a 403, which looks exactly like an auth bug from the app side.
+const PORT = process.env.PORT || 5001;
 
 const start = async () => {
   await connectDB();

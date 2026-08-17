@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body { margin: 0; background: #050506; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+    // ---------------------------------------------------------------------------
+    // OFFLINE studio renderer for the logged-out scrollytelling drone shot.
+    //
+    // The on-device scene (src/components/ScrollytellingScene.js) was constrained
+    // to a hand-written unlit shader because expo-gl would not draw three's lit
+    // materials or sample any texture. None of that applies here: this runs in
+    // real headless-Chrome WebGL, so it uses the full pipeline — physically based
+    // fabric, a three-light studio rig, image-based reflections, ACES tone
+    // mapping and bloom — to render a premium product film. The camera PATH and
+    // garment framing are kept identical to the device scene so the funnel copy
+    // still lands on the same beats.
+    // ---------------------------------------------------------------------------
+
+    // --- Anchors & framing -----------------------------------------------------
+    // Both garments stand on the same cove floor, separated on X, so a single
+    // camera move can stage one as the hero in the foreground with the other
+    // reading softly behind it in the distance (the Apple product-film beat).
+    // The garments stand close together (±1.15, not the old ±4.8). With a tight
+    // product lens that big a gap meant the pan between them stared into empty
+    // cove for a stretch of frames you could rest a slow scroll on. This spacing
+    // clears their fitted widths (suit ~2.18 wide with its arms out, dress ~1.21
+    // — a ~0.5 gap, no clipping) yet sits them close enough that both inner edges
+    // fall inside the narrow frame at the mid-point, so the outgoing piece is
+    // still leaving as the incoming one arrives — a continuous hand-off, no dead
+    // frame — while each tight hero still crops the other garment out of shot.
+    const SHIRT_POSITION = [-1.15, 0, 0];
+    const DRESS_POSITION = [1.15, 0, 0];
+    const SHIRT_HEIGHT = 2.6;
+    const DRESS_HEIGHT = 3.2;
+    const TAU = Math.PI * 2;
+
+    // The camera looks AT the garment torso (a per-beat Y track, TARGET_Y_KEYS)
+    // rather than a fixed low point — aiming low was what pointed the closing
+    // push at the dress's hem/rear. Slow spin so a garment never rotates its
+    // back to a close camera mid-hero.
+    const SPIN_TURNS = 0.08;
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+    function smootherstep(e0, e1, x) {
+      const t = clamp01((x - e0) / (e1 - e0));
+      return t * t * t * (t * (t * 6 - 15) + 10);
+    }
+
+    // Piecewise smootherstep through sorted [progress, value] control points.
+    // Lets the drone path be authored as a handful of poses while the eased
+    // segments between them give the move its aggressive, rushing acceleration.
+    function keyframe(p, keys) {
+      if (p <= keys[0][0]) return keys[0][1];
+      const last = keys[keys.length - 1];
+      if (p >= last[0]) return last[1];
+      for (let i = 1; i < keys.length; i += 1) {
+        const [p0, v0] = keys[i - 1];
+        const [p1, v1] = keys[i];
+        if (p <= p1) return lerp(v0, v1, smootherstep(p0, p1, p));
+      }
+      return last[1];
+    }
+
+    // Distance from the focus point. The heroes come in CLOSE — radius ~3.4 at a
+    // ~40mm lens frames the garment nearly full-height, so the fabric fills the
+    // screen and reads as a real photographed piece, not a toy in a void. The
+    // camera NEVER pulls out to the empty midpoint between the two garments (the
+    // narrow lens can't hold both, so that just framed dark cove): it holds the
+    // suit, whip-pans across, and pushes onto the dress.
+    const RADIUS_KEYS = [
+      [0.00, 9.5],
+      [0.24, 3.1],
+      [0.52, 4.4],
+      [0.80, 3.1],
+      [1.00, 4.2],
+    ];
+    // Drone altitude — a high approach, then eye-level on the garment's UPPER
+    // body for each hero. Never drops to the old 0.6 crotch-level height.
+    const HEIGHT_KEYS = [
+      [0.00, 6.0],
+      [0.24, 1.2],
+      [0.52, 1.7],
+      [0.80, 1.6],
+      [1.00, 2.0],
+    ];
+    // Azimuth around the focus (radians). Front is +Z (az 0). The heroes hold a
+    // gentle front-3/4 — flattering, and it keeps the OTHER garment off to the
+    // side and out of a tight frame. The old path swung to ±1.15..1.30 (near
+    // profile / behind) to stage the other piece in the background; that rear
+    // three-quarter on a low camera is exactly what read as the dress's backside.
+    // Kept gentle and near-monotonic — the hand-off is mostly a translation of
+    // the look-point from suit to dress, not a big azimuth swing. A hard swing
+    // rotated the incoming dress out of frame and reopened the dark gap.
+    const AZIMUTH_KEYS = [
+      [0.00, -0.45],
+      [0.24, -0.24],
+      [0.52, -0.12],
+      [0.80,  0.28],
+      [1.00,  0.18],
+    ];
+    // Where the camera looks (world Y). Tracks the garment's upper body so the
+    // frame sits on the bodice/torso, not the legs or hem.
+    const TARGET_Y_KEYS = [
+      [0.00, -0.10],
+      [0.24,  0.35],
+      [0.52,  0.40],
+      [0.80,  0.55],
+      [1.00,  0.40],
+    ];
+
+    // Which garment the shot is centred on. The handoff is a SHORT, fast window
+    // (0.56→0.64) so the camera holds the suit, whips across the dark gap between
+    // the pieces in a few frames — reading as a decisive whip-pan, not a long
+    // empty hold — and lands on the dress.
+    function focusMix(progress) { return smootherstep(0.54, 0.70, progress); }
+
+    function cameraPath(progress, outPosition, outTarget) {
+      const mix = focusMix(progress);
+      const fx = lerp(SHIRT_POSITION[0], DRESS_POSITION[0], mix);
+      const fz = lerp(SHIRT_POSITION[2], DRESS_POSITION[2], mix);
+
+      const radius = keyframe(progress, RADIUS_KEYS);
+      const camY = keyframe(progress, HEIGHT_KEYS);
+      const az = keyframe(progress, AZIMUTH_KEYS);
+
+      outPosition.set(fx + Math.sin(az) * radius, camY, fz + Math.cos(az) * radius);
+      // Look at the garment's upper body (per-beat Y track) so the frame lands on
+      // the bodice, not the hem.
+      outTarget.set(fx, keyframe(progress, TARGET_Y_KEYS), fz);
+
+      // A whisper of bank through the whip-pan for life — not the old 0.22 dutch
+      // tilt that made the move feel like a lurching drone. Centred on the fast
+      // 0.56→0.64 handoff.
+      const bank = Math.sin(smootherstep(0.52, 0.68, progress) * Math.PI);
+      return bank * 0.07;
+    }
+
+    // --- Look ------------------------------------------------------------------
+    // The garment GLBs already carry photo-scanned PBR materials — a woven
+    // baseColour map and a normal map per fabric (the suit is three: Shirt, Pant,
+    // Coat). The previous pass overwrote all of that with ONE flat solid
+    // MeshPhysicalMaterial, which is why the render read as a smooth clay/plastic
+    // mannequin in a single cartoon colour. We now KEEP the baked materials and
+    // only wire them into this studio: cast/receive shadows, sample the image
+    // based environment for real reflections, and recompute any missing normals.
+    function prepGarment(root) {
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = true;
+        o.receiveShadow = true;
+        if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+          if (!m) continue;
+          // Let the fabric catch the studio environment without going chromy.
+          if ('envMapIntensity' in m) m.envMapIntensity = 1.0;
+          m.needsUpdate = true;
+        }
+      });
+    }
+
+    function mountGarment(scene, targetHeight, anchor) {
+      const box = new THREE.Box3().setFromObject(scene);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const scale = size.y > 0 ? targetHeight / size.y : 1;
+      const fitted = new THREE.Group();
+      fitted.scale.setScalar(scale);
+      fitted.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+      fitted.add(scene);
+      const pivot = new THREE.Group();
+      pivot.position.set(anchor[0], anchor[1], anchor[2]);
+      pivot.add(fitted);
+      return pivot;
+    }
+
+    async function loadModel(url) {
+      const buf = await fetch(url).then((r) => r.arrayBuffer());
+      const loader = new GLTFLoader();
+      return new Promise((res, rej) => loader.parse(buf, '', res, rej));
+    }
+
+    // A graded infinity-cove backdrop: near-black at the edges lifting to a cool
+    // charcoal pool behind the subject, with a warm whisper up top. Baked into a
+    // canvas texture and used as the scene background so it stays put as the
+    // drone orbits — the object reads as floating in a lit studio, not a void.
+    function backdropTexture(w, h) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      // Colours are pushed bright on purpose: the background is tone-mapped by
+      // ACES like everything else, so a mid-grey here lands near-black. These
+      // pre-compensate so the cove reads as a real pool of studio light.
+      const v = ctx.createLinearGradient(0, 0, 0, h);
+      v.addColorStop(0, '#3A4056');
+      v.addColorStop(0.5, '#171922');
+      v.addColorStop(1, '#050506');
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, w, h);
+      const r = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, w * 1.15);
+      r.addColorStop(0, 'rgba(150, 165, 205, 0.95)');
+      r.addColorStop(0.4, 'rgba(66, 76, 108, 0.55)');
+      r.addColorStop(1, 'rgba(5, 5, 6, 0)');
+      ctx.fillStyle = r;
+      ctx.fillRect(0, 0, w, h);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // Cinematic vignette as a final post pass — pulls the eye to the garment and
+    // adds the darkened corners a premium product film always carries.
+    const VignetteShader = {
+      uniforms: { tDiffuse: { value: null }, uStrength: { value: 0.9 }, uSize: { value: 0.95 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);} `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse; uniform float uStrength; uniform float uSize;
+        varying vec2 vUv;
+        void main(){
+          vec4 col = texture2D(tDiffuse, vUv);
+          vec2 d = vUv - 0.5;
+          float vig = smoothstep(0.55, uSize, length(d) * uStrength);
+          col.rgb *= mix(1.0, 0.6, vig);
+          gl_FragColor = col;
+        }`,
+    };
+
+    // --- Boot ------------------------------------------------------------------
+    const params = new URLSearchParams(location.search);
+    const OUT_W = Number(params.get('w')) || 900;
+    const OUT_H = Number(params.get('h')) || 1600;
+    const SS = Number(params.get('ss')) || 1.5;   // supersample factor for edge AA
+    const W = Math.round(OUT_W * SS);
+    const H = Math.round(OUT_H * SS);
+
+    const canvas = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+    renderer.setSize(W, H, false);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // Now that the real textured fabric shows (not a solid emissive-looking
+    // colour), a lower exposure keeps the albedo and its weave/normal detail on
+    // screen instead of clipping the lit face to a flat block of colour.
+    renderer.toneMappingExposure = 0.95;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = backdropTexture(OUT_W, OUT_H);
+    // Atmospheric haze: gives the shot real depth and, on the hero beats, sinks
+    // the off-focus garment standing far behind into the cove instead of letting
+    // a stray sleeve or hand poke sharply into frame beside the hero.
+    scene.fog = new THREE.FogExp2('#090B12', 0.035);
+
+    // Image-based lighting: RoomEnvironment gives soft, expensive-looking
+    // reflections across the fabric without any visible studio geometry.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.9;
+
+    // A longer ~40mm-equivalent lens. The old 50° vertical FOV this close would
+    // barrel the garment's nearest edge and exaggerate its silhouette — the
+    // wide-angle "cartoon" look. A narrower FOV compresses the form the way a
+    // product/fashion lens does, and pairs with the closer dolly to fill frame.
+    const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 120);
+
+    // Warm raking key from upper front-right, world-anchored so the highlight
+    // sweeps across the fabric as the drone orbits rather than staying glued to
+    // the screen.
+    const key = new THREE.DirectionalLight('#FFF1DC', 2.3);
+    key.position.set(6.0, 8.5, 5.0);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.near = 1; key.shadow.camera.far = 40;
+    key.shadow.camera.left = -8; key.shadow.camera.right = 8;
+    key.shadow.camera.top = 8; key.shadow.camera.bottom = -14;
+    key.shadow.bias = -0.0004;
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight('#5A6480', 0.5);
+    fill.position.set(-6, 2.5, 4);
+    scene.add(fill);
+
+    // Two cool rim/kickers from behind, one each side, so both edges of the
+    // silhouette are traced in light and lift cleanly off the dark cove — the
+    // single biggest reason the fabric reads as a lit object, not a cut-out.
+    const rimL = new THREE.DirectionalLight('#B7C2E0', 2.6);
+    rimL.position.set(-6, 4.5, -6.5);
+    scene.add(rimL);
+    const rimR = new THREE.DirectionalLight('#9FB0D8', 2.0);
+    rimR.position.set(6, 4.0, -6.5);
+    scene.add(rimR);
+
+    const hemi = new THREE.HemisphereLight('#2A3350', '#050506', 0.6);
+    scene.add(hemi);
+
+    // Composer: base render -> subtle bloom on highlights -> vignette.
+    const composer = new EffectComposer(renderer);
+    composer.setSize(W, H);
+    composer.addPass(new RenderPass(scene, camera));
+    // Bloom is a whisper on the brightest speculars only — a halation glow, not
+    // a fill light. threshold 0.85 keeps midtone fabric out of the bloom entirely
+    // (the old 0.75 pulled the whole lit gold in), strength 0.22 keeps it subtle.
+    const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.14, 0.4, 0.9);
+    composer.addPass(bloom);
+    composer.addPass(new ShaderPass(VignetteShader));
+
+    // Downscale target: composer renders at supersampled W×H, we blit to OUT for
+    // clean anti-aliased edges before encoding.
+    const out = document.createElement('canvas');
+    out.width = OUT_W; out.height = OUT_H;
+    const outCtx = out.getContext('2d');
+
+    const desired = new THREE.Vector3();
+    const desiredTarget = new THREE.Vector3();
+    let spinning = [];
+
+    async function boot() {
+      // Offline render uses the FULL-resolution source meshes (shirt ~60k tris,
+      // dress ~28k tris) — headless Chrome renders them with room to spare. The
+      // decimated /assets/models/*.glb (4k–9k tris) exist only to keep the app
+      // bundle small and were never meant to be photographed; rendering them here
+      // is what gave the garments their faceted, low-poly cartoon silhouette.
+      const [shirt, dress] = await Promise.all([
+        loadModel('/assets/models/source/shirt.glb'),
+        loadModel('/assets/models/source/dress.glb'),
+      ]);
+      const shirtPivot = mountGarment(shirt.scene, SHIRT_HEIGHT, SHIRT_POSITION);
+      prepGarment(shirtPivot);
+      scene.add(shirtPivot);
+      spinning.push({ pivot: shirtPivot, dir: 1, base: shirtPivot.rotation.y });
+
+      const dressPivot = mountGarment(dress.scene, DRESS_HEIGHT, DRESS_POSITION);
+      prepGarment(dressPivot);
+      scene.add(dressPivot);
+      spinning.push({ pivot: dressPivot, dir: -1, base: dressPivot.rotation.y });
+
+      window.__ready = true;
+    }
+
+    window.renderFrame = function (progress) {
+      for (const s of spinning) {
+        s.pivot.rotation.y = s.base + progress * TAU * SPIN_TURNS * s.dir;
+      }
+      const roll = cameraPath(progress, desired, desiredTarget);
+      camera.position.copy(desired);
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
+      camera.lookAt(desiredTarget);
+      composer.render();
+      outCtx.drawImage(canvas, 0, 0, W, H, 0, 0, OUT_W, OUT_H);
+      // 0.82 keeps the fabric grain clean while roughly halving the frame-set
+      // size vs 0.9 — these are scrubbed past at speed, so the slight quality
+      // drop is invisible but the bundle saving is not.
+      return out.toDataURL('image/webp', 0.82);
+    };
+
+    boot().catch((e) => { window.__error = String((e && e.stack) || e); });
+  </script>
+</body>
+</html>

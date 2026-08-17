@@ -12,10 +12,11 @@ import { colors, radii, spacing } from '../theme/colors';
  * the card's size is driven purely by its children.
  *
  * Props:
- *  - strong: use the denser fill (for cards sitting over bright 3D geometry)
- *  - style:  extra container styles (margins, width, alignment)
+ *  - strong:  use the denser fill (for cards sitting over bright 3D geometry)
+ *  - compact: tighter vertical padding, for list rows rather than hero panes
+ *  - style:   extra container styles (margins, width, alignment)
  */
-export default function GlassCard({ children, strong = false, style }) {
+export default function GlassCard({ children, strong = false, compact = false, style }) {
   return (
     <View style={[styles.container, style]}>
       <View
@@ -26,7 +27,7 @@ export default function GlassCard({ children, strong = false, style }) {
         ]}
       />
       <View pointerEvents="none" style={styles.highlight} />
-      <View style={styles.content}>{children}</View>
+      <View style={[styles.content, compact && styles.contentCompact]}>{children}</View>
     </View>
   );
 }
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   fill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   highlight: {
     position: 'absolute',
@@ -59,5 +60,8 @@ const styles = StyleSheet.create({
   content: {
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
+  },
+  contentCompact: {
+    paddingVertical: spacing.md,
   },
 });

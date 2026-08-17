@@ -129,7 +129,7 @@ const transitionToReady = async (order, vendor) => {
 };
 
 /**
- * POST /api/orders/:orderId/ready — the vendor app's "Mark Ready for Pickup".
+ * POST /api/orders/:orderId/ready — the vendor flow's "Mark Ready for Pickup".
  */
 const markOrderReady = async (req, res) => {
   try {

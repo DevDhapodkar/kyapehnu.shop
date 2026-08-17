@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   lineFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFill,
   },
   lineHighlight: {
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   summaryFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   summaryHighlight: {

@@ -38,14 +38,38 @@ export const colors = {
   transparent: 'transparent',
 };
 
-/** Canvas / scene colors, kept alongside the UI palette so they stay in sync. */
+/**
+ * Canvas / scene colors, kept alongside the UI palette so they stay in sync.
+ * Garment colour now comes from the GLB materials, so only the environment —
+ * clear colour, fog, and the light rig — is themed here.
+ */
 export const sceneColors = {
   background: colors.obsidian,
   fog: colors.obsidianDeep,
-  shirt: '#0E0E11', // low-poly black men's shirt placeholder
-  dress: colors.crimson, // red dress placeholder
   keyLight: '#FFFFFF',
   rimLight: colors.crimsonBright,
+};
+
+/**
+ * One tint per order state, for the vendor flow's status pills. Monochrome by
+ * default — gold is the "this order owes you an action" signal, so only
+ * PENDING and ACCEPTED carry it, and crimson stays reserved for the moment a
+ * driver is being dispatched.
+ */
+export const statusColors = {
+  PENDING: colors.gold,
+  ACCEPTED: colors.gold,
+  READY_FOR_PICKUP: colors.crimsonBright,
+  IN_TRANSIT: colors.platinum,
+  DELIVERED: colors.slate,
+};
+
+export const statusLabels = {
+  PENDING: 'Pending',
+  ACCEPTED: 'Accepted',
+  READY_FOR_PICKUP: 'Ready for Pickup',
+  IN_TRANSIT: 'In Transit',
+  DELIVERED: 'Delivered',
 };
 
 export const spacing = {

@@ -205,10 +205,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.charcoal,
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroScrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.scrim,
   },
   sheet: {
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   sheetFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   sheetHighlight: {
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   actionFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.glassFillStrong,
   },
   actionHighlight: {
