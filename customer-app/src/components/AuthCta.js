@@ -10,9 +10,8 @@ import { colors, radii, spacing } from '../theme/colors';
  * the marketing funnel converts a browsing visitor into a signed-in customer.
  *
  * Three affordances, one intent — get an account. "Join Now" is the primary
- * (sign up), with a quieter "Log in" for returning customers. All routes land
- * on the same handler for now; a real Firebase flow will split sign-up from
- * sign-in behind `onJoin` / `onLogin`.
+ * (sign up), with a quieter "Log in" for returning customers. The two paths
+ * open the Firebase login screen in its sign-up and sign-in modes respectively.
  *
  * Props:
  *  - onJoin:  called when the visitor commits (Join Now / Sign up)

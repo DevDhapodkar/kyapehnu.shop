@@ -10,7 +10,7 @@ import ScrollytellingSequence from '../components/ScrollytellingSequence';
 import { formatINR, productsByProximity } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
-import { ROLES, useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -60,14 +60,16 @@ export default function HomeScreen({ navigation }) {
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
-  const signIn = useAuthStore((state) => state.signIn);
 
-  // No real auth flow is wired yet (Firebase is pending), so both routes open a
-  // demo customer session. Splitting sign-up from sign-in happens when Auth
-  // lands; the CTA already calls the two handlers separately.
+  // The CTA opens the real Firebase login system. "Join now" lands on the
+  // sign-up form, "Log in" on the sign-in form — same screen, two entry modes.
   const handleJoin = useCallback(() => {
-    signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
-  }, [signIn]);
+    navigation.navigate('Auth', { mode: 'signup' });
+  }, [navigation]);
+
+  const handleLogin = useCallback(() => {
+    navigation.navigate('Auth', { mode: 'signin' });
+  }, [navigation]);
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
 
@@ -130,7 +132,7 @@ export default function HomeScreen({ navigation }) {
       <MarketingScrollytelling
         insets={insets}
         onJoin={handleJoin}
-        onLogin={handleJoin}
+        onLogin={handleLogin}
       />
       {header}
     </View>

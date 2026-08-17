@@ -49,10 +49,14 @@ Ordered by how badly each one blocks a real launch.
 
 ### P0 — the app cannot transact
 
-1. **No authentication.** `useAuthStore` has no Firebase wiring. There is no
-   login screen, no OTP, no session persistence. `extra.devAuthToken` in
-   `app.json` is the only way a request is ever authorised. Every protected
-   route is unreachable from a real device.
+1. ~~**No authentication.**~~ **Done.** `useAuthStore` is wired to Firebase
+   Auth (email/password) with AsyncStorage session persistence. `AuthScreen`
+   provides sign-up and sign-in, reachable from the marketing CTA; the role is
+   read from the account's Firestore `users/{uid}` profile, and the Firebase ID
+   token flows to the backend through the existing `setAuthToken` seam. See
+   [customer-app/AUTH.md](../customer-app/AUTH.md). `extra.devAuthToken` remains
+   only as a manual override for backend testing. Still open: payments and the
+   customer data path below.
 2. **No payments.** Orders are created with a client-supplied `totalPrice` and
    no payment object. A customer cannot pay; the platform cannot collect.
 3. **Customer app is running on mock data.** `mockStores.js` (338 lines) feeds

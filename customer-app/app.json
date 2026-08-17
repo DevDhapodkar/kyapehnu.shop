@@ -53,7 +53,15 @@
     "backgroundColor": "#050506",
     "extra": {
       "apiBaseUrl": "http://localhost:5001",
-      "devAuthToken": ""
+      "devAuthToken": "",
+      "firebase": {
+        "apiKey": "",
+        "authDomain": "",
+        "projectId": "",
+        "storageBucket": "",
+        "messagingSenderId": "",
+        "appId": ""
+      }
     }
   }
 }

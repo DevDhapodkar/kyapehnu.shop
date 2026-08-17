@@ -1,6 +1,7 @@
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
@@ -9,7 +10,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
-import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
+import useAuthStore, { ROLES, selectRole, selectStatus } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
 
 /**
@@ -67,6 +68,14 @@ function CustomerFlow() {
   return (
     <CustomerStack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      {/* The login system. Presented over the storefront as a modal card so the
+          marketing CTA can open it without leaving the flow; on success the
+          auth store flips `status` and the app moves on on its own. */}
+      <CustomerStack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }}
+      />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}
@@ -126,6 +135,14 @@ function VendorFlow() {
  */
 export default function AppNavigator() {
   const role = useAuthStore(selectRole);
+  const status = useAuthStore(selectStatus);
+
+  // Hold on the obsidian base while the persisted Firebase session is restored,
+  // so a returning user is never flashed the logged-out marketing screen before
+  // their session rehydrates. App.js keeps the native splash up over this.
+  if (status === 'initializing') {
+    return null;
+  }
 
   return (
     // Keyed by role on purpose. NavigationContainer owns the navigation state

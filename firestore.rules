@@ -1,0 +1,51 @@
+rules_version = '2';
+
+// Firestore Security Rules for Kya Pehnu?
+//
+// These enforce access at the database, independent of the client — the app's
+// own checks are for UX, these are the real boundary. Deploy with:
+//   firebase deploy --only firestore:rules
+//
+// Model: every account owns exactly one profile document at users/{uid}. A
+// client may read and edit only its own, may only ever create itself as a
+// CUSTOMER, and may never change its own role. Vendor promotion is done with
+// the Firebase Admin SDK (the Express backend) or the console, both of which
+// bypass these rules. Everything else is denied by default.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      // Self-service sign-up: you may create your own doc, but only as a
+      // CUSTOMER and only keyed to your own uid. A client can never mint a
+      // vendor account.
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'CUSTOMER';
+
+      // You may edit your profile (name, phone, …) but not your own role — the
+      // in-app "Vendor Mode" toggle is a local preview and must never be able
+      // to self-promote a real account.
+      allow update: if isOwner(userId)
+        && request.resource.data.role == resource.data.role;
+
+      // Profiles are not deleted from the client.
+      allow delete: if false;
+    }
+
+    // Default deny for every other path.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

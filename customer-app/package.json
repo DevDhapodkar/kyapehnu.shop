@@ -37,7 +37,9 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1",
     "three": "^0.185.1",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "firebase": "^11.10.0",
+    "@react-native-async-storage/async-storage": "2.2.0"
   },
   "comments": {
     "overrides": "drei pulls stats-gl, which pins its own three@0.170. Two copies of three in one bundle break instanceof checks across the r3f/drei boundary and ship a second full copy of the library. Pin every transitive dependant to the app's version."
@@ -54,7 +56,9 @@
     "eslint-config-expo": "~57.0.1",
     "puppeteer-core": "^25.5.0",
     "sharp": "^0.35.3",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.4"
   },
   "scripts": {
     "start": "expo start",
@@ -64,7 +68,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "models:optimize": "node ./scripts/optimize-models.mjs",
-    "render:scrollytelling": "node ./scripts/render-scrollytelling/render.mjs 220 1080 2340"
+    "render:scrollytelling": "node ./scripts/render-scrollytelling/render.mjs 220 1080 2340",
+    "test": "jest"
   },
   "private": true
 }

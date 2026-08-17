@@ -19,7 +19,8 @@ const extra = Constants.expoConfig?.extra ?? {};
  * On a physical device set `extra.apiBaseUrl` in app.json to the LAN IP.
  */
 const resolveBaseUrl = () => {
-  const configured = extra.apiBaseUrl || 'http://localhost:5000';
+  const configured =
+    process.env.EXPO_PUBLIC_API_BASE_URL || extra.apiBaseUrl || 'http://localhost:5000';
 
   if (Platform.OS === 'android') {
     return configured.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
@@ -76,6 +77,17 @@ const request = async (fn, fallback) => {
     throw toError(error, fallback);
   }
 };
+
+/* ------------------------------------------------------------------ user -- */
+
+/**
+ * POST /api/users/sync — upsert the MongoDB User profile behind the signed-in
+ * Firebase account. Called after every sign-in so the Express backend mirrors
+ * the Firestore profile; the app works on Firebase alone if this fails, so
+ * callers treat it as best-effort.
+ */
+export const syncUserProfile = (profile) =>
+  request(() => client.post('/users/sync', profile), 'Failed to sync profile');
 
 /* ---------------------------------------------------------------- vendor -- */
 

@@ -9,11 +9,12 @@ import useVendorStore from '../store/useVendorStore';
 /**
  * Profile / Settings — reachable from both flows, and the seam between them.
  *
- * The Vendor Mode switch is a testing affordance standing in for a real
- * sign-in: in production the role comes from whether the Firebase uid resolves
- * to a Vendor document on the backend. Flipping it swaps the entire navigator,
- * so the vendor working set is cleared on the way out to avoid one shop's
- * orders surviving into the next session.
+ * The signed-in identity is the real Firebase account; role comes from the
+ * account's Firestore profile. The Vendor Mode switch is a local testing
+ * override that lets one account preview the shop-owner desk without a second
+ * login — the authoritative role still comes from the profile on next launch.
+ * Flipping it swaps the entire navigator, so the vendor working set is cleared
+ * on the way out to avoid one shop's orders surviving into the next session.
  */
 export default function ProfileScreen() {
   const role = useAuthStore((state) => state.role);
@@ -43,9 +44,8 @@ export default function ProfileScreen() {
       <GlassCard compact style={styles.card}>
         <Text style={styles.sectionLabel}>SIGNED IN AS</Text>
         <Text style={styles.name}>{user?.displayName ?? 'Guest'}</Text>
-        <Text style={styles.meta}>
-          {user?.email ?? 'No account linked — Firebase Auth not wired yet'}
-        </Text>
+        <Text style={styles.meta}>{user?.email ?? 'Not signed in'}</Text>
+        {user?.phone ? <Text style={styles.meta}>{user.phone}</Text> : null}
         <Text style={styles.meta}>Role · {role}</Text>
       </GlassCard>
 
@@ -54,8 +54,8 @@ export default function ProfileScreen() {
           <View style={styles.toggleText}>
             <Text style={styles.toggleTitle}>Vendor Mode</Text>
             <Text style={styles.toggleBody}>
-              Swaps the app over to the shop owner’s order desk. Stands in for a real vendor
-              sign-in while Firebase Auth is pending.
+              Swaps the app over to the shop owner’s order desk. A local preview toggle —
+              your real role comes from your account profile.
             </Text>
           </View>
 
@@ -87,7 +87,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionLabel}>BACKEND</Text>
         <Text style={styles.meta}>{API_BASE_URL}</Text>
         <Text style={styles.meta}>
-          Auth token · {getAuthToken() ? 'set' : 'none (set expo.extra.devAuthToken)'}
+          Auth token · {getAuthToken() ? 'set (Firebase ID token)' : 'none'}
         </Text>
       </GlassCard>
 
