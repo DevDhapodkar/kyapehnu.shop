@@ -55,12 +55,13 @@
       "apiBaseUrl": "http://localhost:5001",
       "devAuthToken": "",
       "firebase": {
-        "apiKey": "",
+        "apiKey": "AIzaSyCfr4q93xlmNSNHp3YTC0pd2bPmoKktPhc",
         "authDomain": "kyapehnushop.firebaseapp.com",
         "projectId": "kyapehnushop",
         "storageBucket": "kyapehnushop.firebasestorage.app",
         "messagingSenderId": "484031497035",
-        "appId": ""
+        "appId": "1:484031497035:web:0b63fd4905b87ae0ed1ece",
+        "measurementId": "G-14Z91MHLCS"
       }
     }
   }
