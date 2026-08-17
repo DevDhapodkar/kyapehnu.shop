@@ -56,10 +56,10 @@
       "devAuthToken": "",
       "firebase": {
         "apiKey": "",
-        "authDomain": "",
-        "projectId": "",
-        "storageBucket": "",
-        "messagingSenderId": "",
+        "authDomain": "kyapehnushop.firebaseapp.com",
+        "projectId": "kyapehnushop",
+        "storageBucket": "kyapehnushop.firebasestorage.app",
+        "messagingSenderId": "484031497035",
         "appId": ""
       }
     }
