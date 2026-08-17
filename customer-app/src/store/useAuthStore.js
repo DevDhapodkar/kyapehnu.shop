@@ -188,6 +188,30 @@ export const useAuthStore = create((set, get) => ({
     });
   },
 
+  /**
+   * Send a password-reset email. Resolves true on success so the screen can
+   * show a confirmation; maps failures to a friendly message like the other
+   * actions. Does not change session state.
+   */
+  resetPassword: async (email) => {
+    if (!isFirebaseConfigured()) {
+      const message = 'Login is not configured. Add your Firebase keys.';
+      set({ authError: message });
+      throw new Error(message);
+    }
+
+    set({ busy: true, authError: null });
+    try {
+      await authService.sendPasswordReset(email);
+      return true;
+    } catch (error) {
+      set({ authError: friendlyAuthError(error) });
+      throw error;
+    } finally {
+      set({ busy: false });
+    }
+  },
+
   signOut: async () => {
     try {
       await authService.signOut();

@@ -45,7 +45,7 @@ Key files:
 | `src/auth/validation.js` | Form validation — pure, unit-tested. |
 | `src/auth/authErrors.js` | Firebase error code → friendly sentence — pure, unit-tested. |
 | `src/store/useAuthStore.js` | Session state, the auth-state listener, sign-in/up/out actions. |
-| `src/screens/AuthScreen.js` | The one login/sign-up surface. |
+| `src/screens/AuthScreen.js` | The one login/sign-up surface (incl. password reset). |
 
 ## Setup
 
@@ -75,6 +75,14 @@ If the keys are missing the app still boots — the sign-in screen shows a
   which bypasses rules).
 - The ID token expires hourly; `onIdTokenChanged` keeps the copy the app sends
   to the backend fresh.
+
+## Password reset
+
+The sign-in screen has a **Forgot password?** link that calls Firebase's
+`sendPasswordResetEmail`. Firebase hosts the reset page and the new-password
+form, so there is nothing else to build. The confirmation is deliberately
+neutral ("if an account exists…") so the response can't be used to tell which
+emails are registered.
 
 ## Vendor Mode toggle
 

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
 import GlassCard from '../components/GlassCard';
-import { validateAuthForm } from '../auth/validation';
+import { validateAuthForm, validateEmail } from '../auth/validation';
 import { isFirebaseConfigured } from '../config/firebase';
 import useAuthStore from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
@@ -36,12 +36,14 @@ export default function AuthScreen({ navigation, route }) {
   const [mode, setMode] = useState(route?.params?.mode === 'signup' ? 'signup' : 'signin');
   const [fields, setFields] = useState({ name: '', email: '', phone: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
+  const [notice, setNotice] = useState(null);
 
   const busy = useAuthStore((state) => state.busy);
   const authError = useAuthStore((state) => state.authError);
   const clearAuthError = useAuthStore((state) => state.clearAuthError);
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
   const signUpWithEmail = useAuthStore((state) => state.signUpWithEmail);
+  const resetPassword = useAuthStore((state) => state.resetPassword);
 
   const isSignup = mode === 'signup';
   const configured = isFirebaseConfigured();
@@ -51,12 +53,31 @@ export default function AuthScreen({ navigation, route }) {
     // Clear a field's error as the user starts fixing it.
     if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
     if (authError) clearAuthError();
+    if (notice) setNotice(null);
   };
 
   const switchMode = () => {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
     setFieldErrors({});
+    setNotice(null);
     clearAuthError();
+  };
+
+  // "Forgot password?" — reachable only in sign-in mode. Validates just the
+  // email, sends the reset, and confirms with a neutral message that does not
+  // reveal whether the address is registered.
+  const onForgotPassword = async () => {
+    const emailError = validateEmail(fields.email);
+    if (emailError) {
+      setFieldErrors((prev) => ({ ...prev, email: emailError }));
+      return;
+    }
+    try {
+      await resetPassword(fields.email);
+      setNotice(`If an account exists for ${fields.email.trim()}, a reset link is on its way.`);
+    } catch {
+      // Message is surfaced via `authError` from the store.
+    }
   };
 
   const onSubmit = async () => {
@@ -167,6 +188,18 @@ export default function AuthScreen({ navigation, route }) {
             returnKeyType="go"
           />
 
+          {!isSignup ? (
+            <Pressable
+              onPress={onForgotPassword}
+              disabled={busy || !configured}
+              hitSlop={spacing.xs}
+              style={styles.forgot}
+            >
+              <Text style={styles.forgotLabel}>Forgot password?</Text>
+            </Pressable>
+          ) : null}
+
+          {notice ? <Text style={styles.formNotice}>{notice}</Text> : null}
           {authError ? <Text style={styles.formError}>{authError}</Text> : null}
 
           <GlassButton
@@ -294,6 +327,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginBottom: spacing.sm,
+  },
+  formNotice: {
+    color: colors.gold,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: spacing.sm,
+  },
+  forgot: {
+    alignSelf: 'flex-end',
+    marginBottom: spacing.sm,
+  },
+  forgotLabel: {
+    color: colors.ash,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
   submit: {
     marginTop: spacing.xs,

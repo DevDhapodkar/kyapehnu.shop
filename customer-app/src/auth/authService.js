@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   onIdTokenChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
@@ -106,6 +107,15 @@ export const signIn = async ({ email, password }) => {
 export const signOut = () => firebaseSignOut(auth);
 
 /**
+ * Send a password-reset email. Firebase hosts the reset page and handles the
+ * new-password form, so this is the whole flow from the app's side. Note that
+ * Firebase resolves this call even for an unregistered address (so the response
+ * cannot be used to enumerate accounts); the UI shows the same "check your
+ * inbox" message either way.
+ */
+export const sendPasswordReset = (email) => sendPasswordResetEmail(auth, email.trim());
+
+/**
  * Subscribe to session changes. `onIdTokenChanged` fires on sign-in, sign-out,
  * AND on the hourly token refresh — using it (rather than `onAuthStateChanged`)
  * keeps the token the app sends to the backend from silently going stale.
@@ -127,6 +137,7 @@ export default {
   signUp,
   signIn,
   signOut,
+  sendPasswordReset,
   subscribeToSession,
   getIdToken,
 };
