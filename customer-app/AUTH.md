@@ -84,6 +84,34 @@ form, so there is nothing else to build. The confirmation is deliberately
 neutral ("if an account exists…") so the response can't be used to tell which
 emails are registered.
 
+## Vendor accounts
+
+Vendors are **admin-provisioned, not self-serve** — signup only ever creates a
+`CUSTOMER`, and the Firestore rules forbid a client from promoting itself. This
+is deliberate: onboarding a real shop needs verification (KYC/GSTIN), so a
+human approves it. A vendor account is two linked records:
+
+1. **Firestore** `users/{uid}.role = 'VENDOR'` — gates the app into the order desk.
+2. **MongoDB** `Vendor` document — the shop profile the vendor endpoints resolve.
+
+Provision both with the admin script (needs the backend service-account env):
+
+```bash
+cd backend
+# role only:
+npm run vendor:provision -- --email shop@example.com
+# role + shop profile (see backend/scripts/vendor.example.json):
+npm run vendor:provision -- --email shop@example.com --profile ./scripts/vendor.example.json
+# revoke:
+npm run vendor:provision -- --email shop@example.com --demote
+```
+
+The account must have signed up in the app first (so the Firebase user exists).
+After provisioning, that account lands on the vendor desk on next launch.
+
+For a quick **UI-only test** without the backend, just edit the account's
+`users/{uid}` document in the Firestore console and set `role` to `VENDOR`.
+
 ## Vendor Mode toggle
 
 The switch on the Profile screen is a **local preview** that flips the navigator

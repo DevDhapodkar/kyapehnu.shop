@@ -1,0 +1,21 @@
+{
+  "shopName": "Sitabuldi Threads",
+  "ownerName": "Rahul Verma",
+  "phone": "9876543210",
+  "whatsappNumber": "919876543210",
+  "address": {
+    "line1": "12 Main Road",
+    "area": "Sitabuldi",
+    "city": "Nagpur",
+    "pincode": "440012"
+  },
+  "location": {
+    "type": "Point",
+    "coordinates": [79.0882, 21.1458]
+  },
+  "operatingHours": [
+    { "day": "MON", "open": "10:00", "close": "21:00" },
+    { "day": "SAT", "open": "10:00", "close": "22:00" },
+    { "day": "SUN", "open": "11:00", "close": "20:00", "closed": false }
+  ]
+}
