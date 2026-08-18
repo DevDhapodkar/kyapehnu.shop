@@ -2,25 +2,47 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { fetchProducts } from '../api/vendorApi';
 import { allProducts as SAMPLE_PRODUCTS } from '../data/mockStores';
+import { fetchFirestoreProducts } from './firestoreCatalog';
 import { normalizeProducts } from './normalizeProduct';
 
 /**
- * Load the storefront catalogue from the backend, normalise it, and fall back to
- * the bundled sample catalogue if the backend is unreachable or empty. Pure of
- * React (no setState) so it can be called from an effect's async continuation
- * without tripping the cascading-render rule, and reused by `reload`.
+ * Load the storefront catalogue from the real database, falling back to the
+ * bundled sample catalogue when nothing is connected or seeded. Sources are
+ * tried in order:
+ *
+ *   1. Firestore — the free Firebase project already wired for auth also holds
+ *      the `products` collection, read directly by the client SDK. This is the
+ *      primary connection (no server required); seed it with
+ *      backend/scripts/seedFirestore.js.
+ *   2. REST /api/products — the Express + MongoDB backend, for deployments that
+ *      run it.
+ *   3. Sample catalogue — bundled demo data so browsing is never empty.
+ *
+ * Pure of React (no setState) so it can run in an effect's async continuation
+ * and be reused by `reload`.
  *
  * @returns {Promise<{ products: object[], source: 'live' | 'sample' }>}
  */
 export async function loadCatalog() {
+  // 1) Firestore (the connected database).
+  try {
+    const docs = await fetchFirestoreProducts();
+    if (docs.length) return { products: docs, source: 'live' };
+  } catch {
+    // fall through to the REST backend
+  }
+
+  // 2) Express + MongoDB backend, if one is running.
   try {
     const raw = await fetchProducts({ limit: 200 });
     const live = normalizeProducts(raw);
     if (live.length) return { products: live, source: 'live' };
-    return { products: SAMPLE_PRODUCTS, source: 'sample' };
   } catch {
-    return { products: SAMPLE_PRODUCTS, source: 'sample' };
+    // fall through to sample data
   }
+
+  // 3) Bundled sample catalogue.
+  return { products: SAMPLE_PRODUCTS, source: 'sample' };
 }
 
 /**

@@ -59,10 +59,13 @@ Ordered by how badly each one blocks a real launch.
    customer data path below.
 2. **No payments.** Orders are created with a client-supplied `totalPrice` and
    no payment object. A customer cannot pay; the platform cannot collect.
-3. **Customer app is running on mock data.** `mockStores.js` (338 lines) feeds
-   Home, ProductDetail, Cart and LiveTracking. `vendorApi.js` exposes **no**
-   customer endpoints — no nearby vendors, no product fetch, no order create.
-   The buyer flow and the backend have never spoken to each other.
+3. **Customer catalogue now reads a real database.** The shopping experience
+   (welcome page, department lists, filters, search, nearest-to-you rail) reads
+   through `src/shop/useCatalog.js`: **Cloud Firestore `products`** first (the
+   connected DB — seed with `npm run seed:firestore`), then the Express/MongoDB
+   `GET /api/products`, then the bundled sample catalogue as a fallback. See
+   [customer-app/SHOPPING.md](../customer-app/SHOPPING.md). Still open: order
+   create/checkout and LiveTracking are not yet wired to the backend.
 4. **`totalPrice` is trusted from the client.** Anyone can post an order for
    ₹1. Price must be recomputed server-side from the catalogue.
 5. **Stock is never decremented.** `Product.sizes[].stock` exists and nothing

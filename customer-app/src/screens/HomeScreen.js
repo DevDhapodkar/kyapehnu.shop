@@ -8,8 +8,10 @@ import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { allProducts, formatINR, productsByProximity } from '../data/mockStores';
-import { DEPARTMENTS, departmentCover } from '../shop/catalog';
+import { formatINR } from '../data/mockStores';
+import { DEPARTMENTS, departmentCover, sortProducts } from '../shop/catalog';
+import { withDistance } from '../shop/distance';
+import useCatalog from '../shop/useCatalog';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -53,7 +55,7 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const { areaLabel, status, refresh } = useDeliveryLocation();
+  const { coords, areaLabel, status, refresh } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
   const cartTotal = useCartStore(selectCartTotal);
 
@@ -129,6 +131,7 @@ export default function HomeScreen({ navigation }) {
         <StatusBar barStyle="light-content" />
         <Storefront
           insets={insets}
+          coords={coords}
           onOpenProduct={openProduct}
           onOpenShop={openShop}
           onOpenDepartment={openDepartment}
@@ -217,8 +220,14 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
  * base, with no 3D scene behind it.
  */
-function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment, onSearch }) {
+function Storefront({ insets, coords, onOpenProduct, onOpenShop, onOpenDepartment, onSearch }) {
   const [query, setQuery] = useState('');
+  const { products, source } = useCatalog();
+
+  // Live "nearest to you": distance from the shopper's GPS to each shop, nearest
+  // first. Falls back gracefully — products with no store location just sort last.
+  const nearest = sortProducts(withDistance(products, coords), 'proximity').slice(0, 12);
+  const storeCount = new Set(products.map((p) => p.storeName).filter(Boolean)).size;
 
   return (
     <Animated.ScrollView
@@ -262,7 +271,7 @@ function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment, onSea
           data={DEPARTMENTS}
           keyExtractor={(item) => item.key}
           renderItem={({ item }) => {
-            const cover = departmentCover(item.key, allProducts);
+            const cover = departmentCover(item.key, products);
             return (
               <Pressable
                 onPress={() => onOpenDepartment(item)}
@@ -297,7 +306,7 @@ function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment, onSea
         </View>
 
         <FlatList
-          data={productsByProximity}
+          data={nearest}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ProductCard product={item} onPress={() => onOpenProduct(item)} />
@@ -313,7 +322,8 @@ function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment, onSea
         </Pressable>
 
         <Text style={styles.feedFootnote}>
-          {productsByProximity.length} pieces across 5 independent Nagpur stores.
+          {products.length} pieces across {storeCount || 5} independent Nagpur stores
+          {source === 'sample' ? '  ·  sample catalogue' : ''}.
         </Text>
       </View>
 

@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "vendor:provision": "node scripts/provisionVendor.js",
     "admin:set": "node scripts/setAdmin.js",
-    "seed:catalog": "node scripts/seedCatalog.js"
+    "seed:catalog": "node scripts/seedCatalog.js",
+    "seed:firestore": "node scripts/seedFirestore.js"
   },
   "keywords": [],
   "author": "",

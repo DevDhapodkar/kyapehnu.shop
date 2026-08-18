@@ -23,6 +23,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Public storefront catalogue. Anyone may read products and vendor cards
+    // (this is the browse surface); only the Admin SDK / console may write them
+    // (the seed script and the vendor-approval flow), never a client.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /vendors/{vendorId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
 
