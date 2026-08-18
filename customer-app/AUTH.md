@@ -148,6 +148,34 @@ npm run vendor:provision -- --email shop@example.com --demote   # revoke
 For a quick **UI-only test** without the backend, edit the account's
 `users/{uid}` doc in the Firestore console and set `role` to `VENDOR`.
 
+### Demo vendors (Firestore-backed desk)
+
+The vendor desk (order queue, order detail, catalog manager) reads and writes
+**Cloud Firestore** when a vendor is signed in — the same connected database as
+the storefront — via `src/vendor/vendorDesk.js` (it falls back to the Express +
+MongoDB REST backend when Firebase isn't configured). Reads are scoped to the
+vendor's uid; `firestore.rules` lets a shop touch only its own `orders` and
+`products`.
+
+Seed two ready-to-use demo shops (needs the Admin service account in
+`backend/.env`):
+
+```bash
+cd backend
+npm run seed:vendors     # creates the accounts, links products, adds demo orders
+npm run deploy:rules     # publish the vendor read/write rules
+```
+
+Then log into the app with either:
+
+| Email | Password | Shop |
+|-------|----------|------|
+| `atelier@kyapehnu.shop` | `KyaPehnu@123` | Atelier Dharampeth |
+| `house@kyapehnu.shop` | `KyaPehnu@123` | House of Civil Lines |
+
+Each lands on the order desk with real orders to Accept / Mark Ready, and a
+catalog of their linked products to toggle in/out of stock or extend.
+
 ## Vendor Mode toggle
 
 The switch on the Profile screen is a **local preview** that flips the navigator

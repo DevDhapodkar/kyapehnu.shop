@@ -2,13 +2,16 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import * as desk from '../vendor/vendorDesk';
+
 /**
- * Every call the vendor flow makes to the Express `/backend` goes through here.
+ * Every call the vendor flow makes goes through here.
  *
  * Screens never touch axios directly: they call the named helpers below, which
- * return plain data and throw `Error`s carrying the server's own message. That
- * keeps axios' response envelope (and its unhelpful "Request failed with
- * status code 500") out of the UI layer.
+ * return plain data and throw `Error`s carrying a readable message. When a
+ * vendor is signed in with Firebase configured (`desk.isVendorDeskLive()`), the
+ * vendor-desk helpers read/write Cloud Firestore — the connected database;
+ * otherwise they fall back to the Express + MongoDB REST backend.
  */
 
 const extra = Constants.expoConfig?.extra ?? {};
@@ -111,64 +114,78 @@ export const fetchMyVendorApplication = () =>
 
 /* ---------------------------------------------------------------- vendor -- */
 
-/** GET /api/vendors/me — the shop profile behind the current token. */
+/** The shop profile for the signed-in vendor (Firestore, or REST fallback). */
 export const fetchVendorProfile = () =>
-  request(() => client.get('/vendors/me'), 'Failed to load shop profile');
+  desk.isVendorDeskLive()
+    ? desk.fetchVendorProfileFS()
+    : request(() => client.get('/vendors/me'), 'Failed to load shop profile');
 
 /* ---------------------------------------------------------------- orders -- */
 
 /**
- * GET /api/orders/vendor/mine
+ * The vendor's orders, optionally filtered by status.
  * @param {string[]} [statuses] e.g. ['PENDING', 'ACCEPTED'] — omit for all.
  */
 export const fetchVendorOrders = (statuses) =>
-  request(
-    () =>
-      client.get('/orders/vendor/mine', {
-        params: statuses?.length ? { status: statuses.join(',') } : undefined,
-      }),
-    'Failed to load orders'
-  );
+  desk.isVendorDeskLive()
+    ? desk.fetchVendorOrdersFS(statuses)
+    : request(
+        () =>
+          client.get('/orders/vendor/mine', {
+            params: statuses?.length ? { status: statuses.join(',') } : undefined,
+          }),
+        'Failed to load orders'
+      );
 
-/** GET /api/orders/:orderId */
+/** A single order by id. */
 export const fetchOrder = (orderId) =>
-  request(() => client.get(`/orders/${orderId}`), 'Failed to load order');
+  desk.isVendorDeskLive()
+    ? desk.fetchOrderFS(orderId)
+    : request(() => client.get(`/orders/${orderId}`), 'Failed to load order');
 
-/** PATCH /api/orders/:orderId/status — the "Accept Order" action. */
+/** The "Accept Order" action — moves the order to ACCEPTED. */
 export const acceptOrder = (orderId) =>
-  request(
-    () => client.patch(`/orders/${orderId}/status`, { status: 'ACCEPTED' }),
-    'Failed to accept order'
-  );
+  desk.isVendorDeskLive()
+    ? desk.acceptOrderFS(orderId)
+    : request(
+        () => client.patch(`/orders/${orderId}/status`, { status: 'ACCEPTED' }),
+        'Failed to accept order'
+      );
 
 /**
- * POST /api/orders/:orderId/ready — the "Mark Ready for Pickup" action.
- *
- * This is the one call with real-world side effects: the backend dispatches a
- * Porter driver to the store and sends the vendor a WhatsApp confirmation, in
- * parallel. Resolves to `{ order, logistics: { porter, whatsapp } }` where each
- * logistics entry is `{ ok: true }` or `{ ok: false, error }` — a driver can
- * fail to dispatch while the order itself moved on, so callers should surface
- * `logistics` rather than assume a 200 means both legs succeeded.
+ * "Mark Ready for Pickup". On the MongoDB backend this dispatches a Porter
+ * driver and a WhatsApp confirmation in parallel and resolves to
+ * `{ order, logistics: { porter, whatsapp } }`, where each logistics entry is
+ * `{ ok: true }` or `{ ok: false, error }`. The Firestore desk advances the
+ * status and reports logistics as not-run (those integrations live on the
+ * server), so callers should surface `logistics` rather than assume success.
  */
 export const markOrderReady = (orderId) =>
-  request(() => client.post(`/orders/${orderId}/ready`), 'Failed to mark order ready');
+  desk.isVendorDeskLive()
+    ? desk.markOrderReadyFS(orderId)
+    : request(() => client.post(`/orders/${orderId}/ready`), 'Failed to mark order ready');
 
 /* --------------------------------------------------------------- catalog -- */
 
-/** GET /api/products/mine — includes out-of-stock listings. */
+/** The vendor's own listings, including out-of-stock ones. */
 export const fetchCatalog = () =>
-  request(() => client.get('/products/mine'), 'Failed to load catalog');
+  desk.isVendorDeskLive()
+    ? desk.fetchCatalogFS()
+    : request(() => client.get('/products/mine'), 'Failed to load catalog');
 
-/** PATCH /api/products/:productId — the In Stock / Out of Stock toggle. */
+/** The In Stock / Out of Stock toggle. */
 export const setProductAvailability = (productId, isAvailable) =>
-  request(
-    () => client.patch(`/products/${productId}`, { isAvailable }),
-    'Failed to update availability'
-  );
+  desk.isVendorDeskLive()
+    ? desk.setProductAvailabilityFS(productId, isAvailable)
+    : request(
+        () => client.patch(`/products/${productId}`, { isAvailable }),
+        'Failed to update availability'
+      );
 
-/** POST /api/products — new listing from the catalog manager. */
+/** New listing from the catalog manager. */
 export const createProduct = (payload) =>
-  request(() => client.post('/products', payload), 'Failed to create listing');
+  desk.isVendorDeskLive()
+    ? desk.createProductFS(payload)
+    : request(() => client.post('/products', payload), 'Failed to create listing');
 
 export default client;

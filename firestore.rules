@@ -23,17 +23,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Public storefront catalogue. Anyone may read products and vendor cards
-    // (this is the browse surface); only the Admin SDK / console may write them
-    // (the seed script and the vendor-approval flow), never a client.
+    // Public storefront catalogue. Anyone may read; a vendor may create and edit
+    // only their OWN listings (matched by vendorUid). Seeded/admin products
+    // without a vendorUid are read-only to clients (Admin SDK writes them).
     match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.vendorUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.vendorUid == request.auth.uid;
+    }
+
+    // Vendor shop cards. Public read (store name/area on product pages); writes
+    // only via the Admin SDK — the approval flow and the seed script.
+    match /vendors/{vendorId} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /vendors/{vendorId} {
-      allow read: if true;
-      allow write: if false;
+    // Orders carry customer PII, so reads are limited to the order's vendor or
+    // customer. A vendor may advance the status of their own orders; they can't
+    // reassign it to another shop. Creation is server-side (seed now, checkout
+    // later).
+    match /orders/{orderId} {
+      allow read: if isSignedIn()
+        && (resource.data.vendorUid == request.auth.uid
+            || resource.data.customerUid == request.auth.uid);
+      allow update: if isSignedIn()
+        && resource.data.vendorUid == request.auth.uid
+        && request.resource.data.vendorUid == resource.data.vendorUid;
+      allow create, delete: if false;
     }
 
     match /users/{userId} {

@@ -11,7 +11,8 @@
     "admin:set": "node scripts/setAdmin.js",
     "seed:catalog": "node scripts/seedCatalog.js",
     "seed:firestore": "node scripts/seedFirestore.js",
-    "deploy:rules": "node scripts/deployFirestoreRules.js"
+    "deploy:rules": "node scripts/deployFirestoreRules.js",
+    "seed:vendors": "node scripts/seedVendors.js"
   },
   "keywords": [],
   "author": "",
