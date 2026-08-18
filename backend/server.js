@@ -18,6 +18,7 @@ import vendorRoutes from './routes/vendorRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import adminRouter from './admin/router.js';
 
 // Validate env at boot; refuse to start if a required var is missing.
@@ -95,6 +96,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Server-rendered admin portal.
 app.use('/admin', adminRouter);

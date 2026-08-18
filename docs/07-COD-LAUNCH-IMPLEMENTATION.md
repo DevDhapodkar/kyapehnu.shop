@@ -88,6 +88,7 @@ via `GET /api/orders/:id/invoice` and rendered as a printable page in the portal
 | Porter hardcoded UAT URL | `PORTER_API_BASE` env, dispatch behind `PORTER_ENABLED` |
 | No money model / commission / payout | Full paise breakdown + margin + platform earnings on every order |
 | No admin panel / QC / onboarding | Server-rendered admin portal |
+| No image upload for the catalogue | Cloudinary signed direct-upload (see below) |
 | No cancellation/refund path | CANCELLED/REJECTED states + COD refund status + restock |
 | No tests / CI | `node:test` suite (money, pricing, state machine, validation, wiring) + GitHub Actions |
 | Vendor Mode toggle shipped live | Gated behind `expo.extra.enableVendorModeToggle` (dev-only) |

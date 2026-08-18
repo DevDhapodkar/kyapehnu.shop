@@ -52,6 +52,15 @@ const whatsappEnabled =
   bool(process.env.WHATSAPP_ENABLED, false) &&
   Boolean(process.env.META_WHATSAPP_TOKEN && process.env.META_PHONE_NUMBER_ID);
 
+// Image uploads use Cloudinary (best free tier for images — no card required,
+// CDN + auto-optimisation). Enabled whenever the three creds are present; the
+// api_secret never leaves the server (signed direct-upload).
+const imageUploadsEnabled = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+);
+
 export const loadEnv = () => {
   assertRequired();
 
@@ -85,8 +94,16 @@ export const loadEnv = () => {
       payments: paymentsEnabled, // gateway; false ⇒ COD only
       porter: porterEnabled,
       whatsapp: whatsappEnabled,
+      imageUploads: imageUploadsEnabled,
       codOnly: !paymentsEnabled,
     }),
+
+    cloudinary: {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      apiSecret: process.env.CLOUDINARY_API_SECRET,
+      folder: process.env.CLOUDINARY_FOLDER || 'kyapehnu',
+    },
 
     whatsapp: {
       phoneNumberId: process.env.META_PHONE_NUMBER_ID,

@@ -13,11 +13,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 
 import GlassButton from '../../components/GlassButton';
 import GlassCard from '../../components/GlassCard';
 import { colors, radii, spacing } from '../../theme/colors';
 import useVendorStore from '../../store/useVendorStore';
+import { uploadProductImage } from '../../api/uploads';
 import { formatCurrency } from '../../utils/format';
 
 const CATEGORIES = ['MEN', 'WOMEN', 'KIDS', 'UNISEX'];
@@ -28,6 +31,7 @@ const EMPTY_DRAFT = {
   price: '',
   sizes: '',
   description: '',
+  imageUrl: null,
 };
 
 /**
@@ -50,10 +54,38 @@ export default function CatalogManagerScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadCatalog();
   }, [loadCatalog]);
+
+  // Pick a photo from the library and upload it to Cloudinary (via a signed,
+  // server-issued URL). The returned CDN URL is stashed on the draft and saved
+  // with the listing. Photos are optional — a listing without one still works.
+  const onPickImage = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        return Alert.alert('Permission needed', 'Allow photo access to add a product image.');
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [3, 4],
+      });
+      if (result.canceled) return;
+
+      setUploading(true);
+      const url = await uploadProductImage(result.assets[0]);
+      setDraft((d) => ({ ...d, imageUrl: url }));
+    } catch (err) {
+      Alert.alert('Upload failed', err.message);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const onToggle = useCallback(
     async (product, next) => {
@@ -84,13 +116,15 @@ export default function CatalogManagerScreen() {
 
     setSaving(true);
     try {
+      // Backend expects `basePriceRupees` (vendor's price); the admin adds the
+      // Kya Pehnu margin at approval. New listings land in PENDING_APPROVAL.
       await addProduct({
         name: draft.name.trim(),
         category: draft.category,
-        price,
+        basePriceRupees: price,
         description: draft.description.trim() || undefined,
         sizes: sizes.length ? sizes : [{ size: 'FREE', stock: 1 }],
-        isAvailable: true,
+        images: draft.imageUrl ? [draft.imageUrl] : undefined,
       });
 
       setDraft(EMPTY_DRAFT);
@@ -181,6 +215,30 @@ export default function CatalogManagerScreen() {
 
             {composerOpen ? (
               <GlassCard strong compact style={styles.composer}>
+                <Text style={styles.fieldLabel}>PHOTO</Text>
+                <Pressable
+                  onPress={onPickImage}
+                  disabled={uploading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add product photo"
+                  style={({ pressed }) => [styles.photoPicker, pressed && styles.pressed]}
+                >
+                  {draft.imageUrl ? (
+                    <Image source={{ uri: draft.imageUrl }} style={styles.photoPreview} contentFit="cover" />
+                  ) : (
+                    <View style={styles.photoPlaceholder}>
+                      {uploading ? (
+                        <ActivityIndicator color={colors.platinum} />
+                      ) : (
+                        <Text style={styles.photoPlaceholderText}>+ ADD PHOTO</Text>
+                      )}
+                    </View>
+                  )}
+                  {draft.imageUrl && !uploading ? (
+                    <Text style={styles.photoReplace}>Tap to replace</Text>
+                  ) : null}
+                </Pressable>
+
                 <Field
                   label="NAME"
                   value={draft.name}
@@ -319,6 +377,38 @@ const styles = StyleSheet.create({
   },
   composer: {
     marginBottom: spacing.md,
+  },
+  photoPicker: {
+    marginBottom: spacing.sm,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: radii.sm,
+    backgroundColor: colors.charcoalLight,
+  },
+  photoPlaceholder: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.obsidianDeep,
+  },
+  photoPlaceholderText: {
+    color: colors.platinum,
+    fontSize: 11,
+    letterSpacing: 1.8,
+  },
+  photoReplace: {
+    color: colors.ash,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    marginTop: 6,
   },
   field: {
     marginBottom: spacing.sm,

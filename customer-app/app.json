@@ -40,6 +40,12 @@
       ],
       "expo-asset",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kya Pehnu? needs photo access so shop owners can add product images to their listings."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Kya Pehnu? uses your location to show clothing from shops nearest to you and to track your delivery.",
