@@ -1,5 +1,5 @@
-import { Dimensions, FlatList, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { useCallback } from 'react';
+import { Dimensions, FlatList, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,6 +77,8 @@ export default function HomeScreen({ navigation }) {
   const openShop = () => navigation.navigate('Shop');
   const openDepartment = (dept) =>
     navigation.navigate('ProductList', { department: dept.key, title: dept.label });
+  const openSearch = (q) =>
+    navigation.navigate('ProductList', q ? { query: q, title: `“${q}”` } : { title: 'All' });
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
@@ -130,6 +132,7 @@ export default function HomeScreen({ navigation }) {
           onOpenProduct={openProduct}
           onOpenShop={openShop}
           onOpenDepartment={openDepartment}
+          onSearch={openSearch}
         />
         {header}
       </View>
@@ -214,13 +217,38 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
  * base, with no 3D scene behind it.
  */
-function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment }) {
+function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment, onSearch }) {
+  const [query, setQuery] = useState('');
+
   return (
     <Animated.ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.scrollContent, styles.storefront]}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
+      {/* Search — the fastest path to a specific piece. */}
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for shirts, dresses, watches…"
+          placeholderTextColor={colors.slate}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => onSearch(query.trim())}
+          returnKeyType="search"
+          autoCapitalize="none"
+        />
+        <Pressable
+          onPress={() => onSearch(query.trim())}
+          accessibilityRole="button"
+          accessibilityLabel="Search products"
+          style={styles.searchGo}
+        >
+          <Text style={styles.searchGoLabel}>GO</Text>
+        </Pressable>
+      </View>
+
       {/* Shop by department — the entry into the full filtered catalogue. */}
       <View style={styles.feed}>
         <View style={styles.deptHead}>
@@ -320,6 +348,39 @@ const styles = StyleSheet.create({
     // The CTA reads as the resting frame, so it sits a touch higher than the
     // story cards rather than hard against the bottom edge.
     justifyContent: 'center',
+  },
+
+  // Search
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.obsidian,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.ivory,
+    fontSize: 15,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFillStrong,
+  },
+  searchGo: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: colors.crimsonBright,
+  },
+  searchGoLabel: {
+    color: colors.ivory,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
 
   // Feed

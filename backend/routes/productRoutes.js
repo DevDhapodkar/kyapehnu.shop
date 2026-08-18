@@ -1,6 +1,7 @@
 import express from 'express';
 import { verifyToken, requireVendor } from '../middleware/authMiddleware.js';
 import {
+  listProducts,
   createProduct,
   listByVendor,
   listMyProducts,
@@ -9,6 +10,9 @@ import {
 } from '../controllers/productController.js';
 
 const router = express.Router();
+
+// Public storefront feed + search (no auth).
+router.get('/', listProducts);
 
 router.post('/', verifyToken, requireVendor, createProduct);
 

@@ -14,8 +14,11 @@ const productSchema = new mongoose.Schema(
     name: { type: String, required: true },
     description: { type: String },
     category: {
+      // Department — the top level of the shopping taxonomy the customer app
+      // filters on. WATCHES/ACCESSORIES were added alongside the shopping
+      // experience so every storefront department is representable.
       type: String,
-      enum: ['MEN', 'WOMEN', 'KIDS', 'UNISEX'],
+      enum: ['MEN', 'WOMEN', 'KIDS', 'UNISEX', 'WATCHES', 'ACCESSORIES'],
       required: true,
     },
     subCategory: { type: String }, // Shirts, Dresses, Trousers...

@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProductGridCard from '../components/ProductGridCard';
 import FilterSheet from '../components/shop/FilterSheet';
-import { allProducts } from '../data/mockStores';
 import {
   activeFilterCount,
   applyCatalog,
@@ -14,6 +13,7 @@ import {
   getFacets,
   SORTS,
 } from '../shop/catalog';
+import useCatalog from '../shop/useCatalog';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -39,6 +39,7 @@ export default function ProductListScreen({ navigation, route }) {
   }));
   const [sort, setSort] = useState('proximity');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { products, source } = useCatalog();
 
   const lockDepartment = Boolean(params.department);
 
@@ -49,11 +50,11 @@ export default function ProductListScreen({ navigation, route }) {
   // Facets are computed for the department scope only, so the chips a shopper
   // sees always belong to what they're browsing and don't churn as they filter.
   const facets = useMemo(
-    () => getFacets(filterProducts(allProducts, { department: filters.department })),
-    [filters.department]
+    () => getFacets(filterProducts(products, { department: filters.department })),
+    [products, filters.department]
   );
 
-  const results = useMemo(() => applyCatalog(allProducts, filters, sort), [filters, sort]);
+  const results = useMemo(() => applyCatalog(products, filters, sort), [products, filters, sort]);
 
   const count = activeFilterCount(filters);
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
@@ -100,6 +101,7 @@ export default function ProductListScreen({ navigation, route }) {
 
       <Text style={styles.count}>
         {results.length} {results.length === 1 ? 'piece' : 'pieces'}
+        {source === 'sample' ? '  ·  sample catalogue' : ''}
       </Text>
     </View>
   );

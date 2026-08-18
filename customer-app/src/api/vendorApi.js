@@ -89,6 +89,16 @@ const request = async (fn, fallback) => {
 export const syncUserProfile = (profile) =>
   request(() => client.post('/users/sync', profile), 'Failed to sync profile');
 
+/* -------------------------------------------------------------- catalog -- */
+
+/**
+ * GET /api/products — the public storefront feed + search. Accepts facet
+ * filters and a text query `q`; returns available products across all vendors
+ * with the vendor populated. No auth required.
+ */
+export const fetchProducts = (params = {}) =>
+  request(() => client.get('/products', { params }), 'Failed to load products');
+
 /* --------------------------------------------------- vendor application -- */
 
 /** POST /api/vendor-applications — submit or update the "become a vendor" form. */

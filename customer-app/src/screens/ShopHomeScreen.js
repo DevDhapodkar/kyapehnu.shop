@@ -3,13 +3,13 @@ import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { allProducts } from '../data/mockStores';
 import {
   DEPARTMENTS,
   departmentCount,
   departmentCover,
   sortProducts,
 } from '../shop/catalog';
+import useCatalog from '../shop/useCatalog';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -23,6 +23,7 @@ import { colors, radii, spacing } from '../theme/colors';
 export default function ShopHomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
+  const { products } = useCatalog();
 
   const openList = (params) => navigation.navigate('ProductList', params);
 
@@ -32,7 +33,7 @@ export default function ShopHomeScreen({ navigation }) {
   };
 
   // A short "biggest saving" rail to give the welcome page a merchandised feel.
-  const deals = sortProducts(allProducts, 'discount').slice(0, 6);
+  const deals = sortProducts(products, 'discount').slice(0, 6);
 
   return (
     <ScrollView
@@ -72,8 +73,8 @@ export default function ShopHomeScreen({ navigation }) {
 
       <View style={styles.grid}>
         {DEPARTMENTS.map((dept) => {
-          const cover = departmentCover(dept.key, allProducts);
-          const count = departmentCount(dept.key, allProducts);
+          const cover = departmentCover(dept.key, products);
+          const count = departmentCount(dept.key, products);
           return (
             <Pressable
               key={dept.key}
