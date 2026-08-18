@@ -2,6 +2,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import AuthScreen from '../screens/AuthScreen';
+import VendorApplicationScreen from '../screens/VendorApplicationScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
@@ -91,6 +92,11 @@ function CustomerFlow() {
         name="Profile"
         component={ProfileScreen}
         options={{ title: 'Profile' }}
+      />
+      <CustomerStack.Screen
+        name="VendorApplication"
+        component={VendorApplicationScreen}
+        options={{ title: 'Sell on Kya Pehnu?' }}
       />
     </CustomerStack.Navigator>
   );

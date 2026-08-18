@@ -16,7 +16,7 @@ import useVendorStore from '../store/useVendorStore';
  * Flipping it swaps the entire navigator, so the vendor working set is cleared
  * on the way out to avoid one shop's orders surviving into the next session.
  */
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const role = useAuthStore((state) => state.role);
   const user = useAuthStore((state) => state.user);
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
@@ -69,6 +69,25 @@ export default function ProfileScreen() {
           />
         </View>
       </GlassCard>
+
+      {isLoggedIn && !isVendor ? (
+        <Pressable
+          onPress={() => navigation.navigate('VendorApplication')}
+          accessibilityRole="button"
+          accessibilityLabel="Apply to become a vendor"
+          style={({ pressed }) => [pressed && styles.applyPressed]}
+        >
+          <GlassCard compact style={styles.card}>
+            <Text style={styles.sectionLabel}>FOR SHOP OWNERS</Text>
+            <Text style={styles.name}>Sell on Kya Pehnu?</Text>
+            <Text style={styles.meta}>
+              Run a clothing shop in Nagpur? Apply to become a vendor and start taking
+              orders from buyers nearby.
+            </Text>
+            <Text style={styles.applyCta}>Apply to become a vendor →</Text>
+          </GlassCard>
+        </Pressable>
+      ) : null}
 
       {isVendor && vendorProfile ? (
         <GlassCard compact style={styles.card}>
@@ -134,6 +153,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 19,
     marginTop: 5,
+  },
+  applyPressed: {
+    opacity: 0.75,
+  },
+  applyCta: {
+    color: colors.gold,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginTop: spacing.sm,
   },
   toggleRow: {
     flexDirection: 'row',

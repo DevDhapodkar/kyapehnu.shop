@@ -6,7 +6,10 @@
 // preset and jsdom; this config deliberately keeps the unit tier lean.
 module.exports = {
   testEnvironment: 'node',
-  testMatch: ['<rootDir>/src/auth/__tests__/**/*.test.js'],
+  testMatch: [
+    '<rootDir>/src/auth/__tests__/**/*.test.js',
+    '<rootDir>/src/vendor/__tests__/**/*.test.js',
+  ],
   transform: {
     '^.+\\.js$': ['babel-jest', { presets: ['babel-preset-expo'] }],
   },

@@ -89,6 +89,16 @@ const request = async (fn, fallback) => {
 export const syncUserProfile = (profile) =>
   request(() => client.post('/users/sync', profile), 'Failed to sync profile');
 
+/* --------------------------------------------------- vendor application -- */
+
+/** POST /api/vendor-applications — submit or update the "become a vendor" form. */
+export const submitVendorApplication = (payload) =>
+  request(() => client.post('/vendor-applications', payload), 'Failed to submit application');
+
+/** GET /api/vendor-applications/me — the applicant's own application, or null. */
+export const fetchMyVendorApplication = () =>
+  request(() => client.get('/vendor-applications/me'), 'Failed to load application');
+
 /* ---------------------------------------------------------------- vendor -- */
 
 /** GET /api/vendors/me — the shop profile behind the current token. */

@@ -84,33 +84,69 @@ form, so there is nothing else to build. The confirmation is deliberately
 neutral ("if an account exists…") so the response can't be used to tell which
 emails are registered.
 
-## Vendor accounts
+## Vendor accounts (apply → admin review → approve)
 
-Vendors are **admin-provisioned, not self-serve** — signup only ever creates a
-`CUSTOMER`, and the Firestore rules forbid a client from promoting itself. This
-is deliberate: onboarding a real shop needs verification (KYC/GSTIN), so a
-human approves it. A vendor account is two linked records:
+Vendors are **admin-approved, not self-serve**: signup only ever creates a
+`CUSTOMER`, and the Firestore rules forbid a client from promoting itself. A
+vendor account is two linked records — Firestore `users/{uid}.role = 'VENDOR'`
+(gates the app into the order desk) and a MongoDB `Vendor` document (the shop
+profile the vendor endpoints resolve).
 
-1. **Firestore** `users/{uid}.role = 'VENDOR'` — gates the app into the order desk.
-2. **MongoDB** `Vendor` document — the shop profile the vendor endpoints resolve.
+### The flow
 
-Provision both with the admin script (needs the backend service-account env):
+1. **Apply.** A signed-in customer opens Profile → **Sell on Kya Pehnu?** and
+   fills the form (`VendorApplicationScreen`). It POSTs a `VendorApplication`
+   (`POST /api/vendor-applications`) that lands in the review queue as `PENDING`.
+   The screen then shows live status and lets them edit/resubmit.
+2. **Review.** An admin opens the **admin panel at `/admin`** (served by the
+   backend), sees the pending request with the whole submitted form, and can
+   **edit any field**, then **Approve** or **Reject** (with a note).
+3. **Approve.** Approval runs the provisioning service: it flips the Firestore
+   role to `VENDOR` and creates/updates the `Vendor` document from the
+   (possibly admin-edited) application. That account lands on the order desk on
+   next launch. Rejection sends a reason back to the applicant.
+
+### Admin panel setup
+
+The panel is a static page the backend serves at `/admin`; it signs the admin in
+with Firebase and calls the gated `/api/admin/*` routes. Grant admin rights by
+either:
+
+```bash
+# quickest: list admin emails in backend/.env
+ADMIN_EMAILS=you@example.com,partner@example.com
+
+# or durably, per account (Firebase custom claim):
+cd backend && npm run admin:set -- --email you@example.com
+```
+
+Then visit `http://<backend-host>/admin` and sign in with that Firebase account.
+
+### Admin API
+
+All under `/api/admin` (require a verified token **and** admin authority):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/vendor-applications?status=PENDING` | Review queue |
+| GET | `/vendor-applications/:id` | Full submitted form |
+| PATCH | `/vendor-applications/:id` | Edit any field |
+| POST | `/vendor-applications/:id/approve` | Promote → create vendor |
+| POST | `/vendor-applications/:id/reject` | Reject with a note |
+| GET / PATCH | `/vendors`, `/vendors/:id` | Edit live shops |
+
+### CLI alternative
+
+The same promotion is available from the command line (bypasses the queue):
 
 ```bash
 cd backend
-# role only:
-npm run vendor:provision -- --email shop@example.com
-# role + shop profile (see backend/scripts/vendor.example.json):
 npm run vendor:provision -- --email shop@example.com --profile ./scripts/vendor.example.json
-# revoke:
-npm run vendor:provision -- --email shop@example.com --demote
+npm run vendor:provision -- --email shop@example.com --demote   # revoke
 ```
 
-The account must have signed up in the app first (so the Firebase user exists).
-After provisioning, that account lands on the vendor desk on next launch.
-
-For a quick **UI-only test** without the backend, just edit the account's
-`users/{uid}` document in the Firestore console and set `role` to `VENDOR`.
+For a quick **UI-only test** without the backend, edit the account's
+`users/{uid}` doc in the Firestore console and set `role` to `VENDOR`.
 
 ## Vendor Mode toggle
 

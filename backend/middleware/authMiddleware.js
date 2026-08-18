@@ -42,4 +42,30 @@ const requireVendor = async (req, res, next) => {
   }
 };
 
-export { verifyToken, requireUser, requireVendor };
+/**
+ * Admin gate for the vendor-review panel. An account is an admin if either:
+ *   - its Firebase token carries a custom claim `admin: true`
+ *     (set with `firebase-admin` — see scripts/setAdmin.js), or
+ *   - its email is listed in the ADMIN_EMAILS env var (comma-separated),
+ *     the quickest way to bootstrap the very first admin.
+ *
+ * Runs after `verifyToken`, so `req.firebaseUser` is the verified token.
+ */
+const adminEmails = () =>
+  (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+const requireAdmin = (req, res, next) => {
+  const { admin, email } = req.firebaseUser || {};
+  const isAdmin = admin === true || (email && adminEmails().includes(email.toLowerCase()));
+
+  if (!isAdmin) {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  next();
+};
+
+export { verifyToken, requireUser, requireVendor, requireAdmin };

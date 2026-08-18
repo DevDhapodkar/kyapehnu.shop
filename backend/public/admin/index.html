@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kya Pehnu? — Admin</title>
+  <style>
+    :root {
+      --obsidian: #050506; --deep: #0a0a0c; --charcoal: #131316; --charcoal-2: #1c1c21;
+      --graphite: #2a2a31; --ivory: #f5f3ef; --platinum: #c9c7c2; --ash: #8a8891;
+      --slate: #5c5a63; --crimson: #c4243a; --gold: #c8a24a; --border: rgba(245,243,239,.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--obsidian); color: var(--ivory);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-weight: 300; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--gold); }
+    h1, h2, h3 { font-weight: 300; letter-spacing: -.3px; }
+    .brand { color: var(--gold); letter-spacing: 4px; font-size: 11px; }
+    button {
+      font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--charcoal); color: var(--ivory); padding: 9px 14px; letter-spacing: .5px;
+    }
+    button:hover { background: var(--charcoal-2); }
+    button.primary { background: var(--crimson); border-color: var(--crimson); font-weight: 600; }
+    button.gold { background: transparent; border-color: var(--gold); color: var(--gold); }
+    button:disabled { opacity: .45; cursor: default; }
+    input, select, textarea {
+      font: inherit; width: 100%; background: var(--deep); color: var(--ivory);
+      border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px;
+    }
+    label { display: block; font-size: 10px; letter-spacing: 1.5px; color: var(--slate); margin: 12px 0 4px; text-transform: uppercase; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 18px 80px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    .muted { color: var(--ash); font-size: 13px; }
+    .hidden { display: none !important; }
+
+    /* Login */
+    #login { max-width: 380px; margin: 12vh auto; padding: 28px; background: var(--charcoal);
+      border: 1px solid var(--border); border-radius: 16px; }
+
+    /* Layout */
+    header.bar { display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 20px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .tab { background: transparent; border-color: transparent; color: var(--ash); }
+    .tab.active { color: var(--ivory); border-color: var(--border); background: var(--charcoal); }
+    .badge { background: var(--gold); color: #000; border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-left: 6px; }
+
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 18px; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } }
+
+    .list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-height: 72vh; overflow-y: auto; }
+    .item { padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .item:hover { background: var(--charcoal); }
+    .item.active { background: var(--charcoal-2); }
+    .item .name { font-size: 15px; }
+    .item .sub { color: var(--ash); font-size: 12px; margin-top: 2px; }
+    .pill { font-size: 10px; letter-spacing: 1px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+    .pill.PENDING { color: var(--gold); border-color: var(--gold); }
+    .pill.APPROVED { color: #6ad29b; border-color: #2f6f4a; }
+    .pill.REJECTED { color: var(--crimson); border-color: var(--crimson); }
+
+    .detail { border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .detail .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--charcoal-2); border: 1px solid var(--border); padding: 10px 16px;
+      border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .2s; }
+    .toast.show { opacity: 1; }
+    .err { color: var(--crimson); font-size: 13px; margin-top: 8px; min-height: 16px; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login">
+    <div class="brand">KYA PEHNU?</div>
+    <h2>Admin sign in</h2>
+    <label>Email</label>
+    <input id="email" type="email" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <div class="err" id="loginErr"></div>
+    <button class="primary" id="loginBtn" style="width:100%;margin-top:16px">Sign in</button>
+    <p class="muted" style="margin-top:14px">Only accounts with admin rights can sign in here.</p>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <div class="wrap">
+      <header class="bar">
+        <div>
+          <div class="brand">KYA PEHNU?</div>
+          <h1 style="margin:2px 0 0">Vendor Admin</h1>
+        </div>
+        <div class="row">
+          <span class="muted" id="who"></span>
+          <button id="logoutBtn">Sign out</button>
+        </div>
+      </header>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="PENDING">Pending <span class="badge" id="pendingCount">0</span></button>
+        <button class="tab" data-tab="ALL">All applications</button>
+        <button class="tab" data-tab="VENDORS">Vendors</button>
+      </div>
+
+      <div class="layout">
+        <div class="list" id="list"></div>
+        <div class="detail" id="detail"><p class="muted">Select an item on the left.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+    import {
+      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+    } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+
+    // Public Firebase web config for kyapehnushop (identifier, not a secret).
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCfr4q93xlmNSNHp3YTC0pd2bPmoKktPhc',
+      authDomain: 'kyapehnushop.firebaseapp.com',
+      projectId: 'kyapehnushop',
+      storageBucket: 'kyapehnushop.firebasestorage.app',
+      messagingSenderId: '484031497035',
+      appId: '1:484031497035:web:0b63fd4905b87ae0ed1ece',
+    };
+    const auth = getAuth(initializeApp(firebaseConfig));
+
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg) => {
+      const t = $('toast'); t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    };
+
+    // ---- API helper: always attach a fresh ID token. ----
+    const api = async (path, options = {}) => {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...(options.headers || {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
+      return data;
+    };
+
+    // ---- Auth wiring ----
+    $('loginBtn').onclick = async () => {
+      $('loginErr').textContent = '';
+      try {
+        await signInWithEmailAndPassword(auth, $('email').value.trim(), $('password').value);
+      } catch (e) {
+        $('loginErr').textContent = 'Sign-in failed. Check your credentials.';
+      }
+    };
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginBtn').click(); });
+    $('logoutBtn').onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { show('login'); return; }
+      try {
+        const me = await api('/admin/me'); // 403 if not an admin
+        $('who').textContent = me.email;
+        show('app');
+        loadTab('PENDING');
+      } catch (e) {
+        $('loginErr').textContent = 'This account is not an admin.';
+        await signOut(auth);
+        show('login');
+      }
+    });
+
+    const show = (which) => {
+      $('login').classList.toggle('hidden', which !== 'login');
+      $('app').classList.toggle('hidden', which !== 'app');
+    };
+
+    // ---- Tabs ----
+    let currentTab = 'PENDING';
+    document.querySelectorAll('.tab').forEach((btn) => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadTab(btn.dataset.tab);
+      };
+    });
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    async function loadTab(tab) {
+      currentTab = tab;
+      $('detail').innerHTML = '<p class="muted">Select an item on the left.</p>';
+      try {
+        if (tab === 'VENDORS') {
+          const vendors = await api('/admin/vendors');
+          renderList(vendors, (v) => ({ id: v._id, name: v.shopName, sub: v.email, status: v.isActive ? 'APPROVED' : 'REJECTED' }));
+        } else {
+          const q = tab === 'PENDING' ? '?status=PENDING' : '';
+          const apps = await api(`/admin/vendor-applications${q}`);
+          if (tab === 'PENDING') $('pendingCount').textContent = apps.length;
+          renderList(apps, (a) => ({ id: a._id, name: a.shopName, sub: a.email, status: a.status }));
+        }
+        // Keep the pending badge fresh regardless of tab.
+        if (tab !== 'PENDING') {
+          api('/admin/vendor-applications?status=PENDING').then((p) => { $('pendingCount').textContent = p.length; }).catch(() => {});
+        }
+      } catch (e) { toast(e.message); }
+    }
+
+    function renderList(items, map) {
+      const list = $('list');
+      if (!items.length) { list.innerHTML = '<div class="item"><span class="muted">Nothing here.</span></div>'; return; }
+      list.innerHTML = items.map((it) => {
+        const m = map(it);
+        return `<div class="item" data-id="${m.id}">
+          <div class="row" style="justify-content:space-between">
+            <span class="name">${esc(m.name)}</span>
+            <span class="pill ${m.status}">${m.status}</span>
+          </div>
+          <div class="sub">${esc(m.sub)}</div>
+        </div>`;
+      }).join('');
+      list.querySelectorAll('.item[data-id]').forEach((el) => {
+        el.onclick = () => {
+          list.querySelectorAll('.item').forEach((i) => i.classList.remove('active'));
+          el.classList.add('active');
+          currentTab === 'VENDORS' ? openVendor(el.dataset.id) : openApplication(el.dataset.id);
+        };
+      });
+    }
+
+    // ---- Field spec shared by the editable forms ----
+    const field = (labelText, id, value, type = 'text') =>
+      `<label>${labelText}</label><input id="f_${id}" type="${type}" value="${esc(value)}" />`;
+    const selectField = (labelText, id, value, opts) =>
+      `<label>${labelText}</label><select id="f_${id}">${opts.map((o) =>
+        `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+
+    const readForm = (ids) => ids.reduce((o, id) => {
+      const el = $(`f_${id}`); if (el) o[id] = el.value; return o;
+    }, {});
+
+    // ---- Application detail (editable + approve/reject) ----
+    async function openApplication(id) {
+      try {
+        const a = await api(`/admin/vendor-applications/${id}`);
+        const addr = a.address || {};
+        const coords = (a.location && a.location.coordinates) || [];
+        $('detail').innerHTML = `
+          <div class="row" style="justify-content:space-between">
+            <h2 style="margin:0">${esc(a.shopName)}</h2>
+            <span class="pill ${a.status}">${a.status}</span>
+          </div>
+          <p class="muted">Applicant ${esc(a.email)} · submitted ${new Date(a.createdAt).toLocaleString()}
+            ${a.reviewedBy ? `· reviewed by ${esc(a.reviewedBy)}` : ''}</p>
+
+          <div class="grid">
+            ${field('Shop name', 'shopName', a.shopName)}
+            ${field('Owner name', 'ownerName', a.ownerName)}
+            ${field('Phone', 'phone', a.phone)}
+            ${field('WhatsApp', 'whatsappNumber', a.whatsappNumber)}
+            ${selectField('Category', 'category', a.category, ['MENSWEAR','WOMENSWEAR','BOTH','KIDS','ACCESSORIES','OTHER'])}
+            ${field('Years in business', 'yearsInBusiness', a.yearsInBusiness ?? '', 'number')}
+            ${field('GSTIN', 'gstin', a.gstin ?? '')}
+            ${field('Email', 'email', a.email)}
+          </div>
+          <label>Description</label>
+          <textarea id="f_description" rows="2">${esc(a.description ?? '')}</textarea>
+
+          <h3 style="margin:22px 0 0">Address</h3>
+          <div class="grid">
+            ${field('Line 1', 'line1', addr.line1 ?? '')}
+            ${field('Area', 'area', addr.area ?? '')}
+            ${field('City', 'city', addr.city ?? 'Nagpur')}
+            ${field('Pincode', 'pincode', addr.pincode ?? '')}
+            ${field('Longitude', 'lng', coords[0] ?? '', 'number')}
+            ${field('Latitude', 'lat', coords[1] ?? '', 'number')}
+          </div>
+
+          <label>Admin notes (shown to nobody but you)</label>
+          <textarea id="f_adminNotes" rows="2">${esc(a.adminNotes ?? '')}</textarea>
+          <div class="err" id="detErr"></div>
+
+          <div class="actions">
+            <button class="gold" id="saveBtn">Save changes</button>
+            ${a.status !== 'APPROVED' ? '<button class="primary" id="approveBtn">Approve &amp; create vendor</button>' : ''}
+            ${a.status !== 'REJECTED' ? '<button id="rejectBtn">Reject</button>' : ''}
+          </div>`;
+
+        const collect = () => {
+          const base = readForm(['shopName','ownerName','phone','whatsappNumber','category','yearsInBusiness','gstin','email','description']);
+          const addrObj = readForm(['line1','area','city','pincode']);
+          const lng = $('f_lng').value, lat = $('f_lat').value;
+          const body = { ...base, address: addrObj };
+          if (base.yearsInBusiness === '') delete body.yearsInBusiness;
+          if (lng !== '' && lat !== '') body.location = { type: 'Point', coordinates: [Number(lng), Number(lat)] };
+          return body;
+        };
+
+        $('saveBtn').onclick = async () => {
+          try { await api(`/admin/vendor-applications/${id}`, { method: 'PATCH', body: JSON.stringify(collect()) });
+            toast('Saved.'); } catch (e) { $('detErr').textContent = e.message; }
+        };
+        if ($('approveBtn')) $('approveBtn').onclick = async () => {
+          try {
+            await api(`/admin/vendor-applications/${id}`, { method: 'PATCH', body: JSON.stringify(collect()) });
+            await api(`/admin/vendor-applications/${id}/approve`, { method: 'POST', body: JSON.stringify({ adminNotes: $('f_adminNotes').value }) });
+            toast('Approved — vendor created.'); loadTab(currentTab);
+          } catch (e) { $('detErr').textContent = e.message; }
+        };
+        if ($('rejectBtn')) $('rejectBtn').onclick = async () => {
+          try {
+            await api(`/admin/vendor-applications/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminNotes: $('f_adminNotes').value }) });
+            toast('Rejected.'); loadTab(currentTab);
+          } catch (e) { $('detErr').textContent = e.message; }
+        };
+      } catch (e) { toast(e.message); }
+    }
+
+    // ---- Vendor detail (editable) ----
+    async function openVendor(id) {
+      try {
+        const vendors = await api('/admin/vendors');
+        const v = vendors.find((x) => x._id === id);
+        if (!v) return;
+        const addr = v.address || {};
+        const coords = (v.location && v.location.coordinates) || [];
+        $('detail').innerHTML = `
+          <h2 style="margin:0">${esc(v.shopName)}</h2>
+          <p class="muted">${esc(v.email)} · ${v.isActive ? 'active' : 'inactive'}</p>
+          <div class="grid">
+            ${field('Shop name', 'shopName', v.shopName)}
+            ${field('Owner name', 'ownerName', v.ownerName)}
+            ${field('Phone', 'phone', v.phone)}
+            ${field('WhatsApp', 'whatsappNumber', v.whatsappNumber)}
+            ${field('Email', 'email', v.email)}
+            ${field('Rating', 'rating', v.rating ?? 0, 'number')}
+            ${field('Line 1', 'line1', addr.line1 ?? '')}
+            ${field('Area', 'area', addr.area ?? '')}
+            ${field('City', 'city', addr.city ?? 'Nagpur')}
+            ${field('Pincode', 'pincode', addr.pincode ?? '')}
+            ${field('Longitude', 'lng', coords[0] ?? '', 'number')}
+            ${field('Latitude', 'lat', coords[1] ?? '', 'number')}
+            ${selectField('Active', 'isActive', String(v.isActive), ['true','false'])}
+          </div>
+          <div class="err" id="detErr"></div>
+          <div class="actions"><button class="gold" id="saveVBtn">Save changes</button></div>`;
+
+        $('saveVBtn').onclick = async () => {
+          const base = readForm(['shopName','ownerName','phone','whatsappNumber','email','rating']);
+          const addrObj = readForm(['line1','area','city','pincode']);
+          const lng = $('f_lng').value, lat = $('f_lat').value;
+          const body = { ...base, address: addrObj, isActive: $('f_isActive').value === 'true' };
+          body.rating = Number(body.rating) || 0;
+          if (lng !== '' && lat !== '') body.location = { type: 'Point', coordinates: [Number(lng), Number(lat)] };
+          try { await api(`/admin/vendors/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+            toast('Saved.'); } catch (e) { $('detErr').textContent = e.message; }
+        };
+      } catch (e) { toast(e.message); }
+    }
+  </script>
+</body>
+</html>

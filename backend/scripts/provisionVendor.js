@@ -1,36 +1,27 @@
 /**
- * Admin vendor provisioning.
+ * Admin vendor provisioning (CLI).
  *
- * A vendor account is two linked records, neither of which a client can create
- * for itself (by design — the app is admin-approved, not self-serve):
+ * The command-line twin of the admin panel's approve action: it promotes an
+ * account to VENDOR and optionally seeds the shop document, using the exact same
+ * provisioning service so both paths behave identically.
  *
- *   1. Firestore  users/{uid}.role = 'VENDOR'   → gates the app into the order
- *      desk. The client reads this; Security Rules forbid self-promotion, so it
- *      must be written with the Admin SDK (which bypasses rules).
- *   2. MongoDB    Vendor document                → the shop profile the vendor
- *      endpoints (`/api/vendors/me`, orders, catalog) resolve by firebaseUid.
- *
- * This script does both atomically-ish: it flips the role, and if a profile
- * JSON is supplied, upserts the Vendor document too.
+ *   1. Firestore users/{uid}.role = 'VENDOR'  → gates the app into the desk.
+ *   2. MongoDB Vendor document                → the shop profile.
  *
  * Usage:
- *   node scripts/provisionVendor.js --email shop@example.com --profile ./vendor.json
+ *   node scripts/provisionVendor.js --email shop@example.com --profile ./scripts/vendor.example.json
  *   node scripts/provisionVendor.js --email shop@example.com          # role only
  *   node scripts/provisionVendor.js --email shop@example.com --demote # back to CUSTOMER
- *
- * A vendor.json template lives beside this file (vendor.example.json).
  */
 
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
-
-import { firebaseAuth, firestore } from '../config/firebase.js';
-import connectDB from '../config/db.js';
-import Vendor from '../models/Vendor.js';
 import mongoose from 'mongoose';
 
-const ROLES = { CUSTOMER: 'CUSTOMER', VENDOR: 'VENDOR' };
+import { firebaseAuth } from '../config/firebase.js';
+import connectDB from '../config/db.js';
+import { approveVendor, revokeVendor, setUserRole, ROLES } from '../services/vendorProvisioning.js';
 
 /** Minimal `--flag value` / `--flag` parser — no dependency needed. */
 const parseArgs = (argv) => {
@@ -55,32 +46,16 @@ const die = (message) => {
   process.exit(1);
 };
 
-const setFirestoreRole = async (uid, email, role) => {
-  await firestore
-    .collection('users')
-    .doc(uid)
-    .set({ uid, email, role }, { merge: true });
-};
-
-const upsertVendorDoc = async (uid, email, profile) => {
-  return Vendor.findOneAndUpdate(
-    { firebaseUid: uid },
-    { firebaseUid: uid, email, ...profile },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-};
-
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.email) {
-    die('Missing --email. Usage: node scripts/provisionVendor.js --email shop@example.com [--profile ./vendor.json] [--demote]');
+    die('Missing --email. Usage: node scripts/provisionVendor.js --email shop@example.com [--profile ./scripts/vendor.example.json] [--demote]');
   }
 
   const demote = Boolean(args.demote);
-  const targetRole = demote ? ROLES.CUSTOMER : ROLES.VENDOR;
 
-  // 1) Resolve the Firebase account by email.
+  // Resolve the Firebase account by email.
   let user;
   try {
     user = await firebaseAuth.getUserByEmail(args.email);
@@ -88,12 +63,15 @@ const main = async () => {
     die(`No Firebase user for ${args.email} (${error.code || error.message}). They must sign up in the app first.`);
   }
 
-  // 2) Flip the role in Firestore (what the app actually reads).
-  await setFirestoreRole(user.uid, user.email, targetRole);
-  console.log(`✓ Firestore role for ${user.email} → ${targetRole}`);
+  if (demote) {
+    await connectDB();
+    await revokeVendor({ uid: user.uid, email: user.email });
+    console.log(`✓ ${user.email} demoted to ${ROLES.CUSTOMER} (shop deactivated if present)`);
+    await mongoose.connection.close();
+    process.exit(0);
+  }
 
-  // 3) Optionally seed/refresh the MongoDB Vendor document.
-  if (!demote && args.profile) {
+  if (args.profile) {
     const profilePath = path.resolve(String(args.profile));
     if (!fs.existsSync(profilePath)) die(`Profile file not found: ${profilePath}`);
 
@@ -105,15 +83,17 @@ const main = async () => {
     }
 
     await connectDB();
-    const vendor = await upsertVendorDoc(user.uid, user.email, profile);
-    console.log(`✓ Vendor document upserted: "${vendor.shopName}" (${vendor._id})`);
+    const vendor = await approveVendor({ uid: user.uid, email: user.email, profile });
+    console.log(`✓ ${user.email} → ${ROLES.VENDOR}; shop "${vendor.shopName}" (${vendor._id})`);
     await mongoose.connection.close();
-  } else if (!demote) {
-    console.log('ℹ No --profile given: role set, but create the shop record via');
-    console.log('  POST /api/vendors/sync (as the vendor) or re-run with --profile ./vendor.json');
+    process.exit(0);
   }
 
-  console.log('Done.');
+  // Role only — no shop document yet.
+  await setUserRole(user.uid, user.email, ROLES.VENDOR);
+  console.log(`✓ Firestore role for ${user.email} → ${ROLES.VENDOR}`);
+  console.log('ℹ No --profile given: create the shop record via the admin panel/approve,');
+  console.log('  POST /api/vendors/sync, or re-run with --profile ./scripts/vendor.example.json');
   process.exit(0);
 };
 
