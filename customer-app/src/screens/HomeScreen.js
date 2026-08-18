@@ -7,8 +7,9 @@ import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { formatINR, productsByProximity } from '../data/mockStores';
+import { formatINR } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
+import useCatalog from '../hooks/useCatalog';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { ROLES, useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
@@ -51,7 +52,10 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const { areaLabel, status, refresh } = useDeliveryLocation();
+  const { coords, areaLabel, status, refresh } = useDeliveryLocation();
+  // Live storefront: nearby approved shops + products from the backend, with a
+  // graceful fallback to the bundled mock catalogue until a session exists.
+  const catalog = useCatalog(coords);
   const cartCount = useCartStore(selectCartCount);
   const cartTotal = useCartStore(selectCartTotal);
 
@@ -118,7 +122,12 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
-        <Storefront insets={insets} onOpenProduct={openProduct} />
+        <Storefront
+          insets={insets}
+          onOpenProduct={openProduct}
+          products={catalog.products}
+          source={catalog.source}
+        />
         {header}
       </View>
     );
@@ -202,7 +211,8 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
  * base, with no 3D scene behind it.
  */
-function Storefront({ insets, onOpenProduct }) {
+function Storefront({ insets, onOpenProduct, products = [], source = 'mock' }) {
+  const storeCount = new Set(products.map((p) => p.storeId)).size;
   return (
     <Animated.ScrollView
       style={styles.scroll}
@@ -220,8 +230,8 @@ function Storefront({ insets, onOpenProduct }) {
         </View>
 
         <FlatList
-          data={productsByProximity}
-          keyExtractor={(item) => item.id}
+          data={products}
+          keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <ProductCard product={item} onPress={() => onOpenProduct(item)} />
           )}
@@ -232,7 +242,9 @@ function Storefront({ insets, onOpenProduct }) {
         />
 
         <Text style={styles.feedFootnote}>
-          {productsByProximity.length} pieces across 5 independent Nagpur stores.
+          {products.length} {products.length === 1 ? 'piece' : 'pieces'} across {storeCount}{' '}
+          {storeCount === 1 ? 'store' : 'independent Nagpur stores'}
+          {source === 'mock' ? '  ·  preview catalogue' : ''}
         </Text>
       </View>
 

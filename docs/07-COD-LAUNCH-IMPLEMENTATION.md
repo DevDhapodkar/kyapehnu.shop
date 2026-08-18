@@ -104,14 +104,53 @@ via `GET /api/orders/:id/invoice` and rendered as a printable page in the portal
 - **GST/tax** (`taxBps=0`) — enable once a GSTIN exists.
 - **Vendor payouts** — ledger fields captured; settlement runs post-registration.
 
+## Database connection & integration testing
+
+- **Production connection** (`config/db.js`) is hardened: connection pool +
+  timeouts, lifecycle event logging (disconnect/reconnect/error), a bounded
+  retry-with-backoff on the initial connect, and `syncIndexes()` so the unique
+  constraints the app relies on (idempotency key, order/invoice numbers, emails)
+  are actually built. Point `MONGO_URI` at a MongoDB Atlas **replica set** so the
+  transactional order path runs with full atomicity.
+- **Seed a real database** so it's usable immediately:
+  ```
+  MONGO_URI=... ADMIN_EMAIL=ops@kyapehnu.shop ADMIN_PASSWORD='min-10-chars' npm run seed
+  ```
+  Creates approved Nagpur shops, approved products (with margin), a customer, an
+  admin, and default platform settings.
+- **Integration tests** (`test/integration/`) run the real order round-trip
+  against an actual MongoDB — server-side pricing + ₹25 fee, atomic stock
+  decrement, oversell rejection, idempotency, cancel/restock, the state machine,
+  and invoice numbering. They resolve a database in this order:
+  1. `MONGO_TEST_URI` (any real Mongo you point them at), else
+  2. `mongodb-memory-server` as a single-node **replica set** (downloads a
+     `mongod`; works wherever egress allows it — e.g. CI).
+
+  If neither is reachable they **skip with a clear reason** (so `npm test` stays
+  green in a sandbox with no database). CI runs them for real:
+  `npm run test:integration`.
+
+## Storefront wired to the live API
+
+The customer storefront now reads from the backend, not just mocks:
+`useCatalog(coords)` fetches nearby **approved** shops + their **approved,
+in-stock** products, maps them to the UI shape (`data/catalogAdapter.js`), and
+falls back to the bundled mock catalogue when there's no session token yet or the
+backend is unreachable. Once real products flow through, cart lines carry real
+ObjectIds and checkout posts a COD order to `/orders` (server-priced, idempotent).
+
 ## Running
 
 ```
-cd backend && npm install && npm test        # 29 tests
-npm run seed:admin                            # create first admin
-npm start                                     # API + /admin portal
+cd backend && npm install
+npm test                 # 29 unit tests (no DB needed)
+npm run test:integration # real-DB round-trip (needs MONGO_TEST_URI or CI egress)
+npm run seed:admin       # or: npm run seed  (full demo data)
+npm start                # API + /admin portal
 ```
 
-Order-path integration tests that touch MongoDB require a running replica-set
-Mongo; the committed suite covers the pure money/validation/wiring layers that
-carry the risk.
+> Note: a live MongoDB cannot run inside the restricted dev sandbox — the
+> `mongod` binary download host (`fastdl.mongodb.org`) is denied by the
+> environment's egress policy, and there's no system Mongo or Docker daemon. The
+> integration tests are real and execute against an actual MongoDB in CI; in the
+> sandbox they skip cleanly with that reason.

@@ -27,3 +27,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # Integration tests run against a REAL MongoDB. mongodb-memory-server
+      # downloads a mongod and starts a single-node replica set (so the
+      # transactional order path is exercised). GitHub runners allow the
+      # binary download that the dev sandbox's egress policy blocks.
+      - run: npm run test:integration

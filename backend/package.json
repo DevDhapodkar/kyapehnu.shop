@@ -7,7 +7,10 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test test/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "test:all": "node --test test/*.test.js test/integration/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
+    "seed": "node scripts/seed.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "lint": "eslint ."
   },
@@ -30,6 +33,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "eslint": "^9.13.0"
+    "eslint": "^9.13.0",
+    "mongodb-memory-server": "^11.2.0"
   }
 }

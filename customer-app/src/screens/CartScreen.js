@@ -57,14 +57,23 @@ export default function CartScreen({ navigation }) {
             coordinates: cartItems[0].storeCoordinates || [79.0882, 21.1458],
           },
         };
-        const order = await placeOrder({
+        const placed = await placeOrder({
           vendorId,
           items: toOrderItems(cartItems),
           deliveryAddress,
           idempotencyKey,
         });
+        // Normalise into the shape LiveTracking expects (it uses the cart lines'
+        // store coordinates for the map origin, which a raw order lacks).
+        const trackingOrder = {
+          id: placed._id || placed.id,
+          orderNumber: placed.orderNumber,
+          total: Math.round((placed.pricing?.grandTotalPaise ?? total * 100) / 100),
+          items: cartItems,
+          placedAt: placed.createdAt || new Date().toISOString(),
+        };
         clearCart();
-        navigation.navigate('LiveTracking', { order });
+        navigation.navigate('LiveTracking', { order: trackingOrder });
       } catch (err) {
         Alert.alert('Could not place order', err.message);
       } finally {
