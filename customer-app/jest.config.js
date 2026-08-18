@@ -9,6 +9,7 @@ module.exports = {
   testMatch: [
     '<rootDir>/src/auth/__tests__/**/*.test.js',
     '<rootDir>/src/vendor/__tests__/**/*.test.js',
+    '<rootDir>/src/shop/__tests__/**/*.test.js',
   ],
   transform: {
     '^.+\\.js$': ['babel-jest', { presets: ['babel-preset-expo'] }],

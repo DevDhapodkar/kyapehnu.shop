@@ -1,5 +1,6 @@
 import { Dimensions, FlatList, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useCallback } from 'react';
+import { Image } from 'expo-image';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,7 +8,8 @@ import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { formatINR, productsByProximity } from '../data/mockStores';
+import { allProducts, formatINR, productsByProximity } from '../data/mockStores';
+import { DEPARTMENTS, departmentCover } from '../shop/catalog';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -72,6 +74,9 @@ export default function HomeScreen({ navigation }) {
   }, [navigation]);
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
+  const openShop = () => navigation.navigate('Shop');
+  const openDepartment = (dept) =>
+    navigation.navigate('ProductList', { department: dept.key, title: dept.label });
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
@@ -120,7 +125,12 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
-        <Storefront insets={insets} onOpenProduct={openProduct} />
+        <Storefront
+          insets={insets}
+          onOpenProduct={openProduct}
+          onOpenShop={openShop}
+          onOpenDepartment={openDepartment}
+        />
         {header}
       </View>
     );
@@ -204,14 +214,51 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
  * base, with no 3D scene behind it.
  */
-function Storefront({ insets, onOpenProduct }) {
+function Storefront({ insets, onOpenProduct, onOpenShop, onOpenDepartment }) {
   return (
     <Animated.ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.scrollContent, styles.storefront]}
       showsVerticalScrollIndicator={false}
     >
+      {/* Shop by department — the entry into the full filtered catalogue. */}
       <View style={styles.feed}>
+        <View style={styles.deptHead}>
+          <Text style={styles.feedEyebrow}>SHOP BY DEPARTMENT</Text>
+          <Pressable onPress={onOpenShop} hitSlop={spacing.xs}>
+            <Text style={styles.deptLink}>Browse all →</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          data={DEPARTMENTS}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item }) => {
+            const cover = departmentCover(item.key, allProducts);
+            return (
+              <Pressable
+                onPress={() => onOpenDepartment(item)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={({ pressed }) => [styles.deptTile, pressed && styles.deptTilePressed]}
+              >
+                {cover ? (
+                  <Image source={{ uri: cover }} style={styles.deptImage} contentFit="cover" transition={200} />
+                ) : (
+                  <View style={[styles.deptImage, styles.deptFallback]} />
+                )}
+                <View style={styles.deptScrim} pointerEvents="none" />
+                <Text style={styles.deptLabel}>{item.label}</Text>
+              </Pressable>
+            );
+          }}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.feedList}
+        />
+      </View>
+
+      <View style={[styles.feed, styles.feedSpaced]}>
         <View style={styles.feedHeader}>
           <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
           <Text style={styles.feedTitle}>In stock, minutes away.</Text>
@@ -232,6 +279,10 @@ function Storefront({ insets, onOpenProduct }) {
           contentContainerStyle={styles.feedList}
           initialNumToRender={5}
         />
+
+        <Pressable onPress={onOpenShop} style={styles.browseAll}>
+          <Text style={styles.browseAllLabel}>BROWSE THE FULL CATALOGUE</Text>
+        </Pressable>
 
         <Text style={styles.feedFootnote}>
           {productsByProximity.length} pieces across 5 independent Nagpur stores.
@@ -277,9 +328,71 @@ const styles = StyleSheet.create({
     // Opaque base so the 3D canvas stops showing through once the story ends.
     backgroundColor: colors.obsidian,
   },
+  feedSpaced: {
+    paddingTop: spacing.md,
+  },
   feedHeader: {
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
+  },
+  deptHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  deptLink: {
+    color: colors.gold,
+    fontSize: 12,
+  },
+  deptTile: {
+    width: 128,
+    height: 92,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    marginRight: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    justifyContent: 'flex-end',
+  },
+  deptTilePressed: {
+    opacity: 0.82,
+  },
+  deptImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  deptFallback: {
+    backgroundColor: colors.charcoalLight,
+  },
+  deptScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5,5,6,0.4)',
+  },
+  deptLabel: {
+    color: colors.ivory,
+    fontSize: 15,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+    padding: spacing.sm,
+  },
+  browseAll: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFill,
+    alignItems: 'center',
+  },
+  browseAllLabel: {
+    color: colors.platinum,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.5,
   },
   feedEyebrow: {
     color: colors.gold,

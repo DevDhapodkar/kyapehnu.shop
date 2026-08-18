@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthScreen from '../screens/AuthScreen';
 import VendorApplicationScreen from '../screens/VendorApplicationScreen';
 import HomeScreen from '../screens/HomeScreen';
+import ShopHomeScreen from '../screens/ShopHomeScreen';
+import ProductListScreen from '../screens/ProductListScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import LiveTrackingScreen from '../screens/LiveTrackingScreen';
@@ -81,6 +83,16 @@ function CustomerFlow() {
         name="ProductDetail"
         component={ProductDetailScreen}
         options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <CustomerStack.Screen
+        name="Shop"
+        component={ShopHomeScreen}
+        options={{ headerShown: false }}
+      />
+      <CustomerStack.Screen
+        name="ProductList"
+        component={ProductListScreen}
+        options={{ title: 'Shop' }}
       />
       <CustomerStack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
       <CustomerStack.Screen
