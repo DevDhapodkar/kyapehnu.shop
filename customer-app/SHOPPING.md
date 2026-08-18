@@ -34,13 +34,13 @@ Generate new private key → fill `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KE
 ```bash
 cd backend
 npm run seed:firestore     # writes 15 demo products to Firestore `products`
+npm run deploy:rules       # publishes firestore.rules (public read on products)
 ```
 
-Then deploy the read rules (once):
-
-```bash
-firebase deploy --only firestore:rules --project kyapehnushop
-```
+`deploy:rules` publishes `firestore.rules` via the Security Rules API using the
+same service account — no Firebase CLI login needed. (Equivalent to
+`firebase deploy --only firestore:rules` if you prefer the CLI.) The read rules
+must be live or the client SDK cannot see the products.
 
 Reload the app — the shop screens now show **live** data (no "sample" note), and
 real shops appear as vendors add products.

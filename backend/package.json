@@ -10,7 +10,8 @@
     "vendor:provision": "node scripts/provisionVendor.js",
     "admin:set": "node scripts/setAdmin.js",
     "seed:catalog": "node scripts/seedCatalog.js",
-    "seed:firestore": "node scripts/seedFirestore.js"
+    "seed:firestore": "node scripts/seedFirestore.js",
+    "deploy:rules": "node scripts/deployFirestoreRules.js"
   },
   "keywords": [],
   "author": "",
