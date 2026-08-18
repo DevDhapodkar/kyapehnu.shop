@@ -1,14 +1,20 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
 import { formatINR } from '../data/mockStores';
+import { placeOrder } from '../api/customerApi';
+import {
+  computeBill,
+  cartIsOrderable,
+  toOrderItems,
+  PAYMENT_METHOD_LABEL,
+} from '../config/checkout';
 import { selectCartItems, selectCartTotal, useCartStore } from '../store/useCartStore';
+import useAuthStore from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
-
-/** Flat fee stand-in until the Porter quote API is wired into the backend. */
-const DELIVERY_FEE = 49;
 
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -18,16 +24,56 @@ export default function CartScreen({ navigation }) {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const clearCart = useCartStore((state) => state.clearCart);
+  const savedAddress = useAuthStore((state) => state.user?.savedAddresses?.[0]);
+
+  const [placing, setPlacing] = useState(false);
 
   const empty = cartItems.length === 0;
-  const total = empty ? 0 : subtotal + DELIVERY_FEE;
+  const bill = computeBill(subtotal);
+  const total = empty ? 0 : bill.total;
 
   /**
-   * Checkout stand-in. The real flow posts the order to `/orders`, which fires
-   * the WhatsApp webhook to the vendor and, on "Ready", dispatches Porter. Here
-   * it hands the order straight to the tracking screen and empties the bag.
+   * Checkout. When the cart holds real backend products (single vendor) and a
+   * session token exists, this posts a Cash-on-Delivery order to `/orders` —
+   * the server recomputes price + the ₹25 platform fee, decrements stock, and
+   * issues an invoice. An idempotency key makes a double-tap safe. While the
+   * storefront still serves mock data, it falls back to the local tracking demo
+   * so nothing breaks before discovery is wired to the API.
    */
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (placing) return;
+
+    if (cartIsOrderable(cartItems)) {
+      try {
+        setPlacing(true);
+        const vendorId = cartItems[0].storeId;
+        const idempotencyKey = `co_${vendorId}_${Date.now()}`;
+        const deliveryAddress = savedAddress || {
+          line1: cartItems[0].storeArea || 'Nagpur',
+          city: 'Nagpur',
+          pincode: '440001',
+          location: {
+            type: 'Point',
+            coordinates: cartItems[0].storeCoordinates || [79.0882, 21.1458],
+          },
+        };
+        const order = await placeOrder({
+          vendorId,
+          items: toOrderItems(cartItems),
+          deliveryAddress,
+          idempotencyKey,
+        });
+        clearCart();
+        navigation.navigate('LiveTracking', { order });
+      } catch (err) {
+        Alert.alert('Could not place order', err.message);
+      } finally {
+        setPlacing(false);
+      }
+      return;
+    }
+
+    // Demo fallback (mock catalogue, no real ids/token yet).
     const order = {
       id: `ord_${Date.now()}`,
       items: cartItems,
@@ -130,8 +176,12 @@ export default function CartScreen({ navigation }) {
         <View pointerEvents="none" style={styles.summaryFill} />
         <View pointerEvents="none" style={styles.summaryHighlight} />
 
-        <SummaryRow label="Subtotal" value={formatINR(subtotal)} />
-        <SummaryRow label="Delivery (Porter)" value={formatINR(DELIVERY_FEE)} />
+        <SummaryRow label="Subtotal" value={formatINR(bill.subtotal)} />
+        <SummaryRow
+          label="Delivery"
+          value={bill.deliveryFee ? formatINR(bill.deliveryFee) : 'Free'}
+        />
+        <SummaryRow label="Platform fee" value={formatINR(bill.platformFee)} />
 
         <View style={styles.summaryDivider} />
 
@@ -140,10 +190,13 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.totalValue}>{formatINR(total)}</Text>
         </View>
 
+        <Text style={styles.payMethod}>Payment · {PAYMENT_METHOD_LABEL}</Text>
+
         <GlassButton
-          label="Confirm & Pay"
+          label={placing ? 'Placing order…' : 'Place Order · Cash on Delivery'}
           onPress={handleConfirm}
-          caption={`${formatINR(total)}  ·  arrives in ~40 min`}
+          disabled={placing}
+          caption={`${formatINR(total)}  ·  pay cash on delivery`}
           style={styles.confirm}
         />
       </View>
@@ -360,6 +413,13 @@ const styles = StyleSheet.create({
     color: colors.ivory,
     fontSize: 24,
     fontWeight: '600',
+  },
+  payMethod: {
+    color: colors.ash,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
   },
   confirm: {
     width: '100%',

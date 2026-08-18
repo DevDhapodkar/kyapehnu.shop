@@ -1,5 +1,12 @@
 import express from 'express';
-import { verifyToken, requireVendor } from '../middleware/authMiddleware.js';
+import { verifyToken, requireVendor, requireApprovedVendor } from '../middleware/authMiddleware.js';
+import { validate } from '../middleware/validate.js';
+import {
+  createProductSchema,
+  updateProductSchema,
+  vendorIdParams,
+  productIdParams,
+} from '../validation/schemas.js';
 import {
   createProduct,
   listByVendor,
@@ -10,13 +17,20 @@ import {
 
 const router = express.Router();
 
-router.post('/', verifyToken, requireVendor, createProduct);
-
-// Static segment must be declared before '/:id' or Express matches "mine" as an id.
+// Vendor-owned catalog. `requireApprovedVendor` blocks pending/suspended shops.
+router.post('/', verifyToken, requireApprovedVendor, validate({ body: createProductSchema }), createProduct);
 router.get('/mine', verifyToken, requireVendor, listMyProducts);
 
-router.get('/vendor/:vendorId', listByVendor);
-router.get('/:id', getProduct);
-router.patch('/:id', verifyToken, requireVendor, updateProduct);
+// Customer-facing reads.
+router.get('/vendor/:vendorId', verifyToken, validate({ params: vendorIdParams }), listByVendor);
+router.get('/:id', verifyToken, validate({ params: productIdParams }), getProduct);
+
+router.patch(
+  '/:id',
+  verifyToken,
+  requireApprovedVendor,
+  validate({ params: productIdParams, body: updateProductSchema }),
+  updateProduct
+);
 
 export default router;

@@ -1,59 +1,79 @@
 import Product from '../models/Product.js';
-
-const createProduct = async (req, res) => {
-  try {
-    const product = await Product.create({ ...req.body, vendor: req.vendor._id });
-    res.status(201).json(product);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to create product', error: error.message });
-  }
-};
-
-const listByVendor = async (req, res) => {
-  try {
-    const products = await Product.find({ vendor: req.params.vendorId, isAvailable: true });
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to list products', error: error.message });
-  }
-};
+import { asyncHandler, notFound } from '../lib/errors.js';
+import { rupeesToPaise } from '../lib/money.js';
 
 /**
- * Catalog feed for the vendor app. Unlike `listByVendor` (the customer-facing
- * storefront query) this returns out-of-stock listings too — the vendor has to
- * see a hidden item in order to switch it back on.
+ * POST /api/products — vendor creates a listing. It lands in PENDING_APPROVAL
+ * with margin 0; a customer cannot see or buy it until an admin approves it and
+ * sets Kya Pehnu's margin. `vendor` is taken from the token, never the body.
  */
-const listMyProducts = async (req, res) => {
-  try {
-    const products = await Product.find({ vendor: req.vendor._id }).sort({ updatedAt: -1 });
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to list catalog', error: error.message });
-  }
-};
+export const createProduct = asyncHandler(async (req, res) => {
+  const { basePriceRupees, ...rest } = req.body;
+  const product = await Product.create({
+    ...rest,
+    vendor: req.vendor._id,
+    basePricePaise: rupeesToPaise(basePriceRupees),
+    marginPaise: 0,
+    status: 'PENDING_APPROVAL',
+  });
+  res.status(201).json(product);
+});
 
-const getProduct = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id).populate('vendor', 'shopName address location');
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch product', error: error.message });
-  }
-};
+/**
+ * GET /api/products/vendor/:vendorId — customer-facing storefront for a shop.
+ * Only APPROVED + in-stock listings.
+ */
+export const listByVendor = asyncHandler(async (req, res) => {
+  const products = await Product.find({
+    vendor: req.params.vendorId,
+    status: 'APPROVED',
+    isAvailable: true,
+  }).limit(200);
+  res.json(products);
+});
 
-const updateProduct = async (req, res) => {
-  try {
-    const product = await Product.findOneAndUpdate(
-      { _id: req.params.id, vendor: req.vendor._id },
-      req.body,
-      { new: true }
-    );
-    if (!product) return res.status(404).json({ message: 'Product not found for this vendor' });
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to update product', error: error.message });
-  }
-};
+/** GET /api/products/mine — vendor catalog, every status incl. out-of-stock. */
+export const listMyProducts = asyncHandler(async (req, res) => {
+  const products = await Product.find({ vendor: req.vendor._id }).sort({ updatedAt: -1 });
+  res.json(products);
+});
 
-export { createProduct, listByVendor, listMyProducts, getProduct, updateProduct };
+/** GET /api/products/:id — a single approved product for the PDP. */
+export const getProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id).populate(
+    'vendor',
+    'shopName address location status'
+  );
+  if (!product) throw notFound('Product not found');
+  res.json(product);
+});
+
+/**
+ * PATCH /api/products/:id — vendor edits their own listing. Only whitelisted
+ * fields (validated upstream) are applied; `vendor`, `status`, and `marginPaise`
+ * can never be set from the body, closing the ownership-transfer mass-assignment
+ * hole. Changing the base price sends the item back through approval so an admin
+ * re-checks the margin.
+ */
+export const updateProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ _id: req.params.id, vendor: req.vendor._id });
+  if (!product) throw notFound('Product not found for this shop');
+
+  const { basePriceRupees, ...rest } = req.body;
+  Object.assign(product, rest);
+
+  if (basePriceRupees !== undefined) {
+    const newBase = rupeesToPaise(basePriceRupees);
+    if (newBase !== product.basePricePaise) {
+      product.basePricePaise = newBase;
+      // Price changed → re-moderate so the margin/selling price is re-approved.
+      product.status = 'PENDING_APPROVAL';
+      product.marginPaise = 0;
+    }
+  }
+
+  await product.save(); // pre-save keeps sellingPricePaise = base + margin
+  res.json(product);
+});
+
+export default { createProduct, listByVendor, listMyProducts, getProduct, updateProduct };

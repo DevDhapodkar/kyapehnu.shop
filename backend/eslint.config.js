@@ -1,0 +1,32 @@
+import js from '@eslint/js';
+
+/**
+ * Minimal flat ESLint config for the backend (ESM, Node). Keeps the gate
+ * meaningful without being noisy: recommended correctness rules, plus a guard
+ * against leftover debugging. Test files may use the Node test globals.
+ */
+export default [
+  js.configs.recommended,
+  {
+    files: ['**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-console': 'off',
+    },
+  },
+  {
+    ignores: ['node_modules/**'],
+  },
+];

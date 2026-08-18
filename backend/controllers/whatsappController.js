@@ -1,115 +1,59 @@
-import axios from 'axios';
+import crypto from 'node:crypto';
+import { loadEnv } from '../config/env.js';
+import { log } from '../lib/logger.js';
 
-const META_API_URL = `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`;
+const env = loadEnv();
 
-// Placeholder: notify a vendor on WhatsApp that a new order landed.
-// Wire this to be called from orderController whenever an order is created.
-const notifyVendorNewOrder = async (vendor, order) => {
-  try {
-    const response = await axios.post(
-      META_API_URL,
-      {
-        messaging_product: 'whatsapp',
-        to: vendor.whatsappNumber,
-        type: 'template',
-        template: {
-          name: 'new_order_alert',
-          language: { code: 'en' },
-          components: [
-            {
-              type: 'body',
-              parameters: [
-                { type: 'text', text: vendor.shopName },
-                { type: 'text', text: order._id.toString() },
-                { type: 'text', text: `₹${order.totalPrice}` },
-              ],
-            },
-          ],
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error('WhatsApp notify failed:', error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// Confirmation sent to the vendor the moment they mark an order ready for
-// pickup, so the shop has a WhatsApp paper trail of the handover alongside the
-// Porter driver that was dispatched in the same request.
-const notifyVendorOrderReady = async (vendor, order) => {
-  try {
-    const response = await axios.post(
-      META_API_URL,
-      {
-        messaging_product: 'whatsapp',
-        to: vendor.whatsappNumber,
-        type: 'template',
-        template: {
-          name: 'order_ready_confirmation',
-          language: { code: 'en' },
-          components: [
-            {
-              type: 'body',
-              parameters: [
-                { type: 'text', text: vendor.shopName },
-                { type: 'text', text: order._id.toString() },
-                { type: 'text', text: `${order.items.length}` },
-                { type: 'text', text: `₹${order.totalPrice}` },
-              ],
-            },
-          ],
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error('WhatsApp ready confirmation failed:', error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// Placeholder: incoming webhook from Meta Cloud API for vendor replies
-// (e.g. vendor managing inventory via WhatsApp chat commands).
-const handleIncomingWebhook = async (req, res) => {
-  const body = req.body;
-
-  if (body.object !== 'whatsapp_business_account') {
-    return res.sendStatus(404);
-  }
-
-  // TODO: parse body.entry[].changes[].value.messages[] and route
-  // inventory commands (e.g. "STOCK <sku> <qty>") to the Product model.
-  console.log('Incoming WhatsApp webhook:', JSON.stringify(body));
-
-  res.sendStatus(200);
-};
-
-const verifyWebhook = (req, res) => {
+/**
+ * GET webhook — Meta subscription handshake. Unchanged: echoes the challenge
+ * when the verify token matches.
+ */
+export const verifyWebhook = (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-
-  if (mode === 'subscribe' && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token === env.whatsapp.verifyToken) {
     return res.status(200).send(challenge);
   }
-
   return res.sendStatus(403);
 };
 
-export { notifyVendorNewOrder, notifyVendorOrderReady, handleIncomingWebhook, verifyWebhook };
+/**
+ * Verify Meta's `X-Hub-Signature-256` HMAC over the RAW request body. Closes the
+ * "anyone who finds the URL can POST forged events" gap. Requires the raw body
+ * to be captured by the json parser's `verify` hook (see server.js). Uses a
+ * timing-safe comparison.
+ */
+const isValidSignature = (req) => {
+  const secret = env.whatsapp.appSecret;
+  if (!secret) return false; // no secret configured ⇒ reject, don't trust blindly
+  const header = req.get('X-Hub-Signature-256') || '';
+  const raw = req.rawBody;
+  if (!raw || !header.startsWith('sha256=')) return false;
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+
+/**
+ * POST webhook — inbound WhatsApp events. Rejects anything without a valid
+ * signature. Body is NOT logged verbatim (it carries phone numbers); only a
+ * redacted summary is recorded.
+ */
+export const handleIncomingWebhook = (req, res) => {
+  if (!isValidSignature(req)) {
+    log.warn('Rejected WhatsApp webhook with invalid/missing signature');
+    return res.sendStatus(401);
+  }
+  const body = req.body;
+  if (body.object !== 'whatsapp_business_account') return res.sendStatus(404);
+
+  // Acknowledge fast; real inventory-command parsing is a future enhancement and
+  // will run behind this now-authenticated boundary.
+  const changes = body.entry?.flatMap((e) => e.changes || []) || [];
+  log.info('WhatsApp webhook received', { changeCount: changes.length });
+  res.sendStatus(200);
+};
+
+export default { verifyWebhook, handleIncomingWebhook };

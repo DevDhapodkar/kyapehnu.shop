@@ -1,24 +1,43 @@
 import express from 'express';
-import { verifyToken, requireUser, requireVendor } from '../middleware/authMiddleware.js';
+import { verifyToken, requireUser, requireVendor, resolveActor } from '../middleware/authMiddleware.js';
+import { validate } from '../middleware/validate.js';
+import {
+  createOrderSchema,
+  updateOrderStatusSchema,
+  cancelOrderSchema,
+  listVendorOrdersQuery,
+  orderIdParams,
+  orderIdParamAlt,
+} from '../validation/schemas.js';
 import {
   createOrder,
   getOrderById,
+  listMyOrders,
   listVendorOrders,
-  markOrderReady,
   updateOrderStatus,
+  markOrderReady,
+  cancelOrder,
+  getOrderInvoice,
 } from '../controllers/orderController.js';
 
 const router = express.Router();
 
-router.post('/', verifyToken, requireUser, createOrder);
+// Customer.
+router.post('/', verifyToken, requireUser, validate({ body: createOrderSchema }), createOrder);
+router.get('/mine', verifyToken, requireUser, listMyOrders);
 
-// Static segment must be declared before '/:id' or Express matches "vendor" as an id.
-router.get('/vendor/mine', verifyToken, requireVendor, listVendorOrders);
+// Vendor dashboard feed (must precede the /:id route).
+router.get('/vendor/mine', verifyToken, requireVendor, validate({ query: listVendorOrdersQuery }), listVendorOrders);
 
-router.get('/:id', verifyToken, getOrderById);
-router.patch('/:id/status', verifyToken, requireVendor, updateOrderStatus);
+// Order detail + invoice — readable by the owning customer OR vendor only.
+router.get('/:id', verifyToken, resolveActor, validate({ params: orderIdParams }), getOrderById);
+router.get('/:id/invoice', verifyToken, resolveActor, validate({ params: orderIdParams }), getOrderInvoice);
 
-// Dispatches a Porter driver and a WhatsApp confirmation in parallel.
-router.post('/:orderId/ready', verifyToken, requireVendor, markOrderReady);
+// Customer cancel (only while PENDING, enforced by the state machine).
+router.post('/:id/cancel', verifyToken, requireUser, validate({ params: orderIdParams, body: cancelOrderSchema }), cancelOrder);
+
+// Vendor transitions.
+router.patch('/:id/status', verifyToken, requireVendor, validate({ params: orderIdParams, body: updateOrderStatusSchema }), updateOrderStatus);
+router.post('/:orderId/ready', verifyToken, requireVendor, validate({ params: orderIdParamAlt }), markOrderReady);
 
 export default router;

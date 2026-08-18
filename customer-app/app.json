@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.dhapodkardev.kyapehnu"
     },
     "android": {
+      "package": "com.dhapodkardev.kyapehnu",
       "adaptiveIcon": {
         "backgroundColor": "#050506",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -53,7 +54,8 @@
     "backgroundColor": "#050506",
     "extra": {
       "apiBaseUrl": "http://localhost:5001",
-      "devAuthToken": ""
+      "devAuthToken": "",
+      "enableVendorModeToggle": false
     }
   }
 }

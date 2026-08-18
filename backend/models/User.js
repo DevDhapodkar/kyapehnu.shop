@@ -21,7 +21,16 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true },
+    // Role on the buyer side of the marketplace. VENDOR accounts live in the
+    // separate Vendor collection; ADMIN is granted out-of-band (seed/promote).
+    role: {
+      type: String,
+      enum: ['CUSTOMER', 'ADMIN'],
+      default: 'CUSTOMER',
+    },
     savedAddresses: [addressSchema],
+    // Expo push tokens for order notifications (device may have several).
+    expoPushTokens: [{ type: String }],
     currentLocation: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]

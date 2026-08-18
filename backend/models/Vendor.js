@@ -33,12 +33,46 @@ const vendorSchema = new mongoose.Schema(
       coordinates: { type: [Number], required: true }, // [lng, lat]
     },
     operatingHours: [operatingHoursSchema],
-    isActive: { type: Boolean, default: true },
+
+    // Onboarding lifecycle. A newly synced vendor is PENDING_APPROVAL and does
+    // NOT appear in customer discovery until an admin approves them. This closes
+    // the "any Firebase uid mints a live vendor" gap.
+    status: {
+      type: String,
+      enum: ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'SUSPENDED'],
+      default: 'PENDING_APPROVAL',
+    },
+    // KYC captured at onboarding. Bank/GSTIN verification is only *enforced*
+    // once payouts go live (post company registration), but the fields exist so
+    // the data is collected from day one.
+    kyc: {
+      gstin: { type: String },
+      pan: { type: String },
+      bankAccountName: { type: String },
+      bankAccountNumber: { type: String },
+      bankIfsc: { type: String },
+      contractAcceptedAt: { type: Date },
+    },
+    moderation: {
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+      reviewedAt: { type: Date },
+      rejectionReason: { type: String },
+    },
+    expoPushTokens: [{ type: String }],
+    // Derived from status; kept for query compatibility and quick toggles.
+    isActive: { type: Boolean, default: false },
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
+// Keep isActive in lockstep with the approval status.
+vendorSchema.pre('save', function syncActive(next) {
+  this.isActive = this.status === 'APPROVED';
+  next();
+});
+
 vendorSchema.index({ location: '2dsphere' });
+vendorSchema.index({ status: 1 });
 
 export default mongoose.model('Vendor', vendorSchema);
