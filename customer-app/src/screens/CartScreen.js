@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
 import { formatINR } from '../data/mockStores';
 import { selectCartItems, selectCartTotal, useCartStore } from '../store/useCartStore';
+import useAuthStore from '../store/useAuthStore';
+import { emptyDelivery, orderCount, toDeliveryParts, validateDelivery } from '../shop/checkout';
+import { canPlaceOrders, placeOrders } from '../shop/placeOrders';
 import { colors, radii, spacing } from '../theme/colors';
 
 /** Flat fee stand-in until the Porter quote API is wired into the backend. */
@@ -18,24 +22,67 @@ export default function CartScreen({ navigation }) {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const clearCart = useCartStore((state) => state.clearCart);
+  const user = useAuthStore((state) => state.user);
+
+  const [delivery, setDelivery] = useState(() => ({
+    ...emptyDelivery(),
+    name: user?.displayName ?? '',
+    phone: user?.phone ?? '',
+  }));
+  const [errors, setErrors] = useState({});
+  const [placing, setPlacing] = useState(false);
 
   const empty = cartItems.length === 0;
   const total = empty ? 0 : subtotal + DELIVERY_FEE;
 
+  const setField = (key) => (value) => {
+    setDelivery((d) => ({ ...d, [key]: value }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
   /**
-   * Checkout stand-in. The real flow posts the order to `/orders`, which fires
-   * the WhatsApp webhook to the vendor and, on "Ready", dispatches Porter. Here
-   * it hands the order straight to the tracking screen and empties the bag.
+   * Place the order(s). The cart can span several shops, so it is split into one
+   * order per vendor, each written to Firestore — landing on that shop's desk in
+   * real time (`placeOrders`). When Firebase isn't configured it falls back to a
+   * local order handed straight to the tracking screen.
    */
-  const handleConfirm = () => {
-    const order = {
-      id: `ord_${Date.now()}`,
-      items: cartItems,
-      total,
-      placedAt: new Date().toISOString(),
-    };
-    clearCart();
-    navigation.navigate('LiveTracking', { order });
+  const handleConfirm = async () => {
+    const { valid, errors: formErrors } = validateDelivery(delivery);
+    if (!valid) {
+      setErrors(formErrors);
+      return;
+    }
+    setErrors({});
+
+    if (!canPlaceOrders()) {
+      // Offline / not signed in: keep the demo flowing without persistence.
+      clearCart();
+      navigation.navigate('LiveTracking', {
+        order: { id: `ord_${Date.now()}`, items: cartItems, total, placedAt: new Date().toISOString() },
+      });
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      const parts = toDeliveryParts(delivery);
+      const created = await placeOrders(cartItems, parts);
+      const count = created.length;
+      clearCart();
+      Alert.alert(
+        'Order placed',
+        count > 1
+          ? `Split into ${count} orders — one per shop. Each store has been notified.`
+          : 'The shop has been notified and is preparing your order.'
+      );
+      navigation.navigate('LiveTracking', {
+        order: { id: created[0]._id, items: cartItems, total, placedAt: created[0].createdAt ?? new Date().toISOString() },
+      });
+    } catch (error) {
+      Alert.alert('Could not place order', error.message);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   if (empty) {
@@ -71,6 +118,27 @@ export default function CartScreen({ navigation }) {
             {new Set(cartItems.map((item) => item.storeId)).size} store
             {new Set(cartItems.map((item) => item.storeId)).size === 1 ? '' : 's'}
           </Text>
+        }
+        ListFooterComponent={
+          <View style={styles.deliveryCard}>
+            <Text style={styles.deliveryTitle}>DELIVERY DETAILS</Text>
+            <DeliveryField label="Name" value={delivery.name} onChangeText={setField('name')}
+              placeholder="Who's receiving it?" error={errors.name} editable={!placing} />
+            <DeliveryField label="Phone" value={delivery.phone} onChangeText={setField('phone')}
+              placeholder="10-digit mobile" keyboardType="phone-pad" error={errors.phone} editable={!placing} />
+            <DeliveryField label="Address" value={delivery.line1} onChangeText={setField('line1')}
+              placeholder="Flat / house, street, area" error={errors.line1} editable={!placing} />
+            <View style={styles.deliveryRow}>
+              <View style={styles.deliveryRowItem}>
+                <DeliveryField label="City" value={delivery.city} onChangeText={setField('city')}
+                  placeholder="Nagpur" editable={!placing} />
+              </View>
+              <View style={styles.deliveryRowItem}>
+                <DeliveryField label="Pincode" value={delivery.pincode} onChangeText={setField('pincode')}
+                  placeholder="440010" keyboardType="number-pad" error={errors.pincode} editable={!placing} />
+              </View>
+            </View>
+          </View>
         }
         renderItem={({ item }) => (
           <View style={styles.line}>
@@ -143,7 +211,12 @@ export default function CartScreen({ navigation }) {
         <GlassButton
           label="Confirm & Pay"
           onPress={handleConfirm}
-          caption={`${formatINR(total)}  ·  arrives in ~40 min`}
+          loading={placing}
+          caption={
+            orderCount(cartItems) > 1
+              ? `${formatINR(total)}  ·  ${orderCount(cartItems)} shops`
+              : `${formatINR(total)}  ·  arrives in ~40 min`
+          }
           style={styles.confirm}
         />
       </View>
@@ -156,6 +229,21 @@ function SummaryRow({ label, value }) {
     <View style={styles.summaryRow}>
       <Text style={styles.summaryLabel}>{label}</Text>
       <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+/** One labelled input in the delivery form. */
+function DeliveryField({ label, error, ...inputProps }) {
+  return (
+    <View style={styles.deliveryField}>
+      <Text style={styles.deliveryLabel}>{label.toUpperCase()}</Text>
+      <TextInput
+        style={[styles.deliveryInput, error && styles.deliveryInputError]}
+        placeholderTextColor={colors.slate}
+        {...inputProps}
+      />
+      {error ? <Text style={styles.deliveryError}>{error}</Text> : null}
     </View>
   );
 }
@@ -204,6 +292,55 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: spacing.sm,
+  },
+
+  deliveryCard: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFill,
+  },
+  deliveryTitle: {
+    color: colors.slate,
+    fontSize: 10,
+    letterSpacing: 2,
+    marginBottom: spacing.sm,
+  },
+  deliveryRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  deliveryRowItem: {
+    flex: 1,
+  },
+  deliveryField: {
+    marginBottom: spacing.sm,
+  },
+  deliveryLabel: {
+    color: colors.slate,
+    fontSize: 9,
+    letterSpacing: 2,
+    marginBottom: 5,
+  },
+  deliveryInput: {
+    color: colors.ivory,
+    fontSize: 15,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.obsidianDeep,
+  },
+  deliveryInputError: {
+    borderColor: colors.crimsonBright,
+  },
+  deliveryError: {
+    color: colors.crimsonBright,
+    fontSize: 11,
+    marginTop: 4,
   },
 
   line: {

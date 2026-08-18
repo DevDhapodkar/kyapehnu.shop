@@ -40,17 +40,20 @@ service cloud.firestore {
     }
 
     // Orders carry customer PII, so reads are limited to the order's vendor or
-    // customer. A vendor may advance the status of their own orders; they can't
-    // reassign it to another shop. Creation is server-side (seed now, checkout
-    // later).
+    // customer. A signed-in customer may create an order for themselves (stamped
+    // with their own customerUid, status PENDING). A vendor may advance the
+    // status of their own orders but can't reassign them to another shop.
     match /orders/{orderId} {
       allow read: if isSignedIn()
         && (resource.data.vendorUid == request.auth.uid
             || resource.data.customerUid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.customerUid == request.auth.uid
+        && request.resource.data.status == 'PENDING';
       allow update: if isSignedIn()
         && resource.data.vendorUid == request.auth.uid
         && request.resource.data.vendorUid == resource.data.vendorUid;
-      allow create, delete: if false;
+      allow delete: if false;
     }
 
     match /users/{userId} {

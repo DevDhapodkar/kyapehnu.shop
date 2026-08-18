@@ -47,6 +47,8 @@ export const useCartStore = create((set, get) => ({
             price: product.price,
             image: product.image,
             colorway: product.colorway,
+            // vendorUid routes the order to the right shop's desk at checkout.
+            vendorUid: product.vendorUid ?? null,
             storeId: product.storeId,
             storeName: product.storeName,
             storeArea: product.storeArea,

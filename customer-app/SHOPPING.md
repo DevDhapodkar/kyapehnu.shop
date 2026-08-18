@@ -49,6 +49,28 @@ real shops appear as vendors add products.
 > `GET /api/products` serves it, used automatically if Firestore is empty and the
 > backend is running.
 
+## Checkout → order (the two-sided loop)
+
+Checkout writes real orders to Firestore, closing the loop with the vendor desk:
+
+- The cart can hold items from several shops, so checkout **splits it into one
+  order per vendor** (`src/shop/checkout.js`, pure + unit-tested) — the standard
+  marketplace resolution of a multi-vendor cart.
+- `src/shop/placeOrders.js` writes each order to the `orders` collection,
+  stamped with the signed-in customer's `customerUid` and `status: PENDING`.
+  `firestore.rules` lets a customer create only their own orders and read only
+  their own; the vendor reads and advances only orders for their `vendorUid`.
+- The Cart screen collects delivery details (name, phone, address, pincode),
+  prefilled from the account, and shows "N shops" when the cart will split.
+
+An order placed for a shop with a `vendorUid` (an onboarded vendor — see the
+demo vendors in AUTH.md) appears on that shop's order desk in real time. A demo
+customer account for testing the loop:
+
+| Email | Password |
+|-------|----------|
+| `customer@kyapehnu.shop` | `KyaPehnu@123` |
+
 ## "Nearest to you"
 
 Each product carries its shop's `storeLocation` (`{ latitude, longitude }`). The
