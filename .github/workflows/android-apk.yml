@@ -11,7 +11,17 @@ on:
   workflow_dispatch:
   push:
     branches: ['claude/**']
-    tags: ['v*']
+    # Only rebuild when the app (or this workflow) changes — backend-only pushes
+    # shouldn't spend ~24 min on an Android build.
+    paths:
+      - 'customer-app/**'
+      - '.github/workflows/android-apk.yml'
+
+# Never let two builds run at once on the same ref — they'd both try to commit
+# app-release.apk and the second push would be rejected.
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-apk:

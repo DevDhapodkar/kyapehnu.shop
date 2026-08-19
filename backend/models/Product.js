@@ -58,10 +58,10 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Keep the denormalised selling price correct on every write.
-productSchema.pre('save', function syncSellingPrice(next) {
+// Keep the denormalised selling price correct on every write. Synchronous hook
+// (no `next` — Mongoose 9 proceeds when a param-less pre hook returns).
+productSchema.pre('save', function syncSellingPrice() {
   this.sellingPricePaise = (this.basePricePaise || 0) + (this.marginPaise || 0);
-  next();
 });
 
 /** True when a customer is allowed to see and buy this product. */

@@ -66,10 +66,10 @@ const vendorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Keep isActive in lockstep with the approval status.
-vendorSchema.pre('save', function syncActive(next) {
+// Keep isActive in lockstep with the approval status. Synchronous hook (no
+// `next` callback — Mongoose 9 runs param-less pre hooks and proceeds on return).
+vendorSchema.pre('save', function syncActive() {
   this.isActive = this.status === 'APPROVED';
-  next();
 });
 
 vendorSchema.index({ location: '2dsphere' });
