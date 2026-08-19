@@ -61,4 +61,37 @@ export const buildSignedUpload = ({ subfolder } = {}) => {
   };
 };
 
-export default { signParams, imageUploadsEnabled, buildSignedUpload };
+/**
+ * Server-side upload of an image buffer to Cloudinary. Used by the admin portal
+ * (a server-rendered form posts the file to us, we forward it). Fine here
+ * because admin traffic is low — unlike the customer/vendor path, which uploads
+ * directly to Cloudinary to avoid our backend's bandwidth. Uses Node's global
+ * fetch/FormData/Blob (Node 18+), so no extra dependency.
+ */
+export const uploadBufferToCloudinary = async (buffer, { subfolder, filename } = {}) => {
+  if (!env.features.imageUploads) {
+    throw new AppError(503, 'Image uploads are not configured on this server');
+  }
+  const folder = subfolder ? `${env.cloudinary.folder}/${subfolder}` : env.cloudinary.folder;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = signParams({ folder, timestamp }, env.cloudinary.apiSecret);
+
+  const form = new FormData();
+  form.append('file', new Blob([buffer]), filename || 'upload.jpg');
+  form.append('api_key', env.cloudinary.apiKey);
+  form.append('timestamp', String(timestamp));
+  form.append('folder', folder);
+  form.append('signature', signature);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${env.cloudinary.cloudName}/image/upload`,
+    { method: 'POST', body: form }
+  );
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.secure_url) {
+    throw new AppError(502, body?.error?.message || 'Cloudinary upload failed');
+  }
+  return body.secure_url;
+};
+
+export default { signParams, imageUploadsEnabled, buildSignedUpload, uploadBufferToCloudinary };

@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import Invoice from '../models/Invoice.js';
 import { getSettings, updateSettings } from '../models/PlatformSetting.js';
 import { advanceOrderStatus } from '../services/orderService.js';
+import { imageUploadsEnabled, uploadBufferToCloudinary } from '../services/imageStorage.js';
 import { rupeesToPaise } from '../lib/money.js';
 import { loadEnv } from '../config/env.js';
 import { signAdminToken, adminCookieOptions } from '../middleware/adminAuth.js';
@@ -94,12 +95,56 @@ export const dashboard = asyncPage(async (req, res) => {
 
 /* --------------------------------------------------------------- products -- */
 
+const enc = encodeURIComponent;
+
 export const listProducts = asyncPage(async (req, res) => {
+  const status = (req.query.status || 'PENDING_APPROVAL').toUpperCase();
+  const filter = status === 'ALL' ? {} : { status };
   const [products, settings] = await Promise.all([
-    Product.find({ status: 'PENDING_APPROVAL' }).populate('vendor', 'shopName').sort({ createdAt: 1 }).limit(200),
+    Product.find(filter)
+      .populate('vendor', 'shopName')
+      .sort({ createdAt: status === 'PENDING_APPROVAL' ? 1 : -1 })
+      .limit(200),
     getSettings(),
   ]);
-  res.send(V.productsPage(products, settings, req.admin, req.query.flash));
+  res.send(V.productsPage(products, settings, status, imageUploadsEnabled(), req.admin, req.query.flash));
+});
+
+export const productDetail = asyncPage(async (req, res) => {
+  const [product, settings] = await Promise.all([
+    Product.findById(req.params.id).populate('vendor', 'shopName'),
+    getSettings(),
+  ]);
+  if (!product) {
+    return res.status(404).send(V.layout('Not found', '<h1>Product not found</h1>', { admin: req.admin }));
+  }
+  res.send(V.productDetailPage(product, settings, imageUploadsEnabled(), req.admin, req.query.flash));
+});
+
+export const uploadProductImage = asyncPage(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.redirect('/admin/products');
+  const back = `/admin/products/${product._id}?flash=`;
+  if (!imageUploadsEnabled()) {
+    return res.redirect(back + enc('Image uploads are not configured (set CLOUDINARY_* env).'));
+  }
+  if (!req.file) return res.redirect(back + enc('No file selected.'));
+  const url = await uploadBufferToCloudinary(req.file.buffer, {
+    subfolder: `vendors/${product.vendor}`,
+    filename: req.file.originalname,
+  });
+  // Newest becomes the primary image; keep at most 10, de-duplicated.
+  product.images = [url, ...(product.images || []).filter((u) => u !== url)].slice(0, 10);
+  await product.save();
+  res.redirect(back + enc('Image uploaded.'));
+});
+
+export const removeProductImage = asyncPage(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.redirect('/admin/products');
+  product.images = (product.images || []).filter((u) => u !== req.body.url);
+  await product.save();
+  res.redirect(`/admin/products/${product._id}?flash=` + enc('Image removed.'));
 });
 
 export const approveProduct = asyncPage(async (req, res) => {

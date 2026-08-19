@@ -30,3 +30,18 @@ test('signParams drops empty/undefined params from the signature', () => {
 test('signParams changes when the secret changes (secret actually participates)', () => {
   assert.notEqual(signParams({ folder: 'x', timestamp: 1 }, 's1'), signParams({ folder: 'x', timestamp: 1 }, 's2'));
 });
+
+test('upload helpers refuse (503) when Cloudinary is not configured', async () => {
+  process.env.NODE_ENV = 'test';
+  process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://x/y';
+  const { buildSignedUpload, uploadBufferToCloudinary, imageUploadsEnabled } = await import(
+    '../services/imageStorage.js'
+  );
+  // No CLOUDINARY_* env in the test environment ⇒ feature is off.
+  assert.equal(imageUploadsEnabled(), false);
+  assert.throws(() => buildSignedUpload({ subfolder: 'x' }), (e) => e.statusCode === 503);
+  await assert.rejects(
+    () => uploadBufferToCloudinary(Buffer.from('x'), { subfolder: 'x' }),
+    (e) => e.statusCode === 503
+  );
+});

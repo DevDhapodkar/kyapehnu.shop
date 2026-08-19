@@ -19,6 +19,10 @@ export default [
         URL: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        // Node 18+ web globals used by the Cloudinary upload path.
+        fetch: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
       },
     },
     rules: {

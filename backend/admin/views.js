@@ -125,38 +125,103 @@ export const dashboardPage = (stats, admin) =>
     { admin, active: 'Dashboard' }
   );
 
-export const productsPage = (products, settings, admin, flash) => {
+const thumb = (p) =>
+  p.images?.[0]
+    ? `<img src="${esc(p.images[0])}" alt="" style="width:46px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--line)"/>`
+    : `<div style="width:46px;height:60px;border-radius:6px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--slate);font-size:9px">no&nbsp;photo</div>`;
+
+export const productsPage = (products, settings, statusFilter, uploadsEnabled, admin, flash) => {
   const defMargin = (settings.defaultMarginPaise / 100).toFixed(2);
-  const rows = products
+  const filters = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'ALL']
     .map(
-      (p) => `<tr>
-      <td><strong>${esc(p.name)}</strong><br/><span class="muted">${esc(p.category)}${p.subCategory ? ' · ' + esc(p.subCategory) : ''} · ${esc(p.vendor?.shopName || '—')}</span></td>
-      <td>${money(p.basePricePaise)}<br/><span class="muted">vendor price</span></td>
-      <td>
-        <form class="inline" method="post" action="/admin/products/${p._id}/approve">
-          <span class="muted">₹</span>
-          <input name="marginRupees" type="number" step="0.01" min="0" value="${defMargin}" style="width:90px" required/>
-          <button class="gold" type="submit">Approve</button>
-        </form>
-        <div class="muted" style="margin-top:4px">sells at base + margin</div>
-      </td>
-      <td>
-        <form class="inline" method="post" action="/admin/products/${p._id}/reject">
-          <input name="reason" placeholder="Reason" required style="width:140px"/>
-          <button class="danger" type="submit">Reject</button>
-        </form>
-      </td>
-    </tr>`
+      (s) =>
+        `<a href="/admin/products?status=${s}" class="pill ${statusFilter === s ? 'approved' : ''}" style="text-decoration:none">${s.replace('_', ' ')}</a>`
     )
+    .join(' ');
+  const rows = products
+    .map((p) => {
+      const actions =
+        p.status === 'PENDING_APPROVAL'
+          ? `<form class="inline" method="post" action="/admin/products/${p._id}/approve">
+               <span class="muted">₹</span>
+               <input name="marginRupees" type="number" step="0.01" min="0" value="${defMargin}" style="width:80px" required/>
+               <button class="gold" type="submit">Approve</button>
+             </form>
+             <form class="inline" method="post" action="/admin/products/${p._id}/reject" style="margin-top:6px">
+               <input name="reason" placeholder="Reason" required style="width:120px"/><button class="danger" type="submit">Reject</button>
+             </form>`
+          : statusPill(p.status);
+      return `<tr>
+        <td>${thumb(p)}</td>
+        <td><a href="/admin/products/${p._id}"><strong>${esc(p.name)}</strong></a><br/><span class="muted">${esc(p.category)} · ${esc(p.vendor?.shopName || '—')}</span></td>
+        <td>${money(p.basePricePaise)}${p.marginPaise ? `<br/><span class="muted">+${money(p.marginPaise)} margin</span>` : ''}</td>
+        <td>${actions}</td>
+      </tr>`;
+    })
     .join('');
   return layout(
     'Products',
-    `<h1>Product approval queue</h1><p class="sub">Set Kya Pehnu's margin, then approve. Customer pays base + margin.</p>
+    `<h1>Products</h1><p class="sub">${filters}</p>
+    ${uploadsEnabled ? '' : '<div class="card" style="margin-bottom:14px"><span class="muted">Image uploads are off — set CLOUDINARY_* env to let staff add product photos.</span></div>'}
     ${
       products.length
-        ? `<table><thead><tr><th>Product</th><th>Base price</th><th>Margin & approve</th><th>Reject</th></tr></thead><tbody>${rows}</tbody></table>`
-        : `<div class="card empty">No products awaiting approval 🎉</div>`
+        ? `<table><thead><tr><th></th><th>Product</th><th>Price</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<div class="card empty">No products in this view</div>`
     }`,
+    { admin, active: 'Products', flash }
+  );
+};
+
+export const productDetailPage = (p, settings, uploadsEnabled, admin, flash) => {
+  const defMargin = (settings.defaultMarginPaise / 100).toFixed(2);
+  const marginPrefill = p.marginPaise ? (p.marginPaise / 100).toFixed(2) : defMargin;
+  const gallery =
+    (p.images || [])
+      .map(
+        (u) => `<div style="text-align:center">
+          <img src="${esc(u)}" alt="" style="width:120px;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"/>
+          <form method="post" action="/admin/products/${p._id}/image/remove"><input type="hidden" name="url" value="${esc(u)}"/><button class="danger" type="submit" style="margin-top:4px;padding:4px 10px;font-size:11px">Remove</button></form>
+        </div>`
+      )
+      .join('') || '<span class="muted">No images yet.</span>';
+  return layout(
+    esc(p.name),
+    `<h1>${esc(p.name)} ${statusPill(p.status)}</h1>
+    <p class="sub">${esc(p.category)}${p.subCategory ? ' · ' + esc(p.subCategory) : ''} · ${esc(p.vendor?.shopName || '—')}</p>
+    <div class="row">
+      <div class="box card">
+        <div class="label">Images</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:10px 0">${gallery}</div>
+        ${
+          uploadsEnabled
+            ? `<form method="post" action="/admin/products/${p._id}/image" enctype="multipart/form-data" class="inline">
+                 <input type="file" name="image" accept="image/*" required/>
+                 <button type="submit">Upload photo</button>
+               </form>`
+            : '<span class="muted">Set CLOUDINARY_* env to enable uploads.</span>'
+        }
+      </div>
+      <div class="box card">
+        <div class="label">Pricing</div>
+        <p>Base (vendor): <strong>${money(p.basePricePaise)}</strong><br/>
+           Margin (Kya Pehnu): <strong>${money(p.marginPaise)}</strong><br/>
+           Sells at: <strong>${money(p.sellingPricePaise)}</strong></p>
+        ${
+          p.status === 'PENDING_APPROVAL'
+            ? `<form class="inline" method="post" action="/admin/products/${p._id}/approve">
+                 <span class="muted">Margin ₹</span>
+                 <input name="marginRupees" type="number" step="0.01" min="0" value="${marginPrefill}" style="width:90px" required/>
+                 <button class="gold" type="submit">Approve</button>
+               </form>
+               <form class="inline" method="post" action="/admin/products/${p._id}/reject" style="margin-top:8px">
+                 <input name="reason" placeholder="Rejection reason" required style="width:160px"/><button class="danger" type="submit">Reject</button>
+               </form>`
+            : ''
+        }
+      </div>
+    </div>
+    ${p.description ? `<div class="card" style="margin-top:16px"><div class="label">Description</div><p>${esc(p.description)}</p></div>` : ''}
+    <p style="margin-top:16px"><a href="/admin/products"><button class="ghost">← Back to products</button></a></p>`,
     { admin, active: 'Products', flash }
   );
 };
