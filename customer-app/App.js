@@ -5,9 +5,13 @@ import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 
 import AppNavigator from './src/navigation/AppNavigator';
+import useAuthInit from './src/hooks/useAuthInit';
 import { colors } from './src/theme/colors';
 
 export default function App() {
+  // Restore any persisted Firebase session and keep the ID token fresh.
+  useAuthInit();
+
   // expo-splash-screen's automatic hide does not fire on this setup, so the
   // launch screen stays over the app forever. Hiding it once the root has
   // mounted is what actually reveals the UI.

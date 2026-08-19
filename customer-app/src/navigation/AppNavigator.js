@@ -2,6 +2,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from '../screens/HomeScreen';
+import SignInScreen from '../screens/SignInScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import LiveTrackingScreen from '../screens/LiveTrackingScreen';
@@ -67,6 +68,11 @@ function CustomerFlow() {
   return (
     <CustomerStack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <CustomerStack.Screen
+        name="SignIn"
+        component={SignInScreen}
+        options={{ title: 'Sign in', animation: 'slide_from_bottom' }}
+      />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}

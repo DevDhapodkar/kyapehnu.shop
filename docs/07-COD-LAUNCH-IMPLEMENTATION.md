@@ -93,6 +93,7 @@ via `GET /api/orders/:id/invoice` and rendered as a printable page in the portal
 | No tests / CI | `node:test` suite (money, pricing, state machine, validation, wiring) + GitHub Actions |
 | Vendor Mode toggle shipped live | Gated behind `expo.extra.enableVendorModeToggle` (dev-only) |
 | No customer API client | `customer-app/src/api/customerApi.js` |
+| No client authentication (demo token) | Firebase email/password auth wired through the token seam (config-driven; phone OTP later) |
 | Fake checkout | COD checkout posts to `/orders` with idempotency (falls back to demo on mock data) |
 | ₹25 platform fee not shown | Itemised in the cart bill + enforced server-side |
 | Android package `com.anonymous.*` | Set to `com.dhapodkardev.kyapehnu` |
@@ -130,6 +131,28 @@ via `GET /api/orders/:id/invoice` and rendered as a printable page in the portal
   If neither is reachable they **skip with a clear reason** (so `npm test` stays
   green in a sandbox with no database). CI runs them for real:
   `npm run test:integration`.
+
+## Authentication (Firebase email/password — free)
+
+The customer app now signs in for real instead of a demo token. Email/password
+is the free, no-SMS-cost method for the pilot; the backend already verifies the
+Firebase ID token via `firebase-admin`.
+
+- `src/config/firebaseClient.js` — config-driven init (reads `expo.extra.firebase`
+  from app.json), AsyncStorage persistence so sessions survive restarts. When the
+  config is blank, `isFirebaseConfigured` is false and the app falls back to the
+  demo session — it still runs without a Firebase project.
+- `src/services/auth.js` — sign-up / sign-in / sign-out + `subscribeToken`
+  (restore-on-launch and hourly token refresh).
+- `src/screens/SignInScreen.js` — email/password screen (sign-up collects the
+  phone for COD delivery); syncs the backend profile and seeds the token seam.
+- `src/hooks/useAuthInit.js` (mounted in `App.js`) — restores the session and
+  keeps the ID token fresh; loads the backend profile (with saved addresses).
+
+Setup: create a free Firebase project → Authentication → enable Email/Password →
+copy the web app config into `expo.extra.firebase` in `app.json`. Phone OTP (more
+natural for India, but SMS has a cost) can replace email later without changing
+callers.
 
 ## Storefront wired to the live API
 

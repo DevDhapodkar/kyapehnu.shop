@@ -10,6 +10,7 @@ import ScrollytellingSequence from '../components/ScrollytellingSequence';
 import { formatINR } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import useCatalog from '../hooks/useCatalog';
+import { isFirebaseConfigured } from '../config/firebaseClient';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { ROLES, useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
@@ -66,12 +67,18 @@ export default function HomeScreen({ navigation }) {
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
   const signIn = useAuthStore((state) => state.signIn);
 
-  // No real auth flow is wired yet (Firebase is pending), so both routes open a
-  // demo customer session. Splitting sign-up from sign-in happens when Auth
-  // lands; the CTA already calls the two handlers separately.
+  // With Firebase configured, the CTA opens the real email/password screen;
+  // otherwise it falls back to a demo session so the app still runs without a
+  // Firebase project.
   const handleJoin = useCallback(() => {
+    if (isFirebaseConfigured) return navigation.navigate('SignIn', { mode: 'signup' });
     signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
-  }, [signIn]);
+  }, [navigation, signIn]);
+
+  const handleLogin = useCallback(() => {
+    if (isFirebaseConfigured) return navigation.navigate('SignIn', { mode: 'signin' });
+    signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
+  }, [navigation, signIn]);
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
 
@@ -139,7 +146,7 @@ export default function HomeScreen({ navigation }) {
       <MarketingScrollytelling
         insets={insets}
         onJoin={handleJoin}
-        onLogin={handleJoin}
+        onLogin={handleLogin}
       />
       {header}
     </View>

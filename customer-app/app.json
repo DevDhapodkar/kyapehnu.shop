@@ -61,7 +61,13 @@
     "extra": {
       "apiBaseUrl": "http://localhost:5001",
       "devAuthToken": "",
-      "enableVendorModeToggle": false
+      "enableVendorModeToggle": false,
+      "firebase": {
+        "apiKey": "",
+        "authDomain": "",
+        "projectId": "",
+        "appId": ""
+      }
     }
   }
 }

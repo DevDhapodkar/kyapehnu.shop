@@ -6,6 +6,7 @@ import { API_BASE_URL, getAuthToken } from '../api/vendorApi';
 import { colors, spacing } from '../theme/colors';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import useVendorStore from '../store/useVendorStore';
+import { signOutFirebase } from '../services/auth';
 
 /**
  * The Vendor Mode switch is a DEV-ONLY testing affordance. It must never ship
@@ -47,9 +48,11 @@ export default function ProfileScreen() {
   };
 
   // Signing out clears the session token, which drops the home screen back to
-  // the logged-out marketing scrollytelling.
-  const onSignOut = () => {
+  // the logged-out marketing scrollytelling. Also ends the Firebase session so
+  // it isn't silently restored on next launch.
+  const onSignOut = async () => {
     resetVendorState();
+    await signOutFirebase();
     signOut();
   };
 

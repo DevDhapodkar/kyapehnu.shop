@@ -45,6 +45,15 @@ export const useAuthStore = create((set, get) => ({
     set({ user, token, role });
   },
 
+  /**
+   * Refresh just the ID token (Firebase auto-refreshes hourly) without touching
+   * role/user. Keeps the axios seam in sync on every token rotation.
+   */
+  setToken: (token) => {
+    setAuthToken(token);
+    set({ token });
+  },
+
   signOut: () => {
     setAuthToken(null);
     set({ user: null, token: null, role: ROLES.CUSTOMER, vendorProfile: null });

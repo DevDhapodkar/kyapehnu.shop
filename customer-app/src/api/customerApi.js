@@ -53,6 +53,10 @@ export const fetchProduct = (productId) =>
 export const syncUserProfile = (profile) =>
   request(() => client.post('/users/sync', profile), 'Failed to sync profile');
 
+/** GET /api/users/me — the signed-in customer's backend profile (+ addresses). */
+export const fetchMyProfile = () =>
+  request(() => client.get('/users/me'), 'Failed to load profile');
+
 /** POST /api/users/push-token — register this device for order notifications. */
 export const registerPushToken = (token) =>
   request(() => client.post('/users/push-token', { token }), 'Failed to register device');
