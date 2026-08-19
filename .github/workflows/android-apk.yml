@@ -69,6 +69,20 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android --no-install
 
+      # Build an arm64-only APK. A universal APK bundles native libs for all 4
+      # ABIs and comes out ~135 MB (over GitHub's 100 MB file limit); arm64-v8a
+      # alone covers every modern phone and lands ~55-65 MB — small enough to
+      # commit to the repo root and a lighter download for users on limited data.
+      - name: Limit build to arm64 (smaller APK)
+        working-directory: customer-app/android
+        run: |
+          if grep -q '^reactNativeArchitectures=' gradle.properties; then
+            sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' gradle.properties
+          else
+            echo 'reactNativeArchitectures=arm64-v8a' >> gradle.properties
+          fi
+          grep '^reactNativeArchitectures=' gradle.properties
+
       - name: Build release APK
         working-directory: customer-app/android
         run: |
@@ -98,6 +112,14 @@ jobs:
         working-directory: .
         run: |
           APK=$(find customer-app/android/app/build/outputs/apk -name '*.apk' | head -1)
+          SIZE=$(stat -c%s "$APK")
+          echo "APK size: $((SIZE/1024/1024)) MB"
+          # GitHub hard-rejects files >= 100 MB. If we're over, don't fail the
+          # job — the APK is still available as the build artifact.
+          if [ "$SIZE" -ge 104857600 ]; then
+            echo "::warning::APK is >=100 MB; cannot commit to the repo. Download it from the build artifact instead."
+            exit 0
+          fi
           cp "$APK" app-release.apk
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -106,5 +128,5 @@ jobs:
             echo "APK unchanged; nothing to commit."
           else
             git commit -m "chore: publish app-release.apk to repo root [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}" || echo "::warning::push rejected; APK is available as the build artifact."
           fi

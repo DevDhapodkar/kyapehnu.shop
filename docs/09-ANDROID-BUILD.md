@@ -14,8 +14,11 @@ GitHub runner. It does two things with the result:
    (the auto-commit carries `[skip ci]` so it doesn't re-trigger the build).
 2. Uploads it as the **`kyapehnu-android-apk`** build artifact (30-day retention).
 
-> Note: an APK is ~78 MB; committing it to the repo grows git history each build.
-> For a cleaner long-term setup, prefer a GitHub **Release** asset or EAS (below).
+> The workflow builds an **arm64-v8a-only** APK (~55–65 MB). A universal APK is
+> ~135 MB — over GitHub's 100 MB per-file limit, so it can't be committed to the
+> repo. arm64 covers every modern phone; for x86 emulators or a universal build,
+> use EAS (below). Committing the APK still grows git history each build, so a
+> GitHub **Release** asset is cleaner long-term.
 
 1. Push to a `claude/**` branch (or push a `v*` tag), **or** open the repo's
    **Actions** tab → **Android APK** → **Run workflow**.
