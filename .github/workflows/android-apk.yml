@@ -1,0 +1,79 @@
+name: Android APK
+
+# Builds an installable Android APK for the Expo customer app on a GitHub-hosted
+# runner (which has the open network access the dev sandbox lacks). The APK is
+# uploaded as a downloadable build artifact.
+#
+# Runs automatically on pushes to the claude/** working branches and on version
+# tags, and can be started by hand from the Actions tab (Run workflow).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    tags: ['v*']
+
+jobs:
+  build-apk:
+    name: Build release APK (debug-signed)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: customer-app
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      # Give Gradle plenty of heap for the RN/Reanimated/Hermes compile.
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx5g -Dorg.gradle.daemon=false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # RN Android builds are disk-hungry; reclaim a few GB up front.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc || true
+          df -h /
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install JS dependencies
+        run: npm install --no-audit --no-fund
+
+      # Align native module versions to the installed Expo SDK so prebuild and
+      # the Gradle compile agree (fixes any hand-pinned versions).
+      - name: Align Expo native deps
+        run: npx expo install --fix
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build release APK
+        working-directory: customer-app/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Locate APK
+        id: apk
+        run: |
+          APK=$(find android/app/build/outputs/apk -name '*.apk' | head -1)
+          echo "Found APK: $APK"
+          echo "path=customer-app/$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyapehnu-android-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30

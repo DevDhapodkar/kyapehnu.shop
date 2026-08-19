@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.dhapodkardev.kyapehnu",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#050506",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
