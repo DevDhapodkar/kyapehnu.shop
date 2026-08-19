@@ -6,7 +6,16 @@ The dev sandbox can't build the APK (no Android SDK, and the egress policy block
 ## A. GitHub Actions (recommended — zero local setup)
 
 A workflow (`.github/workflows/android-apk.yml`) builds an installable APK on a
-GitHub runner and uploads it as an artifact.
+GitHub runner. It does two things with the result:
+
+1. **Commits the APK to the repo root** as `app-release.apk`. Because the repo is
+   public, that gives a **direct, no-login, phone-installable** URL:
+   `https://github.com/DevDhapodkar/kyapehnu.shop/raw/<branch>/app-release.apk`
+   (the auto-commit carries `[skip ci]` so it doesn't re-trigger the build).
+2. Uploads it as the **`kyapehnu-android-apk`** build artifact (30-day retention).
+
+> Note: an APK is ~78 MB; committing it to the repo grows git history each build.
+> For a cleaner long-term setup, prefer a GitHub **Release** asset or EAS (below).
 
 1. Push to a `claude/**` branch (or push a `v*` tag), **or** open the repo's
    **Actions** tab → **Android APK** → **Run workflow**.
