@@ -6,6 +6,13 @@ a few secrets.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DevDhapodkar/kyapehnu.shop)
 
+> The one-click button reads `render.yaml` from the repo's **default branch**
+> (`main`). Since the code is currently on
+> `claude/production-readiness-features-iaszws`, either **merge that branch to
+> `main` first**, or use the dashboard flow below and **select that branch** when
+> Render asks — the dashboard lets you choose which branch to read the blueprint
+> from.
+
 ## Step 1 — a free database (MongoDB Atlas M0)
 
 1. [cloud.mongodb.com](https://cloud.mongodb.com) → create a free **M0** cluster
