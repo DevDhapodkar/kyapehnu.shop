@@ -1,0 +1,57 @@
+# Render Blueprint — free host for the Kya Pehnu backend.
+#
+# One-click deploy: https://render.com/deploy?repo=https://github.com/DevDhapodkar/kyapehnu.shop
+# (or Render dashboard → New → Blueprint → pick this repo). Render reads this
+# file, provisions the service, and prompts for the secret env vars below.
+#
+# Free tier: no credit card. Note the instance sleeps after ~15 min idle and
+# cold-starts (~50s) on the next request — fine for a pilot.
+services:
+  - type: web
+    name: kyapehnu-backend
+    runtime: node
+    plan: free
+    region: singapore # closest Render region to Nagpur
+    rootDir: backend # this is a monorepo; the API lives in /backend
+    branch: claude/production-readiness-features-iaszws # change to main after merging
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # --- Required ---
+      # MongoDB Atlas connection string (a free M0 cluster — a replica set, so
+      # order transactions work). Paste it in the Render dashboard.
+      - key: MONGO_URI
+        sync: false
+      # Signs admin-portal session cookies. Render generates a strong value.
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      # Browser origins allowed by CORS (the native app needs none). Leave blank
+      # unless you add a web client.
+      - key: CORS_ALLOWLIST
+        sync: false
+      # --- Firebase Admin (customer/vendor auth) ---
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      # Paste the private key with literal \n escapes, wrapped in quotes.
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      # --- Image uploads (Cloudinary — optional, free) ---
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # --- Deferred integrations (off until company registration) ---
+      - key: PAYMENTS_ENABLED
+        value: "false"
+      - key: PORTER_ENABLED
+        value: "false"
+      - key: WHATSAPP_ENABLED
+        value: "false"
