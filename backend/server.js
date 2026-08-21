@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import connectDB from './config/db.js';
 import { ensureAdminSeed } from './config/seedAdmin.js';
@@ -18,6 +20,12 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Admin panel — a same-origin static page that talks to /api/admin. Served at
+// /admin.html (and /admin). Same origin means no CORS and no separate host.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

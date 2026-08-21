@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kya Pehnu? — Admin</title>
+    <style>
+      :root {
+        --obsidian: #050506; --deep: #0a0a0c; --charcoal: #131316; --line: rgba(245,243,239,.12);
+        --ivory: #f5f3ef; --ash: #8a8891; --slate: #5c5a63; --crimson: #c4243a; --gold: #c8a24a; --green: #3fb27f;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--obsidian); color: var(--ivory);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      header { padding: 18px 22px; border-bottom: 1px solid var(--line); display: flex;
+        align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--deep); z-index: 5; }
+      h1 { font-size: 16px; font-weight: 300; letter-spacing: 2px; margin: 0; }
+      h1 b { color: var(--gold); font-weight: 400; }
+      main { max-width: 920px; margin: 0 auto; padding: 22px; }
+      .muted { color: var(--ash); }
+      .card { background: var(--charcoal); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+      label { display: block; font-size: 11px; letter-spacing: 1px; color: var(--slate); margin: 10px 0 5px; }
+      input, textarea { width: 100%; background: var(--deep); border: 1px solid var(--line); border-radius: 8px;
+        color: var(--ivory); padding: 11px; font-size: 15px; }
+      button { cursor: pointer; border-radius: 8px; border: 1px solid var(--line); padding: 10px 16px;
+        font-size: 13px; font-weight: 600; letter-spacing: .5px; background: var(--charcoal); color: var(--ivory); }
+      button.primary { background: var(--crimson); border-color: var(--crimson); }
+      button.ok { background: var(--green); border-color: var(--green); color: #04120c; }
+      button.ghost { background: transparent; color: var(--ash); }
+      button:disabled { opacity: .5; cursor: default; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 18px; }
+      .stat { background: var(--charcoal); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+      .stat .n { font-size: 26px; font-weight: 300; }
+      .stat .l { font-size: 11px; letter-spacing: 1px; color: var(--ash); text-transform: uppercase; }
+      .tabs { display: flex; gap: 8px; margin: 6px 0 16px; }
+      .tabs button.active { background: var(--charcoal); color: var(--ivory); border-color: var(--slate); }
+      .thumbs { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+      .thumbs img { width: 74px; height: 98px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+      .pill { font-size: 10px; letter-spacing: 1px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ash); }
+      .err { color: var(--crimson); font-size: 13px; margin-top: 10px; }
+      .hidden { display: none; }
+      .title { font-size: 17px; font-weight: 400; }
+      .sub { color: var(--ash); font-size: 13px; margin-top: 2px; }
+      hr { border: none; border-top: 1px solid var(--line); margin: 14px 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>KYA PEHNU? · <b>ADMIN</b></h1>
+      <button id="logout" class="ghost hidden" onclick="logout()">Sign out</button>
+    </header>
+    <main>
+      <!-- Login -->
+      <section id="login" class="card" style="max-width: 380px; margin: 40px auto;">
+        <div class="title">Admin sign in</div>
+        <label>EMAIL</label>
+        <input id="email" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" />
+        <label>PASSWORD</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        <div style="margin-top: 16px"><button class="primary" onclick="login()">Log in</button></div>
+        <div id="loginErr" class="err"></div>
+      </section>
+
+      <!-- Dashboard -->
+      <section id="dash" class="hidden">
+        <div class="stats" id="stats"></div>
+        <div class="tabs">
+          <button id="tab-products" class="active" onclick="showTab('products')">Product QC</button>
+          <button id="tab-vendors" onclick="showTab('vendors')">Vendor approvals</button>
+        </div>
+        <div id="panel-products"></div>
+        <div id="panel-vendors" class="hidden"></div>
+      </section>
+    </main>
+
+    <script>
+      const TOKEN_KEY = 'kp_admin_token';
+      let token = null;
+      try { token = localStorage.getItem(TOKEN_KEY); } catch {}
+
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+      async function api(path, options = {}) {
+        const res = await fetch('/api/admin' + path, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: 'Bearer ' + token } : {}),
+            ...(options.headers || {}),
+          },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || ('Request failed (' + res.status + ')'));
+        return data;
+      }
+
+      async function login() {
+        $('loginErr').textContent = '';
+        try {
+          const { token: t } = await api('/login', {
+            method: 'POST',
+            body: JSON.stringify({ email: $('email').value.trim(), password: $('password').value }),
+          });
+          token = t;
+          try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+          enterDashboard();
+        } catch (e) {
+          $('loginErr').textContent = e.message;
+        }
+      }
+
+      function logout() {
+        token = null;
+        try { localStorage.removeItem(TOKEN_KEY); } catch {}
+        $('dash').classList.add('hidden');
+        $('logout').classList.add('hidden');
+        $('login').classList.remove('hidden');
+      }
+
+      function showTab(which) {
+        $('panel-products').classList.toggle('hidden', which !== 'products');
+        $('panel-vendors').classList.toggle('hidden', which !== 'vendors');
+        $('tab-products').classList.toggle('active', which === 'products');
+        $('tab-vendors').classList.toggle('active', which === 'vendors');
+      }
+
+      async function enterDashboard() {
+        $('login').classList.add('hidden');
+        $('dash').classList.remove('hidden');
+        $('logout').classList.remove('hidden');
+        await Promise.all([loadStats(), loadProducts(), loadVendors()]);
+      }
+
+      async function loadStats() {
+        try {
+          const s = await api('/stats');
+          $('stats').innerHTML = [
+            ['Pending products', s.pendingProducts],
+            ['Pending vendors', s.pendingVendors],
+            ['Total vendors', s.totalVendors],
+            ['Total orders', s.totalOrders],
+          ].map(([l, n]) => '<div class="stat"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>').join('');
+        } catch (e) { if (/token/i.test(e.message)) logout(); }
+      }
+
+      async function loadProducts() {
+        const panel = $('panel-products');
+        try {
+          const items = await api('/products/pending');
+          if (!items.length) { panel.innerHTML = '<div class="card muted">QC queue is empty. 🎉</div>'; return; }
+          panel.innerHTML = items.map((p) => {
+            const imgs = (p.images || []).map((u) => '<img src="' + esc(u) + '" alt="" />').join('');
+            return '<div class="card" id="p-' + p._id + '">' +
+              '<div class="row" style="justify-content:space-between">' +
+                '<div><div class="title">' + esc(p.name) + '</div>' +
+                '<div class="sub">' + esc(p.category) + ' · ₹' + esc(p.price) +
+                ' · ' + esc(p.vendor?.shopName || 'Unknown shop') + '</div></div>' +
+                '<span class="pill">PENDING_QC</span></div>' +
+              (imgs ? '<div class="thumbs">' + imgs + '</div>' : '<div class="sub" style="margin-top:8px">No photos submitted</div>') +
+              (p.description ? '<div class="sub" style="margin-top:8px">' + esc(p.description) + '</div>' : '') +
+              '<hr /><div class="row">' +
+                '<button class="ok" onclick="reviewProduct(\'' + p._id + '\',\'APPROVE\')">Approve</button>' +
+                '<input id="reason-' + p._id + '" placeholder="Reason (required to reject)" style="flex:1;min-width:160px" />' +
+                '<button onclick="reviewProduct(\'' + p._id + '\',\'REJECT\')">Reject</button>' +
+              '</div></div>';
+          }).join('');
+        } catch (e) {
+          if (/token/i.test(e.message)) return logout();
+          panel.innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
+        }
+      }
+
+      async function reviewProduct(id, decision) {
+        const reason = decision === 'REJECT' ? ($('reason-' + id)?.value || '').trim() : undefined;
+        if (decision === 'REJECT' && !reason) { alert('A reason is required to reject.'); return; }
+        try {
+          await api('/products/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision, reason }) });
+          $('p-' + id)?.remove();
+          loadStats();
+        } catch (e) { alert(e.message); }
+      }
+
+      async function loadVendors() {
+        const panel = $('panel-vendors');
+        try {
+          const items = await api('/vendors?status=PENDING');
+          if (!items.length) { panel.innerHTML = '<div class="card muted">No vendors awaiting approval.</div>'; return; }
+          panel.innerHTML = items.map((v) =>
+            '<div class="card" id="v-' + v._id + '">' +
+              '<div class="row" style="justify-content:space-between">' +
+                '<div><div class="title">' + esc(v.shopName) + '</div>' +
+                '<div class="sub">' + esc(v.ownerName) + ' · ' + esc(v.address?.area || '') +
+                ' · WhatsApp ' + esc(v.whatsappNumber) + '</div></div>' +
+                '<span class="pill">PENDING</span></div>' +
+              '<hr /><div class="row">' +
+                '<button class="ok" onclick="reviewVendor(\'' + v._id + '\',\'APPROVE\')">Approve</button>' +
+                '<button onclick="reviewVendor(\'' + v._id + '\',\'REJECT\')">Reject</button>' +
+              '</div></div>').join('');
+        } catch (e) {
+          if (/token/i.test(e.message)) return logout();
+          panel.innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
+        }
+      }
+
+      async function reviewVendor(id, decision) {
+        try {
+          await api('/vendors/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision }) });
+          $('v-' + id)?.remove();
+          loadStats();
+        } catch (e) { alert(e.message); }
+      }
+
+      // Auto-enter if a stored token still works.
+      if (token) enterDashboard().catch(logout);
+    </script>
+  </body>
+</html>
