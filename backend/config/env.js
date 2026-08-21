@@ -22,13 +22,11 @@ const int = (v, fallback) => {
 };
 
 const REQUIRED_ALWAYS = ['MONGO_URI'];
-// Firebase is required to verify customer/vendor tokens in a real deployment.
-const REQUIRED_IN_PROD = [
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
-  'ADMIN_JWT_SECRET',
-];
+// Only the admin session secret is hard-required in production. Firebase creds
+// are optional at boot: without them the server still runs (health, admin, and
+// public reads work) and token-verifying routes degrade to a clean 503 (see
+// config/firebase.js) — so you can deploy first and wire real sign-in later.
+const REQUIRED_IN_PROD = ['ADMIN_JWT_SECRET'];
 
 /** Collect missing required keys; throw a single actionable error if any. */
 const assertRequired = () => {
