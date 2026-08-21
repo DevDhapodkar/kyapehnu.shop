@@ -14,13 +14,18 @@ import {
   View,
 } from 'react-native';
 
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+
 import GlassButton from '../../components/GlassButton';
 import GlassCard from '../../components/GlassCard';
 import { colors, radii, spacing } from '../../theme/colors';
 import useVendorStore from '../../store/useVendorStore';
+import { uploadProductImages } from '../../api/vendorApi';
 import { formatCurrency } from '../../utils/format';
 
 const CATEGORIES = ['MEN', 'WOMEN', 'KIDS', 'UNISEX'];
+const MAX_IMAGES = 5;
 
 const EMPTY_DRAFT = {
   name: '',
@@ -28,6 +33,7 @@ const EMPTY_DRAFT = {
   price: '',
   sizes: '',
   description: '',
+  images: [], // [{ url, thumbnails }] returned from the upload endpoint
 };
 
 /**
@@ -50,10 +56,43 @@ export default function CatalogManagerScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadCatalog();
   }, [loadCatalog]);
+
+  const onPickImages = useCallback(async () => {
+    const remaining = MAX_IMAGES - draft.images.length;
+    if (remaining <= 0) return Alert.alert('Enough photos', `Up to ${MAX_IMAGES} images per listing.`);
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      return Alert.alert('Permission needed', 'Allow photo access to add product images.');
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    setUploading(true);
+    try {
+      const { images } = await uploadProductImages(result.assets);
+      setDraft((d) => ({ ...d, images: [...d.images, ...images] }));
+    } catch (err) {
+      Alert.alert('Upload failed', err.message);
+    } finally {
+      setUploading(false);
+    }
+  }, [draft.images.length]);
+
+  const removeImage = useCallback((publicId) => {
+    setDraft((d) => ({ ...d, images: d.images.filter((img) => img.publicId !== publicId) }));
+  }, []);
 
   const onToggle = useCallback(
     async (product, next) => {
@@ -90,6 +129,7 @@ export default function CatalogManagerScreen() {
         price,
         description: draft.description.trim() || undefined,
         sizes: sizes.length ? sizes : [{ size: 'FREE', stock: 1 }],
+        images: draft.images.map((img) => img.url),
         isAvailable: true,
       });
 
@@ -236,10 +276,51 @@ export default function CatalogManagerScreen() {
                   multiline
                 />
 
+                <Text style={styles.fieldLabel}>PHOTOS ({draft.images.length}/{MAX_IMAGES})</Text>
+                <View style={styles.thumbRow}>
+                  {draft.images.map((img) => (
+                    <Pressable
+                      key={img.publicId}
+                      onPress={() => removeImage(img.publicId)}
+                      accessibilityLabel="Remove photo"
+                      style={styles.thumbWrap}
+                    >
+                      <Image
+                        source={{ uri: img.thumbnails?.thumb || img.url }}
+                        style={styles.thumb}
+                        contentFit="cover"
+                      />
+                      <View style={styles.thumbRemove}>
+                        <Text style={styles.thumbRemoveText}>×</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+
+                  {draft.images.length < MAX_IMAGES ? (
+                    <Pressable
+                      onPress={onPickImages}
+                      accessibilityRole="button"
+                      accessibilityLabel="Add photos"
+                      style={({ pressed }) => [styles.addThumb, pressed && styles.pressed]}
+                    >
+                      {uploading ? (
+                        <ActivityIndicator color={colors.platinum} />
+                      ) : (
+                        <Text style={styles.addThumbText}>＋</Text>
+                      )}
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                <Text style={styles.qcNote}>
+                  New listings go live after a quick quality check.
+                </Text>
+
                 <GlassButton
                   label="Add Listing"
                   onPress={onSubmit}
                   loading={saving}
+                  disabled={uploading}
                   style={styles.submit}
                 />
               </GlassCard>
@@ -369,6 +450,61 @@ const styles = StyleSheet.create({
   categoryTextActive: {
     color: colors.ivory,
     fontWeight: '600',
+  },
+  thumbRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  thumbWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+  },
+  thumb: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.glassFillStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: {
+    color: colors.ivory,
+    fontSize: 14,
+    lineHeight: 16,
+  },
+  addThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addThumbText: {
+    color: colors.platinum,
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  qcNote: {
+    color: colors.slate,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: spacing.sm,
   },
   submit: {
     marginTop: spacing.xs,

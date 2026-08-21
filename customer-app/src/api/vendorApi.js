@@ -77,6 +77,55 @@ const request = async (fn, fallback) => {
   }
 };
 
+/* ------------------------------------------------------------- profiles -- */
+
+/** POST /api/users/sync — upsert the customer profile for the signed-in uid. */
+export const syncUserProfile = (payload) =>
+  request(() => client.post('/users/sync', payload), 'Failed to sync profile');
+
+/** GET /api/users/me — the customer profile behind the current token. */
+export const fetchUserProfile = () =>
+  request(() => client.get('/users/me'), 'Failed to load profile');
+
+/** POST /api/vendors/sync — register or update the shop for the signed-in uid. */
+export const registerVendor = (payload) =>
+  request(() => client.post('/vendors/sync', payload), 'Failed to register shop');
+
+/* ------------------------------------------------------------ storefront -- */
+
+/**
+ * GET /api/products — public storefront feed of approved, in-stock listings.
+ * @param {{ category?: string, page?: number, limit?: number }} [params]
+ */
+export const fetchStorefront = (params) =>
+  request(() => client.get('/products', { params }), 'Failed to load products');
+
+/* --------------------------------------------------------------- uploads -- */
+
+/**
+ * POST /api/uploads/images — multipart upload of picked images. Accepts the
+ * asset objects expo-image-picker returns and resolves to
+ * `{ images: [{ url, publicId, thumbnails }] }`.
+ * @param {{ uri: string, fileName?: string, mimeType?: string }[]} assets
+ */
+export const uploadProductImages = (assets) => {
+  const form = new FormData();
+  assets.forEach((asset, index) => {
+    form.append('images', {
+      uri: asset.uri,
+      name: asset.fileName || `image_${index}.jpg`,
+      type: asset.mimeType || 'image/jpeg',
+    });
+  });
+  return request(
+    () =>
+      client.post('/uploads/images', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }),
+    'Failed to upload images'
+  );
+};
+
 /* ---------------------------------------------------------------- vendor -- */
 
 /** GET /api/vendors/me — the shop profile behind the current token. */

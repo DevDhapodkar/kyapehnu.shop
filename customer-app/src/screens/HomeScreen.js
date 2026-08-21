@@ -10,7 +10,7 @@ import ScrollytellingSequence from '../components/ScrollytellingSequence';
 import { formatINR, productsByProximity } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
-import { ROLES, useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -60,14 +60,14 @@ export default function HomeScreen({ navigation }) {
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
-  const signIn = useAuthStore((state) => state.signIn);
 
-  // No real auth flow is wired yet (Firebase is pending), so both routes open a
-  // demo customer session. Splitting sign-up from sign-in happens when Auth
-  // lands; the CTA already calls the two handlers separately.
-  const handleJoin = useCallback(() => {
-    signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
-  }, [signIn]);
+  // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
+  // register mode, "Log in" in sign-in mode. The Firebase session, once
+  // established, flips this screen to the storefront via the auth store.
+  const openAuth = useCallback(
+    (mode) => navigation.navigate('Auth', { mode }),
+    [navigation]
+  );
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
 
@@ -129,8 +129,8 @@ export default function HomeScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
       <MarketingScrollytelling
         insets={insets}
-        onJoin={handleJoin}
-        onLogin={handleJoin}
+        onJoin={() => openAuth('register')}
+        onLogin={() => openAuth('signin')}
       />
       {header}
     </View>

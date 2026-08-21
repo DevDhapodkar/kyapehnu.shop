@@ -6,6 +6,8 @@ import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import LiveTrackingScreen from '../screens/LiveTrackingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import AuthScreen from '../screens/AuthScreen';
+import VendorRegisterScreen from '../screens/VendorRegisterScreen';
 import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
@@ -82,6 +84,16 @@ function CustomerFlow() {
         name="Profile"
         component={ProfileScreen}
         options={{ title: 'Profile' }}
+      />
+      <CustomerStack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{ title: 'Sign In', animation: 'slide_from_bottom' }}
+      />
+      <CustomerStack.Screen
+        name="VendorRegister"
+        component={VendorRegisterScreen}
+        options={{ title: 'Register Your Shop', animation: 'slide_from_bottom' }}
       />
     </CustomerStack.Navigator>
   );
