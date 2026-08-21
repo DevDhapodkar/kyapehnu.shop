@@ -37,6 +37,7 @@ const listNearby = async (req, res) => {
 
     const vendors = await Vendor.find({
       isActive: true,
+      approvalStatus: 'APPROVED',
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },

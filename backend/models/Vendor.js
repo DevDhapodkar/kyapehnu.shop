@@ -34,6 +34,13 @@ const vendorSchema = new mongoose.Schema(
     },
     operatingHours: [operatingHoursSchema],
     isActive: { type: Boolean, default: true },
+    // A vendor registers as PENDING and is surfaced to customers only after an
+    // admin approves. They may still build their catalog while pending.
+    approvalStatus: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+    },
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }

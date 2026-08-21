@@ -1,4 +1,4 @@
-import firebaseAuth from '../config/firebase.js';
+import { verifyIdToken, isFirebaseConfigured } from '../config/firebase.js';
 import User from '../models/User.js';
 import Vendor from '../models/Vendor.js';
 
@@ -9,14 +9,21 @@ const verifyToken = async (req, res, next) => {
     return res.status(401).json({ message: 'No auth token provided' });
   }
 
+  if (!isFirebaseConfigured) {
+    return res.status(503).json({ message: 'Authentication is not configured on this server' });
+  }
+
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = await firebaseAuth.verifyIdToken(token);
-    req.firebaseUser = decoded;
+    req.firebaseUser = await verifyIdToken(token);
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token', error: error.message });
+    const status = error.status || 401;
+    return res.status(status).json({
+      message: status === 503 ? error.message : 'Invalid or expired token',
+      error: error.message,
+    });
   }
 };
 
