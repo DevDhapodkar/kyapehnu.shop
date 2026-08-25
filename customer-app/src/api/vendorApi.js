@@ -100,6 +100,12 @@ export const registerVendor = (payload) =>
 export const fetchStorefront = (params) =>
   request(() => client.get('/products', { params }), 'Failed to load products');
 
+/* --------------------------------------------------------------- orders -- */
+
+/** POST /api/orders — place a customer order (one vendor per order). */
+export const placeOrder = (payload) =>
+  request(() => client.post('/orders', payload), 'Failed to place order');
+
 /* --------------------------------------------------------------- uploads -- */
 
 /**

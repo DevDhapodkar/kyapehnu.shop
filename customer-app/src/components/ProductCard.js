@@ -38,7 +38,9 @@ export default function ProductCard({ product, onPress }) {
 
         <View style={styles.metaRow}>
           <Text style={styles.price}>{formatINR(product.price)}</Text>
-          <Text style={styles.distance}>{product.distanceKm} km</Text>
+          {typeof product.distanceKm === 'number' ? (
+            <Text style={styles.distance}>{product.distanceKm} km</Text>
+          ) : null}
         </View>
 
         <Text style={styles.store} numberOfLines={1}>

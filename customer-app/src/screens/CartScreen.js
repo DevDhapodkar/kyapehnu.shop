@@ -1,14 +1,33 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import GlassButton from '../components/GlassButton';
 import { formatINR } from '../data/mockStores';
 import { selectCartItems, selectCartTotal, useCartStore } from '../store/useCartStore';
+import { placeOrder } from '../api/vendorApi';
+import useAuthStore from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 /** Flat fee stand-in until the Porter quote API is wired into the backend. */
 const DELIVERY_FEE = 49;
+
+// Delivery coordinates fall back to Nagpur centre if the buyer skips location.
+const NAGPUR_CENTER = [79.0882, 21.1458]; // [lng, lat]
+
+/** Resolve the buyer's delivery coordinates, best-effort. */
+const resolveDeliveryCoords = async () => {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return NAGPUR_CENTER;
+    const pos = await Location.getCurrentPositionAsync({});
+    return [pos.coords.longitude, pos.coords.latitude];
+  } catch {
+    return NAGPUR_CENTER;
+  }
+};
 
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -18,24 +37,82 @@ export default function CartScreen({ navigation }) {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const clearCart = useCartStore((state) => state.clearCart);
+  const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+
+  const [placing, setPlacing] = useState(false);
 
   const empty = cartItems.length === 0;
   const total = empty ? 0 : subtotal + DELIVERY_FEE;
 
   /**
-   * Checkout stand-in. The real flow posts the order to `/orders`, which fires
-   * the WhatsApp webhook to the vendor and, on "Ready", dispatches Porter. Here
-   * it hands the order straight to the tracking screen and empties the bag.
+   * Real checkout. Orders are per-vendor on the backend, so a multi-shop bag is
+   * split into one POST /api/orders per store; each triggers the vendor's
+   * WhatsApp alert. On success the bag is cleared and the buyer is handed to
+   * live tracking for the first order placed.
    */
-  const handleConfirm = () => {
-    const order = {
-      id: `ord_${Date.now()}`,
-      items: cartItems,
-      total,
-      placedAt: new Date().toISOString(),
-    };
-    clearCart();
-    navigation.navigate('LiveTracking', { order });
+  const handleConfirm = async () => {
+    if (!isLoggedIn) {
+      Alert.alert('Sign in to order', 'Please sign in to place your order.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign in', onPress: () => navigation.navigate('Auth', { mode: 'signin' }) },
+      ]);
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      const coordinates = await resolveDeliveryCoords();
+
+      // Group the bag by vendor (storeId) — one order per shop.
+      const byVendor = new Map();
+      for (const item of cartItems) {
+        if (!item.storeId) continue;
+        if (!byVendor.has(item.storeId)) byVendor.set(item.storeId, []);
+        byVendor.get(item.storeId).push(item);
+      }
+
+      if (byVendor.size === 0) {
+        throw new Error('These items are not linked to a shop yet — pull to refresh the storefront.');
+      }
+
+      const deliveryAddress = {
+        line1: 'Current location',
+        city: 'Nagpur',
+        pincode: '440001',
+        location: { type: 'Point', coordinates },
+      };
+
+      const placed = [];
+      for (const [vendorId, items] of byVendor) {
+        const order = await placeOrder({
+          vendor: vendorId,
+          items: items.map((it) => ({
+            product: it.productId,
+            name: it.name,
+            size: it.size ?? 'FREE',
+            quantity: it.quantity,
+            price: it.price,
+          })),
+          totalPrice: items.reduce((s, it) => s + it.price * it.quantity, 0) + DELIVERY_FEE,
+          deliveryAddress,
+        });
+        // Keep the original cart items (they carry storeName/etaMinutes) for the
+        // tracking screen, and normalise the backend id/total field names.
+        placed.push({
+          id: order._id,
+          total: order.totalPrice,
+          items,
+          placedAt: order.createdAt || new Date().toISOString(),
+        });
+      }
+
+      clearCart();
+      navigation.navigate('LiveTracking', { order: placed[0] });
+    } catch (err) {
+      Alert.alert('Could not place order', err.message);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   if (empty) {
@@ -143,6 +220,7 @@ export default function CartScreen({ navigation }) {
         <GlassButton
           label="Confirm & Pay"
           onPress={handleConfirm}
+          loading={placing}
           caption={`${formatINR(total)}  ·  arrives in ~40 min`}
           style={styles.confirm}
         />
