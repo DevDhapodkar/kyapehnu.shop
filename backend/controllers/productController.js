@@ -108,9 +108,12 @@ const updateProduct = async (req, res) => {
 
     const update = stripProtected(req.body);
 
+    // Content edits to an APPROVED listing (or any fix to a REJECTED one) send
+    // it back through QC. Stock/availability toggles on an approved item stay live.
     if (
-      existing.status === PRODUCT_STATUS.APPROVED &&
-      requiresRequalification(update, { price: existing.price })
+      existing.status === PRODUCT_STATUS.REJECTED ||
+      (existing.status === PRODUCT_STATUS.APPROVED &&
+        requiresRequalification(update, { price: existing.price }))
     ) {
       update.status = PRODUCT_STATUS.PENDING_QC;
     }

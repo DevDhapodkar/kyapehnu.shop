@@ -66,6 +66,15 @@ const parseList = (raw) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+// How a listing's moderation status reads to the vendor, and its tint.
+const REVIEW_STATUS = {
+  PENDING_QC: { label: 'IN REVIEW', tone: 'pending' },
+  APPROVED: { label: 'LIVE', tone: 'live' },
+  REJECTED: { label: 'REJECTED', tone: 'rejected' },
+  ARCHIVED: { label: 'ARCHIVED', tone: 'muted' },
+  DRAFT: { label: 'DRAFT', tone: 'muted' },
+};
+
 /**
  * Catalog manager: flip a listing in or out of stock, and add a new one.
  *
@@ -185,6 +194,7 @@ export default function CatalogManagerScreen() {
   const renderItem = useCallback(
     ({ item }) => {
       const inStock = item.isAvailable;
+      const review = REVIEW_STATUS[item.status] ?? null;
 
       return (
         <GlassCard compact style={styles.row}>
@@ -194,12 +204,22 @@ export default function CatalogManagerScreen() {
                 {item.name}
               </Text>
               <Text style={styles.productMeta}>
-                {item.category} · {formatCurrency(item.discountPrice ?? item.price)}
+                {item.category} · {formatCurrency(item.price)}
                 {item.sizes?.length ? ` · ${item.sizes.map((s) => s.size).join(' / ')}` : ''}
               </Text>
-              <Text style={[styles.stockLabel, !inStock && styles.stockLabelOff]}>
-                {inStock ? 'IN STOCK' : 'OUT OF STOCK'}
-              </Text>
+              <View style={styles.badgeRow}>
+                {review ? (
+                  <Text style={[styles.reviewBadge, styles[`review_${review.tone}`]]}>
+                    {review.label}
+                  </Text>
+                ) : null}
+                <Text style={[styles.stockLabel, !inStock && styles.stockLabelOff]}>
+                  {inStock ? 'IN STOCK' : 'OUT OF STOCK'}
+                </Text>
+              </View>
+              {item.status === 'REJECTED' && item.qc?.reason ? (
+                <Text style={styles.rejectReason}>{item.qc.reason}</Text>
+              ) : null}
             </View>
 
             {pendingProductId === item._id ? (
@@ -680,14 +700,34 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginTop: 4,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 8,
+  },
+  reviewBadge: {
+    fontSize: 9,
+    letterSpacing: 1.4,
+    fontWeight: '700',
+  },
+  review_pending: { color: colors.gold },
+  review_live: { color: '#3fb27f' },
+  review_rejected: { color: colors.crimsonBright },
+  review_muted: { color: colors.slate },
   stockLabel: {
     color: colors.platinum,
     fontSize: 9,
     letterSpacing: 1.8,
-    marginTop: 8,
   },
   stockLabelOff: {
     color: colors.slate,
+  },
+  rejectReason: {
+    color: colors.ash,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 4,
   },
   empty: {
     marginTop: spacing.md,
