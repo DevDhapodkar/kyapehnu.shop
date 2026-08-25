@@ -24,7 +24,14 @@ const historySchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
-    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    // App orders carry a `customer` (Firebase account); web guest COD orders
+    // carry `guestContact` instead. One of the two is always present.
+    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    guestContact: {
+      name: { type: String },
+      phone: { type: String },
+    },
+    channel: { type: String, enum: ['APP', 'WEB'], default: 'APP' },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
     items: [cartItemSchema],
     totalPrice: { type: Number, required: true },

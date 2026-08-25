@@ -2,6 +2,8 @@ import express from 'express';
 import { verifyToken, requireUser, requireVendor } from '../middleware/authMiddleware.js';
 import {
   createOrder,
+  createGuestOrder,
+  trackGuestOrder,
   getOrderById,
   listMyOrders,
   listVendorOrders,
@@ -11,6 +13,10 @@ import {
 } from '../controllers/orderController.js';
 
 const router = express.Router();
+
+// Public web storefront: guest COD checkout + order tracking (no account).
+router.post('/guest', createGuestOrder);
+router.get('/track', trackGuestOrder);
 
 router.post('/', verifyToken, requireUser, createOrder);
 
