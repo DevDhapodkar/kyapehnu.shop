@@ -163,10 +163,13 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
         <Text style={styles.sectionLabel}>DELIVERY</Text>
         <Text style={styles.address}>{formatAddress(order.deliveryAddress)}</Text>
 
-        {order.customer?.name ? (
+        {order.customer?.name || order.guestContact?.name ? (
           <Text style={styles.customer}>
-            {order.customer.name}
-            {order.customer.phone ? ` · ${order.customer.phone}` : ''}
+            {order.customer?.name || order.guestContact?.name}
+            {order.customer?.phone || order.guestContact?.phone
+              ? ` · ${order.customer?.phone || order.guestContact?.phone}`
+              : ''}
+            {order.channel === 'WEB' ? '  · web' : ''}
           </Text>
         ) : null}
       </GlassCard>

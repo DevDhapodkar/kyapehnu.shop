@@ -94,6 +94,73 @@ const createOrder = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/orders/guest — public COD order from the web storefront. No account:
+ * the buyer is identified by name + phone, and can track by order id + phone.
+ */
+const createGuestOrder = async (req, res) => {
+  try {
+    const { vendor: vendorId, items, totalPrice, deliveryAddress, contact, paymentMethod } = req.body;
+
+    if (paymentMethod && paymentMethod !== 'COD') {
+      return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
+    }
+    if (!contact?.name || !contact?.phone) {
+      return res.status(400).json({ message: 'Your name and phone number are required' });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Your cart is empty' });
+    }
+    if (!deliveryAddress?.line1 || !deliveryAddress?.pincode) {
+      return res.status(400).json({ message: 'A delivery address (street + pincode) is required' });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) return res.status(404).json({ message: 'Shop not found' });
+
+    const order = await Order.create({
+      guestContact: { name: contact.name, phone: contact.phone },
+      channel: 'WEB',
+      vendor: vendorId,
+      items,
+      totalPrice,
+      deliveryAddress,
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      status: ORDER_STATUS.PENDING,
+      statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
+    });
+
+    adjustStock(items, -1);
+    notifyVendorNewOrder(vendor, order).catch((err) =>
+      console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
+    );
+    pushToVendor(vendor, order);
+
+    res.status(201).json({ orderId: order._id, status: order.status, totalPrice: order.totalPrice });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to place order', error: error.message });
+  }
+};
+
+/** GET /api/orders/track?orderId=&phone= — public order tracking for guests. */
+const trackGuestOrder = async (req, res) => {
+  try {
+    const { orderId, phone } = req.query;
+    if (!orderId || !phone) {
+      return res.status(400).json({ message: 'orderId and phone are required' });
+    }
+    const order = await Order.findById(orderId).populate('vendor', 'shopName area');
+    if (!order || order.guestContact?.phone !== String(phone).trim()) {
+      return res.status(404).json({ message: 'No order found for that id and phone number' });
+    }
+    res.json(order);
+  } catch (error) {
+    // A malformed order id lands here as a CastError.
+    res.status(400).json({ message: 'Could not load that order', error: error.message });
+  }
+};
+
 const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -294,6 +361,8 @@ const cancelOrder = async (req, res) => {
 
 export {
   createOrder,
+  createGuestOrder,
+  trackGuestOrder,
   getOrderById,
   listMyOrders,
   listVendorOrders,

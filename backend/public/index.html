@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kya Pehnu? — Shop Nagpur</title>
+    <style>
+      :root {
+        --obsidian: #050506; --deep: #0a0a0c; --charcoal: #131316; --char2: #1c1c21;
+        --line: rgba(245,243,239,.12); --ivory: #f5f3ef; --plat: #c9c7c2; --ash: #8a8891;
+        --slate: #5c5a63; --crimson: #8e1b29; --crimsonB: #c4243a; --gold: #c8a24a; --green: #3fb27f;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--obsidian); color: var(--ivory);
+        font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: inherit; }
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+      header { position: sticky; top: 0; z-index: 20; background: rgba(10,10,12,.82);
+        backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+      .bar { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+      .brand { font-weight: 300; letter-spacing: 2px; font-size: 18px; cursor: pointer; }
+      .brand b { color: var(--gold); font-weight: 400; }
+      nav { display: flex; gap: 6px; align-items: center; }
+      .navbtn { background: transparent; border: 1px solid transparent; color: var(--plat); cursor: pointer;
+        padding: 8px 12px; border-radius: 10px; font-size: 13px; letter-spacing: .3px; }
+      .navbtn:hover { color: var(--ivory); }
+      .navbtn.cart { border-color: var(--line); background: var(--charcoal); }
+      .cartCount { color: var(--gold); font-weight: 600; }
+
+      .hero { padding: 44px 0 22px; }
+      .eyebrow { color: var(--gold); font-size: 11px; letter-spacing: 3px; }
+      .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 300; letter-spacing: -0.5px; margin: 10px 0 6px; }
+      .hero p { color: var(--ash); max-width: 46ch; margin: 0; }
+
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; padding-bottom: 60px; }
+      .card { background: var(--charcoal); border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+        cursor: pointer; transition: transform .18s ease, border-color .18s ease; }
+      .card:hover { transform: translateY(-3px); border-color: rgba(245,243,239,.24); }
+      .card .ph { aspect-ratio: 3/4; width: 100%; object-fit: cover; display: block; background: var(--deep); }
+      .card .body { padding: 12px 13px 15px; }
+      .card .cat { color: var(--gold); font-size: 10px; letter-spacing: 1.5px; }
+      .card .nm { font-size: 14px; margin: 5px 0 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .card .pr { display: flex; align-items: baseline; gap: 8px; }
+      .card .pr .now { color: var(--ivory); font-size: 15px; }
+      .card .pr .mrp { color: var(--slate); font-size: 12px; text-decoration: line-through; }
+      .card .shop { color: var(--ash); font-size: 11px; margin-top: 6px; }
+
+      .muted { color: var(--ash); }
+      .empty { padding: 60px 0; text-align: center; color: var(--ash); }
+
+      /* Overlay panels */
+      .overlay { position: fixed; inset: 0; background: rgba(3,3,4,.72); backdrop-filter: blur(4px);
+        z-index: 40; display: none; overflow-y: auto; }
+      .overlay.open { display: block; }
+      .sheet { background: var(--deep); border: 1px solid var(--line); border-radius: 18px;
+        max-width: 560px; margin: 40px auto; }
+      .sheet .pad { padding: 22px; }
+      .x { float: right; background: transparent; border: none; color: var(--ash); font-size: 26px; cursor: pointer; line-height: 1; }
+
+      .pdImg { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 14px; background: var(--charcoal); }
+      .pdCat { color: var(--gold); font-size: 11px; letter-spacing: 2px; margin-top: 16px; }
+      .pdName { font-size: 24px; font-weight: 300; margin: 6px 0; }
+      .pdPrice { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 4px; }
+      .pdPrice .now { font-size: 22px; } .pdPrice .mrp { color: var(--slate); text-decoration: line-through; }
+      .pdPrice .off { color: var(--green); font-size: 13px; }
+      .pdDesc { color: var(--plat); margin: 12px 0; }
+      .rowlabel { color: var(--slate); font-size: 10px; letter-spacing: 2px; margin: 16px 0 8px; }
+      .sizes { display: flex; gap: 8px; flex-wrap: wrap; }
+      .size { border: 1px solid var(--line); background: var(--charcoal); color: var(--plat); border-radius: 8px;
+        padding: 8px 14px; cursor: pointer; font-size: 13px; }
+      .size.on { border-color: var(--crimsonB); color: var(--ivory); background: var(--char2); }
+      .size.out { opacity: .4; text-decoration: line-through; cursor: not-allowed; }
+      .attrs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 8px; }
+      .attr { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 6px 0; }
+      .attr span:first-child { color: var(--ash); font-size: 12px; }
+      .attr span:last-child { font-size: 12px; text-align: right; }
+
+      label { display: block; font-size: 11px; letter-spacing: 1px; color: var(--slate); margin: 12px 0 5px; }
+      input, textarea { width: 100%; background: var(--charcoal); border: 1px solid var(--line); border-radius: 10px;
+        color: var(--ivory); padding: 12px; font-size: 15px; font-family: inherit; }
+      .two { display: flex; gap: 10px; } .two > div { flex: 1; }
+
+      button.cta { width: 100%; background: var(--crimson); border: 1px solid var(--crimsonB); color: var(--ivory);
+        border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 600; letter-spacing: 1px; cursor: pointer; margin-top: 18px; }
+      button.cta:hover { background: var(--crimsonB); }
+      button.ghost { background: transparent; border: 1px solid var(--line); color: var(--plat); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+      button:disabled { opacity: .5; cursor: default; }
+
+      .line { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+      .line img { width: 56px; height: 74px; object-fit: cover; border-radius: 8px; background: var(--charcoal); }
+      .line .g { flex: 1; } .line .g .n { font-size: 14px; } .line .g .m { color: var(--ash); font-size: 12px; margin-top: 2px; }
+      .qty { display: flex; align-items: center; gap: 10px; }
+      .qty button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--charcoal); color: var(--ivory); cursor: pointer; font-size: 16px; }
+      .sumrow { display: flex; justify-content: space-between; padding: 6px 0; color: var(--plat); font-size: 14px; }
+      .sumrow.total { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 12px; color: var(--ivory); font-size: 18px; }
+      .err { color: var(--crimsonB); font-size: 13px; margin-top: 10px; }
+      .ok { color: var(--green); }
+      .pill { display: inline-block; font-size: 10px; letter-spacing: 1px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--gold); }
+
+      /* Timeline */
+      .tl { margin-top: 8px; }
+      .tl .step { display: flex; gap: 12px; }
+      .tl .dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--slate); background: var(--deep); margin-top: 3px; }
+      .tl .rail { display: flex; flex-direction: column; align-items: center; }
+      .tl .conn { width: 1.5px; flex: 1; min-height: 22px; background: var(--slate); }
+      .tl .lbl { color: var(--slate); padding-bottom: 12px; }
+      .tl .done .dot { background: var(--crimson); border-color: var(--crimson); }
+      .tl .done .conn { background: var(--crimson); }
+      .tl .active .dot { background: var(--crimsonB); border-color: var(--crimsonB); }
+      .tl .reached .lbl { color: var(--ivory); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap bar">
+        <div class="brand" onclick="go('shop')">KYA PEHNU? <b>·</b> NAGPUR</div>
+        <nav>
+          <button class="navbtn" onclick="go('shop')">Shop</button>
+          <button class="navbtn" onclick="go('track')">Track order</button>
+          <button class="navbtn cart" onclick="go('cart')">Bag <span class="cartCount" id="cartCount">0</span></button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- SHOP -->
+    <main id="view-shop" class="wrap">
+      <section class="hero">
+        <div class="eyebrow">HYPER-LOCAL FASHION</div>
+        <h1>Wear it tonight.</h1>
+        <p>In-stock pieces from independent Nagpur shops, delivered to your door. Cash on delivery.</p>
+      </section>
+      <div id="grid" class="grid"></div>
+      <div id="gridEmpty" class="empty" style="display:none"></div>
+    </main>
+
+    <!-- PRODUCT (overlay) -->
+    <div id="ov-product" class="overlay"><div class="sheet"><div class="pad" id="pdBody"></div></div></div>
+
+    <!-- CART (overlay) -->
+    <div id="ov-cart" class="overlay"><div class="sheet"><div class="pad">
+      <button class="x" onclick="closeOv('cart')">×</button>
+      <h2 style="font-weight:300;margin:0 0 4px">Your bag</h2>
+      <div id="cartLines"></div>
+      <div id="cartSummary"></div>
+      <button class="cta" id="toCheckout" onclick="go('checkout')">Checkout · Cash on Delivery</button>
+    </div></div></div>
+
+    <!-- CHECKOUT (overlay) -->
+    <div id="ov-checkout" class="overlay"><div class="sheet"><div class="pad">
+      <button class="x" onclick="closeOv('checkout')">×</button>
+      <h2 style="font-weight:300;margin:0 0 4px">Delivery details</h2>
+      <div class="muted" style="font-size:13px;margin-bottom:6px">Pay cash when your order arrives.</div>
+      <label>YOUR NAME</label><input id="coName" placeholder="Aarav Sharma" />
+      <div class="two">
+        <div><label>PHONE</label><input id="coPhone" placeholder="98765 43210" inputmode="tel" /></div>
+        <div><label>PINCODE</label><input id="coPin" placeholder="440012" inputmode="numeric" /></div>
+      </div>
+      <label>DELIVERY ADDRESS</label><input id="coAddr" placeholder="Flat / house, street, area" />
+      <button class="ghost" id="coLoc" onclick="grabLocation()" style="margin-top:12px">📍 Use my location (helps the rider)</button>
+      <div id="coErr" class="err"></div>
+      <button class="cta" id="placeBtn" onclick="placeOrder()">Place Order · Cash on Delivery</button>
+    </div></div></div>
+
+    <!-- CONFIRM (overlay) -->
+    <div id="ov-confirm" class="overlay"><div class="sheet"><div class="pad" id="confirmBody"></div></div></div>
+
+    <!-- TRACK (overlay) -->
+    <div id="ov-track" class="overlay"><div class="sheet"><div class="pad">
+      <button class="x" onclick="closeOv('track')">×</button>
+      <h2 style="font-weight:300;margin:0 0 4px">Track your order</h2>
+      <label>ORDER ID</label><input id="trkId" placeholder="Paste your order id" />
+      <label>PHONE (used at checkout)</label><input id="trkPhone" placeholder="98765 43210" inputmode="tel" />
+      <div id="trkErr" class="err"></div>
+      <button class="cta" onclick="trackOrder()">Show status</button>
+      <div id="trkResult" style="margin-top:18px"></div>
+    </div></div></div>
+
+    <script>
+      const TIMELINE = ['PENDING','ACCEPTED','PACKED','READY_FOR_PICKUP','IN_TRANSIT','DELIVERED'];
+      const STEP_LABEL = { PENDING:'Order placed', ACCEPTED:'Accepted by shop', PACKED:'Packed',
+        READY_FOR_PICKUP:'Ready for pickup', IN_TRANSIT:'Out for delivery', DELIVERED:'Delivered', CANCELLED:'Cancelled' };
+      const DELIVERY_FEE = 49;
+      const NAGPUR = [79.0882, 21.1458];
+      let CART = [];
+      try { CART = JSON.parse(localStorage.getItem('kp_cart') || '[]'); } catch {}
+      let coords = null;
+      let PRODUCTS = [];
+
+      const $ = (id) => document.getElementById(id);
+      const inr = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+      const saveCart = () => { try { localStorage.setItem('kp_cart', JSON.stringify(CART)); } catch {} renderCartCount(); };
+      const renderCartCount = () => { $('cartCount').textContent = CART.reduce((n,i)=>n+i.qty,0); };
+
+      async function api(path, options) {
+        const res = await fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...(options||{}) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || ('Request failed (' + res.status + ')'));
+        return data;
+      }
+
+      /* ---------- navigation ---------- */
+      function go(view) {
+        ['product','cart','checkout','confirm','track'].forEach((v) => $('ov-'+v)?.classList.remove('open'));
+        if (view === 'shop') { window.scrollTo(0,0); return; }
+        if (view === 'cart') renderCart();
+        if (view === 'checkout') { if (!CART.length) return go('cart'); }
+        if (view === 'track') { const last = safeGet('kp_last'); if (last) { $('trkId').value = last.orderId||''; $('trkPhone').value = last.phone||''; } }
+        $('ov-'+view)?.classList.add('open');
+      }
+      function closeOv(v) { $('ov-'+v)?.classList.remove('open'); }
+      const safeGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+
+      /* ---------- shop ---------- */
+      async function loadShop() {
+        try {
+          const { items } = await api('/products?limit=60');
+          PRODUCTS = items || [];
+          if (!PRODUCTS.length) { $('grid').innerHTML=''; $('gridEmpty').style.display='block';
+            $('gridEmpty').textContent = 'No listings yet. Check back soon — shops are being onboarded.'; return; }
+          $('grid').innerHTML = PRODUCTS.map((p, i) => {
+            const img = (p.images && p.images[0]) || '';
+            const mrp = p.mrp && p.mrp > p.price ? '<span class="mrp">'+inr(p.mrp)+'</span>' : '';
+            return '<div class="card" onclick="openProduct('+i+')">' +
+              (img ? '<img class="ph" src="'+esc(img)+'" alt="" loading="lazy" />' : '<div class="ph"></div>') +
+              '<div class="body"><div class="cat">'+esc(p.category||'')+'</div>' +
+              '<div class="nm">'+esc(p.name)+'</div>' +
+              '<div class="pr"><span class="now">'+inr(p.price)+'</span>'+mrp+'</div>' +
+              '<div class="shop">'+esc(p.vendor?.shopName || 'Local shop')+'</div></div></div>';
+          }).join('');
+        } catch (e) {
+          $('gridEmpty').style.display='block'; $('gridEmpty').textContent = 'Could not load the storefront: ' + e.message;
+        }
+      }
+
+      let selected = { product: null, size: null };
+      function openProduct(i) {
+        const p = PRODUCTS[i]; selected = { product: p, size: (p.sizes?.find(s=>s.stock>0)?.size) || null };
+        renderProduct(); $('ov-product').classList.add('open');
+      }
+      function renderProduct() {
+        const p = selected.product; const img = (p.images && p.images[0]) || '';
+        const off = p.mrp && p.mrp > p.price ? Math.round((1 - p.price/p.mrp)*100) : 0;
+        const attr = (k,v) => v ? '<div class="attr"><span>'+k+'</span><span>'+esc(v)+'</span></div>' : '';
+        const sizes = (p.sizes||[]).map(s =>
+          '<div class="size '+(s.size===selected.size?'on':'')+' '+(s.stock<=0?'out':'')+'" ' +
+          (s.stock>0 ? 'onclick="pickSize(\''+esc(s.size)+'\')"' : '') + '>'+esc(s.size)+'</div>').join('') || '<span class="muted">One size</span>';
+        $('pdBody').innerHTML =
+          '<button class="x" onclick="closeOv(\'product\')">×</button>' +
+          (img ? '<img class="pdImg" src="'+esc(img)+'" alt="" />' : '<div class="pdImg"></div>') +
+          '<div class="pdCat">'+esc(p.category||'')+(p.brand?' · '+esc(p.brand):'')+'</div>' +
+          '<div class="pdName">'+esc(p.name)+'</div>' +
+          '<div class="pdPrice"><span class="now">'+inr(p.price)+'</span>' +
+            (off? '<span class="mrp">'+inr(p.mrp)+'</span><span class="off">'+off+'% off</span>':'') + '</div>' +
+          (p.description ? '<div class="pdDesc">'+esc(p.description)+'</div>' : '') +
+          '<div class="rowlabel">SELECT SIZE</div><div class="sizes">'+sizes+'</div>' +
+          '<div class="rowlabel">DETAILS</div><div class="attrs">' +
+            attr('Colour', (p.colors||[]).join(', ')) + attr('Material', p.material) + attr('Pattern', p.pattern) +
+            attr('Fit', p.fit) + attr('Occasion', p.occasion) + attr('Care', p.careInstructions) +
+            attr('Net qty', p.netQuantity ? p.netQuantity+' N' : '') + attr('Origin', p.countryOfOrigin) +
+            attr('SKU', p.sku) + attr('Sold by', p.vendor?.shopName) +
+          '</div>' +
+          '<button class="cta" onclick="addToCart()">Add to Bag</button>';
+      }
+      function pickSize(s) { selected.size = s; renderProduct(); }
+      function addToCart() {
+        const p = selected.product;
+        if ((p.sizes||[]).length && !selected.size) return alert('Please select a size.');
+        const key = p._id + '::' + (selected.size||'FREE');
+        const existing = CART.find(i => i.key === key);
+        if (existing) existing.qty += 1;
+        else CART.push({ key, productId: p._id, name: p.name, price: p.price, image: (p.images||[])[0]||'',
+          size: selected.size || 'FREE', vendorId: p.vendor?._id, vendorName: p.vendor?.shopName || 'Shop', qty: 1 });
+        saveCart(); closeOv('product'); go('cart');
+      }
+
+      /* ---------- cart ---------- */
+      function renderCart() {
+        if (!CART.length) { $('cartLines').innerHTML = '<div class="empty">Your bag is empty.</div>';
+          $('cartSummary').innerHTML=''; $('toCheckout').style.display='none'; return; }
+        $('toCheckout').style.display='block';
+        $('cartLines').innerHTML = CART.map((it, i) =>
+          '<div class="line">' + (it.image?'<img src="'+esc(it.image)+'" alt="" />':'<img alt="" />') +
+          '<div class="g"><div class="n">'+esc(it.name)+'</div><div class="m">'+esc(it.size)+' · '+esc(it.vendorName)+' · '+inr(it.price)+'</div></div>' +
+          '<div class="qty"><button onclick="bump('+i+',-1)">−</button><span>'+it.qty+'</span><button onclick="bump('+i+',1)">+</button></div></div>'
+        ).join('');
+        const sub = CART.reduce((s,i)=>s+i.price*i.qty,0);
+        const shops = new Set(CART.map(i=>i.vendorId)).size;
+        const fee = DELIVERY_FEE * shops;
+        $('cartSummary').innerHTML =
+          '<div class="sumrow"><span>Subtotal</span><span>'+inr(sub)+'</span></div>' +
+          '<div class="sumrow"><span>Delivery ('+shops+' shop'+(shops>1?'s':'')+')</span><span>'+inr(fee)+'</span></div>' +
+          '<div class="sumrow"><span>Payment</span><span>Cash on Delivery</span></div>' +
+          '<div class="sumrow total"><span>Total</span><span>'+inr(sub+fee)+'</span></div>';
+      }
+      function bump(i, d) { CART[i].qty += d; if (CART[i].qty <= 0) CART.splice(i,1); saveCart(); renderCart(); }
+
+      /* ---------- checkout ---------- */
+      async function grabLocation() {
+        if (!navigator.geolocation) return;
+        $('coLoc').textContent = 'Getting location…';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { coords = [pos.coords.longitude, pos.coords.latitude]; $('coLoc').textContent = '✓ Location captured'; },
+          () => { $('coLoc').textContent = '📍 Use my location (helps the rider)'; }
+        );
+      }
+
+      async function placeOrder() {
+        $('coErr').textContent = '';
+        const name = $('coName').value.trim(), phone = $('coPhone').value.trim();
+        const line1 = $('coAddr').value.trim(), pincode = $('coPin').value.trim();
+        if (!name) return $('coErr').textContent = 'Enter your name.';
+        if (!phone) return $('coErr').textContent = 'Enter your phone number.';
+        if (!line1 || !pincode) return $('coErr').textContent = 'Enter your address and pincode.';
+
+        const btn = $('placeBtn'); btn.disabled = true; btn.textContent = 'Placing order…';
+        const address = { line1, city: 'Nagpur', pincode, location: { type: 'Point', coordinates: coords || NAGPUR } };
+
+        // One order per shop.
+        const byVendor = {};
+        CART.forEach((it) => { (byVendor[it.vendorId] = byVendor[it.vendorId] || []).push(it); });
+
+        try {
+          const placed = [];
+          for (const vendorId of Object.keys(byVendor)) {
+            const items = byVendor[vendorId];
+            const r = await api('/orders/guest', { method: 'POST', body: JSON.stringify({
+              vendor: vendorId,
+              items: items.map(it => ({ product: it.productId, name: it.name, size: it.size, quantity: it.qty, price: it.price })),
+              totalPrice: items.reduce((s,it)=>s+it.price*it.qty,0) + DELIVERY_FEE,
+              deliveryAddress: address, contact: { name, phone }, paymentMethod: 'COD',
+            })});
+            placed.push(r.orderId);
+          }
+          try { localStorage.setItem('kp_last', JSON.stringify({ orderId: placed[0], phone })); } catch {}
+          CART = []; saveCart();
+          btn.disabled = false; btn.textContent = 'Place Order · Cash on Delivery';
+          showConfirm(placed, phone);
+        } catch (e) {
+          btn.disabled = false; btn.textContent = 'Place Order · Cash on Delivery';
+          $('coErr').textContent = e.message;
+        }
+      }
+
+      function showConfirm(orderIds, phone) {
+        closeOv('checkout'); closeOv('cart');
+        $('confirmBody').innerHTML =
+          '<button class="x" onclick="closeOv(\'confirm\')">×</button>' +
+          '<div class="pill ok" style="color:var(--green);border-color:var(--green)">ORDER PLACED</div>' +
+          '<h2 style="font-weight:300;margin:14px 0 6px">Thank you! 🎉</h2>' +
+          '<p class="muted">Pay cash on delivery. The shop has been notified and will start packing.</p>' +
+          '<div class="rowlabel">YOUR ORDER '+(orderIds.length>1?'IDS':'ID')+'</div>' +
+          orderIds.map(id => '<div style="font-family:monospace;font-size:13px;padding:8px 10px;background:var(--charcoal);border:1px solid var(--line);border-radius:8px;margin-bottom:6px">'+esc(id)+'</div>').join('') +
+          '<p class="muted" style="font-size:12px;margin-top:10px">Save this to track your order with your phone number.</p>' +
+          '<button class="cta" onclick="closeOv(\'confirm\');$(\'trkId\').value=\''+esc(orderIds[0])+'\';$(\'trkPhone\').value=\''+esc(phone)+'\';go(\'track\');trackOrder()">Track this order</button>';
+        $('ov-confirm').classList.add('open');
+      }
+
+      /* ---------- track ---------- */
+      async function trackOrder() {
+        $('trkErr').textContent = ''; $('trkResult').innerHTML = '';
+        const orderId = $('trkId').value.trim(), phone = $('trkPhone').value.trim();
+        if (!orderId || !phone) return $('trkErr').textContent = 'Enter your order id and phone.';
+        try {
+          const o = await api('/orders/track?orderId=' + encodeURIComponent(orderId) + '&phone=' + encodeURIComponent(phone));
+          $('trkResult').innerHTML = renderTracking(o);
+        } catch (e) { $('trkErr').textContent = e.message; }
+      }
+      function renderTracking(o) {
+        const cur = TIMELINE.indexOf(o.status);
+        let tl;
+        if (o.status === 'CANCELLED') {
+          tl = '<div class="tl"><div class="step reached"><div class="rail"><div class="dot done"></div></div><div class="lbl">Order cancelled</div></div></div>';
+        } else {
+          tl = '<div class="tl">' + TIMELINE.map((s, i) => {
+            const done = i < cur, active = i === cur, last = i === TIMELINE.length-1;
+            return '<div class="step '+(done?'done reached':'')+' '+(active?'active reached':'')+'">' +
+              '<div class="rail"><div class="dot"></div>'+(last?'':'<div class="conn"></div>')+'</div>' +
+              '<div class="lbl">'+STEP_LABEL[s]+'</div></div>';
+          }).join('') + '</div>';
+        }
+        const items = (o.items||[]).map(it => '<div class="sumrow"><span>'+esc(it.name)+' × '+it.quantity+'</span><span>'+inr(it.price*it.quantity)+'</span></div>').join('');
+        return '<div class="pill">'+esc(STEP_LABEL[o.status]||o.status)+'</div>' +
+          '<h3 style="font-weight:300;margin:12px 0 2px">'+esc(o.vendor?.shopName||'Shop')+'</h3>' +
+          '<div class="muted" style="font-size:12px">#'+esc(String(o._id).slice(-6).toUpperCase())+' · '+inr(o.totalPrice)+' · Cash on Delivery</div>' +
+          tl + items;
+      }
+
+      renderCartCount();
+      loadShop();
+    </script>
+  </body>
+</html>
