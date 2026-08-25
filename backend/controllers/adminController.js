@@ -2,9 +2,57 @@ import Admin from '../models/Admin.js';
 import Product from '../models/Product.js';
 import Vendor from '../models/Vendor.js';
 import Order from '../models/Order.js';
-import { verifyPassword, signAdminToken } from '../utils/adminAuth.js';
+import { verifyPassword, hashPassword, signAdminToken } from '../utils/adminAuth.js';
 import { PRODUCT_STATUS, statusForReview } from '../utils/productStatus.js';
 import { generateSku } from '../utils/sku.js';
+
+/** GET /api/admin/needs-setup -> { needsSetup } (true when no admin exists yet). */
+export const getSetupStatus = async (req, res) => {
+  try {
+    const count = await Admin.countDocuments();
+    res.json({ needsSetup: count === 0 });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to check setup status', error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/setup { email, password, name } -> { token, admin }
+ * First-run only: creates the very first admin from the browser so no dashboard
+ * env vars are needed. Refuses once any admin exists (standard first-run guard).
+ */
+export const setupFirstAdmin = async (req, res) => {
+  const { email, password, name } = req.body ?? {};
+  if (!email || !password) {
+    return res.status(400).json({ message: 'email and password are required' });
+  }
+  if (String(password).length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters' });
+  }
+
+  try {
+    const count = await Admin.countDocuments();
+    if (count > 0) {
+      return res.status(403).json({ message: 'Admin setup is already complete — please log in.' });
+    }
+
+    const admin = await Admin.create({
+      email: String(email).toLowerCase().trim(),
+      passwordHash: await hashPassword(password),
+      name: name?.trim() || 'Admin',
+      role: 'SUPER_ADMIN',
+    });
+
+    const token = signAdminToken(admin);
+    res.status(201).json({
+      token,
+      admin: { id: admin._id, email: admin.email, name: admin.name, role: admin.role },
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ message: status === 503 ? error.message : 'Setup failed', error: error.message });
+  }
+};
 
 /** POST /api/admin/login  { email, password } -> { token, admin } */
 export const login = async (req, res) => {

@@ -3,6 +3,8 @@ import express from 'express';
 import { requireAdmin } from '../middleware/adminMiddleware.js';
 import {
   login,
+  getSetupStatus,
+  setupFirstAdmin,
   getMe,
   listPendingProducts,
   reviewProduct,
@@ -14,7 +16,9 @@ import {
 
 const router = express.Router();
 
-// Public: obtain an admin session.
+// Public: first-run setup + obtain an admin session.
+router.get('/needs-setup', getSetupStatus);
+router.post('/setup', setupFirstAdmin);
 router.post('/login', login);
 
 // Everything below requires a valid admin JWT.

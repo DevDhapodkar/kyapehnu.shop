@@ -51,8 +51,22 @@
       <button id="logout" class="ghost hidden" onclick="logout()">Sign out</button>
     </header>
     <main>
+      <!-- First-run setup -->
+      <section id="setup" class="card hidden" style="max-width: 380px; margin: 40px auto;">
+        <div class="title">Create your admin account</div>
+        <div class="sub" style="margin-bottom: 8px">First-run setup — this is the only time you'll see this.</div>
+        <label>NAME</label>
+        <input id="setupName" type="text" placeholder="Your name" />
+        <label>EMAIL</label>
+        <input id="setupEmail" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" />
+        <label>PASSWORD (min 8 chars)</label>
+        <input id="setupPassword" type="password" autocomplete="new-password" placeholder="••••••••" />
+        <div style="margin-top: 16px"><button class="primary" onclick="setup()">Create account</button></div>
+        <div id="setupErr" class="err"></div>
+      </section>
+
       <!-- Login -->
-      <section id="login" class="card" style="max-width: 380px; margin: 40px auto;">
+      <section id="login" class="card hidden" style="max-width: 380px; margin: 40px auto;">
         <div class="title">Admin sign in</div>
         <label>EMAIL</label>
         <input id="email" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" />
@@ -97,6 +111,35 @@
         return data;
       }
 
+      // Show the setup form on a fresh install (no admin yet), otherwise login.
+      async function showAuthScreen() {
+        $('dash').classList.add('hidden');
+        $('logout').classList.add('hidden');
+        let needsSetup = false;
+        try { needsSetup = (await api('/needs-setup')).needsSetup; } catch {}
+        $('setup').classList.toggle('hidden', !needsSetup);
+        $('login').classList.toggle('hidden', needsSetup);
+      }
+
+      async function setup() {
+        $('setupErr').textContent = '';
+        try {
+          const { token: t } = await api('/setup', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: $('setupName').value.trim(),
+              email: $('setupEmail').value.trim(),
+              password: $('setupPassword').value,
+            }),
+          });
+          token = t;
+          try { localStorage.setItem(TOKEN_KEY, t); } catch {}
+          enterDashboard();
+        } catch (e) {
+          $('setupErr').textContent = e.message;
+        }
+      }
+
       async function login() {
         $('loginErr').textContent = '';
         try {
@@ -115,9 +158,7 @@
       function logout() {
         token = null;
         try { localStorage.removeItem(TOKEN_KEY); } catch {}
-        $('dash').classList.add('hidden');
-        $('logout').classList.add('hidden');
-        $('login').classList.remove('hidden');
+        showAuthScreen();
       }
 
       function showTab(which) {
@@ -129,6 +170,7 @@
 
       async function enterDashboard() {
         $('login').classList.add('hidden');
+        $('setup').classList.add('hidden');
         $('dash').classList.remove('hidden');
         $('logout').classList.remove('hidden');
         await Promise.all([loadStats(), loadProducts(), loadVendors()]);
@@ -213,8 +255,9 @@
         } catch (e) { alert(e.message); }
       }
 
-      // Auto-enter if a stored token still works.
-      if (token) enterDashboard().catch(logout);
+      // Auto-enter if a stored token still works; otherwise show setup or login.
+      if (token) enterDashboard().catch(showAuthScreen);
+      else showAuthScreen();
     </script>
   </body>
 </html>
