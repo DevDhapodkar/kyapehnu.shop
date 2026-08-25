@@ -42,4 +42,19 @@ const updateLocation = async (req, res) => {
   }
 };
 
-export { syncProfile, getProfile, addAddress, updateLocation };
+// Register an Expo push token for order-status notifications (deduped).
+const savePushToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'token is required' });
+    await User.updateOne(
+      { _id: req.user._id },
+      { $addToSet: { expoPushTokens: token } }
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save push token', error: error.message });
+  }
+};
+
+export { syncProfile, getProfile, addAddress, updateLocation, savePushToken };

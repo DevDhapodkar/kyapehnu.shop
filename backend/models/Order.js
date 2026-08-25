@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+import { ORDER_STATUSES as STATUS_VALUES, ORDER_STATUS } from '../utils/orderStatus.js';
+
 const cartItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -11,7 +13,14 @@ const cartItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const ORDER_STATUS = ['PENDING', 'ACCEPTED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'];
+const historySchema = new mongoose.Schema(
+  {
+    status: { type: String, enum: STATUS_VALUES, required: true },
+    at: { type: Date, default: Date.now },
+    note: { type: String },
+  },
+  { _id: false }
+);
 
 const orderSchema = new mongoose.Schema(
   {
@@ -30,9 +39,22 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ORDER_STATUS,
-      default: 'PENDING',
+      enum: STATUS_VALUES,
+      default: ORDER_STATUS.PENDING,
     },
+    // Immutable timeline the customer's "My Orders" screen renders.
+    statusHistory: [historySchema],
+
+    // Cash on delivery is the only method for now.
+    paymentMethod: { type: String, enum: ['COD'], default: 'COD' },
+    paymentStatus: { type: String, enum: ['PENDING', 'PAID'], default: 'PENDING' },
+
+    cancellation: {
+      by: { type: String, enum: ['CUSTOMER', 'VENDOR'] },
+      reason: { type: String },
+      at: { type: Date },
+    },
+
     porter: {
       requestId: { type: String },
       driverName: { type: String },
@@ -43,5 +65,8 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const ORDER_STATUSES = ORDER_STATUS;
+orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ vendor: 1, createdAt: -1 });
+
+export const ORDER_STATUSES = STATUS_VALUES;
 export default mongoose.model('Order', orderSchema);

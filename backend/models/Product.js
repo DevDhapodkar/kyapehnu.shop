@@ -26,12 +26,33 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     subCategory: { type: String }, // Shirts, Dresses, Trousers...
+
+    // Pricing. `price` is the selling price (required); `mrp` is the printed
+    // Max Retail Price (mandatory in India), rendered as a strike-through.
     price: { type: Number, required: true },
-    discountPrice: { type: Number },
+    mrp: { type: Number },
+    discountPrice: { type: Number }, // legacy — prefer mrp/price
+
     sizes: [sizeSchema],
     colors: [{ type: String }],
     images: [{ type: String }],
     isAvailable: { type: Boolean, default: true },
+
+    // Retail attributes modelled on Amazon/Flipkart apparel listings + India
+    // Legal Metrology mandatory declarations (net quantity, country of origin).
+    brand: { type: String },
+    material: { type: String }, // fabric composition, e.g. "100% Cotton"
+    pattern: { type: String }, // Solid, Printed, Checked, Striped...
+    fit: { type: String }, // Regular, Slim, Relaxed, Oversized
+    sleeve: { type: String }, // Full, Half, Sleeveless (tops)
+    neck: { type: String }, // Round, Collar, V-neck (tops)
+    occasion: { type: String }, // Casual, Formal, Party, Ethnic
+    careInstructions: { type: String }, // "Machine wash cold"
+    netQuantity: { type: Number, default: 1 }, // units per pack (Legal Metrology)
+    countryOfOrigin: { type: String, default: 'India' },
+    weightGrams: { type: Number }, // shipping weight
+    returnPolicy: { type: String, default: '7-day return' },
+    highlights: [{ type: String }], // bullet points
 
     // Catalog moderation lifecycle — only APPROVED products reach customers.
     status: {
