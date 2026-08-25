@@ -34,6 +34,15 @@ const vendorSchema = new mongoose.Schema(
     },
     operatingHours: [operatingHoursSchema],
     isActive: { type: Boolean, default: true },
+    // A vendor registers as PENDING and is surfaced to customers only after an
+    // admin approves. They may still build their catalog while pending.
+    approvalStatus: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+    },
+    // Expo push tokens for the shop's device(s) — new-order alerts land here.
+    expoPushTokens: [{ type: String }],
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }

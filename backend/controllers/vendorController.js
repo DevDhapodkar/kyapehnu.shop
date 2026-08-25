@@ -37,6 +37,7 @@ const listNearby = async (req, res) => {
 
     const vendors = await Vendor.find({
       isActive: true,
+      approvalStatus: 'APPROVED',
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
@@ -51,4 +52,19 @@ const listNearby = async (req, res) => {
   }
 };
 
-export { syncProfile, getProfile, listNearby };
+// Register an Expo push token so the shop's device gets new-order alerts.
+const savePushToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'token is required' });
+    await Vendor.updateOne(
+      { _id: req.vendor._id },
+      { $addToSet: { expoPushTokens: token } }
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save push token', error: error.message });
+  }
+};
+
+export { syncProfile, getProfile, listNearby, savePushToken };

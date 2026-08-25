@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 
 import { setAuthToken } from '../api/vendorApi';
+import { syncUserProfile, fetchUserProfile, registerUserPushToken } from '../api/vendorApi';
+import { registerForPush } from '../services/notifications';
+import {
+  signInEmail,
+  registerEmail,
+  signOutFirebase,
+  subscribeIdToken,
+  isFirebaseConfigured,
+} from '../services/auth';
 
 /**
  * Session + role state for the unified app.
@@ -12,7 +21,9 @@ import { setAuthToken } from '../api/vendorApi';
  *
  * The Firebase ID token is mirrored into the axios client on every write via
  * `setAuthToken`, so there is exactly one place a token can enter the app and
- * no screen ever passes one to a request by hand.
+ * no screen ever passes one to a request by hand. `initAuth` wires a Firebase
+ * `onIdTokenChanged` listener so a refreshed token (they expire hourly) reaches
+ * the client without a re-login.
  */
 
 export const ROLES = {
@@ -24,30 +35,101 @@ export const useAuthStore = create((set, get) => ({
   /** 'CUSTOMER' | 'VENDOR' — the navigator's only input. */
   role: ROLES.CUSTOMER,
 
-  /** Firebase user, once Auth is wired. Null while signed out. */
+  /** Firebase user, once signed in. Null while signed out. */
   user: null,
 
   /** Firebase ID token sent as `Authorization: Bearer …`. */
   token: null,
 
+  /** Customer profile from `GET /api/users/me`. */
+  profile: null,
+
   /** Vendor profile from `GET /api/vendors/me`, populated on entering VENDOR. */
   vendorProfile: null,
+
+  /** False until the first Firebase auth-state callback resolves. */
+  authReady: !isFirebaseConfigured,
+
+  /** True when Firebase keys are present (auth screens are usable). */
+  authAvailable: isFirebaseConfigured,
 
   isAuthenticated: () => Boolean(get().token),
 
   /**
-   * Signs a session in. `role` is decided by the backend profile lookup in the
-   * real flow (a Firebase uid that resolves to a Vendor document is a vendor);
-   * until Auth lands, callers pass it explicitly.
+   * Start listening to Firebase auth state. Call once from App on mount; the
+   * returned unsubscribe is stored so a second call is a no-op.
    */
+  initAuth: () => {
+    if (get()._unsubscribe) return get()._unsubscribe;
+
+    const unsubscribe = subscribeIdToken(async (session) => {
+      if (!session) {
+        setAuthToken(null);
+        set({ user: null, token: null, profile: null, authReady: true });
+        return;
+      }
+
+      const { user, token } = session;
+      setAuthToken(token);
+      set({ user, token, authReady: true });
+
+      // Load the backend profile so orders/addresses have somewhere to attach.
+      // Non-fatal: a brand-new account has no profile until registration syncs.
+      try {
+        const profile = await fetchUserProfile();
+        set({ profile });
+      } catch {
+        /* no profile yet — created by registerWithEmail */
+      }
+
+      // Register this device for order-status push notifications (best-effort).
+      registerForPush()
+        .then((pushToken) => pushToken && registerUserPushToken(pushToken).catch(() => {}))
+        .catch(() => {});
+    });
+
+    set({ _unsubscribe: unsubscribe });
+    return unsubscribe;
+  },
+
+  /** Email/password sign-in. Throws a Firebase error the screen maps to text. */
+  signInWithEmail: async ({ email, password }) => {
+    const cred = await signInEmail(email, password);
+    // Set the token synchronously off the credential so the next authed call
+    // has it, rather than racing the onIdTokenChanged listener.
+    const token = await cred.user.getIdToken();
+    setAuthToken(token);
+    set({ user: cred.user, token });
+  },
+
+  /**
+   * Create a customer account, then upsert the backend profile so the User
+   * document (required for placing orders) exists immediately.
+   */
+  registerWithEmail: async ({ name, email, phone, password }) => {
+    const cred = await registerEmail(email, password, name);
+    const token = await cred.user.getIdToken();
+    setAuthToken(token);
+    set({ user: cred.user, token });
+
+    const profile = await syncUserProfile({ name, email, phone });
+    set({ profile });
+    return profile;
+  },
+
+  /** Legacy explicit sign-in used before Firebase auth landed / for tests. */
   signIn: ({ user, token, role = ROLES.CUSTOMER }) => {
     setAuthToken(token);
     set({ user, token, role });
   },
 
-  signOut: () => {
-    setAuthToken(null);
-    set({ user: null, token: null, role: ROLES.CUSTOMER, vendorProfile: null });
+  signOut: async () => {
+    try {
+      await signOutFirebase();
+    } finally {
+      setAuthToken(null);
+      set({ user: null, token: null, profile: null, role: ROLES.CUSTOMER, vendorProfile: null });
+    }
   },
 
   setRole: (role) => set({ role }),

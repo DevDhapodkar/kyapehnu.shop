@@ -1,5 +1,15 @@
-import { Dimensions, FlatList, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { useCallback } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useCallback, useEffect } from 'react';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,10 +17,11 @@ import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { formatINR, productsByProximity } from '../data/mockStores';
+import { formatINR } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
+import useStorefrontStore from '../store/useStorefrontStore';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
-import { ROLES, useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -60,14 +71,14 @@ export default function HomeScreen({ navigation }) {
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
-  const signIn = useAuthStore((state) => state.signIn);
 
-  // No real auth flow is wired yet (Firebase is pending), so both routes open a
-  // demo customer session. Splitting sign-up from sign-in happens when Auth
-  // lands; the CTA already calls the two handlers separately.
-  const handleJoin = useCallback(() => {
-    signIn({ user: { name: 'Guest' }, token: 'demo-session', role: ROLES.CUSTOMER });
-  }, [signIn]);
+  // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
+  // register mode, "Log in" in sign-in mode. The Firebase session, once
+  // established, flips this screen to the storefront via the auth store.
+  const openAuth = useCallback(
+    (mode) => navigation.navigate('Auth', { mode }),
+    [navigation]
+  );
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
 
@@ -129,8 +140,8 @@ export default function HomeScreen({ navigation }) {
       <StatusBar barStyle="light-content" />
       <MarketingScrollytelling
         insets={insets}
-        onJoin={handleJoin}
-        onLogin={handleJoin}
+        onJoin={() => openAuth('register')}
+        onLogin={() => openAuth('signin')}
       />
       {header}
     </View>
@@ -203,37 +214,63 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * base, with no 3D scene behind it.
  */
 function Storefront({ insets, onOpenProduct }) {
+  const products = useStorefrontStore((state) => state.products);
+  const loading = useStorefrontStore((state) => state.loading);
+  const loaded = useStorefrontStore((state) => state.loaded);
+  const error = useStorefrontStore((state) => state.error);
+  const load = useStorefrontStore((state) => state.load);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const isEmpty = loaded && !loading && products.length === 0;
+
   return (
     <Animated.ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.scrollContent, styles.storefront]}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.platinum} />
+      }
     >
       <View style={styles.feed}>
         <View style={styles.feedHeader}>
           <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
           <Text style={styles.feedTitle}>In stock, minutes away.</Text>
           <Text style={styles.feedBody}>
-            Sorted by distance from where you are standing, not by who paid for
-            placement.
+            Live from independent Nagpur shops — every piece here is approved and in stock.
           </Text>
         </View>
 
-        <FlatList
-          data={productsByProximity}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ProductCard product={item} onPress={() => onOpenProduct(item)} />
-          )}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.feedList}
-          initialNumToRender={5}
-        />
+        {loading && !products.length ? (
+          <ActivityIndicator color={colors.platinum} style={styles.feedLoader} />
+        ) : isEmpty ? (
+          <Text style={styles.feedEmpty}>
+            {error
+              ? `Could not load the storefront: ${error}`
+              : 'No listings yet. Newly approved products from local shops appear here.'}
+          </Text>
+        ) : (
+          <>
+            <FlatList
+              data={products}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <ProductCard product={item} onPress={() => onOpenProduct(item)} />
+              )}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.feedList}
+              initialNumToRender={5}
+            />
 
-        <Text style={styles.feedFootnote}>
-          {productsByProximity.length} pieces across 5 independent Nagpur stores.
-        </Text>
+            <Text style={styles.feedFootnote}>
+              {products.length} {products.length === 1 ? 'piece' : 'pieces'} live near you.
+            </Text>
+          </>
+        )}
       </View>
 
       <View style={{ height: insets.bottom + spacing.xl * 2 }} />
@@ -307,6 +344,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
+  },
+  feedLoader: {
+    paddingVertical: spacing.xl,
+  },
+  feedEmpty: {
+    color: colors.ash,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
   },
 
   // Header

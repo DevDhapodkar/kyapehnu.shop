@@ -77,6 +77,86 @@ const request = async (fn, fallback) => {
   }
 };
 
+/* ------------------------------------------------------------- profiles -- */
+
+/** POST /api/users/sync — upsert the customer profile for the signed-in uid. */
+export const syncUserProfile = (payload) =>
+  request(() => client.post('/users/sync', payload), 'Failed to sync profile');
+
+/** GET /api/users/me — the customer profile behind the current token. */
+export const fetchUserProfile = () =>
+  request(() => client.get('/users/me'), 'Failed to load profile');
+
+/** POST /api/vendors/sync — register or update the shop for the signed-in uid. */
+export const registerVendor = (payload) =>
+  request(() => client.post('/vendors/sync', payload), 'Failed to register shop');
+
+/* ------------------------------------------------------------ storefront -- */
+
+/**
+ * GET /api/products — public storefront feed of approved, in-stock listings.
+ * @param {{ category?: string, page?: number, limit?: number }} [params]
+ */
+export const fetchStorefront = (params) =>
+  request(() => client.get('/products', { params }), 'Failed to load products');
+
+/* --------------------------------------------------------------- orders -- */
+
+/** POST /api/orders — place a customer order (one vendor per order). */
+export const placeOrder = (payload) =>
+  request(() => client.post('/orders', payload), 'Failed to place order');
+
+/** GET /api/orders/mine — the signed-in customer's orders, newest first. */
+export const fetchMyOrders = () =>
+  request(() => client.get('/orders/mine'), 'Failed to load your orders');
+
+/** PATCH /api/orders/:id/cancel — customer cancels their own order. */
+export const cancelMyOrder = (orderId, reason) =>
+  request(() => client.patch(`/orders/${orderId}/cancel`, { reason }), 'Failed to cancel order');
+
+/** PATCH /api/orders/:id/status — vendor advances an order (PACKED, IN_TRANSIT, DELIVERED, CANCELLED). */
+export const updateOrderStatus = (orderId, status, note) =>
+  request(
+    () => client.patch(`/orders/${orderId}/status`, { status, note }),
+    'Failed to update order'
+  );
+
+/* ------------------------------------------------------- push notifications -- */
+
+/** POST /api/users/me/push-token — register the customer's device for order updates. */
+export const registerUserPushToken = (token) =>
+  request(() => client.post('/users/me/push-token', { token }), 'Failed to register device');
+
+/** POST /api/vendors/me/push-token — register the shop's device for new-order alerts. */
+export const registerVendorPushToken = (token) =>
+  request(() => client.post('/vendors/me/push-token', { token }), 'Failed to register device');
+
+/* --------------------------------------------------------------- uploads -- */
+
+/**
+ * POST /api/uploads/images — multipart upload of picked images. Accepts the
+ * asset objects expo-image-picker returns and resolves to
+ * `{ images: [{ url, publicId, thumbnails }] }`.
+ * @param {{ uri: string, fileName?: string, mimeType?: string }[]} assets
+ */
+export const uploadProductImages = (assets) => {
+  const form = new FormData();
+  assets.forEach((asset, index) => {
+    form.append('images', {
+      uri: asset.uri,
+      name: asset.fileName || `image_${index}.jpg`,
+      type: asset.mimeType || 'image/jpeg',
+    });
+  });
+  return request(
+    () =>
+      client.post('/uploads/images', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }),
+    'Failed to upload images'
+  );
+};
+
 /* ---------------------------------------------------------------- vendor -- */
 
 /** GET /api/vendors/me — the shop profile behind the current token. */

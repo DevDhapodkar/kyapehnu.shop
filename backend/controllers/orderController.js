@@ -1,11 +1,70 @@
 import Order, { ORDER_STATUSES } from '../models/Order.js';
 import Vendor from '../models/Vendor.js';
+import Product from '../models/Product.js';
+import User from '../models/User.js';
 import { notifyVendorNewOrder, notifyVendorOrderReady } from './whatsappController.js';
 import { requestDriver } from './porterController.js';
+import { sendExpoPush } from '../utils/pushNotifications.js';
+import {
+  ORDER_STATUS,
+  ORDER_STATUS_LABELS,
+  canTransition,
+  appendHistory,
+  CUSTOMER_CANCELLABLE,
+} from '../utils/orderStatus.js';
+
+const shortId = (id) => String(id).slice(-6).toUpperCase();
+
+/**
+ * Best-effort stock adjustment across an order's lines. `sign` is -1 to reserve
+ * on order, +1 to restore on cancellation. Never throws into the caller.
+ */
+const adjustStock = (items, sign) =>
+  Promise.all(
+    (items || []).map((it) =>
+      Product.updateOne(
+        { _id: it.product, 'sizes.size': it.size },
+        { $inc: { 'sizes.$.stock': sign * it.quantity } }
+      ).catch((e) => console.error(`Stock adjust failed for ${it.product}:`, e.message))
+    )
+  );
+
+/** Push an order-status update to the buyer's device(s). Best-effort. */
+const pushToCustomer = async (order) => {
+  try {
+    const user = await User.findById(order.customer).select('expoPushTokens');
+    if (!user?.expoPushTokens?.length) return;
+    await sendExpoPush(user.expoPushTokens, {
+      title: `Order ${shortId(order._id)}`,
+      body: ORDER_STATUS_LABELS[order.status] || order.status,
+      data: { type: 'ORDER_STATUS', orderId: String(order._id), status: order.status },
+    });
+  } catch (e) {
+    console.error('Customer push failed:', e.message);
+  }
+};
+
+/** Push a new-order alert to the shop's device(s). Best-effort. */
+const pushToVendor = async (vendor, order) => {
+  try {
+    if (!vendor?.expoPushTokens?.length) return;
+    await sendExpoPush(vendor.expoPushTokens, {
+      title: 'New order 🛍️',
+      body: `Order ${shortId(order._id)} · ₹${order.totalPrice} · ${order.items.length} item(s)`,
+      data: { type: 'NEW_ORDER', orderId: String(order._id) },
+    });
+  } catch (e) {
+    console.error('Vendor push failed:', e.message);
+  }
+};
 
 const createOrder = async (req, res) => {
   try {
-    const { vendor: vendorId, items, totalPrice, deliveryAddress } = req.body;
+    const { vendor: vendorId, items, totalPrice, deliveryAddress, paymentMethod } = req.body;
+
+    if (paymentMethod && paymentMethod !== 'COD') {
+      return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
+    }
 
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
@@ -16,12 +75,18 @@ const createOrder = async (req, res) => {
       items,
       totalPrice,
       deliveryAddress,
-      status: 'PENDING',
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      status: ORDER_STATUS.PENDING,
+      statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
     });
 
+    // Reserve stock, notify the shop (WhatsApp + push), all best-effort.
+    adjustStock(items, -1);
     notifyVendorNewOrder(vendor, order).catch((err) =>
       console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
     );
+    pushToVendor(vendor, order);
 
     res.status(201).json(order);
   } catch (error) {
@@ -40,6 +105,18 @@ const getOrderById = async (req, res) => {
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch order', error: error.message });
+  }
+};
+
+/** GET /api/orders/mine — the signed-in customer's orders, newest first. */
+const listMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ customer: req.user._id })
+      .populate('vendor', 'shopName area address location')
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to load your orders', error: error.message });
   }
 };
 
@@ -77,18 +154,6 @@ const listVendorOrders = async (req, res) => {
   }
 };
 
-/**
- * The two logistics side effects of an order going "ready", fired in parallel
- * because neither depends on the other and the vendor is standing at the
- * counter waiting for the response:
- *
- *   a) Porter — dispatch a driver to the vendor's Nagpur store coordinates.
- *   b) WhatsApp Cloud API — confirmation template to the vendor's phone.
- *
- * `allSettled` (not `all`) so a WhatsApp outage never costs us the driver, and
- * a Porter rejection never costs us the confirmation. The caller decides what
- * to persist from the outcome.
- */
 const runReadyLogistics = (order, vendor) =>
   Promise.allSettled([requestDriver(order, vendor), notifyVendorOrderReady(vendor, order)]);
 
@@ -101,25 +166,25 @@ const settledSummary = (result, label) => {
 };
 
 /**
- * Shared transition used by both `POST /:orderId/ready` and a
- * `PATCH /:orderId/status` carrying READY_FOR_PICKUP, so the two entry points
- * can never drift on which side effects fire.
- *
- * The order is saved as READY_FOR_PICKUP *before* the network calls, so a
- * crash mid-dispatch leaves a retryable state rather than a lost order. It only
- * advances to IN_TRANSIT once Porter actually accepted the request.
+ * READY_FOR_PICKUP transition: persist the state first (so a mid-dispatch crash
+ * is retryable), then dispatch Porter + WhatsApp. Advances to IN_TRANSIT only
+ * once Porter actually accepted. Records the timeline and pushes the buyer.
  */
 const transitionToReady = async (order, vendor) => {
-  order.status = 'READY_FOR_PICKUP';
+  order.status = ORDER_STATUS.READY_FOR_PICKUP;
+  order.statusHistory = appendHistory(order.statusHistory, ORDER_STATUS.READY_FOR_PICKUP);
   await order.save();
+  pushToCustomer(order);
 
   const [porterResult, whatsappResult] = await runReadyLogistics(order, vendor);
 
   if (porterResult.status === 'fulfilled') {
     order.porter.requestId = porterResult.value?.order_id;
     order.porter.trackingUrl = porterResult.value?.tracking_url;
-    order.status = 'IN_TRANSIT';
+    order.status = ORDER_STATUS.IN_TRANSIT;
+    order.statusHistory = appendHistory(order.statusHistory, ORDER_STATUS.IN_TRANSIT, 'Driver dispatched');
     await order.save();
+    pushToCustomer(order);
   }
 
   return {
@@ -128,9 +193,7 @@ const transitionToReady = async (order, vendor) => {
   };
 };
 
-/**
- * POST /api/orders/:orderId/ready — the vendor flow's "Mark Ready for Pickup".
- */
+/** POST /api/orders/:orderId/ready — the vendor flow's "Mark Ready for Pickup". */
 const markOrderReady = async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId).populate('vendor');
@@ -140,27 +203,25 @@ const markOrderReady = async (req, res) => {
       return res.status(403).json({ message: 'This order belongs to another vendor' });
     }
 
-    // READY_FOR_PICKUP is deliberately *not* a terminal guard: it's also the
-    // state an order lands in when Porter rejected the dispatch, and the vendor
-    // needs to be able to hit the button again. Only a request Porter actually
-    // accepted blocks a retry.
     if (['IN_TRANSIT', 'DELIVERED'].includes(order.status) || order.porter?.requestId) {
-      return res
-        .status(409)
-        .json({ message: `Order is already ${order.status}`, order });
+      return res.status(409).json({ message: `Order is already ${order.status}`, order });
     }
 
     const logistics = await transitionToReady(order, order.vendor);
-
     res.json({ order, logistics });
   } catch (error) {
     res.status(500).json({ message: 'Failed to mark order ready', error: error.message });
   }
 };
 
+/**
+ * PATCH /api/orders/:id/status — vendor advances the order through the state
+ * machine. Enforces allowed transitions, records the timeline, and pushes the
+ * buyer. DELIVERED marks COD as collected; CANCELLED restores stock.
+ */
 const updateOrderStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, note } = req.body;
 
     if (!ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ message: `Invalid status. Must be one of ${ORDER_STATUSES.join(', ')}` });
@@ -173,15 +234,29 @@ const updateOrderStatus = async (req, res) => {
       return res.status(403).json({ message: 'This order belongs to another vendor' });
     }
 
-    // READY_FOR_PICKUP is not a plain field write — it dispatches Porter and
-    // WhatsApp — so it goes through the same transition the /ready route uses.
-    if (status === 'READY_FOR_PICKUP') {
+    if (!canTransition(order.status, status)) {
+      return res.status(409).json({ message: `Cannot move an order from ${order.status} to ${status}` });
+    }
+
+    // READY_FOR_PICKUP also dispatches Porter + WhatsApp.
+    if (status === ORDER_STATUS.READY_FOR_PICKUP) {
       const logistics = await transitionToReady(order, order.vendor);
       return res.json({ order, logistics });
     }
 
+    if (status === ORDER_STATUS.CANCELLED) {
+      await adjustStock(order.items, +1);
+      order.cancellation = { by: 'VENDOR', reason: note, at: new Date() };
+    }
+
+    if (status === ORDER_STATUS.DELIVERED) {
+      order.paymentStatus = 'PAID'; // COD collected on delivery
+    }
+
     order.status = status;
+    order.statusHistory = appendHistory(order.statusHistory, status, note);
     await order.save();
+    pushToCustomer(order);
 
     res.json(order);
   } catch (error) {
@@ -189,4 +264,40 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-export { createOrder, getOrderById, listVendorOrders, markOrderReady, updateOrderStatus };
+/** PATCH /api/orders/:id/cancel — the customer cancels their own order. */
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (!order.customer.equals(req.user._id)) {
+      return res.status(403).json({ message: 'This is not your order' });
+    }
+
+    if (!CUSTOMER_CANCELLABLE.includes(order.status)) {
+      return res
+        .status(409)
+        .json({ message: `An order that is already ${order.status} can no longer be cancelled` });
+    }
+
+    await adjustStock(order.items, +1);
+    order.status = ORDER_STATUS.CANCELLED;
+    order.cancellation = { by: 'CUSTOMER', reason: req.body?.reason, at: new Date() };
+    order.statusHistory = appendHistory(order.statusHistory, ORDER_STATUS.CANCELLED, 'Cancelled by customer');
+    await order.save();
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to cancel order', error: error.message });
+  }
+};
+
+export {
+  createOrder,
+  getOrderById,
+  listMyOrders,
+  listVendorOrders,
+  markOrderReady,
+  updateOrderStatus,
+  cancelOrder,
+};

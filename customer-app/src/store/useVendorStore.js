@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import * as api from '../api/vendorApi';
 import useAuthStore from './useAuthStore';
+import { registerForPush } from '../services/notifications';
 
 /**
  * Vendor dashboard state (Zustand).
@@ -22,8 +23,9 @@ import useAuthStore from './useAuthStore';
 
 /** Tabs, in the order the vendor works through them. */
 export const ORDER_FILTERS = [
-  { key: 'PENDING', label: 'Pending' },
+  { key: 'PENDING', label: 'New' },
   { key: 'ACCEPTED', label: 'Accepted' },
+  { key: 'PACKED', label: 'Packed' },
   { key: 'READY_FOR_PICKUP', label: 'Ready' },
   { key: 'ALL', label: 'All' },
 ];
@@ -71,6 +73,12 @@ export const useVendorStore = create((set, get) => ({
     try {
       const vendor = await api.fetchVendorProfile();
       useAuthStore.getState().setVendorProfile(vendor);
+
+      // Register this device for new-order push alerts (best-effort).
+      registerForPush()
+        .then((pushToken) => pushToken && api.registerVendorPushToken(pushToken).catch(() => {}))
+        .catch(() => {});
+
       return vendor;
     } catch (error) {
       // Non-fatal: the dashboard header falls back to a generic title.
@@ -96,6 +104,26 @@ export const useVendorStore = create((set, get) => ({
     set({ pendingOrderId: orderId, ordersError: null });
     try {
       const updated = await api.acceptOrder(orderId);
+      set((state) => ({
+        orders: replaceOrder(state.orders, updated),
+        pendingOrderId: null,
+      }));
+      return updated;
+    } catch (error) {
+      set({ pendingOrderId: null, ordersError: error.message });
+      throw error;
+    }
+  },
+
+  /**
+   * Advance an order to the next state (PACKED, IN_TRANSIT, DELIVERED) or cancel
+   * it. READY_FOR_PICKUP goes through markOrderReady instead (it dispatches
+   * Porter), so it is not routed here.
+   */
+  advanceStatus: async (orderId, status, note) => {
+    set({ pendingOrderId: orderId, ordersError: null });
+    try {
+      const updated = await api.updateOrderStatus(orderId, status, note);
       set((state) => ({
         orders: replaceOrder(state.orders, updated),
         pendingOrderId: null,

@@ -2,6 +2,7 @@ import express from 'express';
 import { verifyToken, requireVendor } from '../middleware/authMiddleware.js';
 import {
   createProduct,
+  listStorefront,
   listByVendor,
   listMyProducts,
   getProduct,
@@ -9,6 +10,9 @@ import {
 } from '../controllers/productController.js';
 
 const router = express.Router();
+
+// Public storefront feed (approved + available products).
+router.get('/', listStorefront);
 
 router.post('/', verifyToken, requireVendor, createProduct);
 

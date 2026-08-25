@@ -15,7 +15,7 @@ import useVendorStore from '../store/useVendorStore';
  * so the vendor working set is cleared on the way out to avoid one shop's
  * orders surviving into the next session.
  */
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const role = useAuthStore((state) => state.role);
   const user = useAuthStore((state) => state.user);
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
@@ -43,11 +43,20 @@ export default function ProfileScreen() {
       <GlassCard compact style={styles.card}>
         <Text style={styles.sectionLabel}>SIGNED IN AS</Text>
         <Text style={styles.name}>{user?.displayName ?? 'Guest'}</Text>
-        <Text style={styles.meta}>
-          {user?.email ?? 'No account linked — Firebase Auth not wired yet'}
-        </Text>
+        <Text style={styles.meta}>{user?.email ?? 'Not signed in'}</Text>
         <Text style={styles.meta}>Role · {role}</Text>
       </GlassCard>
+
+      {isLoggedIn && !isVendor ? (
+        <Pressable
+          onPress={() => navigation.navigate('MyOrders')}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
+        >
+          <Text style={styles.navRowText}>My Orders</Text>
+          <Text style={styles.navRowChevron}>›</Text>
+        </Pressable>
+      ) : null}
 
       <GlassCard compact style={styles.card}>
         <View style={styles.toggleRow}>
@@ -117,6 +126,21 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
   },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassFill,
+    marginBottom: spacing.sm,
+  },
+  navRowPressed: { opacity: 0.7 },
+  navRowText: { color: colors.ivory, fontSize: 15 },
+  navRowChevron: { color: colors.ash, fontSize: 22, marginTop: -2 },
   sectionLabel: {
     color: colors.slate,
     fontSize: 9,
