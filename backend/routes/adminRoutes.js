@@ -8,11 +8,14 @@ import {
   getMe,
   listPendingProducts,
   reviewProduct,
+  createProductAsAdmin,
   listVendors,
   reviewVendor,
+  createVendorAsAdmin,
   listOrders,
   getStats,
 } from '../controllers/adminController.js';
+import { adminAdvanceOrder } from '../controllers/orderController.js';
 
 const router = express.Router();
 
@@ -28,11 +31,14 @@ router.get('/me', getMe);
 router.get('/stats', getStats);
 
 router.get('/products/pending', listPendingProducts);
+router.post('/products', createProductAsAdmin);
 router.patch('/products/:id/review', reviewProduct);
 
 router.get('/vendors', listVendors);
+router.post('/vendors', createVendorAsAdmin);
 router.patch('/vendors/:id/review', reviewVendor);
 
 router.get('/orders', listOrders);
+router.patch('/orders/:id/status', adminAdvanceOrder);
 
 export default router;

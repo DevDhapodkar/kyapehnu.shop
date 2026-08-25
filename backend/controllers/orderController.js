@@ -331,6 +331,39 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /api/admin/orders/:id/status — an admin/operator advances any order.
+ * Same state machine and side effects (timeline, stock, COD, push) as the
+ * vendor route, without the vendor-ownership check.
+ */
+const adminAdvanceOrder = async (req, res) => {
+  try {
+    const { status, note } = req.body;
+    if (!ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `Invalid status. Must be one of ${ORDER_STATUSES.join(', ')}` });
+    }
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    if (!canTransition(order.status, status)) {
+      return res.status(409).json({ message: `Cannot move an order from ${order.status} to ${status}` });
+    }
+
+    if (status === ORDER_STATUS.CANCELLED) {
+      await adjustStock(order.items, +1);
+      order.cancellation = { by: 'VENDOR', reason: note, at: new Date() };
+    }
+    if (status === ORDER_STATUS.DELIVERED) order.paymentStatus = 'PAID';
+
+    order.status = status;
+    order.statusHistory = appendHistory(order.statusHistory, status, note);
+    await order.save();
+    pushToCustomer(order);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update order status', error: error.message });
+  }
+};
+
 /** PATCH /api/orders/:id/cancel — the customer cancels their own order. */
 const cancelOrder = async (req, res) => {
   try {
@@ -368,5 +401,6 @@ export {
   listVendorOrders,
   markOrderReady,
   updateOrderStatus,
+  adminAdvanceOrder,
   cancelOrder,
 };
