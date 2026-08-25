@@ -163,6 +163,53 @@ export const reviewVendor = async (req, res) => {
   }
 };
 
+/** POST /api/admin/vendors — operator creates an approved shop from the panel. */
+export const createVendorAsAdmin = async (req, res) => {
+  try {
+    const { shopName, ownerName, phone, whatsappNumber, email, area, line1, pincode, lng, lat } = req.body ?? {};
+    if (!shopName || !ownerName || !phone) {
+      return res.status(400).json({ message: 'shopName, ownerName and phone are required' });
+    }
+    const vendor = await Vendor.create({
+      firebaseUid: `admin_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      shopName,
+      ownerName,
+      phone,
+      whatsappNumber: whatsappNumber || phone,
+      email: email || `${shopName.toLowerCase().replace(/\s+/g, '')}@kyapehnu.local`,
+      address: { line1: line1 || 'Nagpur', area: area || 'Nagpur', city: 'Nagpur', pincode: pincode || '440001' },
+      location: { type: 'Point', coordinates: [Number(lng) || 79.0882, Number(lat) || 21.1458] },
+      approvalStatus: 'APPROVED',
+      isActive: true,
+    });
+    res.status(201).json(vendor);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create shop', error: error.message });
+  }
+};
+
+/** POST /api/admin/products — operator adds a product (auto-approved, live). */
+export const createProductAsAdmin = async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    if (!body.vendor || !body.name || !(Number(body.price) > 0) || !body.category) {
+      return res.status(400).json({ message: 'vendor, name, price and category are required' });
+    }
+    const product = await Product.create({
+      ...body,
+      price: Number(body.price),
+      mrp: body.mrp ? Number(body.mrp) : undefined,
+      source: 'ADMIN',
+      status: PRODUCT_STATUS.APPROVED,
+      sku: generateSku(body.category),
+      qc: { reviewedBy: req.admin._id, reviewedAt: new Date() },
+    });
+    res.status(201).json(product);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create product', error: error.message });
+  }
+};
+
 /** GET /api/admin/orders?status=PENDING&limit=50 */
 export const listOrders = async (req, res) => {
   try {

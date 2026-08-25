@@ -80,11 +80,64 @@
       <section id="dash" class="hidden">
         <div class="stats" id="stats"></div>
         <div class="tabs">
-          <button id="tab-products" class="active" onclick="showTab('products')">Product QC</button>
-          <button id="tab-vendors" onclick="showTab('vendors')">Vendor approvals</button>
+          <button id="tab-products" class="active" onclick="showTab('products')">QC Queue</button>
+          <button id="tab-add" onclick="showTab('add')">Add Product</button>
+          <button id="tab-shops" onclick="showTab('shops')">Shops</button>
+          <button id="tab-orders" onclick="showTab('orders')">Orders</button>
         </div>
+
         <div id="panel-products"></div>
-        <div id="panel-vendors" class="hidden"></div>
+
+        <div id="panel-add" class="hidden">
+          <div class="card">
+            <div class="title" style="margin-bottom:6px">Add a product (goes live immediately)</div>
+            <label>SHOP</label>
+            <select id="apShop" style="width:100%;background:var(--deep);border:1px solid var(--line);border-radius:8px;color:var(--ivory);padding:11px;font-size:15px"></select>
+            <div class="row" style="margin-top:10px">
+              <div style="flex:2;min-width:180px"><label>NAME</label><input id="apName" placeholder="Obsidian Evening Shirt" /></div>
+              <div style="flex:1;min-width:120px"><label>CATEGORY</label>
+                <select id="apCat" style="width:100%;background:var(--deep);border:1px solid var(--line);border-radius:8px;color:var(--ivory);padding:11px">
+                  <option>MEN</option><option>WOMEN</option><option>KIDS</option><option>UNISEX</option>
+                </select>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <div style="flex:1"><label>SELLING PRICE (₹)</label><input id="apPrice" inputmode="numeric" placeholder="2400" /></div>
+              <div style="flex:1"><label>MRP (₹)</label><input id="apMrp" inputmode="numeric" placeholder="3200" /></div>
+              <div style="flex:1"><label>BRAND</label><input id="apBrand" placeholder="Optional" /></div>
+            </div>
+            <label>SIZES & STOCK (e.g. S:3, M:5, L:2)</label><input id="apSizes" placeholder="S:3, M:5, L:2" />
+            <label>COLOURS (comma separated)</label><input id="apColors" placeholder="Black, Ivory" />
+            <label>IMAGE URLS (comma separated)</label><input id="apImages" placeholder="https://…jpg, https://…jpg" />
+            <div class="row" style="margin-top:10px">
+              <div style="flex:1"><label>MATERIAL</label><input id="apMaterial" placeholder="100% Cotton" /></div>
+              <div style="flex:1"><label>NET QTY</label><input id="apNetQty" inputmode="numeric" placeholder="1" /></div>
+            </div>
+            <label>DESCRIPTION</label><textarea id="apDesc" rows="2" placeholder="Optional"></textarea>
+            <div style="margin-top:14px"><button class="ok" onclick="createProductAdmin()">Add product</button></div>
+            <div id="apMsg" class="sub" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div id="panel-shops" class="hidden">
+          <div class="card">
+            <div class="title" style="margin-bottom:6px">Create a shop</div>
+            <div class="row">
+              <div style="flex:1;min-width:160px"><label>SHOP NAME</label><input id="shName" placeholder="Sitabuldi Silks" /></div>
+              <div style="flex:1;min-width:160px"><label>OWNER</label><input id="shOwner" placeholder="Priya Deshmukh" /></div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <div style="flex:1"><label>PHONE</label><input id="shPhone" placeholder="98765 43210" /></div>
+              <div style="flex:1"><label>AREA</label><input id="shArea" placeholder="Sitabuldi" /></div>
+              <div style="flex:1"><label>PINCODE</label><input id="shPin" placeholder="440012" /></div>
+            </div>
+            <div style="margin-top:14px"><button class="ok" onclick="createShop()">Create shop</button></div>
+            <div id="shMsg" class="sub" style="margin-top:8px"></div>
+          </div>
+          <div id="shopsList"></div>
+        </div>
+
+        <div id="panel-orders" class="hidden"></div>
       </section>
     </main>
 
@@ -161,11 +214,15 @@
         showAuthScreen();
       }
 
+      const TABS = ['products', 'add', 'shops', 'orders'];
       function showTab(which) {
-        $('panel-products').classList.toggle('hidden', which !== 'products');
-        $('panel-vendors').classList.toggle('hidden', which !== 'vendors');
-        $('tab-products').classList.toggle('active', which === 'products');
-        $('tab-vendors').classList.toggle('active', which === 'vendors');
+        TABS.forEach((t) => {
+          $('panel-' + t).classList.toggle('hidden', t !== which);
+          $('tab-' + t).classList.toggle('active', t === which);
+        });
+        if (which === 'shops') loadShops();
+        if (which === 'add') loadShopsIntoForm();
+        if (which === 'orders') loadOrders();
       }
 
       async function enterDashboard() {
@@ -173,7 +230,7 @@
         $('setup').classList.add('hidden');
         $('dash').classList.remove('hidden');
         $('logout').classList.remove('hidden');
-        await Promise.all([loadStats(), loadProducts(), loadVendors()]);
+        await Promise.all([loadStats(), loadProducts(), loadShops()]);
       }
 
       async function loadStats() {
@@ -225,33 +282,115 @@
         } catch (e) { alert(e.message); }
       }
 
-      async function loadVendors() {
-        const panel = $('panel-vendors');
+      let SHOPS = [];
+      async function loadShops() {
         try {
-          const items = await api('/vendors?status=PENDING');
-          if (!items.length) { panel.innerHTML = '<div class="card muted">No vendors awaiting approval.</div>'; return; }
-          panel.innerHTML = items.map((v) =>
-            '<div class="card" id="v-' + v._id + '">' +
+          SHOPS = await api('/vendors');
+          loadShopsIntoForm();
+          const panel = $('shopsList');
+          if (!SHOPS.length) { panel.innerHTML = '<div class="card muted">No shops yet — create one above.</div>'; return; }
+          panel.innerHTML = SHOPS.map((v) => {
+            const pending = v.approvalStatus === 'PENDING';
+            return '<div class="card" id="v-' + v._id + '">' +
               '<div class="row" style="justify-content:space-between">' +
                 '<div><div class="title">' + esc(v.shopName) + '</div>' +
-                '<div class="sub">' + esc(v.ownerName) + ' · ' + esc(v.address?.area || '') +
-                ' · WhatsApp ' + esc(v.whatsappNumber) + '</div></div>' +
-                '<span class="pill">PENDING</span></div>' +
-              '<hr /><div class="row">' +
+                '<div class="sub">' + esc(v.ownerName || '') + ' · ' + esc(v.address?.area || '') + '</div></div>' +
+                '<span class="pill">' + esc(v.approvalStatus) + '</span></div>' +
+              (pending ? '<hr /><div class="row">' +
                 '<button class="ok" onclick="reviewVendor(\'' + v._id + '\',\'APPROVE\')">Approve</button>' +
-                '<button onclick="reviewVendor(\'' + v._id + '\',\'REJECT\')">Reject</button>' +
-              '</div></div>').join('');
+                '<button onclick="reviewVendor(\'' + v._id + '\',\'REJECT\')">Reject</button></div>' : '') +
+              '</div>';
+          }).join('');
+        } catch (e) {
+          if (/token/i.test(e.message)) return logout();
+          $('shopsList').innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
+        }
+      }
+
+      function loadShopsIntoForm() {
+        const approved = SHOPS.filter((v) => v.approvalStatus === 'APPROVED');
+        $('apShop').innerHTML = approved.length
+          ? approved.map((v) => '<option value="' + v._id + '">' + esc(v.shopName) + '</option>').join('')
+          : '<option value="">Create a shop first (Shops tab)</option>';
+      }
+
+      async function reviewVendor(id, decision) {
+        try {
+          await api('/vendors/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision }) });
+          loadShops(); loadStats();
+        } catch (e) { alert(e.message); }
+      }
+
+      async function createShop() {
+        $('shMsg').textContent = '';
+        try {
+          const v = await api('/vendors', { method: 'POST', body: JSON.stringify({
+            shopName: $('shName').value.trim(), ownerName: $('shOwner').value.trim(),
+            phone: $('shPhone').value.trim(), area: $('shArea').value.trim(), pincode: $('shPin').value.trim(),
+          })});
+          $('shMsg').innerHTML = '<span style="color:var(--green)">✓ Created ' + esc(v.shopName) + '</span>';
+          ['shName','shOwner','shPhone','shArea','shPin'].forEach((id) => ($(id).value = ''));
+          loadShops();
+        } catch (e) { $('shMsg').innerHTML = '<span style="color:var(--crimson)">' + esc(e.message) + '</span>'; }
+      }
+
+      const splitList = (s) => s.split(',').map((x) => x.trim()).filter(Boolean);
+      const parseSizes = (s) => splitList(s).map((c) => { const [size, st] = c.split(':').map((x) => x.trim());
+        const n = Number(st); return { size, stock: Number.isFinite(n) && n >= 0 ? n : 1 }; });
+
+      async function createProductAdmin() {
+        $('apMsg').textContent = '';
+        const vendor = $('apShop').value;
+        if (!vendor) { $('apMsg').innerHTML = '<span style="color:var(--crimson)">Create a shop first.</span>'; return; }
+        try {
+          const p = await api('/products', { method: 'POST', body: JSON.stringify({
+            vendor, name: $('apName').value.trim(), category: $('apCat').value,
+            price: Number($('apPrice').value), mrp: $('apMrp').value ? Number($('apMrp').value) : undefined,
+            brand: $('apBrand').value.trim() || undefined,
+            sizes: parseSizes($('apSizes').value), colors: splitList($('apColors').value),
+            images: splitList($('apImages').value), material: $('apMaterial').value.trim() || undefined,
+            netQuantity: Number($('apNetQty').value) || 1, description: $('apDesc').value.trim() || undefined,
+          })});
+          $('apMsg').innerHTML = '<span style="color:var(--green)">✓ "' + esc(p.name) + '" is live (SKU ' + esc(p.sku) + ')</span>';
+          ['apName','apPrice','apMrp','apBrand','apSizes','apColors','apImages','apMaterial','apDesc'].forEach((id) => ($(id).value = ''));
+        } catch (e) { $('apMsg').innerHTML = '<span style="color:var(--crimson)">' + esc(e.message) + '</span>'; }
+      }
+
+      const NEXT_STATUS = { PENDING:['ACCEPTED','CANCELLED'], ACCEPTED:['PACKED','CANCELLED'],
+        PACKED:['READY_FOR_PICKUP','CANCELLED'], READY_FOR_PICKUP:['IN_TRANSIT'], IN_TRANSIT:['DELIVERED'] };
+      const STATUS_LABEL = { PENDING:'Placed', ACCEPTED:'Accepted', PACKED:'Packed',
+        READY_FOR_PICKUP:'Ready', IN_TRANSIT:'Out for delivery', DELIVERED:'Delivered', CANCELLED:'Cancelled' };
+      const NEXT_LABEL = { ACCEPTED:'Accept', PACKED:'Mark packed', READY_FOR_PICKUP:'Mark ready',
+        IN_TRANSIT:'Out for delivery', DELIVERED:'Mark delivered', CANCELLED:'Cancel' };
+
+      async function loadOrders() {
+        const panel = $('panel-orders');
+        try {
+          const orders = await api('/orders?limit=100');
+          if (!orders.length) { panel.innerHTML = '<div class="card muted">No orders yet.</div>'; return; }
+          panel.innerHTML = orders.map((o) => {
+            const who = o.customer?.name || o.guestContact?.name || 'Customer';
+            const phone = o.customer?.phone || o.guestContact?.phone || '';
+            const next = (NEXT_STATUS[o.status] || []).map((s) =>
+              '<button class="' + (s === 'CANCELLED' ? '' : 'ok') + '" onclick="advanceOrder(\'' + o._id + '\',\'' + s + '\')">' + NEXT_LABEL[s] + '</button>').join(' ');
+            return '<div class="card" id="o-' + o._id + '">' +
+              '<div class="row" style="justify-content:space-between">' +
+                '<div><div class="title">#' + esc(String(o._id).slice(-6).toUpperCase()) + ' · ' + esc(o.vendor?.shopName || '') + '</div>' +
+                '<div class="sub">' + esc(who) + (phone ? ' · ' + esc(phone) : '') + ' · ₹' + esc(o.totalPrice) + ' · ' + esc(o.paymentMethod) + '</div></div>' +
+                '<span class="pill">' + esc(STATUS_LABEL[o.status] || o.status) + '</span></div>' +
+              (next ? '<hr /><div class="row">' + next + '</div>' : '') + '</div>';
+          }).join('');
         } catch (e) {
           if (/token/i.test(e.message)) return logout();
           panel.innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
         }
       }
 
-      async function reviewVendor(id, decision) {
+      async function advanceOrder(id, status) {
+        if (status === 'CANCELLED' && !confirm('Cancel this order?')) return;
         try {
-          await api('/vendors/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision }) });
-          $('v-' + id)?.remove();
-          loadStats();
+          await api('/orders/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
+          loadOrders();
         } catch (e) { alert(e.message); }
       }
 
