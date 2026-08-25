@@ -95,6 +95,7 @@ export default function CartScreen({ navigation }) {
           })),
           totalPrice: items.reduce((s, it) => s + it.price * it.quantity, 0) + DELIVERY_FEE,
           deliveryAddress,
+          paymentMethod: 'COD',
         });
         // Keep the original cart items (they carry storeName/etaMinutes) for the
         // tracking screen, and normalise the backend id/total field names.
@@ -209,6 +210,7 @@ export default function CartScreen({ navigation }) {
 
         <SummaryRow label="Subtotal" value={formatINR(subtotal)} />
         <SummaryRow label="Delivery (Porter)" value={formatINR(DELIVERY_FEE)} />
+        <SummaryRow label="Payment" value="Cash on Delivery" />
 
         <View style={styles.summaryDivider} />
 
@@ -218,10 +220,10 @@ export default function CartScreen({ navigation }) {
         </View>
 
         <GlassButton
-          label="Confirm & Pay"
+          label="Place Order · Cash on Delivery"
           onPress={handleConfirm}
           loading={placing}
-          caption={`${formatINR(total)}  ·  arrives in ~40 min`}
+          caption={`${formatINR(total)}  ·  pay on delivery`}
           style={styles.confirm}
         />
       </View>

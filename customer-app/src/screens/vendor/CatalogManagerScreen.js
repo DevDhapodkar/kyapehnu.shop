@@ -29,12 +29,42 @@ const MAX_IMAGES = 5;
 
 const EMPTY_DRAFT = {
   name: '',
+  brand: '',
   category: 'WOMEN',
-  price: '',
-  sizes: '',
+  subCategory: '',
+  price: '', // selling price
+  mrp: '', // printed MRP (strike-through)
+  sizes: '', // "S:3, M:5, L:2"  (size:stock)
+  colors: '', // "Black, Ivory"
+  material: '',
+  pattern: '',
+  fit: '',
+  occasion: '',
+  careInstructions: '',
+  countryOfOrigin: 'India',
+  netQuantity: '1',
   description: '',
   images: [], // [{ url, thumbnails }] returned from the upload endpoint
 };
+
+/** Parse "S:3, M:5, L" into [{ size:'S', stock:3 }, ...] (default stock 1). */
+const parseSizes = (raw) =>
+  raw
+    .split(',')
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const [size, stock] = chunk.split(':').map((s) => s.trim());
+      const n = Number(stock);
+      return { size, stock: Number.isFinite(n) && n >= 0 ? n : 1 };
+    });
+
+/** Split a comma list into trimmed, non-empty values. */
+const parseList = (raw) =>
+  raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 /**
  * Catalog manager: flip a listing in or out of stock, and add a new one.
@@ -107,28 +137,38 @@ export default function CatalogManagerScreen() {
 
   const onSubmit = useCallback(async () => {
     const price = Number(draft.price);
+    const mrp = draft.mrp ? Number(draft.mrp) : undefined;
+    const netQuantity = Number(draft.netQuantity) || 1;
 
     if (!draft.name.trim()) return Alert.alert('Name required', 'Give the listing a name.');
     if (!Number.isFinite(price) || price <= 0) {
-      return Alert.alert('Price required', 'Enter the price in whole rupees.');
+      return Alert.alert('Price required', 'Enter the selling price in whole rupees.');
+    }
+    if (mrp !== undefined && (!Number.isFinite(mrp) || mrp < price)) {
+      return Alert.alert('Check MRP', 'MRP should be a number at least equal to the selling price.');
     }
 
-    // The Product schema wants `sizes: [{ size, stock }]`; the form takes the
-    // shorthand a vendor would actually type ("S, M, L") and expands it.
-    const sizes = draft.sizes
-      .split(',')
-      .map((size) => size.trim())
-      .filter(Boolean)
-      .map((size) => ({ size, stock: 1 }));
+    const sizes = parseSizes(draft.sizes);
 
     setSaving(true);
     try {
       await addProduct({
         name: draft.name.trim(),
+        brand: draft.brand.trim() || undefined,
         category: draft.category,
+        subCategory: draft.subCategory.trim() || undefined,
         price,
-        description: draft.description.trim() || undefined,
+        mrp,
         sizes: sizes.length ? sizes : [{ size: 'FREE', stock: 1 }],
+        colors: parseList(draft.colors),
+        material: draft.material.trim() || undefined,
+        pattern: draft.pattern.trim() || undefined,
+        fit: draft.fit.trim() || undefined,
+        occasion: draft.occasion.trim() || undefined,
+        careInstructions: draft.careInstructions.trim() || undefined,
+        countryOfOrigin: draft.countryOfOrigin.trim() || 'India',
+        netQuantity,
+        description: draft.description.trim() || undefined,
         images: draft.images.map((img) => img.url),
         isAvailable: true,
       });
@@ -228,6 +268,13 @@ export default function CatalogManagerScreen() {
                   placeholder="Charcoal linen shirt"
                 />
 
+                <Field
+                  label="BRAND"
+                  value={draft.brand}
+                  onChangeText={(brand) => setDraft((d) => ({ ...d, brand }))}
+                  placeholder="e.g. Raymond, or your shop label"
+                />
+
                 <Text style={styles.fieldLabel}>CATEGORY</Text>
                 <View style={styles.categoryRow}>
                   {CATEGORIES.map((category) => {
@@ -253,19 +300,104 @@ export default function CatalogManagerScreen() {
                 </View>
 
                 <Field
-                  label="PRICE (₹)"
-                  value={draft.price}
-                  onChangeText={(price) => setDraft((d) => ({ ...d, price }))}
-                  placeholder="2400"
-                  keyboardType="number-pad"
+                  label="TYPE"
+                  value={draft.subCategory}
+                  onChangeText={(subCategory) => setDraft((d) => ({ ...d, subCategory }))}
+                  placeholder="Shirt, Kurta, Dress, Trousers…"
                 />
 
+                <View style={styles.twoCol}>
+                  <Field
+                    label="SELLING PRICE (₹)"
+                    value={draft.price}
+                    onChangeText={(price) => setDraft((d) => ({ ...d, price }))}
+                    placeholder="2400"
+                    keyboardType="number-pad"
+                    containerStyle={styles.colField}
+                  />
+                  <Field
+                    label="MRP (₹)"
+                    value={draft.mrp}
+                    onChangeText={(mrp) => setDraft((d) => ({ ...d, mrp }))}
+                    placeholder="3200"
+                    keyboardType="number-pad"
+                    containerStyle={styles.colField}
+                  />
+                </View>
+
                 <Field
-                  label="SIZES"
+                  label="SIZES & STOCK"
                   value={draft.sizes}
                   onChangeText={(sizes) => setDraft((d) => ({ ...d, sizes }))}
-                  placeholder="S, M, L, XL"
+                  placeholder="S:3, M:5, L:2"
                   autoCapitalize="characters"
+                />
+                <Text style={styles.hint}>Format size:stock — e.g. S:3, M:5. No number = 1 in stock.</Text>
+
+                <Field
+                  label="COLOURS"
+                  value={draft.colors}
+                  onChangeText={(colors) => setDraft((d) => ({ ...d, colors }))}
+                  placeholder="Black, Ivory"
+                />
+
+                <View style={styles.twoCol}>
+                  <Field
+                    label="FABRIC / MATERIAL"
+                    value={draft.material}
+                    onChangeText={(material) => setDraft((d) => ({ ...d, material }))}
+                    placeholder="100% Cotton"
+                    containerStyle={styles.colField}
+                  />
+                  <Field
+                    label="PATTERN"
+                    value={draft.pattern}
+                    onChangeText={(pattern) => setDraft((d) => ({ ...d, pattern }))}
+                    placeholder="Solid, Printed…"
+                    containerStyle={styles.colField}
+                  />
+                </View>
+
+                <View style={styles.twoCol}>
+                  <Field
+                    label="FIT"
+                    value={draft.fit}
+                    onChangeText={(fit) => setDraft((d) => ({ ...d, fit }))}
+                    placeholder="Regular, Slim…"
+                    containerStyle={styles.colField}
+                  />
+                  <Field
+                    label="OCCASION"
+                    value={draft.occasion}
+                    onChangeText={(occasion) => setDraft((d) => ({ ...d, occasion }))}
+                    placeholder="Casual, Formal…"
+                    containerStyle={styles.colField}
+                  />
+                </View>
+
+                <View style={styles.twoCol}>
+                  <Field
+                    label="NET QTY (units)"
+                    value={draft.netQuantity}
+                    onChangeText={(netQuantity) => setDraft((d) => ({ ...d, netQuantity }))}
+                    placeholder="1"
+                    keyboardType="number-pad"
+                    containerStyle={styles.colField}
+                  />
+                  <Field
+                    label="COUNTRY OF ORIGIN"
+                    value={draft.countryOfOrigin}
+                    onChangeText={(countryOfOrigin) => setDraft((d) => ({ ...d, countryOfOrigin }))}
+                    placeholder="India"
+                    containerStyle={styles.colField}
+                  />
+                </View>
+
+                <Field
+                  label="CARE INSTRUCTIONS"
+                  value={draft.careInstructions}
+                  onChangeText={(careInstructions) => setDraft((d) => ({ ...d, careInstructions }))}
+                  placeholder="Machine wash cold, do not bleach"
                 />
 
                 <Field
@@ -342,10 +474,10 @@ export default function CatalogManagerScreen() {
   );
 }
 
-/** Labelled text input, so the composer's five fields stay identical. */
-function Field({ label, style, multiline, ...inputProps }) {
+/** Labelled text input, so the composer's fields stay identical. */
+function Field({ label, style, containerStyle, multiline, ...inputProps }) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, containerStyle]}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         {...inputProps}
@@ -423,6 +555,20 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 74,
     textAlignVertical: 'top',
+  },
+  twoCol: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  colField: {
+    flex: 1,
+  },
+  hint: {
+    color: colors.slate,
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: -6,
+    marginBottom: spacing.sm,
   },
   categoryRow: {
     flexDirection: 'row',

@@ -25,6 +25,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
   const pendingOrderId = useVendorStore((state) => state.pendingOrderId);
   const acceptOrder = useVendorStore((state) => state.acceptOrder);
   const markOrderReady = useVendorStore((state) => state.markOrderReady);
+  const advanceStatus = useVendorStore((state) => state.advanceStatus);
 
   // Deep links (and a cold start from a push notification) can land here with
   // an empty store, so the screen can fetch the order on its own.
@@ -55,6 +56,28 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
       Alert.alert('Could not accept', error.message);
     }
   }, [acceptOrder, orderId]);
+
+  const onAdvance = useCallback(
+    async (status, failLabel) => {
+      try {
+        await advanceStatus(orderId, status);
+      } catch (error) {
+        Alert.alert(failLabel, error.message);
+      }
+    },
+    [advanceStatus, orderId]
+  );
+
+  const onCancel = useCallback(() => {
+    Alert.alert('Cancel this order?', 'The customer will be notified. This cannot be undone.', [
+      { text: 'Keep order', style: 'cancel' },
+      {
+        text: 'Cancel order',
+        style: 'destructive',
+        onPress: () => onAdvance('CANCELLED', 'Could not cancel'),
+      },
+    ]);
+  }, [onAdvance]);
 
   const onMarkReady = useCallback(() => {
     Alert.alert(
@@ -99,12 +122,9 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
   }
 
   const items = order.items ?? [];
-  const canAccept = order.status === 'PENDING';
-  // A dispatch that Porter rejected leaves the order READY_FOR_PICKUP with no
-  // request id — the button stays live so the vendor can retry.
-  const canMarkReady =
-    ['ACCEPTED', 'PENDING'].includes(order.status) ||
-    (order.status === 'READY_FOR_PICKUP' && !order.porter?.requestId);
+  const { status } = order;
+  // Cancel stays available until the shop has handed the goods over.
+  const canCancel = ['PENDING', 'ACCEPTED', 'PACKED'].includes(status);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -167,23 +187,55 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
       ) : null}
 
       <View style={styles.actions}>
-        {canAccept ? <GlassButton label="Accept Order" onPress={onAccept} loading={busy} /> : null}
+        {status === 'PENDING' ? (
+          <GlassButton label="Accept Order" onPress={onAccept} loading={busy} />
+        ) : null}
 
-        {canMarkReady ? (
+        {status === 'ACCEPTED' ? (
           <GlassButton
-            label="Mark Ready for Pickup"
-            variant={canAccept ? 'ghost' : 'primary'}
-            caption={canAccept ? 'Accept the order first' : 'Dispatches a Porter driver'}
-            disabled={canAccept}
-            loading={busy && !canAccept}
-            onPress={onMarkReady}
+            label="Mark Packed"
+            caption="You've packed this order"
+            onPress={() => onAdvance('PACKED', 'Could not update')}
+            loading={busy}
           />
         ) : null}
 
-        {!canAccept && !canMarkReady ? (
-          <Text style={styles.terminal}>
-            No further action — this order is with the delivery partner.
-          </Text>
+        {status === 'PACKED' ? (
+          <GlassButton
+            label="Mark Ready for Pickup"
+            caption="Dispatches a Porter driver (if configured)"
+            onPress={onMarkReady}
+            loading={busy}
+          />
+        ) : null}
+
+        {status === 'READY_FOR_PICKUP' ? (
+          <GlassButton
+            label="Mark Out for Delivery"
+            caption="Driver has picked up the order"
+            onPress={() => onAdvance('IN_TRANSIT', 'Could not update')}
+            loading={busy}
+          />
+        ) : null}
+
+        {status === 'IN_TRANSIT' ? (
+          <GlassButton
+            label="Mark Delivered"
+            caption="Collect Cash on Delivery"
+            onPress={() => onAdvance('DELIVERED', 'Could not update')}
+            loading={busy}
+          />
+        ) : null}
+
+        {canCancel ? (
+          <GlassButton label="Cancel Order" variant="ghost" onPress={onCancel} loading={busy} />
+        ) : null}
+
+        {status === 'DELIVERED' ? (
+          <Text style={styles.terminal}>Delivered — payment collected. ✓</Text>
+        ) : null}
+        {status === 'CANCELLED' ? (
+          <Text style={styles.terminal}>This order was cancelled.</Text>
         ) : null}
       </View>
     </ScrollView>

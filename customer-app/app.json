@@ -38,6 +38,7 @@
         }
       ],
       "expo-asset",
+      "expo-notifications",
       [
         "expo-location",
         {

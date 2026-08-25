@@ -59,17 +59,21 @@ export const sceneColors = {
 export const statusColors = {
   PENDING: colors.gold,
   ACCEPTED: colors.gold,
+  PACKED: colors.gold,
   READY_FOR_PICKUP: colors.crimsonBright,
-  IN_TRANSIT: colors.platinum,
+  IN_TRANSIT: colors.crimsonBright,
   DELIVERED: colors.slate,
+  CANCELLED: colors.crimson,
 };
 
 export const statusLabels = {
-  PENDING: 'Pending',
+  PENDING: 'Placed',
   ACCEPTED: 'Accepted',
+  PACKED: 'Packed',
   READY_FOR_PICKUP: 'Ready for Pickup',
-  IN_TRANSIT: 'In Transit',
+  IN_TRANSIT: 'Out for Delivery',
   DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
 };
 
 export const spacing = {

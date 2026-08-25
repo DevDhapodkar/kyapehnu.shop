@@ -113,16 +113,32 @@ export default function ProductDetailScreen({ route, navigation }) {
           <View style={styles.divider} />
 
           <Text style={styles.blockLabel}>DETAILS</Text>
-          <Detail label="Colourway" value={product.colorway} />
+          <Detail label="Brand" value={product.brand} />
+          <Detail label="Colour" value={product.colorway} />
           <Detail label="Material" value={product.material} />
+          <Detail label="Pattern" value={product.pattern} />
+          <Detail label="Fit" value={product.fit} />
+          <Detail label="Occasion" value={product.occasion} />
+          <Detail label="Care" value={product.careInstructions} />
+          <Detail
+            label="Net Quantity"
+            value={product.netQuantity ? `${product.netQuantity} N` : null}
+          />
+          <Detail label="Country of Origin" value={product.countryOfOrigin} />
+          <Detail label="SKU" value={product.sku} />
 
           <View style={styles.divider} />
 
           <Text style={styles.blockLabel}>SOLD BY</Text>
           <Text style={styles.storeName}>{product.storeName}</Text>
           <Text style={styles.storeMeta}>
-            {product.storeArea}  ·  {product.distanceKm} km away  ·  delivered in ~
-            {product.etaMinutes} min
+            {[
+              product.storeArea,
+              typeof product.distanceKm === 'number' ? `${product.distanceKm} km away` : null,
+              typeof product.etaMinutes === 'number' ? `~${product.etaMinutes} min` : null,
+            ]
+              .filter(Boolean)
+              .join('  ·  ')}
           </Text>
         </View>
       </ScrollView>

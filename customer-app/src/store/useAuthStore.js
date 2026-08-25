@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
 import { setAuthToken } from '../api/vendorApi';
-import { syncUserProfile, fetchUserProfile } from '../api/vendorApi';
+import { syncUserProfile, fetchUserProfile, registerUserPushToken } from '../api/vendorApi';
+import { registerForPush } from '../services/notifications';
 import {
   signInEmail,
   registerEmail,
@@ -80,6 +81,11 @@ export const useAuthStore = create((set, get) => ({
       } catch {
         /* no profile yet — created by registerWithEmail */
       }
+
+      // Register this device for order-status push notifications (best-effort).
+      registerForPush()
+        .then((pushToken) => pushToken && registerUserPushToken(pushToken).catch(() => {}))
+        .catch(() => {});
     });
 
     set({ _unsubscribe: unsubscribe });

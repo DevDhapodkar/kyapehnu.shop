@@ -106,6 +106,31 @@ export const fetchStorefront = (params) =>
 export const placeOrder = (payload) =>
   request(() => client.post('/orders', payload), 'Failed to place order');
 
+/** GET /api/orders/mine — the signed-in customer's orders, newest first. */
+export const fetchMyOrders = () =>
+  request(() => client.get('/orders/mine'), 'Failed to load your orders');
+
+/** PATCH /api/orders/:id/cancel — customer cancels their own order. */
+export const cancelMyOrder = (orderId, reason) =>
+  request(() => client.patch(`/orders/${orderId}/cancel`, { reason }), 'Failed to cancel order');
+
+/** PATCH /api/orders/:id/status — vendor advances an order (PACKED, IN_TRANSIT, DELIVERED, CANCELLED). */
+export const updateOrderStatus = (orderId, status, note) =>
+  request(
+    () => client.patch(`/orders/${orderId}/status`, { status, note }),
+    'Failed to update order'
+  );
+
+/* ------------------------------------------------------- push notifications -- */
+
+/** POST /api/users/me/push-token — register the customer's device for order updates. */
+export const registerUserPushToken = (token) =>
+  request(() => client.post('/users/me/push-token', { token }), 'Failed to register device');
+
+/** POST /api/vendors/me/push-token — register the shop's device for new-order alerts. */
+export const registerVendorPushToken = (token) =>
+  request(() => client.post('/vendors/me/push-token', { token }), 'Failed to register device');
+
 /* --------------------------------------------------------------- uploads -- */
 
 /**
