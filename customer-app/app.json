@@ -56,12 +56,13 @@
       "apiBaseUrl": "https://kyapehnu-backend.onrender.com",
       "devAuthToken": "",
       "firebase": {
-        "apiKey": "",
-        "authDomain": "",
-        "projectId": "",
-        "storageBucket": "",
-        "messagingSenderId": "",
-        "appId": ""
+        "apiKey": "AIzaSyCfr4q93xlmNSNHp3YTC0pd2bPmoKktPhc",
+        "authDomain": "kyapehnushop.firebaseapp.com",
+        "projectId": "kyapehnushop",
+        "storageBucket": "kyapehnushop.firebasestorage.app",
+        "messagingSenderId": "484031497035",
+        "appId": "1:484031497035:web:3948943f5af3667eed1ece",
+        "measurementId": "G-2T0YQNEE0X"
       }
     }
   }
