@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.dhapodkardev.kyapehnu"
     },
     "android": {
+      "package": "com.dhapodkardev.kyapehnu",
       "adaptiveIcon": {
         "backgroundColor": "#050506",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
