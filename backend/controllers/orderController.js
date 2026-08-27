@@ -4,7 +4,7 @@ import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { notifyVendorNewOrder, notifyVendorOrderReady } from './whatsappController.js';
 import { requestDriver } from './porterController.js';
-import { sendExpoPush } from '../utils/pushNotifications.js';
+import { sendPush } from '../utils/pushNotifications.js';
 import {
   ORDER_STATUS,
   ORDER_STATUS_LABELS,
@@ -32,9 +32,9 @@ const adjustStock = (items, sign) =>
 /** Push an order-status update to the buyer's device(s). Best-effort. */
 const pushToCustomer = async (order) => {
   try {
-    const user = await User.findById(order.customer).select('expoPushTokens');
-    if (!user?.expoPushTokens?.length) return;
-    await sendExpoPush(user.expoPushTokens, {
+    const user = await User.findById(order.customer).select('pushTokens');
+    if (!user?.pushTokens?.length) return;
+    await sendPush(user.pushTokens, {
       title: `Order ${shortId(order._id)}`,
       body: ORDER_STATUS_LABELS[order.status] || order.status,
       data: { type: 'ORDER_STATUS', orderId: String(order._id), status: order.status },
@@ -47,8 +47,8 @@ const pushToCustomer = async (order) => {
 /** Push a new-order alert to the shop's device(s). Best-effort. */
 const pushToVendor = async (vendor, order) => {
   try {
-    if (!vendor?.expoPushTokens?.length) return;
-    await sendExpoPush(vendor.expoPushTokens, {
+    if (!vendor?.pushTokens?.length) return;
+    await sendPush(vendor.pushTokens, {
       title: 'New order 🛍️',
       body: `Order ${shortId(order._id)} · ₹${order.totalPrice} · ${order.items.length} item(s)`,
       data: { type: 'NEW_ORDER', orderId: String(order._id) },

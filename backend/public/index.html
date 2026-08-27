@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kya Pehnu? — Shop Nagpur</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       :root {
         --obsidian: #050506; --deep: #0a0a0c; --charcoal: #131316; --char2: #1c1c21;
@@ -156,7 +158,10 @@
         <div><label>PINCODE</label><input id="coPin" placeholder="440012" inputmode="numeric" /></div>
       </div>
       <label>DELIVERY ADDRESS</label><input id="coAddr" placeholder="Flat / house, street, area" />
-      <button class="ghost" id="coLoc" onclick="grabLocation()" style="margin-top:12px">📍 Use my location (helps the rider)</button>
+      <label>PIN YOUR EXACT LOCATION (drag the marker)</label>
+      <div id="coMap" style="height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div>
+      <button class="ghost" id="coLoc" onclick="locateMe()" style="margin-top:10px">📍 Use my current location</button>
+      <div class="sub" id="coGeo" style="margin-top:6px"></div>
       <div id="coErr" class="err"></div>
       <button class="cta" id="placeBtn" onclick="placeOrder()">Place Order · Cash on Delivery</button>
     </div></div></div>
@@ -207,6 +212,7 @@
         if (view === 'checkout') { if (!CART.length) return go('cart'); }
         if (view === 'track') { const last = safeGet('kp_last'); if (last) { $('trkId').value = last.orderId||''; $('trkPhone').value = last.phone||''; } }
         $('ov-'+view)?.classList.add('open');
+        if (view === 'checkout') setTimeout(initCheckoutMap, 80);
       }
       function closeOv(v) { $('ov-'+v)?.classList.remove('open'); }
       const safeGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
@@ -295,14 +301,76 @@
       }
       function bump(i, d) { CART[i].qty += d; if (CART[i].qty <= 0) CART.splice(i,1); saveCart(); renderCart(); }
 
-      /* ---------- checkout ---------- */
-      async function grabLocation() {
+      /* ---------- checkout: free OpenStreetMap pin picker ---------- */
+      const NG = [21.1458, 79.0882]; // Nagpur centre [lat, lng]
+      let coMap, coMarker, trkMap;
+
+      function osmTiles(map) {
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap',
+        }).addTo(map);
+      }
+
+      function initCheckoutMap() {
+        const start = coords ? [coords[1], coords[0]] : NG;
+        if (!coMap) {
+          coMap = L.map('coMap').setView(start, coords ? 16 : 13);
+          osmTiles(coMap);
+          coMarker = L.marker(start, { draggable: true }).addTo(coMap);
+          coMarker.on('dragend', () => { const p = coMarker.getLatLng(); setPin(p.lat, p.lng); });
+          coMap.on('click', (e) => { coMarker.setLatLng(e.latlng); setPin(e.latlng.lat, e.latlng.lng); });
+        } else {
+          coMap.setView(start, coords ? 16 : 13); coMarker.setLatLng(start);
+        }
+        setTimeout(() => coMap.invalidateSize(), 90);
+      }
+
+      function setPin(lat, lng) {
+        coords = [lng, lat];
+        if (coMarker) coMarker.setLatLng([lat, lng]);
+        reverseGeocode(lat, lng);
+      }
+
+      function locateMe() {
         if (!navigator.geolocation) return;
-        $('coLoc').textContent = 'Getting location…';
+        $('coLoc').textContent = 'Locating…';
         navigator.geolocation.getCurrentPosition(
-          (pos) => { coords = [pos.coords.longitude, pos.coords.latitude]; $('coLoc').textContent = '✓ Location captured'; },
-          () => { $('coLoc').textContent = '📍 Use my location (helps the rider)'; }
+          (pos) => {
+            const { latitude: lat, longitude: lng } = pos.coords;
+            if (coMap) coMap.setView([lat, lng], 16);
+            setPin(lat, lng);
+            $('coLoc').textContent = '📍 Use my current location';
+          },
+          () => { $('coLoc').textContent = '📍 Use my current location'; }
         );
+      }
+
+      // Free reverse geocoding via OpenStreetMap Nominatim — fills address + pincode.
+      async function reverseGeocode(lat, lng) {
+        $('coGeo').textContent = 'Finding address…';
+        try {
+          const r = await fetch(
+            'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lng,
+            { headers: { 'Accept-Language': 'en' } }
+          );
+          const d = await r.json();
+          const a = d.address || {};
+          const line = [a.road, a.neighbourhood, a.suburb, a.city_district].filter(Boolean).join(', ');
+          if (line && !$('coAddr').value.trim()) $('coAddr').value = line;
+          if (a.postcode && !$('coPin').value.trim()) $('coPin').value = a.postcode;
+          $('coGeo').textContent = d.display_name ? '📍 ' + d.display_name : '';
+        } catch { $('coGeo').textContent = ''; }
+      }
+
+      function initTrackMap(lat, lng) {
+        if (!lat || !lng || !document.getElementById('trkMapBox')) return;
+        setTimeout(() => {
+          try { if (trkMap) trkMap.remove(); } catch {}
+          trkMap = L.map('trkMapBox').setView([lat, lng], 15);
+          osmTiles(trkMap);
+          L.marker([lat, lng]).addTo(trkMap);
+          trkMap.invalidateSize();
+        }, 90);
       }
 
       async function placeOrder() {
@@ -364,6 +432,8 @@
         try {
           const o = await api('/orders/track?orderId=' + encodeURIComponent(orderId) + '&phone=' + encodeURIComponent(phone));
           $('trkResult').innerHTML = renderTracking(o);
+          const c = o.deliveryAddress?.location?.coordinates;
+          if (c && c.length === 2) initTrackMap(c[1], c[0]);
         } catch (e) { $('trkErr').textContent = e.message; }
       }
       function renderTracking(o) {
@@ -380,10 +450,12 @@
           }).join('') + '</div>';
         }
         const items = (o.items||[]).map(it => '<div class="sumrow"><span>'+esc(it.name)+' × '+it.quantity+'</span><span>'+inr(it.price*it.quantity)+'</span></div>').join('');
+        const hasCoords = o.deliveryAddress?.location?.coordinates?.length === 2;
         return '<div class="pill">'+esc(STEP_LABEL[o.status]||o.status)+'</div>' +
           '<h3 style="font-weight:300;margin:12px 0 2px">'+esc(o.vendor?.shopName||'Shop')+'</h3>' +
           '<div class="muted" style="font-size:12px">#'+esc(String(o._id).slice(-6).toUpperCase())+' · '+inr(o.totalPrice)+' · Cash on Delivery</div>' +
-          tl + items;
+          tl + items +
+          (hasCoords ? '<div class="rowlabel">DELIVERY LOCATION</div><div id="trkMapBox" style="height:200px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div>' : '');
       }
 
       renderCartCount();

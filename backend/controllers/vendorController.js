@@ -52,14 +52,14 @@ const listNearby = async (req, res) => {
   }
 };
 
-// Register an Expo push token so the shop's device gets new-order alerts.
+// Register an FCM device token so the shop's device gets new-order alerts.
 const savePushToken = async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: 'token is required' });
     await Vendor.updateOne(
       { _id: req.vendor._id },
-      { $addToSet: { expoPushTokens: token } }
+      { $addToSet: { pushTokens: token } }
     );
     res.json({ ok: true });
   } catch (error) {

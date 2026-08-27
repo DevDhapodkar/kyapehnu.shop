@@ -41,8 +41,8 @@ const vendorSchema = new mongoose.Schema(
       enum: ['PENDING', 'APPROVED', 'REJECTED'],
       default: 'PENDING',
     },
-    // Expo push tokens for the shop's device(s) — new-order alerts land here.
-    expoPushTokens: [{ type: String }],
+    // FCM device tokens for the shop devices — new-order alerts land here.
+    pushTokens: [{ type: String }],
     rating: { type: Number, default: 0 },
   },
   { timestamps: true }
