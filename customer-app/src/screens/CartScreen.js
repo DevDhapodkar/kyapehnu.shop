@@ -75,10 +75,26 @@ export default function CartScreen({ navigation }) {
         throw new Error('These items are not linked to a shop yet — pull to refresh the storefront.');
       }
 
+      // Turn the GPS pin into a real street address + pincode via the device's
+      // free geocoder (no API key). Falls back to sensible defaults.
+      let line1 = 'Current location';
+      let pincode = '440001';
+      try {
+        const [lng, lat] = coordinates;
+        const geo = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+        const g = geo?.[0];
+        if (g) {
+          line1 = [g.name, g.street, g.district].filter(Boolean).join(', ') || line1;
+          pincode = g.postalCode || pincode;
+        }
+      } catch {
+        /* geocoder unavailable — keep defaults */
+      }
+
       const deliveryAddress = {
-        line1: 'Current location',
+        line1,
         city: 'Nagpur',
-        pincode: '440001',
+        pincode,
         location: { type: 'Point', coordinates },
       };
 

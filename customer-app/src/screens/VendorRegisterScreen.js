@@ -64,6 +64,25 @@ export default function VendorRegisterScreen({ navigation }) {
       }
       const pos = await Location.getCurrentPositionAsync({});
       setCoords([pos.coords.longitude, pos.coords.latitude]);
+
+      // Auto-fill the address from the device's free geocoder (no API key).
+      try {
+        const geo = await Location.reverseGeocodeAsync({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        const g = geo?.[0];
+        if (g) {
+          setForm((f) => ({
+            ...f,
+            line1: f.line1 || [g.name, g.street].filter(Boolean).join(' '),
+            area: f.area || g.district || g.subregion || g.city || '',
+            pincode: f.pincode || g.postalCode || '',
+          }));
+        }
+      } catch {
+        /* geocoder unavailable — leave fields for manual entry */
+      }
     } catch {
       setError('Could not read your location — we will use Nagpur city centre.');
     } finally {
