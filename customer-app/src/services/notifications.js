@@ -47,3 +47,33 @@ export const registerForPush = async () => {
     return null;
   }
 };
+
+/**
+ * Present a notification **locally**, right now, on this device. Unlike remote
+ * push this needs no FCM / google-services.json — it's the app itself raising
+ * the banner. Used by the order-status watcher so buyers and shops get notified
+ * of order progress even before remote push is provisioned. Never throws.
+ * @param {{ title: string, body: string, data?: Record<string, unknown> }} content
+ */
+export const presentLocalNotification = async ({ title, body, data }) => {
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('orders', {
+        name: 'Orders',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+      });
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: data ?? {},
+        ...(Platform.OS === 'android' ? { channelId: 'orders' } : {}),
+      },
+      trigger: null, // fire immediately
+    });
+  } catch (error) {
+    console.warn('Local notification skipped:', error.message);
+  }
+};

@@ -13,6 +13,7 @@ import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
 import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
+import useOrderNotifications from '../hooks/useOrderNotifications';
 import { colors } from '../theme/colors';
 
 /**
@@ -144,6 +145,10 @@ function VendorFlow() {
  */
 export default function AppNavigator() {
   const role = useAuthStore(selectRole);
+
+  // Local-notification fallback for order updates (works without FCM). Mounted
+  // here because AppNavigator stays mounted across role changes and re-renders.
+  useOrderNotifications();
 
   return (
     // Keyed by role on purpose. NavigationContainer owns the navigation state

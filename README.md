@@ -49,8 +49,9 @@ no separate vendor binary.
 - **Backend:** Node 20+, Express 5, Mongoose 9, MongoDB Atlas, JWT + bcrypt.
 - **Auth:** Firebase Authentication (email/password), verified server-side via
   `firebase-admin`.
-- **Push:** Firebase Cloud Messaging via the same service account — free and
-  unlimited, no Expo/EAS project needed.
+- **Notifications:** local notifications (poll-driven, zero setup) work
+  everywhere; remote push uses Firebase Cloud Messaging via the same service
+  account — free and unlimited, no Expo/EAS project needed.
 - **Images:** Cloudinary (uploads via `multer`).
 - **Maps / location:** OpenStreetMap — Leaflet + Nominatim on the web, the
   device geocoder (`expo-location`) in the app. No API key, no cost.
@@ -69,7 +70,10 @@ no separate vendor binary.
 - Order lifecycle: `PENDING → ACCEPTED → PACKED → READY_FOR_PICKUP → IN_TRANSIT
   → DELIVERED` (+ `CANCELLED`), reflected on the customer's "My Orders" and
   driven by the vendor.
-- New-order notifications to the vendor; status-change pushes to the customer.
+- Order notifications that work **out of the box**: the app polls while open and
+  raises a local notification when an order's status advances (customer) or a new
+  order arrives (vendor) — no external setup needed. Remote FCM push layers on top
+  once `google-services.json` is added (see below).
 - Admin console for onboarding shops, curating products, and a QC queue.
 - Live order-tracking map (OpenStreetMap).
 
@@ -123,10 +127,11 @@ Missing Firebase creds don't crash the server — auth and push simply answer
   sandbox has no Android SDK) and commits it to the repo root as
   `kya-pehnu.apk`.
 
-### Enabling push delivery on Android (one manual step)
+### Upgrading to remote push on Android (optional, one manual step)
 
-The push **code** ships in the APK, but Android needs the Firebase Android app
-config to route messages:
+Order notifications already work via the local fallback. To also deliver
+**remote** FCM pushes (so the app is notified even when closed), Android needs
+the Firebase Android app config to route messages:
 
 1. Firebase console → your project → **Add app → Android**.
 2. Package name: **`com.dhapodkardev.kyapehnu`** (must match exactly).
