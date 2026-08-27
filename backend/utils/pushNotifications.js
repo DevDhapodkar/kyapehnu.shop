@@ -1,40 +1,40 @@
-import axios from 'axios';
+import { getFirebaseMessaging } from '../config/firebase.js';
 
-// Expo's push service is free and needs no credentials — you POST to it with
-// the device's ExponentPushToken. This is our live order-notification channel
-// (WhatsApp requires weeks of Meta verification; this works today).
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-
-const isExpoToken = (t) => typeof t === 'string' && t.startsWith('ExponentPushToken');
+// Push is delivered via Firebase Cloud Messaging using the service account the
+// backend already holds — free, unlimited, and no extra credentials or Expo
+// account. Devices register their native FCM token (getDevicePushTokenAsync).
 
 /**
- * Send an Expo push to one or more tokens. Best-effort: it never throws into
- * the caller's happy path, so a push outage can't cost us an order.
+ * Send a push to one or more FCM device tokens. Best-effort: it never throws
+ * into the caller's happy path, so a push outage can't cost us an order.
+ * FCM data values must be strings, so everything in `data` is coerced.
  * @param {string|string[]} tokens
- * @param {{ title: string, body: string, data?: object }} payload
+ * @param {{ title: string, body: string, data?: Record<string, unknown> }} payload
  * @returns {Promise<{ sent: number, error?: string }>}
  */
-export const sendExpoPush = async (tokens, { title, body, data }) => {
-  const valid = (Array.isArray(tokens) ? tokens : [tokens]).filter(isExpoToken);
-  if (!valid.length) return { sent: 0 };
+export const sendPush = async (tokens, { title, body, data }) => {
+  const list = (Array.isArray(tokens) ? tokens : [tokens]).filter(
+    (t) => typeof t === 'string' && t.length > 10
+  );
+  if (!list.length) return { sent: 0 };
+
+  const messaging = getFirebaseMessaging();
+  if (!messaging) return { sent: 0 };
+
+  const stringData = Object.fromEntries(
+    Object.entries(data || {}).map(([k, v]) => [k, String(v)])
+  );
 
   try {
-    const messages = valid.map((to) => ({
-      to,
-      title,
-      body,
-      data: data || {},
-      sound: 'default',
-      priority: 'high',
-      channelId: 'orders',
-    }));
-    await axios.post(EXPO_PUSH_URL, messages, {
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      timeout: 8000,
+    const res = await messaging.sendEachForMulticast({
+      tokens: list,
+      notification: { title, body },
+      data: stringData,
+      android: { priority: 'high', notification: { channelId: 'orders', sound: 'default' } },
     });
-    return { sent: valid.length };
+    return { sent: res.successCount };
   } catch (error) {
-    console.error('Expo push failed:', error.message);
+    console.error('FCM push failed:', error.message);
     return { sent: 0, error: error.message };
   }
 };

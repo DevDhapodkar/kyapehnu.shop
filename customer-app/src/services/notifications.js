@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 
@@ -14,9 +13,11 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * Ask for permission and return the device's Expo push token
- * (ExponentPushToken[...]), or null if unavailable (simulator, denied, or no
- * EAS projectId configured). Never throws — push is a best-effort nicety.
+ * Ask for permission and return the device's **native FCM token** (Android).
+ * Uses getDevicePushTokenAsync, so it needs no Expo/EAS project — the backend
+ * delivers pushes directly via Firebase Cloud Messaging with its service
+ * account. Returns null on a simulator, if denied, or if FCM isn't configured
+ * in the build (no google-services.json). Never throws — push is best-effort.
  * @returns {Promise<string|null>}
  */
 export const registerForPush = async () => {
@@ -39,12 +40,8 @@ export const registerForPush = async () => {
       });
     }
 
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-    const tokenData = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
-    return tokenData.data;
+    const tokenData = await Notifications.getDevicePushTokenAsync();
+    return tokenData?.data ?? null;
   } catch (error) {
     console.warn('Push registration skipped:', error.message);
     return null;

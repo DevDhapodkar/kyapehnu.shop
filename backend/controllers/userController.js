@@ -42,14 +42,14 @@ const updateLocation = async (req, res) => {
   }
 };
 
-// Register an Expo push token for order-status notifications (deduped).
+// Register an FCM device token for order-status notifications (deduped).
 const savePushToken = async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: 'token is required' });
     await User.updateOne(
       { _id: req.user._id },
-      { $addToSet: { expoPushTokens: token } }
+      { $addToSet: { pushTokens: token } }
     );
     res.json({ ok: true });
   } catch (error) {

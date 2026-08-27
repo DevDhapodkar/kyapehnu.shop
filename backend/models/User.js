@@ -26,8 +26,8 @@ const userSchema = new mongoose.Schema(
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
     },
-    // Expo push tokens — order status updates are pushed here.
-    expoPushTokens: [{ type: String }],
+    // FCM device tokens — order status updates are pushed here.
+    pushTokens: [{ type: String }],
   },
   { timestamps: true }
 );
