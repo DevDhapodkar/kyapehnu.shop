@@ -1,15 +1,26 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutRight, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
-import GlassButton from '../components/GlassButton';
+import {
+  AnimatedNumber,
+  Button,
+  EmptyState,
+  Gradient,
+  Icon,
+  PressableScale,
+  Surface,
+} from '../components/ui';
 import { formatINR } from '../data/mockStores';
 import { selectCartItems, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { placeOrder } from '../api/vendorApi';
-import useAuthStore from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
+import { duration, easing, elevation, stagger, type } from '../theme/tokens';
+import { selection, success, failure } from '../utils/haptics';
 
 /** Flat fee stand-in until the Porter quote API is wired into the backend. */
 const DELIVERY_FEE = 49;
@@ -43,6 +54,14 @@ export default function CartScreen({ navigation }) {
 
   const empty = cartItems.length === 0;
   const total = empty ? 0 : subtotal + DELIVERY_FEE;
+
+  const storeCount = new Set(cartItems.map((item) => item.storeId)).size;
+  const unitCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  // What the buyer is saving against MRP, when the line carries one.
+  const savings = cartItems.reduce(
+    (sum, item) => sum + Math.max(0, (item.mrp ?? item.price) - item.price) * item.quantity,
+    0,
+  );
 
   /**
    * Real checkout. Orders are per-vendor on the backend, so a multi-shop bag is
@@ -123,9 +142,11 @@ export default function CartScreen({ navigation }) {
         });
       }
 
+      success();
       clearCart();
       navigation.navigate('LiveTracking', { order: placed[0] });
     } catch (err) {
+      failure();
       Alert.alert('Could not place order', err.message);
     } finally {
       setPlacing(false);
@@ -135,16 +156,12 @@ export default function CartScreen({ navigation }) {
   if (empty) {
     return (
       <View style={styles.emptyRoot}>
-        <Text style={styles.emptyGlyph}>◇</Text>
-        <Text style={styles.emptyTitle}>Your bag is empty.</Text>
-        <Text style={styles.emptyBody}>
-          Nothing picked yet. The nearest shop is under a kilometre away.
-        </Text>
-        <GlassButton
-          label="Browse Nearby"
-          variant="ghost"
-          onPress={() => navigation.navigate('Home')}
-          style={styles.emptyButton}
+        <EmptyState
+          icon="shopping-bag"
+          title="Your bag is empty."
+          body="Nothing picked yet. The nearest shop is under a kilometre away, and the rail is already stocked."
+          actionLabel="Browse nearby"
+          onAction={() => navigation.navigate('Home')}
         />
       </View>
     );
@@ -155,103 +172,178 @@ export default function CartScreen({ navigation }) {
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item.key}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + 230 },
-        ]}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 268 }]}
         ListHeaderComponent={
-          <Text style={styles.listHeader}>
-            {cartItems.length} {cartItems.length === 1 ? 'piece' : 'pieces'} from{' '}
-            {new Set(cartItems.map((item) => item.storeId)).size} store
-            {new Set(cartItems.map((item) => item.storeId)).size === 1 ? '' : 's'}
-          </Text>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.line}>
-            <View pointerEvents="none" style={styles.lineFill} />
-            <View pointerEvents="none" style={styles.lineHighlight} />
-
-            <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
-
-            <View style={styles.lineBody}>
-              <Text style={styles.lineName} numberOfLines={2}>
-                {item.name}
-              </Text>
-              <Text style={styles.lineMeta}>
-                {item.size ? `${item.size}  ·  ` : ''}
-                {item.colorway}
-              </Text>
-              <Text style={styles.lineStore} numberOfLines={1}>
-                {item.storeName}
-              </Text>
-
-              <View style={styles.lineFooter}>
-                <View style={styles.stepper}>
-                  <Pressable
-                    onPress={() => removeFromCart(item.key)}
-                    style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.stepGlyph}>−</Text>
-                  </Pressable>
-                  <Text style={styles.stepCount}>{item.quantity}</Text>
-                  <Pressable
-                    onPress={() => addToCart(item, item.size)}
-                    style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.stepGlyph}>+</Text>
-                  </Pressable>
-                </View>
-
-                <Text style={styles.linePrice}>
-                  {formatINR(item.price * item.quantity)}
-                </Text>
-              </View>
-            </View>
-
-            <Pressable
-              onPress={() => removeFromCart(item.key, { all: true })}
-              hitSlop={10}
-              style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
-            >
-              <Text style={styles.removeGlyph}>×</Text>
-            </Pressable>
+          <View style={styles.listHeader}>
+            <Text style={styles.listHeaderTitle}>
+              {unitCount} {unitCount === 1 ? 'piece' : 'pieces'}
+            </Text>
+            <Text style={styles.listHeaderMeta}>
+              from {storeCount} {storeCount === 1 ? 'shop' : 'shops'}
+              {storeCount > 1 ? ' · delivered separately' : ''}
+            </Text>
           </View>
+        }
+        renderItem={({ item, index }) => (
+          <CartLine
+            item={item}
+            index={index}
+            onIncrement={() => {
+              selection();
+              // addToCart keys a line off `product.id`; a cart line carries the
+              // product under `productId`, so it has to be mapped back or the
+              // line key comes out as "undefined::SIZE" and the tap appends a
+              // duplicate row rather than incrementing this one.
+              addToCart({ ...item, id: item.productId }, item.size);
+            }}
+            onDecrement={() => {
+              selection();
+              removeFromCart(item.key);
+            }}
+            onRemove={() => removeFromCart(item.key, { all: true })}
+          />
         )}
       />
 
       {/* Docked summary. */}
       <View style={[styles.summary, { paddingBottom: insets.bottom + spacing.sm }]}>
-        <View pointerEvents="none" style={styles.summaryFill} />
+        <Gradient fill preset="chrome" />
         <View pointerEvents="none" style={styles.summaryHighlight} />
 
         <SummaryRow label="Subtotal" value={formatINR(subtotal)} />
-        <SummaryRow label="Delivery (Porter)" value={formatINR(DELIVERY_FEE)} />
-        <SummaryRow label="Payment" value="Cash on Delivery" />
+        <SummaryRow label="Delivery (Porter)" value={formatINR(DELIVERY_FEE)} icon="truck" />
+        {savings > 0 ? (
+          <SummaryRow label="You save" value={`− ${formatINR(savings)}`} tone="jade" />
+        ) : null}
 
         <View style={styles.summaryDivider} />
 
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={styles.totalValue}>{formatINR(total)}</Text>
+          <View>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalMeta}>Cash on delivery</Text>
+          </View>
+          <AnimatedNumber value={total} format={formatINR} style={styles.totalValue} />
         </View>
 
-        <GlassButton
-          label="Place Order · Cash on Delivery"
+        <Button
+          label="Place order"
+          icon="check-circle"
           onPress={handleConfirm}
           loading={placing}
-          caption={`${formatINR(total)}  ·  pay on delivery`}
-          style={styles.confirm}
+          size="lg"
+          fullWidth
+          caption={`${formatINR(total)}  ·  pay the rider on delivery`}
+          accessibilityHint="Sends your order to the shop and books a rider"
         />
       </View>
     </View>
   );
 }
 
-function SummaryRow({ label, value }) {
+/**
+ * One line in the bag.
+ *
+ * Removal exits to the right rather than fading in place, and the lines below
+ * close the gap with a layout transition — so the bag visibly *shrinks* by one
+ * item, which is the confirmation the tap deserves. A row that simply vanished
+ * would leave the buyer checking whether they had removed the right thing.
+ */
+function CartLine({ item, index, onIncrement, onDecrement, onRemove }) {
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(stagger(index)).duration(duration.slow).easing(easing.out)}
+      exiting={FadeOutRight.duration(duration.base)}
+      layout={LinearTransition.duration(duration.base)}
+      style={styles.lineWrap}
+    >
+      <Surface padding="compact" lift="low">
+        <View style={styles.line}>
+          <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
+
+          <View style={styles.lineBody}>
+            <Text style={styles.lineName} numberOfLines={2}>
+              {item.name}
+            </Text>
+
+            <View style={styles.lineTags}>
+              {item.size ? (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>{item.size}</Text>
+                </View>
+              ) : null}
+              {item.colorway ? (
+                <Text style={styles.lineMeta} numberOfLines={1}>
+                  {item.colorway}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={styles.storeRow}>
+              <Icon name="shopping-bag" size="xs" color={colors.slate} />
+              <Text style={styles.lineStore} numberOfLines={1}>
+                {item.storeName}
+              </Text>
+            </View>
+
+            <View style={styles.lineFooter}>
+              <View style={styles.stepper}>
+                <PressableScale
+                  onPress={onDecrement}
+                  haptic={false}
+                  scaleTo={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove one ${item.name}`}
+                  style={styles.stepButton}
+                >
+                  <Icon name="minus" size="sm" color={colors.ivory} />
+                </PressableScale>
+
+                <Text style={styles.stepCount}>{item.quantity}</Text>
+
+                <PressableScale
+                  onPress={onIncrement}
+                  haptic={false}
+                  scaleTo={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add one more ${item.name}`}
+                  style={styles.stepButton}
+                >
+                  <Icon name="plus" size="sm" color={colors.ivory} />
+                </PressableScale>
+              </View>
+
+              <Text style={styles.linePrice}>{formatINR(item.price * item.quantity)}</Text>
+            </View>
+          </View>
+
+          <PressableScale
+            onPress={onRemove}
+            haptic="medium"
+            scaleTo={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${item.name} from your bag`}
+            style={styles.remove}
+          >
+            <Icon name="x" size="sm" color={colors.slate} />
+          </PressableScale>
+        </View>
+      </Surface>
+    </Animated.View>
+  );
+}
+
+function SummaryRow({ label, value, icon, tone = 'neutral' }) {
+  const tint = tone === 'jade' ? colors.jade : colors.platinum;
+
   return (
     <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+      <View style={styles.summaryLabelRow}>
+        {icon ? <Icon name={icon} size="xs" color={colors.slate} /> : null}
+        <Text style={styles.summaryLabel}>{label}</Text>
+      </View>
+      <Text style={[styles.summaryValue, { color: tint }]}>{value}</Text>
     </View>
   );
 }
@@ -261,143 +353,127 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.obsidian,
   },
-
   emptyRoot: {
     flex: 1,
     backgroundColor: colors.obsidian,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyGlyph: {
-    color: colors.graphite,
-    fontSize: 56,
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    color: colors.ivory,
-    fontSize: 22,
-    fontWeight: '300',
-    marginBottom: spacing.xs,
-  },
-  emptyBody: {
-    color: colors.ash,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-  },
-  emptyButton: {
-    marginTop: spacing.lg,
   },
 
   listContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.m,
+    paddingTop: spacing.sm,
   },
   listHeader: {
-    color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
     marginBottom: spacing.sm,
+  },
+  listHeaderTitle: {
+    ...type.heading,
+    fontWeight: '300',
+  },
+  listHeaderMeta: {
+    ...type.caption,
+    color: colors.ash,
+    marginTop: 3,
   },
 
+  lineWrap: {
+    marginBottom: spacing.s,
+  },
   line: {
-    position: 'relative',
     flexDirection: 'row',
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    overflow: 'hidden',
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  lineFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFill,
-  },
-  lineHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
   },
   thumb: {
-    width: 76,
-    height: 100,
+    width: 78,
+    height: 104,
     borderRadius: radii.sm,
     backgroundColor: colors.charcoalLight,
   },
   lineBody: {
     flex: 1,
     marginLeft: spacing.sm,
-    paddingRight: spacing.md,
+    paddingRight: spacing.m,
   },
   lineName: {
-    color: colors.ivory,
+    ...type.subheading,
     fontSize: 15,
     fontWeight: '400',
   },
-  lineMeta: {
+  lineTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 5,
+  },
+  tag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.xs,
+    backgroundColor: colors.charcoalLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+  },
+  tagText: {
+    ...type.caption,
     color: colors.platinum,
-    fontSize: 12,
-    marginTop: 3,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  lineMeta: {
+    ...type.caption,
+    color: colors.ash,
+    flexShrink: 1,
+  },
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
   lineStore: {
+    ...type.caption,
     color: colors.slate,
-    fontSize: 11,
-    marginTop: 2,
+    flexShrink: 1,
   },
   lineFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
+    marginTop: spacing.s,
   },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-    backgroundColor: colors.charcoal,
+    backgroundColor: colors.obsidianDeep,
   },
   stepButton: {
-    width: 30,
-    height: 28,
+    width: 34,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepGlyph: {
-    color: colors.ivory,
-    fontSize: 16,
-    lineHeight: 19,
-  },
   stepCount: {
-    color: colors.ivory,
+    ...type.label,
     fontSize: 13,
-    minWidth: 18,
+    letterSpacing: 0,
+    minWidth: 20,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   linePrice: {
-    color: colors.ivory,
-    fontSize: 15,
-    fontWeight: '600',
+    ...type.numeric,
+    fontSize: 16,
   },
   remove: {
     position: 'absolute',
-    top: spacing.xs,
-    right: spacing.sm,
-  },
-  removeGlyph: {
-    color: colors.slate,
-    fontSize: 20,
-    lineHeight: 22,
-  },
-  pressed: {
-    opacity: 0.6,
+    top: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   summary: {
@@ -405,15 +481,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingTop: spacing.m,
+    paddingHorizontal: spacing.m,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.glassBorder,
     overflow: 'hidden',
-  },
-  summaryFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
+    ...elevation.high,
   },
   summaryHighlight: {
     position: 'absolute',
@@ -426,15 +501,21 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  summaryLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   summaryLabel: {
+    ...type.bodySmall,
     color: colors.ash,
-    fontSize: 13,
   },
   summaryValue: {
-    color: colors.platinum,
-    fontSize: 13,
+    ...type.bodySmall,
+    fontVariant: ['tabular-nums'],
   },
   summaryDivider: {
     height: StyleSheet.hairlineWidth,
@@ -443,21 +524,23 @@ const styles = StyleSheet.create({
   },
   totalRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: spacing.m,
   },
   totalLabel: {
+    ...type.eyebrow,
     color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 2.5,
+    letterSpacing: 2.4,
+  },
+  totalMeta: {
+    ...type.caption,
+    color: colors.slate,
+    marginTop: 2,
   },
   totalValue: {
-    color: colors.ivory,
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  confirm: {
-    width: '100%',
+    ...type.numericLarge,
+    fontSize: 28,
+    lineHeight: 32,
   },
 });

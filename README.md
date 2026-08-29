@@ -66,11 +66,45 @@ screens live under `customer-app/src/screens/vendor/`.
 
 ---
 
+## Design system
+
+Every screen is built from one set of primitives, so the buyer's storefront and
+the shopkeeper's order desk read as the same product.
+
+| Path                              | What it is                                                                                   |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `src/theme/colors.js`             | Raw palette — obsidian surfaces, ivory type, crimson (actions) and gold (provenance).        |
+| `src/theme/tokens.js`             | The decisions made with them: type scale, motion curves, elevation presets, gradient ramps.  |
+| `src/components/ui/`              | The primitives — `Surface`, `Button`, `Chip`, `TextField`, `StatTile`, `Skeleton`, `Icon`, … |
+| `src/components/ui/index.js`      | The system's public surface. Screens import from here, never from individual files.          |
+| `scripts/brand/generate.mjs`      | Rasterises the hanger mark into every icon, splash, favicon, and in-app logo variant.         |
+
+Three rules hold the look together:
+
+- **Crimson is only ever an action.** State is signalled by fill weight and by
+  gold (needs you) or jade (settled) — never by turning something red.
+- **Motion is feedback, not decoration.** Presses are springs, lists stagger in,
+  loading is a skeleton rather than a spinner, and every animation passes
+  `ReduceMotion.System` so an OS-level motion preference is respected.
+- **Chrome is opaque.** There is no native backdrop blur, so headers and docked
+  bars separate from the page through a hairline border, a specular top edge,
+  and a shadow — not through transparency that would let content ghost through
+  behind a price.
+
+Brand artwork is generated, never hand-edited:
+
+```bash
+cd customer-app && node scripts/brand/generate.mjs
+```
+
+---
+
 ## Tech stack
 
 | Layer            | Technologies                                                                                                   |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- |
 | **Mobile app**   | Expo (SDK 57), React Native 0.86, React 19, React Navigation, Zustand, React Native Reanimated                 |
+| **Design system**| `expo-linear-gradient`, `@expo/vector-icons` (Feather), `expo-haptics` — see [Design system](#design-system)   |
 | **3D / graphics**| React Three Fiber (R3F), drei, three.js, `expo-gl` — scroll-driven 3D intro                                     |
 | **Maps & location** | `react-native-maps`, `expo-location`, OpenStreetMap tiles + pin-address geocoding                           |
 | **Backend**      | Node.js, Express 5, MongoDB Atlas (Mongoose), ES modules                                                        |

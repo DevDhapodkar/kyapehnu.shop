@@ -1,20 +1,45 @@
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-import GlassButton from '../components/GlassButton';
-import GlassCard from '../components/GlassCard';
+import {
+  BrandMark,
+  Button,
+  Icon,
+  PressableScale,
+  Surface,
+  TextField,
+} from '../components/ui';
 import { colors, radii, spacing } from '../theme/colors';
-import useAuthStore from '../store/useAuthStore';
+import { duration, easing, stagger, type } from '../theme/tokens';
+import { useAuthStore } from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
+import { failure, success } from '../utils/haptics';
+
+/** What each mode promises, so the copy is never assembled inline. */
+const COPY = {
+  signin: {
+    title: 'Welcome back',
+    subtitle: 'Log in to keep shopping your city.',
+    submit: 'Log in',
+    switchPrompt: 'New to Kya Pehnu?',
+    switchAction: 'Create one',
+  },
+  register: {
+    title: 'Create your account',
+    subtitle: 'See what is in stock two streets away, tonight.',
+    submit: 'Create account',
+    switchPrompt: 'Already have an account?',
+    switchAction: 'Log in',
+  },
+};
+
+/** The three things an account buys you, shown while the form is still empty. */
+const BENEFITS = [
+  { icon: 'map-pin', text: 'A catalogue reordered around where you are standing' },
+  { icon: 'truck', text: 'Live tracking from the shop counter to your door' },
+  { icon: 'shield', text: 'The rider waits while you try it on' },
+];
 
 /**
  * Customer sign-in / create-account. One screen, two modes toggled by a link at
@@ -28,6 +53,7 @@ export default function AuthScreen({ navigation, route }) {
   const initialMode = route?.params?.mode === 'register' ? 'register' : 'signin';
   const [mode, setMode] = useState(initialMode);
   const isRegister = mode === 'register';
+  const copy = COPY[mode];
 
   const authAvailable = useAuthStore((state) => state.authAvailable);
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
@@ -59,8 +85,16 @@ export default function AuthScreen({ navigation, route }) {
       } else {
         await signInWithEmail({ email: form.email.trim(), password: form.password });
       }
-      navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home');
+      success();
+      // Came here from the storefront in the usual case; a cold start straight
+      // into Auth has nothing to pop back to.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Home');
+      }
     } catch (err) {
+      failure();
       setError(friendlyAuthError(err));
     } finally {
       setBusy(false);
@@ -72,136 +106,253 @@ export default function AuthScreen({ navigation, route }) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>KYA PEHNU?</Text>
-        <Text style={styles.title}>{isRegister ? 'Create your account' : 'Welcome back'}</Text>
-        <Text style={styles.subtitle}>
-          {isRegister
-            ? 'See what is in stock two streets away.'
-            : 'Log in to keep shopping your city.'}
-        </Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          entering={FadeInDown.duration(duration.slow).easing(easing.out)}
+          style={styles.masthead}
+        >
+          <BrandMark variant="lockup" size={44} tagline="Nagpur · delivered" />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(60).duration(duration.slow).easing(easing.out)}>
+          <Text style={styles.title}>{copy.title}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+        </Animated.View>
 
         {!authAvailable ? (
-          <GlassCard strong compact style={styles.warn}>
-            <Text style={styles.warnTitle}>Sign-in not configured</Text>
-            <Text style={styles.warnBody}>
-              Add your Firebase web keys to app.json → expo.extra.firebase, then rebuild.
-            </Text>
-          </GlassCard>
+          <Surface tone="accent" padding="compact" lift="low" style={styles.warn}>
+            <View style={styles.warnRow}>
+              <Icon name="alert-triangle" size="sm" color={colors.crimsonGlow} />
+              <View style={styles.warnBody}>
+                <Text style={styles.warnTitle}>Sign-in not configured</Text>
+                <Text style={styles.warnText}>
+                  Add your Firebase web keys to app.json → expo.extra.firebase, then rebuild.
+                </Text>
+              </View>
+            </View>
+          </Surface>
         ) : null}
 
-        <GlassCard strong compact style={styles.card}>
-          {isRegister ? (
-            <>
-              <Field label="NAME" value={form.name} onChangeText={setField('name')} placeholder="Aarav Sharma" />
-              <Field
-                label="PHONE"
-                value={form.phone}
-                onChangeText={setField('phone')}
-                placeholder="+91 98765 43210"
-                keyboardType="phone-pad"
-              />
-            </>
-          ) : null}
+        <Animated.View entering={FadeInDown.delay(120).duration(duration.slow).easing(easing.out)}>
+          <Surface padding="default" style={styles.card}>
+            {isRegister ? (
+              <>
+                <TextField
+                  label="Name"
+                  icon="user"
+                  value={form.name}
+                  onChangeText={setField('name')}
+                  placeholder="Aarav Sharma"
+                  autoComplete="name"
+                />
+                <TextField
+                  label="Phone"
+                  icon="phone"
+                  value={form.phone}
+                  onChangeText={setField('phone')}
+                  placeholder="+91 98765 43210"
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                />
+              </>
+            ) : null}
 
-          <Field
-            label="EMAIL"
-            value={form.email}
-            onChangeText={setField('email')}
-            placeholder="you@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Field
-            label="PASSWORD"
-            value={form.password}
-            onChangeText={setField('password')}
-            placeholder="••••••••"
-            secureTextEntry
-            autoCapitalize="none"
-          />
+            <TextField
+              label="Email"
+              icon="mail"
+              value={form.email}
+              onChangeText={setField('email')}
+              placeholder="you@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+            <TextField
+              label="Password"
+              icon="lock"
+              value={form.password}
+              onChangeText={setField('password')}
+              placeholder="••••••••"
+              secure
+              autoCapitalize="none"
+              error={error}
+              hint={isRegister ? 'At least six characters.' : undefined}
+            />
 
-          <GlassButton
-            label={isRegister ? 'Create Account' : 'Log In'}
-            onPress={onSubmit}
-            loading={busy}
-            disabled={!authAvailable}
-            style={styles.submit}
-          />
-        </GlassCard>
+            <Button
+              label={copy.submit}
+              icon={isRegister ? 'user-plus' : 'log-in'}
+              onPress={onSubmit}
+              loading={busy}
+              disabled={!authAvailable}
+              size="lg"
+              fullWidth
+              style={styles.submit}
+            />
+          </Surface>
+        </Animated.View>
 
         <View style={styles.switchRow}>
-          <Text style={styles.switchText}>
-            {isRegister ? 'Already have an account?' : 'New to Kya Pehnu?'}
-          </Text>
-          <Pressable
+          <Text style={styles.switchText}>{copy.switchPrompt}</Text>
+          <PressableScale
             onPress={() => {
               setError(null);
               setMode(isRegister ? 'signin' : 'register');
             }}
+            haptic="selection"
+            scaleTo={0.94}
             accessibilityRole="button"
+            style={styles.switchButton}
           >
-            <Text style={styles.switchLink}>{isRegister ? 'Log in' : 'Create one'}</Text>
-          </Pressable>
+            <Text style={styles.switchLink}>{copy.switchAction}</Text>
+          </PressableScale>
         </View>
 
-        <Pressable
+        {/* The reasons to bother, shown only where there is room for them. */}
+        <View style={styles.benefits}>
+          {BENEFITS.map((benefit, index) => (
+            <Animated.View
+              key={benefit.text}
+              entering={FadeIn.delay(220 + stagger(index, 70)).duration(duration.slow)}
+              style={styles.benefitRow}
+            >
+              <View style={styles.benefitIcon}>
+                <Icon name={benefit.icon} size="sm" color={colors.gold} />
+              </View>
+              <Text style={styles.benefitText}>{benefit.text}</Text>
+            </Animated.View>
+          ))}
+        </View>
+
+        <PressableScale
           onPress={() => navigation.navigate('VendorRegister')}
+          scaleTo={0.98}
           accessibilityRole="button"
-          style={styles.vendorLinkRow}
+          accessibilityLabel="Register your shop"
+          style={styles.vendorRow}
         >
-          <Text style={styles.vendorLink}>Own a shop? Register your store →</Text>
-        </Pressable>
+          <Icon name="shopping-bag" size="sm" color={colors.platinum} />
+          <Text style={styles.vendorLink}>Own a shop? Register your store</Text>
+          <Icon name="arrow-right" size="sm" color={colors.platinum} />
+        </PressableScale>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Field({ label, multiline, style, ...inputProps }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...inputProps}
-        multiline={multiline}
-        placeholderTextColor={colors.slate}
-        style={[styles.input, multiline && styles.inputMultiline, style]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.obsidian },
-  content: { padding: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
-  eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 3, marginBottom: spacing.sm },
-  title: { color: colors.ivory, fontSize: 30, fontWeight: '300', letterSpacing: -0.5 },
-  subtitle: { color: colors.ash, fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: spacing.md },
-  warn: { marginBottom: spacing.sm },
-  warnTitle: { color: colors.ivory, fontSize: 14 },
-  warnBody: { color: colors.ash, fontSize: 12, marginTop: 4, lineHeight: 18 },
-  card: { marginBottom: spacing.md },
-  field: { marginBottom: spacing.sm },
-  fieldLabel: { color: colors.slate, fontSize: 9, letterSpacing: 2, marginBottom: 6 },
-  input: {
+  screen: {
+    flex: 1,
+    backgroundColor: colors.obsidian,
+  },
+  content: {
+    padding: spacing.m,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  masthead: {
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  title: {
+    ...type.title,
+    fontSize: 30,
+  },
+  subtitle: {
+    ...type.bodySmall,
+    marginTop: 6,
+    marginBottom: spacing.m,
+  },
+  warn: {
+    marginBottom: spacing.sm,
+  },
+  warnRow: {
+    flexDirection: 'row',
+    gap: spacing.s,
+  },
+  warnBody: {
+    flex: 1,
+  },
+  warnTitle: {
+    ...type.subheading,
+    fontSize: 14,
+  },
+  warnText: {
+    ...type.caption,
+    color: colors.ash,
+    marginTop: 4,
+    lineHeight: 17,
+  },
+  card: {
+    marginBottom: spacing.m,
+  },
+  submit: {
+    marginTop: spacing.s,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  switchText: {
+    ...type.bodySmall,
+  },
+  switchButton: {
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.xxs,
+  },
+  switchLink: {
+    ...type.bodySmall,
     color: colors.ivory,
-    fontSize: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  benefits: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  benefitIcon: {
+    width: 34,
+    height: 34,
     borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.goldWashSoft,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(200, 162, 74, 0.24)',
+  },
+  benefitText: {
+    ...type.caption,
+    color: colors.ash,
+    flex: 1,
+    lineHeight: 18,
+  },
+  vendorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.m,
+    borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-    backgroundColor: colors.obsidianDeep,
+    backgroundColor: colors.glassFill,
   },
-  inputMultiline: { minHeight: 74, textAlignVertical: 'top' },
-  error: { color: colors.crimsonBright, fontSize: 13, marginBottom: spacing.sm },
-  submit: { marginTop: spacing.xs },
-  switchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, marginBottom: spacing.md },
-  switchText: { color: colors.ash, fontSize: 13 },
-  switchLink: { color: colors.ivory, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
-  vendorLinkRow: { alignItems: 'center', marginTop: spacing.xs },
-  vendorLink: { color: colors.platinum, fontSize: 13, letterSpacing: 0.4 },
+  vendorLink: {
+    ...type.bodySmall,
+    color: colors.platinum,
+    flex: 1,
+  },
 });

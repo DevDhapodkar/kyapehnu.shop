@@ -1,30 +1,49 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
-  FlatList,
-  Pressable,
   RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useCallback, useEffect } from 'react';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AuthCta from '../components/AuthCta';
-import ProductCard from '../components/ProductCard';
+import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
+import SpotlightCard from '../components/home/SpotlightCard';
+import StorefrontAppBar from '../components/home/StorefrontAppBar';
+import {
+  BrandMark,
+  Chip,
+  EmptyState,
+  Icon,
+  LiveDot,
+  SectionHeader,
+  StatRow,
+  StatTile,
+  Surface,
+} from '../components/ui';
 import { formatINR } from '../data/mockStores';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
-import useStorefrontStore from '../store/useStorefrontStore';
+import { useStorefrontStore } from '../store/useStorefrontStore';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { colors, radii, spacing } from '../theme/colors';
+import { colors, spacing } from '../theme/colors';
+import { duration, easing, type } from '../theme/tokens';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // The story sells the product in four beats, each one timed to a beat of the
 // drone shot behind it: what this is, where the clothes come from, how they are
@@ -59,6 +78,17 @@ const SECTIONS = [
 // lands on the dress just as the CTA scrolls into frame.
 const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
+/** Two columns, with a gutter either side and one between. */
+const GRID_GUTTER = spacing.m;
+const GRID_GAP = spacing.sm;
+const GRID_COLUMN_WIDTH = (SCREEN_WIDTH - GRID_GUTTER * 2 - GRID_GAP) / 2;
+
+/** How many placeholder tiles stand in for the grid on a cold load. */
+const SKELETON_COUNT = 6;
+
+/** The chip that means "no category filter". */
+const ALL = '__all__';
+
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
@@ -72,6 +102,15 @@ export default function HomeScreen({ navigation }) {
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
 
+  // One shared offset drives both the app bar's condense and, on the logged-out
+  // flow, the drone shot and the caption beats.
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
   // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
   // register mode, "Log in" in sign-in mode. The Firebase session, once
   // established, flips this screen to the storefront via the auth store.
@@ -80,70 +119,47 @@ export default function HomeScreen({ navigation }) {
     [navigation]
   );
 
-  const openProduct = (product) => navigation.navigate('ProductDetail', { product });
-
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-      <View pointerEvents="none" style={styles.headerFill} />
-
-      <Pressable
-        onPress={status === 'denied' ? refresh : undefined}
-        style={styles.headerLeft}
-      >
-        <Text style={styles.headerEyebrow}>DELIVERING TO</Text>
-        <Text style={styles.headerArea} numberOfLines={1}>
-          {areaLabel}
-          {status === 'denied' ? '  ·  enable GPS' : ''}
-        </Text>
-      </Pressable>
-
-      <View style={styles.headerRight}>
-        <Pressable
-          onPress={() => navigation.navigate('Profile')}
-          accessibilityRole="button"
-          accessibilityLabel="Profile and settings"
-          style={({ pressed }) => [styles.profileButton, pressed && styles.bagPressed]}
-        >
-          <Text style={styles.profileGlyph}>◇</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => navigation.navigate('Cart')}
-          style={({ pressed }) => [styles.bagButton, pressed && styles.bagPressed]}
-        >
-          <Text style={styles.bagLabel}>BAG</Text>
-          <Text style={styles.bagValue}>
-            {cartCount > 0 ? formatINR(cartTotal) : '—'}
-          </Text>
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
-    </View>
+  const openProduct = useCallback(
+    (product) => navigation.navigate('ProductDetail', { product }),
+    [navigation]
   );
 
-  if (isLoggedIn) {
-    return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <Storefront insets={insets} onOpenProduct={openProduct} />
-        {header}
-      </View>
-    );
-  }
+  const appBar = (
+    <StorefrontAppBar
+      scrollY={scrollY}
+      insetTop={insets.top}
+      areaLabel={areaLabel}
+      locationStatus={status}
+      onPressLocation={refresh}
+      onPressProfile={() => navigation.navigate('Profile')}
+      onPressBag={() => navigation.navigate('Cart')}
+      cartCount={cartCount}
+      cartTotal={cartTotal}
+      formatTotal={formatINR}
+    />
+  );
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <MarketingScrollytelling
-        insets={insets}
-        onJoin={() => openAuth('register')}
-        onLogin={() => openAuth('signin')}
-      />
-      {header}
+
+      {isLoggedIn ? (
+        <Storefront
+          insets={insets}
+          scrollHandler={scrollHandler}
+          onOpenProduct={openProduct}
+        />
+      ) : (
+        <MarketingScrollytelling
+          insets={insets}
+          scrollY={scrollY}
+          scrollHandler={scrollHandler}
+          onJoin={() => openAuth('register')}
+          onLogin={() => openAuth('signin')}
+        />
+      )}
+
+      {appBar}
     </View>
   );
 }
@@ -152,13 +168,28 @@ export default function HomeScreen({ navigation }) {
  * The logged-out cinematic pitch: the 3D drone shot behind a stack of glass
  * story cards, closing on the sign-up CTA.
  */
-function MarketingScrollytelling({ insets, onJoin, onLogin }) {
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+function MarketingScrollytelling({ insets, scrollY, scrollHandler, onJoin, onLogin }) {
+  // The scroll hint is only honest before the user has scrolled; once they
+  // have, it is noise sitting on top of the film.
+  const hintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [0, SCREEN_HEIGHT * 0.25],
+      [1, 0],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
+  // A hairline chapter rail down the right edge: the one piece of chrome that
+  // tells the viewer this is a finite story with an end, not an endless page.
+  const railStyle = useAnimatedStyle(() => ({
+    height: `${interpolate(
+      scrollY.value,
+      [0, SCROLL_RANGE],
+      [4, 100],
+      Extrapolation.CLAMP,
+    )}%`,
+  }));
 
   return (
     <>
@@ -205,6 +236,21 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
           />
         ))}
       </View>
+
+      {/* Chapter rail. */}
+      <View style={[styles.rail, { top: insets.top + 100 }]} pointerEvents="none">
+        <Animated.View style={[styles.railFill, railStyle]} />
+      </View>
+
+      {/* Scroll affordance — a still frame with no visible control reads as a
+          splash screen that has hung. */}
+      <Animated.View
+        style={[styles.scrollHint, { bottom: insets.bottom + spacing.m }, hintStyle]}
+        pointerEvents="none"
+      >
+        <Text style={styles.scrollHintText}>SCROLL</Text>
+        <Icon name="chevron-down" size="sm" color={colors.gold} />
+      </Animated.View>
     </>
   );
 }
@@ -213,68 +259,221 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
  * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
  * base, with no 3D scene behind it.
  */
-function Storefront({ insets, onOpenProduct }) {
+function Storefront({ insets, scrollHandler, onOpenProduct }) {
   const products = useStorefrontStore((state) => state.products);
   const loading = useStorefrontStore((state) => state.loading);
   const loaded = useStorefrontStore((state) => state.loaded);
   const error = useStorefrontStore((state) => state.error);
   const load = useStorefrontStore((state) => state.load);
 
+  const [category, setCategory] = useState(ALL);
+
   useEffect(() => {
     load();
   }, [load]);
 
+  // The category strip is derived from what is actually in stock rather than
+  // from a fixed list, so it can never offer a filter that returns nothing.
+  const categories = useMemo(() => {
+    const seen = new Map();
+    for (const product of products) {
+      const name = product.category;
+      if (!name) continue;
+      seen.set(name, (seen.get(name) ?? 0) + 1);
+    }
+    return [...seen.entries()].map(([name, count]) => ({ name, count }));
+  }, [products]);
+
+  const visible = useMemo(
+    () => (category === ALL ? products : products.filter((p) => p.category === category)),
+    [products, category],
+  );
+
+  // Headline numbers for the informatics strip. `distanceKm` is only present
+  // once the backend returns a geo-sorted feed, so both stats degrade to a dash
+  // rather than rendering "NaN km".
+  const stats = useMemo(() => {
+    const shops = new Set(products.map((p) => p.storeId).filter(Boolean)).size;
+    const distances = products
+      .map((p) => p.distanceKm)
+      .filter((d) => typeof d === 'number');
+    const nearest = distances.length ? Math.min(...distances) : null;
+    return { shops, nearest };
+  }, [products]);
+
+  const coldLoading = loading && products.length === 0;
   const isEmpty = loaded && !loading && products.length === 0;
 
-  return (
-    <Animated.ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.scrollContent, styles.storefront]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.platinum} />
-      }
-    >
-      <View style={styles.feed}>
-        <View style={styles.feedHeader}>
-          <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
-          <Text style={styles.feedTitle}>In stock, minutes away.</Text>
-          <Text style={styles.feedBody}>
-            Live from independent Nagpur shops — every piece here is approved and in stock.
-          </Text>
+  const [spotlight, ...rest] = visible;
+  // The spotlight already shows the first piece; repeating it as the first grid
+  // tile would read as a duplicate listing.
+  const gridData = coldLoading
+    ? Array.from({ length: SKELETON_COUNT }, (_, index) => ({ id: `skeleton-${index}` }))
+    : rest;
+
+  const header = (
+    <View style={styles.storefrontHeader}>
+      <Animated.View
+        entering={FadeInDown.duration(duration.slow).easing(easing.out)}
+        style={styles.intro}
+      >
+        <View style={styles.liveRow}>
+          <LiveDot size={6} color={colors.jade} />
+          <Text style={styles.liveText}>LIVE STOCK · NAGPUR</Text>
         </View>
 
-        {loading && !products.length ? (
-          <ActivityIndicator color={colors.platinum} style={styles.feedLoader} />
-        ) : isEmpty ? (
-          <Text style={styles.feedEmpty}>
-            {error
-              ? `Could not load the storefront: ${error}`
-              : 'No listings yet. Newly approved products from local shops appear here.'}
-          </Text>
-        ) : (
-          <>
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ProductCard product={item} onPress={() => onOpenProduct(item)} />
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.feedList}
-              initialNumToRender={5}
+        <Text style={styles.introTitle}>In stock, minutes away.</Text>
+        <Text style={styles.introBody}>
+          Every piece here is on a rail in a real shop near you — approved, in stock, and
+          ready for a rider tonight.
+        </Text>
+      </Animated.View>
+
+      {!coldLoading && products.length > 0 ? (
+        <Surface tone="glass" padding="compact" lift="low" style={styles.statCard}>
+          <StatRow>
+            <StatTile
+              icon="layers"
+              value={String(products.length)}
+              label={products.length === 1 ? 'piece live' : 'pieces live'}
             />
+            <StatTile
+              icon="shopping-bag"
+              value={String(stats.shops)}
+              label={stats.shops === 1 ? 'shop' : 'shops'}
+              emphasis="gold"
+            />
+            <StatTile
+              icon="navigation"
+              value={stats.nearest !== null ? `${stats.nearest} km` : '—'}
+              label="nearest"
+              emphasis="jade"
+            />
+          </StatRow>
+        </Surface>
+      ) : null}
 
-            <Text style={styles.feedFootnote}>
-              {products.length} {products.length === 1 ? 'piece' : 'pieces'} live near you.
+      {error && products.length > 0 ? (
+        <Surface tone="accent" padding="compact" lift="low" style={styles.banner}>
+          <View style={styles.bannerRow}>
+            <Icon name="wifi-off" size="sm" color={colors.crimsonGlow} />
+            <Text style={styles.bannerText}>
+              Showing the last catalogue we loaded — {error}
             </Text>
-          </>
-        )}
-      </View>
+          </View>
+        </Surface>
+      ) : null}
 
-      <View style={{ height: insets.bottom + spacing.xl * 2 }} />
-    </Animated.ScrollView>
+      {spotlight ? (
+        <SpotlightCard product={spotlight} onPress={() => onOpenProduct(spotlight)} />
+      ) : null}
+
+      {categories.length > 1 ? (
+        <Animated.ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
+          contentContainerStyle={styles.categoryRow}
+        >
+          <Chip
+            label="All"
+            count={products.length}
+            selected={category === ALL}
+            onPress={() => setCategory(ALL)}
+          />
+          {categories.map(({ name, count }) => (
+            <Chip
+              key={name}
+              label={name}
+              count={count}
+              selected={category === name}
+              onPress={() => setCategory(name)}
+            />
+          ))}
+        </Animated.ScrollView>
+      ) : null}
+
+      {gridData.length > 0 ? (
+        <SectionHeader
+          eyebrow={category === ALL ? 'The rest of the rail' : category}
+          title={`${gridData.length} more ${gridData.length === 1 ? 'piece' : 'pieces'}`}
+          style={styles.gridHeader}
+        />
+      ) : null}
+    </View>
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }) =>
+      coldLoading ? (
+        <ProductCardSkeleton width={GRID_COLUMN_WIDTH} />
+      ) : (
+        <ProductCard
+          product={item}
+          index={index}
+          width={GRID_COLUMN_WIDTH}
+          onPress={() => onOpenProduct(item)}
+        />
+      ),
+    [coldLoading, onOpenProduct],
+  );
+
+  return (
+    <Animated.FlatList
+      data={gridData}
+      numColumns={2}
+      keyExtractor={(item) => item.id}
+      renderItem={renderItem}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={false}
+      columnWrapperStyle={styles.gridRow}
+      contentContainerStyle={[
+        styles.gridContent,
+        {
+          // Clears the floating app bar the storefront scrolls under.
+          paddingTop: insets.top + 76,
+          paddingBottom: insets.bottom + spacing.xl,
+        },
+      ]}
+      ListHeaderComponent={header}
+      ListEmptyComponent={
+        isEmpty ? (
+          <EmptyState
+            icon={error ? 'wifi-off' : 'inbox'}
+            tone={error ? 'error' : 'neutral'}
+            title={error ? 'Could not reach the storefront' : 'No listings yet'}
+            body={
+              error
+                ? `${error}. Pull down to try again once you are back on a signal.`
+                : 'Newly approved pieces from shops around you land here first. Pull down to check again.'
+            }
+            actionLabel="Retry"
+            onAction={load}
+          />
+        ) : null
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={loading && products.length > 0}
+          onRefresh={load}
+          tintColor={colors.platinum}
+          colors={[colors.crimsonBright]}
+          progressBackgroundColor={colors.charcoal}
+        />
+      }
+      ListFooterComponent={
+        !coldLoading && visible.length > 0 ? (
+          <Animated.View entering={FadeIn.duration(duration.slow)} style={styles.footer}>
+            <BrandMark size={26} />
+            <Text style={styles.footerText}>
+              {visible.length} {visible.length === 1 ? 'piece' : 'pieces'} within reach ·
+              hyper-local since the first shutter
+            </Text>
+          </Animated.View>
+        ) : null
+      }
+    />
   );
 }
 
@@ -290,10 +489,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     backgroundColor: colors.transparent,
   },
-  storefront: {
-    // Clears the floating header the storefront scrolls under.
-    paddingTop: SCREEN_HEIGHT * 0.14,
-  },
   section: {
     height: SCREEN_HEIGHT,
     justifyContent: 'flex-end',
@@ -306,150 +501,114 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Feed
-  feed: {
-    paddingTop: spacing.lg,
-    // Opaque base so the 3D canvas stops showing through once the story ends.
-    backgroundColor: colors.obsidian,
-  },
-  feedHeader: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-  },
-  feedEyebrow: {
-    color: colors.gold,
-    fontSize: 10,
-    letterSpacing: 3,
-    marginBottom: spacing.xs,
-  },
-  feedTitle: {
-    color: colors.ivory,
-    fontSize: 26,
-    fontWeight: '300',
-    letterSpacing: -0.4,
-    marginBottom: spacing.xs,
-  },
-  feedBody: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  feedList: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  feedFootnote: {
-    color: colors.slate,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.sm,
-  },
-  feedLoader: {
-    paddingVertical: spacing.xl,
-  },
-  feedEmpty: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-  },
-
-  // Header
-  header: {
+  // Marketing chrome
+  rail: {
     position: 'absolute',
-    top: 0,
+    right: spacing.s,
+    bottom: spacing.xl * 2,
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(245, 243, 239, 0.08)',
+    overflow: 'hidden',
+    justifyContent: 'flex-start',
+  },
+  railFill: {
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: colors.gold,
+  },
+  scrollHint: {
+    position: 'absolute',
     left: 0,
     right: 0,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
+    gap: 2,
   },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  headerLeft: {
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  headerEyebrow: {
-    color: colors.ash,
+  scrollHintText: {
+    ...type.eyebrow,
+    color: colors.gold,
     fontSize: 9,
-    letterSpacing: 2.5,
+    letterSpacing: 3,
   },
-  headerArea: {
-    color: colors.ivory,
-    fontSize: 17,
-    fontWeight: '400',
-    letterSpacing: -0.2,
-    marginTop: 2,
+
+  // Storefront
+  gridContent: {
+    paddingHorizontal: GRID_GUTTER,
+    flexGrow: 1,
   },
-  headerRight: {
+  gridRow: {
+    gap: GRID_GAP,
+    marginBottom: GRID_GAP,
+  },
+  storefrontHeader: {
+    marginBottom: spacing.sm,
+  },
+  intro: {
+    marginBottom: spacing.m,
+  },
+  liveRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 2,
+    marginBottom: spacing.xs,
   },
-  profileButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
+  liveText: {
+    ...type.eyebrow,
+    color: colors.jade,
+    fontSize: 9,
+    letterSpacing: 2.4,
+  },
+  introTitle: {
+    ...type.title,
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  introBody: {
+    ...type.bodySmall,
+    marginTop: spacing.s,
+  },
+  statCard: {
+    marginBottom: spacing.m,
+  },
+  banner: {
+    marginBottom: spacing.m,
+  },
+  bannerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.s,
   },
-  profileGlyph: {
+  bannerText: {
+    ...type.caption,
     color: colors.platinum,
-    fontSize: 14,
-    lineHeight: 17,
+    flex: 1,
   },
-  bagButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'flex-end',
-    minWidth: 84,
+  categoryScroll: {
+    flexGrow: 0,
+    marginTop: spacing.m,
+    // Bleed the strip to the screen edges so the last chip is clearly cut off,
+    // which is what tells the eye the row keeps going.
+    marginHorizontal: -GRID_GUTTER,
   },
-  bagPressed: {
-    opacity: 0.7,
+  categoryRow: {
+    gap: spacing.s,
+    paddingHorizontal: GRID_GUTTER,
+    paddingVertical: spacing.xxs,
   },
-  bagLabel: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 2,
+  gridHeader: {
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
-  bagValue: {
-    color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  badge: {
-    position: 'absolute',
-    top: -7,
-    right: -7,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.crimsonBright,
+  footer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.s,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
-  badgeText: {
-    color: colors.ivory,
-    fontSize: 10,
-    fontWeight: '700',
+  footerText: {
+    ...type.caption,
+    color: colors.slate,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

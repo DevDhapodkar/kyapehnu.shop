@@ -45,6 +45,9 @@ export const useCartStore = create((set, get) => ({
             name: product.name,
             category: product.category,
             price: product.price,
+            // Kept alongside the price so the bag can total the saving against
+            // MRP without refetching the product.
+            mrp: product.mrp,
             image: product.image,
             colorway: product.colorway,
             storeId: product.storeId,

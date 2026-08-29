@@ -1,31 +1,37 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { Image } from 'expo-image';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 
-import GlassButton from '../../components/GlassButton';
-import GlassCard from '../../components/GlassCard';
+import ListingComposer, { MAX_IMAGES } from '../../components/vendor/ListingComposer';
+import {
+  Button,
+  Chip,
+  EmptyState,
+  Icon,
+  StatRow,
+  StatTile,
+  Surface,
+} from '../../components/ui';
 import { colors, radii, spacing } from '../../theme/colors';
-import useVendorStore from '../../store/useVendorStore';
+import { duration, easing, stagger, type } from '../../theme/tokens';
+import { useVendorStore } from '../../store/useVendorStore';
 import { uploadProductImages } from '../../api/vendorApi';
 import { formatCurrency } from '../../utils/format';
-
-const CATEGORIES = ['MEN', 'WOMEN', 'KIDS', 'UNISEX'];
-const MAX_IMAGES = 5;
+import { selection, success } from '../../utils/haptics';
 
 const EMPTY_DRAFT = {
   name: '',
@@ -66,13 +72,17 @@ const parseList = (raw) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-// How a listing's moderation status reads to the vendor, and its tint.
+/**
+ * How a listing's moderation status reads to the vendor, and the Chip tone that
+ * carries it. Approval is the thing a shopkeeper is waiting on, so it gets a
+ * real tint rather than another grey label.
+ */
 const REVIEW_STATUS = {
-  PENDING_QC: { label: 'IN REVIEW', tone: 'pending' },
-  APPROVED: { label: 'LIVE', tone: 'live' },
-  REJECTED: { label: 'REJECTED', tone: 'rejected' },
-  ARCHIVED: { label: 'ARCHIVED', tone: 'muted' },
-  DRAFT: { label: 'DRAFT', tone: 'muted' },
+  PENDING_QC: { label: 'In review', tone: 'gold', icon: 'clock' },
+  APPROVED: { label: 'Live', tone: 'jade', icon: 'check-circle' },
+  REJECTED: { label: 'Rejected', tone: 'crimson', icon: 'x-circle' },
+  ARCHIVED: { label: 'Archived', tone: 'neutral', icon: 'archive' },
+  DRAFT: { label: 'Draft', tone: 'neutral', icon: 'edit-3' },
 };
 
 /**
@@ -80,8 +90,10 @@ const REVIEW_STATUS = {
  *
  * Availability is the primary job — it's the control a shop reaches for a
  * dozen times a day — so it lives on every row as a switch with no
- * confirmation step. The add form stays collapsed behind a toggle so it never
- * competes with the list for the first screenful.
+ * confirmation step, and a row that is out of stock desaturates its own
+ * photograph so the state is readable from arm's length. The add form stays
+ * collapsed behind a toggle so it never competes with the list for the first
+ * screenful.
  */
 export default function CatalogManagerScreen() {
   const products = useVendorStore((state) => state.products);
@@ -135,6 +147,7 @@ export default function CatalogManagerScreen() {
 
   const onToggle = useCallback(
     async (product, next) => {
+      selection();
       try {
         await toggleAvailability(product._id, next);
       } catch (err) {
@@ -182,6 +195,7 @@ export default function CatalogManagerScreen() {
         isAvailable: true,
       });
 
+      success();
       setDraft(EMPTY_DRAFT);
       setComposerOpen(false);
     } catch (err) {
@@ -191,53 +205,23 @@ export default function CatalogManagerScreen() {
     }
   }, [addProduct, draft]);
 
+  // The three numbers a shopkeeper checks before adding anything else.
+  const stats = useMemo(() => {
+    const live = products.filter((p) => p.status === 'APPROVED' && p.isAvailable).length;
+    const inReview = products.filter((p) => p.status === 'PENDING_QC').length;
+    const off = products.filter((p) => !p.isAvailable).length;
+    return { live, inReview, off };
+  }, [products]);
+
   const renderItem = useCallback(
-    ({ item }) => {
-      const inStock = item.isAvailable;
-      const review = REVIEW_STATUS[item.status] ?? null;
-
-      return (
-        <GlassCard compact style={styles.row}>
-          <View style={styles.rowBody}>
-            <View style={styles.rowText}>
-              <Text style={styles.productName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.productMeta}>
-                {item.category} · {formatCurrency(item.price)}
-                {item.sizes?.length ? ` · ${item.sizes.map((s) => s.size).join(' / ')}` : ''}
-              </Text>
-              <View style={styles.badgeRow}>
-                {review ? (
-                  <Text style={[styles.reviewBadge, styles[`review_${review.tone}`]]}>
-                    {review.label}
-                  </Text>
-                ) : null}
-                <Text style={[styles.stockLabel, !inStock && styles.stockLabelOff]}>
-                  {inStock ? 'IN STOCK' : 'OUT OF STOCK'}
-                </Text>
-              </View>
-              {item.status === 'REJECTED' && item.qc?.reason ? (
-                <Text style={styles.rejectReason}>{item.qc.reason}</Text>
-              ) : null}
-            </View>
-
-            {pendingProductId === item._id ? (
-              <ActivityIndicator color={colors.platinum} style={styles.rowSpinner} />
-            ) : (
-              <Switch
-                value={inStock}
-                onValueChange={(next) => onToggle(item, next)}
-                accessibilityLabel={`${item.name} availability`}
-                trackColor={{ false: colors.graphite, true: colors.crimson }}
-                thumbColor={colors.ivory}
-                ios_backgroundColor={colors.graphite}
-              />
-            )}
-          </View>
-        </GlassCard>
-      );
-    },
+    ({ item, index }) => (
+      <CatalogRow
+        product={item}
+        index={index}
+        busy={pendingProductId === item._id}
+        onToggle={(next) => onToggle(item, next)}
+      />
+    ),
     [onToggle, pendingProductId]
   );
 
@@ -250,243 +234,77 @@ export default function CatalogManagerScreen() {
         data={products}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
             refreshing={loading}
             onRefresh={loadCatalog}
             tintColor={colors.platinum}
-            colors={[colors.platinum]}
+            colors={[colors.crimsonBright]}
             progressBackgroundColor={colors.charcoal}
           />
         }
         ListHeaderComponent={
           <View>
             {error ? (
-              <GlassCard strong compact style={styles.banner}>
-                <Text style={styles.bannerTitle}>Catalog out of sync</Text>
-                <Text style={styles.bannerBody}>{error}</Text>
-              </GlassCard>
+              <Surface tone="accent" padding="compact" lift="low" style={styles.banner}>
+                <View style={styles.bannerRow}>
+                  <Icon name="alert-triangle" size="sm" color={colors.crimsonGlow} />
+                  <View style={styles.bannerBody}>
+                    <Text style={styles.bannerTitle}>Catalog out of sync</Text>
+                    <Text style={styles.bannerText}>{error}</Text>
+                  </View>
+                </View>
+              </Surface>
             ) : null}
 
-            <Pressable
+            {products.length > 0 ? (
+              <Surface tone="sunken" padding="compact" lift="flat" style={styles.statCard}>
+                <StatRow>
+                  <StatTile icon="check-circle" value={String(stats.live)} label="live" emphasis="jade" />
+                  <StatTile icon="clock" value={String(stats.inReview)} label="in review" emphasis="gold" />
+                  <StatTile
+                    icon="eye-off"
+                    value={String(stats.off)}
+                    label="out of stock"
+                    emphasis="muted"
+                  />
+                </StatRow>
+              </Surface>
+            ) : null}
+
+            <Button
+              label={composerOpen ? 'Close' : 'New listing'}
+              icon={composerOpen ? 'chevron-up' : 'plus'}
+              variant={composerOpen ? 'ghost' : 'primary'}
               onPress={() => setComposerOpen((open) => !open)}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.composerToggle, pressed && styles.pressed]}
-            >
-              <Text style={styles.composerToggleText}>
-                {composerOpen ? '— CLOSE' : '+ NEW LISTING'}
-              </Text>
-            </Pressable>
+              fullWidth
+              style={styles.composerToggle}
+            />
 
             {composerOpen ? (
-              <GlassCard strong compact style={styles.composer}>
-                <Field
-                  label="NAME"
-                  value={draft.name}
-                  onChangeText={(name) => setDraft((d) => ({ ...d, name }))}
-                  placeholder="Charcoal linen shirt"
-                />
-
-                <Field
-                  label="BRAND"
-                  value={draft.brand}
-                  onChangeText={(brand) => setDraft((d) => ({ ...d, brand }))}
-                  placeholder="e.g. Raymond, or your shop label"
-                />
-
-                <Text style={styles.fieldLabel}>CATEGORY</Text>
-                <View style={styles.categoryRow}>
-                  {CATEGORIES.map((category) => {
-                    const active = draft.category === category;
-                    return (
-                      <Pressable
-                        key={category}
-                        onPress={() => setDraft((d) => ({ ...d, category }))}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: active }}
-                        style={({ pressed }) => [
-                          styles.categoryChip,
-                          active && styles.categoryChipActive,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
-                          {category}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <Field
-                  label="TYPE"
-                  value={draft.subCategory}
-                  onChangeText={(subCategory) => setDraft((d) => ({ ...d, subCategory }))}
-                  placeholder="Shirt, Kurta, Dress, Trousers…"
-                />
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="SELLING PRICE (₹)"
-                    value={draft.price}
-                    onChangeText={(price) => setDraft((d) => ({ ...d, price }))}
-                    placeholder="2400"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="MRP (₹)"
-                    value={draft.mrp}
-                    onChangeText={(mrp) => setDraft((d) => ({ ...d, mrp }))}
-                    placeholder="3200"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <Field
-                  label="SIZES & STOCK"
-                  value={draft.sizes}
-                  onChangeText={(sizes) => setDraft((d) => ({ ...d, sizes }))}
-                  placeholder="S:3, M:5, L:2"
-                  autoCapitalize="characters"
-                />
-                <Text style={styles.hint}>Format size:stock — e.g. S:3, M:5. No number = 1 in stock.</Text>
-
-                <Field
-                  label="COLOURS"
-                  value={draft.colors}
-                  onChangeText={(colors) => setDraft((d) => ({ ...d, colors }))}
-                  placeholder="Black, Ivory"
-                />
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="FABRIC / MATERIAL"
-                    value={draft.material}
-                    onChangeText={(material) => setDraft((d) => ({ ...d, material }))}
-                    placeholder="100% Cotton"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="PATTERN"
-                    value={draft.pattern}
-                    onChangeText={(pattern) => setDraft((d) => ({ ...d, pattern }))}
-                    placeholder="Solid, Printed…"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="FIT"
-                    value={draft.fit}
-                    onChangeText={(fit) => setDraft((d) => ({ ...d, fit }))}
-                    placeholder="Regular, Slim…"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="OCCASION"
-                    value={draft.occasion}
-                    onChangeText={(occasion) => setDraft((d) => ({ ...d, occasion }))}
-                    placeholder="Casual, Formal…"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="NET QTY (units)"
-                    value={draft.netQuantity}
-                    onChangeText={(netQuantity) => setDraft((d) => ({ ...d, netQuantity }))}
-                    placeholder="1"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="COUNTRY OF ORIGIN"
-                    value={draft.countryOfOrigin}
-                    onChangeText={(countryOfOrigin) => setDraft((d) => ({ ...d, countryOfOrigin }))}
-                    placeholder="India"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <Field
-                  label="CARE INSTRUCTIONS"
-                  value={draft.careInstructions}
-                  onChangeText={(careInstructions) => setDraft((d) => ({ ...d, careInstructions }))}
-                  placeholder="Machine wash cold, do not bleach"
-                />
-
-                <Field
-                  label="DESCRIPTION"
-                  value={draft.description}
-                  onChangeText={(description) => setDraft((d) => ({ ...d, description }))}
-                  placeholder="Optional"
-                  multiline
-                />
-
-                <Text style={styles.fieldLabel}>PHOTOS ({draft.images.length}/{MAX_IMAGES})</Text>
-                <View style={styles.thumbRow}>
-                  {draft.images.map((img) => (
-                    <Pressable
-                      key={img.publicId}
-                      onPress={() => removeImage(img.publicId)}
-                      accessibilityLabel="Remove photo"
-                      style={styles.thumbWrap}
-                    >
-                      <Image
-                        source={{ uri: img.thumbnails?.thumb || img.url }}
-                        style={styles.thumb}
-                        contentFit="cover"
-                      />
-                      <View style={styles.thumbRemove}>
-                        <Text style={styles.thumbRemoveText}>×</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-
-                  {draft.images.length < MAX_IMAGES ? (
-                    <Pressable
-                      onPress={onPickImages}
-                      accessibilityRole="button"
-                      accessibilityLabel="Add photos"
-                      style={({ pressed }) => [styles.addThumb, pressed && styles.pressed]}
-                    >
-                      {uploading ? (
-                        <ActivityIndicator color={colors.platinum} />
-                      ) : (
-                        <Text style={styles.addThumbText}>＋</Text>
-                      )}
-                    </Pressable>
-                  ) : null}
-                </View>
-
-                <Text style={styles.qcNote}>
-                  New listings go live after a quick quality check.
-                </Text>
-
-                <GlassButton
-                  label="Add Listing"
-                  onPress={onSubmit}
-                  loading={saving}
-                  disabled={uploading}
-                  style={styles.submit}
-                />
-              </GlassCard>
+              <ListingComposer
+                draft={draft}
+                setDraft={setDraft}
+                onPickImages={onPickImages}
+                onRemoveImage={removeImage}
+                onSubmit={onSubmit}
+                saving={saving}
+                uploading={uploading}
+              />
             ) : null}
           </View>
         }
         ListEmptyComponent={
           loading ? null : (
-            <GlassCard style={styles.empty}>
-              <Text style={styles.emptyTitle}>No listings yet</Text>
-              <Text style={styles.emptyBody}>
-                Add your first product and it appears in the customer flow straight away.
-              </Text>
-            </GlassCard>
+            <EmptyState
+              icon="grid"
+              title="No listings yet"
+              body="Add your first product and it appears in the customer feed as soon as it clears the quality check."
+              actionLabel={composerOpen ? undefined : 'Add a listing'}
+              onAction={composerOpen ? undefined : () => setComposerOpen(true)}
+            />
           )
         }
       />
@@ -494,20 +312,79 @@ export default function CatalogManagerScreen() {
   );
 }
 
-/** Labelled text input, so the composer's fields stay identical. */
-function Field({ label, style, containerStyle, multiline, ...inputProps }) {
+/**
+ * One catalogue row.
+ *
+ * The photograph is the identifier — a shopkeeper recognises the garment long
+ * before they read its name — so an unavailable row dims its own image rather
+ * than only flipping a word from "in stock" to "out of stock".
+ */
+function CatalogRow({ product, index, busy, onToggle }) {
+  const inStock = product.isAvailable;
+  const review = REVIEW_STATUS[product.status];
+  const cover = product.images?.[0];
+  const stock = (product.sizes ?? []).reduce((sum, s) => sum + (s.stock ?? 0), 0);
+
   return (
-    <View style={[styles.field, containerStyle]}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...inputProps}
-        multiline={multiline}
-        placeholderTextColor={colors.slate}
-        style={[styles.input, multiline && styles.inputMultiline, style]}
-      />
-    </View>
+    <Animated.View
+      entering={FadeInDown.delay(stagger(index)).duration(duration.slow).easing(easing.out)}
+      style={styles.rowWrap}
+    >
+      <Surface padding="compact" lift="low">
+        <View style={styles.row}>
+          <View style={[styles.coverWrap, !inStock && styles.coverOff]}>
+            {cover ? (
+              <Image source={{ uri: cover }} style={styles.cover} contentFit="cover" />
+            ) : (
+              <View style={styles.coverEmpty}>
+                <Icon name="image" size="md" color={colors.slate} />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.rowText}>
+            <Text style={[styles.productName, !inStock && styles.productNameOff]} numberOfLines={1}>
+              {product.name}
+            </Text>
+
+            <Text style={styles.productMeta} numberOfLines={1}>
+              {product.category} · {formatCurrency(product.price)}
+              {product.sizes?.length ? ` · ${product.sizes.map((s) => s.size).join(' / ')}` : ''}
+            </Text>
+
+            <View style={styles.badgeRow}>
+              {review ? (
+                <Chip label={review.label} icon={review.icon} tone={review.tone} size="sm" />
+              ) : null}
+              {stock > 0 ? (
+                <Text style={styles.stockText}>{stock} in stock</Text>
+              ) : null}
+            </View>
+
+            {product.status === 'REJECTED' && product.qc?.reason ? (
+              <Text style={styles.rejectReason}>{product.qc.reason}</Text>
+            ) : null}
+          </View>
+
+          {busy ? (
+            <ActivityIndicator color={colors.platinum} style={styles.rowSpinner} />
+          ) : (
+            <Switch
+              value={inStock}
+              onValueChange={onToggle}
+              accessibilityLabel={`${product.name} availability`}
+              trackColor={{ false: colors.graphite, true: colors.crimson }}
+              thumbColor={colors.ivory}
+              ios_backgroundColor={colors.graphite}
+            />
+          )}
+        </View>
+      </Surface>
+    </Animated.View>
   );
 }
+
+const COVER = 64;
 
 const styles = StyleSheet.create({
   screen: {
@@ -515,233 +392,104 @@ const styles = StyleSheet.create({
     backgroundColor: colors.obsidian,
   },
   list: {
-    padding: spacing.md,
+    padding: spacing.m,
     paddingBottom: spacing.xl,
     flexGrow: 1,
   },
   banner: {
     marginBottom: spacing.sm,
   },
-  bannerTitle: {
-    color: colors.ivory,
-    fontSize: 14,
+  bannerRow: {
+    flexDirection: 'row',
+    gap: spacing.s,
   },
   bannerBody: {
-    color: colors.ash,
-    fontSize: 12,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  composerToggle: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 9,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    marginBottom: spacing.sm,
-  },
-  composerToggleText: {
-    color: colors.platinum,
-    fontSize: 10,
-    letterSpacing: 1.6,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  composer: {
-    marginBottom: spacing.md,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  fieldLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: 6,
-  },
-  input: {
-    color: colors.ivory,
-    fontSize: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.obsidianDeep,
-  },
-  inputMultiline: {
-    minHeight: 74,
-    textAlignVertical: 'top',
-  },
-  twoCol: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  colField: {
     flex: 1,
   },
-  hint: {
-    color: colors.slate,
-    fontSize: 10,
-    lineHeight: 14,
-    marginTop: -6,
-    marginBottom: spacing.sm,
+  bannerTitle: {
+    ...type.subheading,
+    fontSize: 14,
   },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  categoryChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.charcoalLight,
-    borderColor: colors.graphite,
-  },
-  categoryText: {
+  bannerText: {
+    ...type.caption,
     color: colors.ash,
-    fontSize: 10,
-    letterSpacing: 1.4,
+    marginTop: 3,
+    lineHeight: 17,
   },
-  categoryTextActive: {
-    color: colors.ivory,
-    fontWeight: '600',
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
+  statCard: {
     marginBottom: spacing.sm,
   },
-  thumbWrap: {
-    width: 64,
-    height: 64,
+  composerToggle: {
+    marginBottom: spacing.sm,
+  },
+
+  rowWrap: {
+    marginBottom: spacing.s,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  coverWrap: {
+    width: COVER,
+    height: COVER,
     borderRadius: radii.sm,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
   },
-  thumb: {
+  coverOff: {
+    // Desaturating the photograph is what makes "out of stock" readable at a
+    // glance down a long list.
+    opacity: 0.35,
+  },
+  cover: {
     width: '100%',
     height: '100%',
+    backgroundColor: colors.charcoalLight,
   },
-  thumbRemove: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.glassFillStrong,
+  coverEmpty: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  thumbRemoveText: {
-    color: colors.ivory,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  addThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addThumbText: {
-    color: colors.platinum,
-    fontSize: 24,
-    fontWeight: '300',
-  },
-  qcNote: {
-    color: colors.slate,
-    fontSize: 11,
-    lineHeight: 16,
-    marginBottom: spacing.sm,
-  },
-  submit: {
-    marginTop: spacing.xs,
-  },
-  row: {
-    marginBottom: spacing.sm,
-  },
-  rowBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+    backgroundColor: colors.charcoalLight,
   },
   rowText: {
     flex: 1,
   },
-  rowSpinner: {
-    width: 51, // matches the Switch footprint so rows don't jump mid-toggle
-  },
   productName: {
-    color: colors.ivory,
+    ...type.subheading,
     fontSize: 15,
+    fontWeight: '400',
+  },
+  productNameOff: {
+    color: colors.ash,
   },
   productMeta: {
+    ...type.caption,
     color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    marginTop: 4,
+    marginTop: 3,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 8,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
-  reviewBadge: {
-    fontSize: 9,
-    letterSpacing: 1.4,
-    fontWeight: '700',
-  },
-  review_pending: { color: colors.gold },
-  review_live: { color: '#3fb27f' },
-  review_rejected: { color: colors.crimsonBright },
-  review_muted: { color: colors.slate },
-  stockLabel: {
-    color: colors.platinum,
-    fontSize: 9,
-    letterSpacing: 1.8,
-  },
-  stockLabelOff: {
+  stockText: {
+    ...type.caption,
     color: colors.slate,
+    fontSize: 10,
   },
   rejectReason: {
-    color: colors.ash,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 4,
+    ...type.caption,
+    color: colors.crimsonGlow,
+    marginTop: 5,
+    lineHeight: 16,
   },
-  empty: {
-    marginTop: spacing.md,
-  },
-  emptyTitle: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '300',
-    letterSpacing: 0.5,
-  },
-  emptyBody: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 6,
+  rowSpinner: {
+    width: 51,
   },
 });

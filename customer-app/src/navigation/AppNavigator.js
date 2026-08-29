@@ -12,7 +12,7 @@ import MyOrdersScreen from '../screens/MyOrdersScreen';
 import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
-import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
+import { useAuthStore, ROLES, selectRole } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
 
 /**
@@ -48,21 +48,32 @@ const navTheme = {
 };
 
 /**
- * Shared header styling for the screens that keep a native header. Home and
- * LiveTracking hide it so their content can run under the status bar.
+ * Shared header styling for the screens that keep a native header. Home,
+ * LiveTracking, and the vendor desk hide it so their content can run under the
+ * status bar.
+ *
+ * The header is drawn as a transparent-ish pane over the obsidian base with no
+ * shadow or divider, so a pushed screen reads as one continuous surface rather
+ * than as a bar bolted onto a page.
  */
 const screenOptions = {
-  headerStyle: { backgroundColor: colors.obsidianDeep },
+  headerStyle: { backgroundColor: colors.obsidian },
   headerTitleStyle: {
     color: colors.ivory,
-    fontWeight: '300',
+    fontWeight: '400',
     fontSize: 17,
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
+  headerTitleAlign: 'center',
   headerTintColor: colors.ivory,
   headerShadowVisible: false,
+  headerBackButtonDisplayMode: 'minimal',
   contentStyle: { backgroundColor: colors.obsidian },
   animation: 'slide_from_right',
+  // A slightly longer push than the platform default: the app's surfaces are
+  // dark and low-contrast, and a fast cut between two obsidian screens reads as
+  // a flicker rather than as a transition.
+  animationDuration: 280,
 };
 
 /** Buyer side: the scrollytelling storefront through to live delivery tracking. */

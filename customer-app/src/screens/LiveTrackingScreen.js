@@ -1,12 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassButton from '../components/GlassButton';
+import {
+  AnimatedNumber,
+  Button,
+  Divider,
+  Gradient,
+  Icon,
+  IconButton,
+  LiveDot,
+  ProgressBar,
+} from '../components/ui';
 import { NAGPUR_CENTER, formatINR, mockStores } from '../data/mockStores';
 import { obsidianMapStyle } from '../theme/mapStyle';
 import { colors, radii, spacing } from '../theme/colors';
+import { duration, easing, elevation, reduceMotion, type } from '../theme/tokens';
 
 /** Delivery address stand-in — the Wathoda belt near Symbiosis Institute of Technology. */
 const DESTINATION = {
@@ -57,11 +75,18 @@ function buildRoute(from, to) {
   return path;
 }
 
+/** The four legs of a delivery, each with the glyph that names it. */
 function stageFor(progress) {
-  if (progress < 0.05) return { label: 'Picked up', detail: 'Rider has collected your order.' };
-  if (progress < 0.55) return { label: 'On the way', detail: 'Moving through Nagpur traffic.' };
-  if (progress < 0.95) return { label: 'Almost there', detail: 'Two turns from your street.' };
-  return { label: 'Arriving now', detail: 'Rider is at your door.' };
+  if (progress < 0.05) {
+    return { label: 'Picked up', detail: 'Rider has collected your order.', icon: 'package' };
+  }
+  if (progress < 0.55) {
+    return { label: 'On the way', detail: 'Moving through Nagpur traffic.', icon: 'navigation' };
+  }
+  if (progress < 0.95) {
+    return { label: 'Almost there', detail: 'Two turns from your street.', icon: 'corner-up-right' };
+  }
+  return { label: 'Arriving now', detail: 'Rider is at your door.', icon: 'home' };
 }
 
 export default function LiveTrackingScreen({ route, navigation }) {
@@ -88,6 +113,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
   const progress = routeCoords.length > 1 ? index / (routeCoords.length - 1) : 1;
   const stage = stageFor(progress);
   const minutesLeft = Math.max(1, Math.round((1 - progress) * 34));
+  const arrived = progress >= 1;
 
   // Mock telemetry: advance one step per tick and stop at the destination.
   useEffect(() => {
@@ -105,6 +131,25 @@ export default function LiveTrackingScreen({ route, navigation }) {
     if (!mapRef.current || index % 6 !== 0) return;
     mapRef.current.animateCamera({ center: driver }, { duration: 900 });
   }, [index, driver]);
+
+  // The rider marker breathes so it is findable on a busy map at a glance —
+  // a static dot is indistinguishable from a place pin.
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: duration.pulse, easing: easing.out, ...reduceMotion }),
+        withTiming(0, { duration: 0 }),
+      ),
+      -1,
+      false,
+    );
+  }, [pulse]);
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: 0.4 * (1 - pulse.value),
+    transform: [{ scale: 0.6 + pulse.value * 1.4 }],
+  }));
 
   const initialRegion = {
     latitude: (pickup.latitude + DESTINATION.latitude) / 2 || NAGPUR_CENTER.latitude,
@@ -137,6 +182,13 @@ export default function LiveTrackingScreen({ route, navigation }) {
           lineDashPattern={[6, 8]}
         />
 
+        {/* Pickup */}
+        <Marker coordinate={pickup} title="Picked up from" description={pickup.label}>
+          <View style={styles.pickupMarker}>
+            <Icon name="shopping-bag" size="xs" color={colors.gold} />
+          </View>
+        </Marker>
+
         {/* Destination */}
         <Marker coordinate={DESTINATION} title="Delivery address" description={DESTINATION.label}>
           <View style={styles.destMarker}>
@@ -153,79 +205,110 @@ export default function LiveTrackingScreen({ route, navigation }) {
           flat
         >
           <View style={styles.driverMarker}>
-            <View style={styles.driverHalo} />
-            <View style={styles.driverCore} />
+            <Animated.View style={[styles.driverHalo, haloStyle]} />
+            <View style={styles.driverCore}>
+              <Icon name="navigation-2" size={11} color={colors.ivory} />
+            </View>
           </View>
         </Marker>
       </MapView>
 
       {/* Floating header. */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View pointerEvents="none" style={styles.headerFill} />
-        <Pressable
+      <View style={[styles.header, { paddingTop: insets.top + spacing.s }]} pointerEvents="box-none">
+        <Gradient fill preset="imageScrimTop" locations={[0, 1]} />
+
+        <IconButton
+          icon="arrow-left"
           onPress={() => navigation.navigate('Home')}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.circleGlyph}>←</Text>
-        </Pressable>
+          accessibilityLabel="Back to shopping"
+          size={40}
+        />
+
         <View style={styles.headerText}>
-          <Text style={styles.headerEyebrow}>LIVE TRACKING</Text>
-          <Text style={styles.headerTitle}>
+          <View style={styles.headerEyebrowRow}>
+            <LiveDot size={5} color={colors.crimsonGlow} style={styles.headerDot} />
+            <Text style={styles.headerEyebrow}>LIVE TRACKING</Text>
+          </View>
+          <Text style={styles.headerTitle} numberOfLines={1}>
             {order ? `Order ${order.id.slice(-6).toUpperCase()}` : 'Demo delivery'}
           </Text>
         </View>
       </View>
 
       {/* Status sheet. */}
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-        <View pointerEvents="none" style={styles.sheetFill} />
+      <Animated.View
+        entering={FadeInDown.duration(duration.deliberate).easing(easing.out)}
+        style={[styles.sheet, { paddingBottom: insets.bottom + spacing.sm }]}
+      >
+        <Gradient fill preset="chrome" />
         <View pointerEvents="none" style={styles.sheetHighlight} />
+        <View style={styles.handle} />
 
         <View style={styles.statusRow}>
+          <View style={[styles.stageIcon, arrived && styles.stageIconArrived]}>
+            <Icon
+              name={stage.icon}
+              size="lg"
+              color={arrived ? colors.jade : colors.crimsonGlow}
+            />
+          </View>
+
           <View style={styles.statusLeft}>
             <Text style={styles.statusLabel}>{stage.label.toUpperCase()}</Text>
             <Text style={styles.statusDetail}>{stage.detail}</Text>
           </View>
+
           <View style={styles.etaBlock}>
-            <Text style={styles.etaValue}>{minutesLeft}</Text>
+            <AnimatedNumber value={minutesLeft} style={styles.etaValue} />
             <Text style={styles.etaUnit}>MIN</Text>
           </View>
         </View>
 
-        {/* Progress rail. */}
-        <View style={styles.rail}>
-          <View style={[styles.railFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
+        <ProgressBar value={progress} height={4} style={styles.rail} />
 
         <View style={styles.legRow}>
-          <Text style={styles.legText} numberOfLines={1}>
-            {pickup.label}
-          </Text>
-          <Text style={styles.legText} numberOfLines={1}>
-            {DESTINATION.label}
-          </Text>
+          <View style={styles.leg}>
+            <Icon name="shopping-bag" size="xs" color={colors.slate} />
+            <Text style={styles.legText} numberOfLines={1}>
+              {pickup.label}
+            </Text>
+          </View>
+          <View style={[styles.leg, styles.legEnd]}>
+            <Text style={styles.legText} numberOfLines={1}>
+              {DESTINATION.label}
+            </Text>
+            <Icon name="map-pin" size="xs" color={colors.slate} />
+          </View>
         </View>
 
-        <View style={styles.divider} />
+        <Divider spacingY={spacing.sm} />
 
         <View style={styles.riderRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>SK</Text>
           </View>
+
           <View style={styles.riderBody}>
             <Text style={styles.riderName}>Sandeep K.</Text>
-            <Text style={styles.riderMeta}>Porter partner  ·  MH 31 · 4.9 ★</Text>
+            <View style={styles.riderMetaRow}>
+              <Icon name="truck" size="xs" color={colors.slate} />
+              <Text style={styles.riderMeta}>Porter partner · MH 31</Text>
+              <Icon name="star" size="xs" color={colors.gold} />
+              <Text style={styles.riderRating}>4.9</Text>
+            </View>
           </View>
+
           {order ? <Text style={styles.orderTotal}>{formatINR(order.total)}</Text> : null}
         </View>
 
-        <GlassButton
-          label={progress >= 1 ? 'Done' : 'Back to Shopping'}
-          variant={progress >= 1 ? 'primary' : 'ghost'}
+        <Button
+          label={arrived ? 'Done' : 'Back to shopping'}
+          icon={arrived ? 'check' : 'arrow-left'}
+          variant={arrived ? 'primary' : 'ghost'}
           onPress={() => navigation.navigate('Home')}
-          style={styles.sheetButton}
+          fullWidth
         />
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -236,6 +319,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.obsidian,
   },
 
+  pickupMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.gold,
+    backgroundColor: colors.scrimStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   destMarker: {
     width: 26,
     height: 26,
@@ -253,24 +346,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ivory,
   },
   driverMarker: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   driverHalo: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 17,
-    backgroundColor: colors.crimson,
-    opacity: 0.28,
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    backgroundColor: colors.crimsonBright,
   },
   driverCore: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors.crimsonBright,
     borderWidth: 2,
     borderColor: colors.ivory,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   header: {
@@ -280,47 +374,29 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
-  },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  circleButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glassFill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    marginRight: spacing.sm,
-  },
-  circleGlyph: {
-    color: colors.ivory,
-    fontSize: 17,
-    lineHeight: 21,
-  },
-  pressed: {
-    opacity: 0.7,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.m,
+    paddingBottom: spacing.m,
   },
   headerText: {
     flex: 1,
   },
+  headerEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  headerDot: {
+    marginLeft: -4,
+  },
   headerEyebrow: {
-    color: colors.gold,
+    ...type.eyebrow,
+    color: colors.crimsonGlow,
     fontSize: 9,
-    letterSpacing: 2.5,
+    letterSpacing: 2.4,
   },
   headerTitle: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
+    ...type.subheading,
     marginTop: 2,
   },
 
@@ -329,17 +405,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    paddingTop: spacing.s,
+    paddingHorizontal: spacing.m,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
     overflow: 'hidden',
-  },
-  sheetFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
+    ...elevation.high,
   },
   sheetHighlight: {
     position: 'absolute',
@@ -349,74 +422,95 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.glassHighlight,
   },
+  handle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.graphiteLight,
+    marginBottom: spacing.m,
+  },
+
   statusRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  stageIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.crimsonWash,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(196, 36, 58, 0.35)',
+  },
+  stageIconArrived: {
+    backgroundColor: colors.jadeWash,
+    borderColor: 'rgba(78, 140, 106, 0.4)',
   },
   statusLeft: {
     flex: 1,
   },
   statusLabel: {
-    color: colors.ivory,
+    ...type.label,
     fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 2,
+    letterSpacing: 1.8,
   },
   statusDetail: {
-    color: colors.ash,
-    fontSize: 13,
-    marginTop: 4,
+    ...type.bodySmall,
+    marginTop: 3,
   },
   etaBlock: {
     alignItems: 'flex-end',
   },
   etaValue: {
-    color: colors.ivory,
-    fontSize: 32,
-    fontWeight: '300',
-    lineHeight: 34,
+    ...type.numericLarge,
+    fontSize: 34,
+    lineHeight: 36,
   },
   etaUnit: {
+    ...type.caption,
     color: colors.slate,
     fontSize: 9,
-    letterSpacing: 2.5,
+    letterSpacing: 2.4,
   },
+
   rail: {
-    height: 2,
-    backgroundColor: colors.graphite,
-    borderRadius: 1,
-    marginTop: spacing.md,
-    overflow: 'hidden',
-  },
-  railFill: {
-    height: 2,
-    backgroundColor: colors.crimsonBright,
+    marginTop: spacing.m,
   },
   legRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    marginTop: spacing.s,
+    gap: spacing.sm,
+  },
+  leg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: '48%',
+  },
+  legEnd: {
+    justifyContent: 'flex-end',
   },
   legText: {
+    ...type.caption,
     color: colors.slate,
     fontSize: 10,
-    letterSpacing: 0.6,
-    maxWidth: '46%',
+    flexShrink: 1,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.glassBorder,
-    marginVertical: spacing.md,
-  },
+
   riderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.m,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.graphite,
     alignItems: 'center',
     justifyContent: 'center',
@@ -424,8 +518,8 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
   },
   avatarText: {
-    color: colors.ivory,
-    fontSize: 13,
+    ...type.label,
+    fontSize: 14,
     letterSpacing: 1,
   },
   riderBody: {
@@ -433,20 +527,26 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   riderName: {
-    color: colors.ivory,
+    ...type.subheading,
     fontSize: 15,
+  },
+  riderMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
   },
   riderMeta: {
+    ...type.caption,
     color: colors.ash,
-    fontSize: 11,
-    marginTop: 2,
   },
-  orderTotal: {
-    color: colors.ivory,
-    fontSize: 15,
+  riderRating: {
+    ...type.caption,
+    color: colors.gold,
     fontWeight: '600',
   },
-  sheetButton: {
-    width: '100%',
+  orderTotal: {
+    ...type.numeric,
+    fontSize: 17,
   },
 });
