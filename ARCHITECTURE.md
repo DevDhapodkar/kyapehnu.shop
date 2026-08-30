@@ -4,8 +4,35 @@
 A hyper-local fashion delivery aggregator (Swiggy/Zomato model) for independent clothing retailers in Nagpur. 
 
 ## Design System
-- Aesthetic: Minimalist, luxury shopping (obsidian, charcoal, monochrome accents).
-- UI Elements: Heavy use of Glassmorphism (frosted glass, blurs).
+
+Dark, editorial, bento-led. It lives in code, not in this document: the tokens
+are `customer-app/src/theme/` (`colors.js`, `typography.js`, `layout.js`) and the
+primitives are `customer-app/src/components/ui/`. A screen composes primitives
+and spends tokens; it never declares a hex value, a radius or a font size of its
+own.
+
+- **Surfaces.** Three layers — a near-black page (`colors.ink`), opaque bento
+  cards that signal elevation by getting *lighter* (`surface` → `surfaceHigh`),
+  and translucent glass for panels that sit over a photograph or the 3D scene.
+- **Shape.** Large radii (`radii.lg` 28 / `radii.xl` 36) on cards, and
+  `radii.pill` on every control. Buttons are pills; icon buttons are perfect
+  discs whose radius is derived from their size.
+- **Type.** One scale (`typography`): a wide-tracked uppercase `display` used
+  once per screen, dense sans for headings, and 10px uppercase micro labels
+  doing the work labels do in a lighter interface.
+- **Colour policy.** The interface is monochrome and saturation is a signal.
+  `gradients.aurora` is the conversion accent, reserved for the single
+  highest-intent action on a screen (place order, create account). Near-white
+  pills are the everyday primary. `statusColors` is the only other place a hue
+  is allowed, and only to say where an order sits in its lifecycle.
+- **Gradients ship no dependency.** `components/ui/Gradient.js` paints a ramp as
+  abutting flat bands (`utils/color.js` does the sampling), so no native
+  gradient module is needed and no contributor has to rebuild a dev client for
+  paint. Bands must never overlap — half the ramps are translucent scrims, and
+  overlapping translucent bands compound alpha into visible stripes.
+- **Navigation.** The customer flow carries a floating pill dock
+  (`navigation/customerTabs.js` + `components/ui/TabDock.js`) rendered per
+  screen over the existing native stack, rather than a second navigator.
 
 ## Project Structure (Monorepo)
 1. `/backend` - Node.js/Express server handling logistics, databases, and webhooks.

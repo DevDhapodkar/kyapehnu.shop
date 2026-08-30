@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import GlassCard from '../GlassCard';
 import StatusPill from './StatusPill';
-import { colors, spacing } from '../../theme/colors';
+import { Chip, Surface } from '../ui';
+import { colors, radii, spacing } from '../../theme/colors';
+import { typography } from '../../theme/typography';
 import {
   formatAddress,
   formatAge,
@@ -18,6 +19,10 @@ import {
  * lines (capped at three, with an overflow count), the delivery address the
  * driver will run to, and the amount. Tapping opens the detail screen where
  * the lifecycle actions live.
+ *
+ * The money sits bottom-right at display weight because it is the figure a
+ * shopkeeper scans a queue for, and the order id — which only matters once
+ * you are already talking about one specific order — is small and grey.
  */
 export default function OrderCard({ order, onPress }) {
   const items = order.items ?? [];
@@ -31,28 +36,31 @@ export default function OrderCard({ order, onPress }) {
       accessibilityLabel={`Order ${shortOrderId(order._id)}, ${order.status}`}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
-      <GlassCard compact>
+      <Surface tone="surface" radius={radii.lg} elevation="medium" style={styles.card} sheen>
         <View style={styles.headerRow}>
-          <View>
+          <View style={styles.headerText}>
             <Text style={styles.orderId}>{shortOrderId(order._id)}</Text>
             <Text style={styles.age}>{formatAge(order.createdAt)}</Text>
           </View>
           <StatusPill status={order.status} />
         </View>
 
-        <View style={styles.divider} />
+        <View style={styles.items}>
+          {visibleItems.map((item, index) => (
+            <View
+              key={`${item.product ?? item.name}-${item.size}-${index}`}
+              style={styles.itemRow}
+            >
+              <Text style={styles.itemQty}>{item.quantity}×</Text>
+              <Text style={styles.itemName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Chip label={item.size} size="sm" tone="surface" />
+            </View>
+          ))}
 
-        {visibleItems.map((item, index) => (
-          <View key={`${item.product ?? item.name}-${item.size}-${index}`} style={styles.itemRow}>
-            <Text style={styles.itemQty}>{item.quantity}×</Text>
-            <Text style={styles.itemName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.itemSize}>{item.size}</Text>
-          </View>
-        ))}
-
-        {overflow > 0 ? <Text style={styles.overflow}>+{overflow} more</Text> : null}
+          {overflow > 0 ? <Text style={styles.overflow}>+{overflow} more</Text> : null}
+        </View>
 
         <View style={styles.divider} />
 
@@ -65,7 +73,7 @@ export default function OrderCard({ order, onPress }) {
           <Text style={styles.itemsSummary}>{summariseItems(items)}</Text>
           <Text style={styles.total}>{formatCurrency(order.totalPrice)}</Text>
         </View>
-      </GlassCard>
+      </Surface>
     </Pressable>
   );
 }
@@ -75,84 +83,90 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.85,
+  },
+  card: {
+    padding: spacing.md - 2,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
   },
   orderId: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '500',
-    letterSpacing: 1.5,
+    ...typography.h3,
+    letterSpacing: 1.4,
+    color: colors.platinum,
   },
   age: {
-    color: colors.slate,
+    ...typography.caption,
     fontSize: 11,
-    letterSpacing: 0.6,
+    color: colors.slate,
     marginTop: 2,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.glassBorder,
-    marginVertical: spacing.sm,
+  items: {
+    marginTop: spacing.sm + 2,
+    gap: 6,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: 3,
   },
   itemQty: {
-    color: colors.platinum,
+    ...typography.caption,
     fontSize: 13,
+    fontWeight: '700',
+    color: colors.ash,
     width: 28,
   },
   itemName: {
+    ...typography.body,
     color: colors.ivory,
-    fontSize: 14,
     flex: 1,
   },
-  itemSize: {
-    color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 1,
-  },
   overflow: {
-    color: colors.slate,
+    ...typography.caption,
     fontSize: 11,
-    letterSpacing: 0.8,
-    marginTop: 4,
+    color: colors.slate,
     marginLeft: 28,
   },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.glassBorder,
+    marginVertical: spacing.sm + 2,
+  },
   addressLabel: {
-    color: colors.slate,
-    fontSize: 9,
+    ...typography.micro,
+    fontSize: 8,
     letterSpacing: 1.8,
+    color: colors.ash,
   },
   address: {
-    color: colors.platinum,
+    ...typography.caption,
     fontSize: 13,
-    lineHeight: 19,
-    marginTop: 3,
+    color: colors.platinum,
+    marginTop: 4,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: spacing.sm,
+    marginTop: spacing.sm + 2,
   },
   itemsSummary: {
-    color: colors.ash,
+    ...typography.caption,
     fontSize: 11,
-    letterSpacing: 0.8,
+    color: colors.ash,
   },
   total: {
+    ...typography.numericLg,
+    fontSize: 26,
     color: colors.ivory,
-    fontSize: 20,
-    fontWeight: '300',
-    letterSpacing: 0.5,
   },
 });

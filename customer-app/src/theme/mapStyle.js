@@ -3,18 +3,24 @@
  * forced). Apple Maps ignores `customMapStyle` entirely — the MapView there is
  * darkened with `userInterfaceStyle="dark"` instead.
  *
- * Everything is desaturated toward the charcoal palette so the two markers and
- * the crimson route are the only saturated things on screen.
+ * Every surface is pinned to the app's own ink ramp so the map reads as another
+ * panel of the interface, and the two markers and the iris route are the only
+ * saturated things on screen.
+ *
+ * The colours are literals rather than palette imports because Google Maps takes
+ * this array as raw JSON and the file has to stay serialisable; they mirror
+ * `colors.inkDeep`, `surface`, `surfaceRaised`, `surfaceHigh`, `ash`, `platinum`
+ * and `slate` exactly.
  */
 export const obsidianMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0A0A0C' }] },
+  { elementType: 'geometry', stylers: [{ color: '#0B0B0D' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#8A8891' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#050506' }] },
   {
     featureType: 'administrative',
     elementType: 'geometry',
-    stylers: [{ color: '#2A2A31' }],
+    stylers: [{ color: '#26262C' }],
   },
   {
     featureType: 'administrative.locality',
@@ -31,7 +37,7 @@ export const obsidianMapStyle = [
     elementType: 'geometry',
     stylers: [{ color: '#101318' }],
   },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#131316' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#141417' }] },
   {
     featureType: 'road',
     elementType: 'geometry.stroke',
@@ -50,18 +56,18 @@ export const obsidianMapStyle = [
   {
     featureType: 'road.highway',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#2A2A31' }],
+    stylers: [{ color: '#26262C' }],
   },
   {
     featureType: 'transit',
     elementType: 'geometry',
-    stylers: [{ color: '#131316' }],
+    stylers: [{ color: '#141417' }],
   },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#04040A' }] },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#2A2A31' }],
+    stylers: [{ color: '#26262C' }],
   },
 ];
 

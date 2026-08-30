@@ -9,24 +9,32 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassCard from '../components/GlassCard';
-import GlassButton from '../components/GlassButton';
-import StatusPill from '../components/vendor/StatusPill';
 import OrderTimeline from '../components/OrderTimeline';
+import StatusPill from '../components/vendor/StatusPill';
+import { Avatar, EmptyState, PillButton, SectionHeader, Surface, TabDock } from '../components/ui';
+import { CUSTOMER_TABS, useTabNavigation } from '../navigation/customerTabs';
 import { fetchMyOrders, cancelMyOrder } from '../api/vendorApi';
 import { formatINR } from '../data/mockStores';
 import { isCancellable } from '../utils/orderStatus';
 import useAuthStore from '../store/useAuthStore';
-import { colors, spacing } from '../theme/colors';
+import { colors, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 /**
- * The customer's order history and live status. Refetches on focus (so a status
- * a vendor just advanced shows up when the buyer returns to the tab) and on
- * pull-to-refresh. Each card carries the fulfilment timeline and, while the
- * order is still cancellable, a cancel action.
+ * MyOrdersScreen
+ *
+ * The customer's order history, one bento card per order. Refetches on focus
+ * (so a status the shop just advanced is there when the buyer comes back) and
+ * on pull-to-refresh.
+ *
+ * Each card leads with the shop and the state, then the money, then the rail —
+ * "who has it and where is it" is the question the screen exists to answer, and
+ * the item breakdown is a detail below that.
  */
 export default function MyOrdersScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
 
   const [orders, setOrders] = useState([]);
@@ -78,90 +86,194 @@ export default function MyOrdersScreen({ navigation }) {
     ]);
   }, []);
 
+  const onTabChange = useTabNavigation(navigation, 'orders');
+
   const renderItem = useCallback(
-    ({ item }) => (
-      <GlassCard compact style={styles.card}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <Text style={styles.shop}>{item.vendor?.shopName ?? 'Shop'}</Text>
-            <Text style={styles.meta}>
-              #{String(item._id).slice(-6).toUpperCase()} · {item.items?.length ?? 0} item
-              {item.items?.length === 1 ? '' : 's'} · {formatINR(item.totalPrice)}
-            </Text>
+    ({ item }) => {
+      const itemCount = item.items?.length ?? 0;
+
+      return (
+        <Surface tone="surface" radius={radii.lg} elevation="medium" style={styles.card} sheen>
+          <View style={styles.headerRow}>
+            <Avatar name={item.vendor?.shopName} size={42} />
+
+            <View style={styles.headerText}>
+              <Text style={styles.shop} numberOfLines={1}>
+                {item.vendor?.shopName ?? 'Shop'}
+              </Text>
+              <Text style={styles.meta}>
+                #{String(item._id).slice(-6).toUpperCase()} · {itemCount} item
+                {itemCount === 1 ? '' : 's'}
+              </Text>
+            </View>
+
+            <StatusPill status={item.status} />
+          </View>
+
+          <View style={styles.moneyRow}>
+            <View>
+              <Text style={styles.moneyLabel}>TOTAL</Text>
+              <Text style={styles.money}>{formatINR(item.totalPrice)}</Text>
+            </View>
             <Text style={styles.payment}>
               {item.paymentMethod === 'COD' ? 'Cash on Delivery' : item.paymentMethod}
               {item.paymentStatus === 'PAID' ? ' · Paid' : ''}
             </Text>
           </View>
-          <StatusPill status={item.status} />
-        </View>
 
-        <OrderTimeline status={item.status} />
+          <View style={styles.divider} />
 
-        {isCancellable(item.status) ? (
-          <GlassButton
-            label="Cancel Order"
-            variant="ghost"
-            loading={cancelling === item._id}
-            onPress={() => onCancel(item)}
-            style={styles.cancelBtn}
-          />
-        ) : null}
-      </GlassCard>
-    ),
+          <OrderTimeline status={item.status} />
+
+          {isCancellable(item.status) ? (
+            <PillButton
+              label="Cancel order"
+              variant="ghost"
+              size="sm"
+              loading={cancelling === item._id}
+              onPress={() => onCancel(item)}
+              style={styles.cancelBtn}
+            />
+          ) : null}
+        </Surface>
+      );
+    },
     [cancelling, onCancel]
   );
 
   if (!isLoggedIn) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyTitle}>Sign in to see your orders</Text>
-        <GlassButton
-          label="Sign In"
-          onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
-          style={styles.signIn}
+        <EmptyState
+          glyph="○"
+          title="Sign in to see your orders"
+          body="Your live deliveries and past orders live behind your account."
+          actionLabel="Sign in"
+          onAction={() => navigation.navigate('Auth', { mode: 'signin' })}
         />
       </View>
     );
   }
 
   return (
-    <FlatList
-      style={styles.screen}
-      data={orders}
-      keyExtractor={(item) => item._id}
-      renderItem={renderItem}
-      contentContainerStyle={styles.list}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.platinum} />
-      }
-      ListEmptyComponent={
-        loading && !loaded ? (
-          <ActivityIndicator color={colors.platinum} style={styles.loader} />
-        ) : (
-          <View style={styles.center}>
-            <Text style={styles.emptyTitle}>No orders yet</Text>
-            <Text style={styles.emptyBody}>Your orders and their live status will show here.</Text>
-          </View>
-        )
-      }
-    />
+    <View style={styles.root}>
+      <FlatList
+        data={orders}
+        keyExtractor={(item) => item._id}
+        renderItem={renderItem}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          orders.length ? (
+            <SectionHeader
+              eyebrow="Live status"
+              title={orders.length === 1 ? '1 order' : `${orders.length} orders`}
+              caption="Straight from the shop counter, the moment it changes."
+              style={styles.listHeader}
+            />
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={load}
+            tintColor={colors.platinum}
+            colors={[colors.platinum]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+        ListEmptyComponent={
+          loading && !loaded ? (
+            <ActivityIndicator color={colors.platinum} style={styles.loader} />
+          ) : (
+            <EmptyState
+              glyph="≡"
+              title="No orders yet"
+              body="Order something from a shop nearby and you can watch it come over on the map."
+              actionLabel="Browse nearby"
+              onAction={() => navigation.navigate('Home')}
+            />
+          )
+        }
+      />
+
+      <TabDock items={CUSTOMER_TABS} value="orders" onChange={onTabChange} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.obsidian },
-  list: { padding: spacing.md, paddingBottom: spacing.xl, flexGrow: 1 },
-  card: { marginBottom: spacing.sm },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.sm },
-  headerText: { flex: 1 },
-  shop: { color: colors.ivory, fontSize: 16, fontWeight: '400' },
-  meta: { color: colors.ash, fontSize: 12, marginTop: 4, letterSpacing: 0.4 },
-  payment: { color: colors.slate, fontSize: 11, marginTop: 3, letterSpacing: 0.4 },
-  cancelBtn: { marginTop: spacing.sm },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  emptyTitle: { color: colors.ivory, fontSize: 18, fontWeight: '300' },
-  emptyBody: { color: colors.ash, fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 20 },
-  signIn: { marginTop: spacing.md, alignSelf: 'stretch' },
-  loader: { paddingVertical: spacing.xl },
+  root: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  list: {
+    padding: spacing.md,
+    flexGrow: 1,
+  },
+  listHeader: {
+    marginBottom: spacing.md,
+  },
+  card: {
+    padding: spacing.md - 2,
+    marginBottom: spacing.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  shop: {
+    ...typography.h3,
+    color: colors.ivory,
+  },
+  meta: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.ash,
+    marginTop: 3,
+  },
+  moneyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  moneyLabel: {
+    ...typography.micro,
+    fontSize: 8,
+    letterSpacing: 1.8,
+    color: colors.ash,
+  },
+  money: {
+    ...typography.numeric,
+    color: colors.ivory,
+    marginTop: 3,
+  },
+  payment: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.slate,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.glassBorder,
+    marginVertical: spacing.md - 2,
+  },
+  cancelBtn: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: colors.ink,
+  },
+  loader: {
+    paddingVertical: spacing.xl,
+  },
 });

@@ -14,6 +14,7 @@ import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
 import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 /**
  * Two distinct navigator instances, not one reused twice.
@@ -32,36 +33,40 @@ const VendorStack = createNativeStackNavigator();
  * Navigation theme.
  *
  * React Navigation paints the screen container itself, so its background has to
- * match the obsidian base or a light flash shows during the push transition.
+ * match the ink base or a light flash shows during the push transition.
  */
 const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: colors.obsidian,
-    card: colors.obsidianDeep,
+    background: colors.ink,
+    card: colors.inkDeep,
     text: colors.ivory,
     border: colors.glassBorder,
-    primary: colors.crimsonBright,
-    notification: colors.crimsonBright,
+    primary: colors.iris,
+    notification: colors.blush,
   },
 };
 
 /**
  * Shared header styling for the screens that keep a native header. Home and
  * LiveTracking hide it so their content can run under the status bar.
+ *
+ * The title takes the design system's `h3` weight rather than the old hairline
+ * 300: a native header sitting above bento cards has to read as part of the
+ * same interface, and light type at 17px looks like a different app's chrome.
  */
 const screenOptions = {
-  headerStyle: { backgroundColor: colors.obsidianDeep },
+  headerStyle: { backgroundColor: colors.ink },
   headerTitleStyle: {
     color: colors.ivory,
-    fontWeight: '300',
-    fontSize: 17,
-    letterSpacing: 0.5,
+    fontWeight: typography.h3.fontWeight,
+    fontSize: typography.h3.fontSize,
+    letterSpacing: typography.h3.letterSpacing,
   },
   headerTintColor: colors.ivory,
   headerShadowVisible: false,
-  contentStyle: { backgroundColor: colors.obsidian },
+  contentStyle: { backgroundColor: colors.ink },
   animation: 'slide_from_right',
 };
 

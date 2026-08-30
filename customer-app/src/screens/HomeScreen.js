@@ -1,15 +1,14 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Pressable,
   RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useCallback, useEffect } from 'react';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,14 +16,26 @@ import AuthCta from '../components/AuthCta';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { formatINR } from '../data/mockStores';
+import HeroPanel from '../components/storefront/HeroPanel';
+import StatStrip from '../components/storefront/StatStrip';
+import StorefrontHeader from '../components/storefront/StorefrontHeader';
+import { EmptyState, SectionHeader, SegmentedTabs, TabDock } from '../components/ui';
+import { CUSTOMER_TABS, useTabNavigation } from '../navigation/customerTabs';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import useStorefrontStore from '../store/useStorefrontStore';
-import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
+import { selectCartCount, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { colors, radii, spacing } from '../theme/colors';
+import { colors, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+/** Height the storefront must clear to scroll out from under the floating header. */
+const HEADER_CLEARANCE = 118;
+/** Height the dock covers at the foot of every scrolling customer screen. */
+const DOCK_CLEARANCE = 96;
+
+const ALL = '__all__';
 
 // The story sells the product in four beats, each one timed to a beat of the
 // drone shot behind it: what this is, where the clothes come from, how they are
@@ -59,91 +70,76 @@ const SECTIONS = [
 // lands on the dress just as the CTA scrolls into frame.
 const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
+/** "WOMEN" → "Women"; anything already mixed-case is left alone. */
+const toTabLabel = (value) =>
+  value === value.toUpperCase() ? value.charAt(0) + value.slice(1).toLowerCase() : value;
+
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const { areaLabel, status, refresh } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
-  const cartTotal = useCartStore(selectCartTotal);
+
+  // The header's search pill filters the grid in place rather than opening a
+  // screen of its own: the catalogue is one city's worth of stock, so a live
+  // filter over what is already loaded answers the query faster than a round
+  // trip would.
+  const [query, setQuery] = useState('');
 
   // The scrollytelling is a first-run marketing funnel: it only runs for a
   // visitor who has not signed in. Once there is a session token the home
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+  const userName = useAuthStore((state) => state.user?.displayName ?? state.user?.email);
 
   // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
   // register mode, "Log in" in sign-in mode. The Firebase session, once
   // established, flips this screen to the storefront via the auth store.
-  const openAuth = useCallback(
-    (mode) => navigation.navigate('Auth', { mode }),
+  const openAuth = useCallback((mode) => navigation.navigate('Auth', { mode }), [navigation]);
+
+  const openProduct = useCallback(
+    (product) => navigation.navigate('ProductDetail', { product }),
     [navigation]
   );
 
-  const openProduct = (product) => navigation.navigate('ProductDetail', { product });
+  const onTabChange = useTabNavigation(navigation, 'home');
 
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-      <View pointerEvents="none" style={styles.headerFill} />
-
-      <Pressable
-        onPress={status === 'denied' ? refresh : undefined}
-        style={styles.headerLeft}
-      >
-        <Text style={styles.headerEyebrow}>DELIVERING TO</Text>
-        <Text style={styles.headerArea} numberOfLines={1}>
-          {areaLabel}
-          {status === 'denied' ? '  ·  enable GPS' : ''}
-        </Text>
-      </Pressable>
-
-      <View style={styles.headerRight}>
-        <Pressable
-          onPress={() => navigation.navigate('Profile')}
-          accessibilityRole="button"
-          accessibilityLabel="Profile and settings"
-          style={({ pressed }) => [styles.profileButton, pressed && styles.bagPressed]}
-        >
-          <Text style={styles.profileGlyph}>◇</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => navigation.navigate('Cart')}
-          style={({ pressed }) => [styles.bagButton, pressed && styles.bagPressed]}
-        >
-          <Text style={styles.bagLabel}>BAG</Text>
-          <Text style={styles.bagValue}>
-            {cartCount > 0 ? formatINR(cartTotal) : '—'}
-          </Text>
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
-    </View>
+    <StorefrontHeader
+      areaLabel={areaLabel}
+      locationStatus={status}
+      onRefreshLocation={refresh}
+      cartCount={cartCount}
+      userName={userName}
+      onOpenCart={() => navigation.navigate('Cart')}
+      onOpenProfile={() => navigation.navigate('Profile')}
+      query={query}
+      onQueryChange={isLoggedIn ? setQuery : undefined}
+      topInset={insets.top}
+    />
   );
-
-  if (isLoggedIn) {
-    return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <Storefront insets={insets} onOpenProduct={openProduct} />
-        {header}
-      </View>
-    );
-  }
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <MarketingScrollytelling
-        insets={insets}
-        onJoin={() => openAuth('register')}
-        onLogin={() => openAuth('signin')}
-      />
-      {header}
+
+      {isLoggedIn ? (
+        <>
+          <Storefront insets={insets} query={query} onOpenProduct={openProduct} />
+          {header}
+          <TabDock items={CUSTOMER_TABS} value="home" onChange={onTabChange} />
+        </>
+      ) : (
+        <>
+          <MarketingScrollytelling
+            insets={insets}
+            onJoin={() => openAuth('register')}
+            onLogin={() => openAuth('signin')}
+          />
+          {header}
+        </>
+      )}
     </View>
   );
 }
@@ -172,7 +168,6 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
           it reads as a layer of the film rather than text scrolling over it. */}
       <Animated.ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
@@ -210,90 +205,155 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
 }
 
 /**
- * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
- * base, with no 3D scene behind it.
+ * The logged-in storefront: a hero panel, a figures band, and the
+ * proximity-sorted catalogue as a two-column bento grid.
+ *
+ * The grid is the list — the hero and the tabs ride in `ListHeaderComponent`
+ * rather than in a ScrollView wrapping a FlatList, so the catalogue keeps its
+ * virtualisation however long it gets.
  */
-function Storefront({ insets, onOpenProduct }) {
+function Storefront({ insets, query, onOpenProduct }) {
   const products = useStorefrontStore((state) => state.products);
   const loading = useStorefrontStore((state) => state.loading);
   const loaded = useStorefrontStore((state) => state.loaded);
   const error = useStorefrontStore((state) => state.error);
   const load = useStorefrontStore((state) => state.load);
 
+  const [category, setCategory] = useState(ALL);
+
   useEffect(() => {
     load();
   }, [load]);
 
+  const tabs = useMemo(() => {
+    const seen = [];
+    for (const product of products) {
+      if (product.category && !seen.includes(product.category)) seen.push(product.category);
+    }
+
+    return [
+      { key: ALL, label: 'All' },
+      ...seen.map((value) => ({ key: value, label: toTabLabel(value) })),
+    ];
+  }, [products]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+
+    return products.filter((product) => {
+      if (category !== ALL && product.category !== category) return false;
+      if (!needle) return true;
+
+      // Name, shop and category are the three things a buyer actually types.
+      return [product.name, product.storeName, product.category]
+        .filter(Boolean)
+        .some((field) => field.toLowerCase().includes(needle));
+    });
+  }, [products, category, query]);
+
+  const stats = useMemo(() => {
+    const shops = new Set(products.map((p) => p.storeId).filter(Boolean)).size;
+
+    return [
+      { value: String(products.length), label: 'Pieces live near you' },
+      { value: String(shops), label: shops === 1 ? 'Shop open now' : 'Shops open now' },
+      { value: '< 1 hr', label: 'Door to door' },
+    ];
+  }, [products]);
+
+  const hero = products[0] ?? null;
   const isEmpty = loaded && !loading && products.length === 0;
 
   return (
-    <Animated.ScrollView
+    <FlatList
+      data={visible}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
       style={styles.scroll}
-      contentContainerStyle={[styles.scrollContent, styles.storefront]}
+      columnWrapperStyle={styles.column}
+      contentContainerStyle={[
+        styles.gridContent,
+        { paddingBottom: insets.bottom + DOCK_CLEARANCE },
+      ]}
       showsVerticalScrollIndicator={false}
+      initialNumToRender={6}
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.platinum} />
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={load}
+          tintColor={colors.platinum}
+          colors={[colors.platinum]}
+          progressBackgroundColor={colors.surface}
+          progressViewOffset={HEADER_CLEARANCE}
+        />
       }
-    >
-      <View style={styles.feed}>
-        <View style={styles.feedHeader}>
-          <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
-          <Text style={styles.feedTitle}>In stock, minutes away.</Text>
-          <Text style={styles.feedBody}>
-            Live from independent Nagpur shops — every piece here is approved and in stock.
-          </Text>
+      renderItem={({ item }) => (
+        <ProductCard product={item} onPress={() => onOpenProduct(item)} style={styles.tile} />
+      )}
+      ListHeaderComponent={
+        <View style={styles.headerBlock}>
+          <HeroPanel product={hero} onOpen={() => hero && onOpenProduct(hero)} />
+
+          {products.length ? <StatStrip items={stats} style={styles.stats} /> : null}
+
+          {products.length ? (
+            <>
+              <SectionHeader
+                eyebrow="The feed"
+                title="Closest first."
+                caption="Ranked by how far the rail is from your door, never by who paid."
+                style={styles.sectionHeader}
+              />
+
+              {tabs.length > 1 ? (
+                <SegmentedTabs
+                  options={tabs}
+                  value={category}
+                  onChange={setCategory}
+                  scrollable={tabs.length > 3}
+                  style={styles.tabs}
+                />
+              ) : null}
+            </>
+          ) : null}
         </View>
-
-        {loading && !products.length ? (
-          <ActivityIndicator color={colors.platinum} style={styles.feedLoader} />
+      }
+      ListEmptyComponent={
+        loading && !loaded ? (
+          <ActivityIndicator color={colors.platinum} style={styles.loader} />
         ) : isEmpty ? (
-          <Text style={styles.feedEmpty}>
-            {error
-              ? `Could not load the storefront: ${error}`
-              : 'No listings yet. Newly approved products from local shops appear here.'}
-          </Text>
+          <EmptyState
+            glyph="◇"
+            title={error ? 'Storefront unavailable' : 'Nothing live yet'}
+            body={
+              error
+                ? `${error}. Pull down to try again.`
+                : 'Newly approved pieces from local shops land here the moment a shop lists them.'
+            }
+          />
         ) : (
-          <>
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ProductCard product={item} onPress={() => onOpenProduct(item)} />
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.feedList}
-              initialNumToRender={5}
-            />
-
-            <Text style={styles.feedFootnote}>
-              {products.length} {products.length === 1 ? 'piece' : 'pieces'} live near you.
-            </Text>
-          </>
-        )}
-      </View>
-
-      <View style={{ height: insets.bottom + spacing.xl * 2 }} />
-    </Animated.ScrollView>
+          <Text style={styles.filterEmpty}>
+            {query.trim()
+              ? `Nothing matching “${query.trim()}” nearby.`
+              : 'Nothing in this category right now — try another.'}
+          </Text>
+        )
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
   scroll: {
     flex: 1,
     backgroundColor: colors.transparent,
   },
-  scrollContent: {
-    backgroundColor: colors.transparent,
-  },
-  storefront: {
-    // Clears the floating header the storefront scrolls under.
-    paddingTop: SCREEN_HEIGHT * 0.14,
-  },
+
+  // Marketing scrollytelling
   section: {
     height: SCREEN_HEIGHT,
     justifyContent: 'flex-end',
@@ -306,150 +366,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Feed
-  feed: {
-    paddingTop: spacing.lg,
-    // Opaque base so the 3D canvas stops showing through once the story ends.
-    backgroundColor: colors.obsidian,
-  },
-  feedHeader: {
+  // Storefront grid
+  gridContent: {
     paddingHorizontal: spacing.md,
+    // Clears the floating header the storefront scrolls under.
+    paddingTop: HEADER_CLEARANCE,
+    backgroundColor: colors.ink,
+  },
+  headerBlock: {
     marginBottom: spacing.md,
   },
-  feedEyebrow: {
-    color: colors.gold,
-    fontSize: 10,
-    letterSpacing: 3,
-    marginBottom: spacing.xs,
-  },
-  feedTitle: {
-    color: colors.ivory,
-    fontSize: 26,
-    fontWeight: '300',
-    letterSpacing: -0.4,
-    marginBottom: spacing.xs,
-  },
-  feedBody: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  feedList: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  feedFootnote: {
-    color: colors.slate,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    paddingHorizontal: spacing.md,
+  stats: {
     marginTop: spacing.sm,
   },
-  feedLoader: {
+  sectionHeader: {
+    marginTop: spacing.lg,
+  },
+  tabs: {
+    marginTop: spacing.sm + 2,
+  },
+  column: {
+    gap: spacing.sm,
+  },
+  tile: {
+    flex: 1,
+    marginBottom: spacing.sm,
+  },
+  loader: {
     paddingVertical: spacing.xl,
   },
-  feedEmpty: {
+  filterEmpty: {
+    ...typography.body,
     color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
-  },
-
-  // Header
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
-  },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  headerLeft: {
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  headerEyebrow: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 2.5,
-  },
-  headerArea: {
-    color: colors.ivory,
-    fontSize: 17,
-    fontWeight: '400',
-    letterSpacing: -0.2,
-    marginTop: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  profileButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileGlyph: {
-    color: colors.platinum,
-    fontSize: 14,
-    lineHeight: 17,
-  },
-  bagButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'flex-end',
-    minWidth: 84,
-  },
-  bagPressed: {
-    opacity: 0.7,
-  },
-  bagLabel: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 2,
-  },
-  bagValue: {
-    color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  badge: {
-    position: 'absolute',
-    top: -7,
-    right: -7,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.crimsonBright,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: colors.ivory,
-    fontSize: 10,
-    fontWeight: '700',
+    textAlign: 'center',
   },
 });

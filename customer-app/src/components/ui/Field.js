@@ -1,0 +1,72 @@
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { colors, radii, spacing } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+
+/**
+ * Field
+ *
+ * The labelled text input. Sign-in, shop registration and the catalogue
+ * composer each grew their own copy of this before the redesign; they now share
+ * one, so a change to input height or focus treatment lands everywhere.
+ *
+ * The well is *darker* than the card it sits in rather than lighter. On a dark
+ * interface a recessed input reads as somewhere to put something, while a
+ * raised one competes with the buttons.
+ */
+export default function Field({
+  label,
+  hint,
+  multiline = false,
+  containerStyle,
+  style,
+  ...inputProps
+}) {
+  return (
+    <View style={[styles.field, containerStyle]}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+
+      <TextInput
+        {...inputProps}
+        multiline={multiline}
+        placeholderTextColor={colors.slate}
+        style={[styles.input, multiline && styles.inputMultiline, style]}
+      />
+
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  field: {
+    marginBottom: spacing.sm,
+  },
+  label: {
+    ...typography.micro,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    color: colors.ash,
+    marginBottom: 7,
+  },
+  input: {
+    ...typography.bodyLg,
+    color: colors.ivory,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 13,
+    borderRadius: radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.inkDeep,
+  },
+  inputMultiline: {
+    minHeight: 86,
+    textAlignVertical: 'top',
+  },
+  hint: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.slate,
+    marginTop: 6,
+  },
+});

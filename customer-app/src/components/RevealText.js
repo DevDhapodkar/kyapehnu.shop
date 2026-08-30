@@ -6,6 +6,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { colors, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -36,7 +37,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Within a beat the words still materialise out of the fabric: before it lands
 // a run of text is a genuine optical blur (a real Gaussian `filter`, so the
 // glyphs themselves are soft, not haloed), tracking blown wide so it reads as a
-// diffuse smear of gold light, drawing tight and cooling to a thin ink halo as
+// diffuse smear of warm light, drawing tight and cooling to a thin ink halo as
 // it resolves. Everything recomputes on the UI thread every frame off `scrollY`
 // — no timers, no mount animations.
 // ---------------------------------------------------------------------------
@@ -99,8 +100,9 @@ function materialiseStyle(er, x, baseTracking, blurScale, scatter) {
     filter: [{ blur: soft * soft * BLUR_MAX * blurScale }],
     // Tracking blown wide while diffuse, drawing tight as it resolves.
     letterSpacing: baseTracking + soft * scatter,
-    // Warm gold light (lifted off the dress) cooling to a thin ink halo.
-    textShadowColor: interpolateColor(r, [0, 0.55, 1], [colors.gold, colors.gold, colors.obsidian]),
+    // Warm amber light (the sunset end of the aurora ramp, lifted off the
+    // dress) cooling to a thin ink halo as the words settle.
+    textShadowColor: interpolateColor(r, [0, 0.55, 1], [colors.amber, colors.amber, colors.ink]),
     textShadowRadius: SHADOW_FLOOR + soft * 10,
   };
 }
@@ -109,7 +111,7 @@ function Word({ scrollY, center, start, children, last }) {
   const style = useAnimatedStyle(() => {
     const { e, x } = beatProgress(scrollY, center);
     // A word is a single unwrapped run — safe to blow its tracking wide.
-    return materialiseStyle(elementEnter(e, start), x, -0.5, 1, TRACK_SCATTER);
+    return materialiseStyle(elementEnter(e, start), x, -0.8, 1, TRACK_SCATTER);
   });
 
   return (
@@ -203,30 +205,32 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   eyebrow: {
-    color: colors.gold,
+    ...typography.eyebrow,
+    color: colors.amber,
     fontSize: 11,
     marginBottom: spacing.sm,
     // The halo colour + radius are driven per-frame by the worklet; these are
     // just the offset (kept at origin so the bloom is symmetric).
-    textShadowColor: colors.obsidian,
+    textShadowColor: colors.ink,
     textShadowOffset: { width: 0, height: 0 },
   },
   title: {
     color: colors.ivory,
     fontSize: 38,
-    fontWeight: '300',
+    fontWeight: '700',
     lineHeight: 44,
-    textShadowColor: colors.obsidian,
+    textShadowColor: colors.ink,
     textShadowOffset: { width: 0, height: 0 },
   },
   titleWordGap: {
     marginRight: 10,
   },
   body: {
+    ...typography.bodyLg,
     color: colors.platinum,
     fontSize: 16,
     lineHeight: 24,
-    textShadowColor: colors.obsidian,
+    textShadowColor: colors.ink,
     textShadowOffset: { width: 0, height: 0 },
   },
 });

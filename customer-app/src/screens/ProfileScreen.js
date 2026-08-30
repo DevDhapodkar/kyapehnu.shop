@@ -1,13 +1,32 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassCard from '../components/GlassCard';
+import {
+  Avatar,
+  Chip,
+  Glow,
+  Gradient,
+  IconButton,
+  PillButton,
+  StatRow,
+  Surface,
+  TabDock,
+} from '../components/ui';
+import { CUSTOMER_TABS, useTabNavigation } from '../navigation/customerTabs';
 import { API_BASE_URL, getAuthToken } from '../api/vendorApi';
-import { colors, spacing } from '../theme/colors';
+import { selectCartCount, useCartStore } from '../store/useCartStore';
+import { colors, gradients, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import useVendorStore from '../store/useVendorStore';
 
 /**
- * Profile / Settings — reachable from both flows, and the seam between them.
+ * ProfileScreen — reachable from both flows, and the seam between them.
+ *
+ * Built as an identity card first: a lit banner carrying the avatar, name and
+ * account state, with the figures strip beneath it, then the settings as
+ * separate bento panels. The order is deliberate — who you are, then what that
+ * gets you, then the switches.
  *
  * The Vendor Mode switch is a testing affordance standing in for a real
  * sign-in: in production the role comes from whether the Firebase uid resolves
@@ -16,6 +35,8 @@ import useVendorStore from '../store/useVendorStore';
  * orders surviving into the next session.
  */
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   const role = useAuthStore((state) => state.role);
   const user = useAuthStore((state) => state.user);
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
@@ -23,8 +44,10 @@ export default function ProfileScreen({ navigation }) {
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
   const signOut = useAuthStore((state) => state.signOut);
   const resetVendorState = useVendorStore((state) => state.reset);
+  const cartCount = useCartStore(selectCartCount);
 
   const isVendor = role === ROLES.VENDOR;
+  const onTabChange = useTabNavigation(navigation, 'profile');
 
   const onToggle = (next) => {
     if (!next) resetVendorState();
@@ -38,125 +61,226 @@ export default function ProfileScreen({ navigation }) {
     signOut();
   };
 
+  // Every figure here is already in memory. The strip deliberately makes no
+  // network call: a profile that has to load before it can say who you are is
+  // a worse profile than one that shows three true things instantly.
+  const stats = [
+    { value: String(cartCount), label: 'In your bag' },
+    { value: isVendor ? 'Vendor' : 'Buyer', label: 'Account' },
+    { value: 'Nagpur', label: 'Delivering to' },
+  ];
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <GlassCard compact style={styles.card}>
-        <Text style={styles.sectionLabel}>SIGNED IN AS</Text>
-        <Text style={styles.name}>{user?.displayName ?? 'Guest'}</Text>
-        <Text style={styles.meta}>{user?.email ?? 'Not signed in'}</Text>
-        <Text style={styles.meta}>Role · {role}</Text>
-      </GlassCard>
-
-      {isLoggedIn && !isVendor ? (
-        <Pressable
-          onPress={() => navigation.navigate('MyOrders')}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
-        >
-          <Text style={styles.navRowText}>My Orders</Text>
-          <Text style={styles.navRowChevron}>›</Text>
-        </Pressable>
-      ) : null}
-
-      <GlassCard compact style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleText}>
-            <Text style={styles.toggleTitle}>Vendor Mode</Text>
-            <Text style={styles.toggleBody}>
-              Swaps the app over to the shop owner’s order desk. Stands in for a real vendor
-              sign-in while Firebase Auth is pending.
-            </Text>
-          </View>
-
-          <Switch
-            value={isVendor}
-            onValueChange={onToggle}
-            accessibilityLabel="Vendor mode"
-            trackColor={{ false: colors.graphite, true: colors.crimson }}
-            thumbColor={colors.ivory}
-            ios_backgroundColor={colors.graphite}
+    <View style={styles.root}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Surface tone="surface" radius={radii.xl} elevation="high" style={styles.banner}>
+          <Gradient
+            pointerEvents="none"
+            colors={gradients.dusk}
+            steps={30}
+            style={styles.bannerFill}
           />
-        </View>
-      </GlassCard>
+          <View pointerEvents="none" style={styles.bannerScrim} />
+          <Glow color={colors.blush} size={280} intensity={0.55} style={styles.bannerGlow} />
 
-      {isVendor && vendorProfile ? (
-        <GlassCard compact style={styles.card}>
-          <Text style={styles.sectionLabel}>SHOP</Text>
-          <Text style={styles.name}>{vendorProfile.shopName}</Text>
-          <Text style={styles.meta}>
-            {[vendorProfile.address?.area, vendorProfile.address?.city]
-              .filter(Boolean)
-              .join(', ')}
+          <Avatar name={user?.displayName ?? user?.email} size={72} ring />
+
+          <Text style={styles.name} numberOfLines={1}>
+            {user?.displayName ?? 'Guest'}
           </Text>
-          <Text style={styles.meta}>WhatsApp · {vendorProfile.whatsappNumber}</Text>
-        </GlassCard>
-      ) : null}
+          <Text style={styles.email} numberOfLines={1}>
+            {user?.email ?? 'Not signed in'}
+          </Text>
 
-      <GlassCard compact style={styles.card}>
-        <Text style={styles.sectionLabel}>BACKEND</Text>
-        <Text style={styles.meta}>{API_BASE_URL}</Text>
-        <Text style={styles.meta}>
-          Auth token · {getAuthToken() ? 'set' : 'none (set expo.extra.devAuthToken)'}
-        </Text>
-      </GlassCard>
+          <Chip
+            label={isVendor ? 'Vendor mode' : 'Customer'}
+            tint={isVendor ? colors.amber : colors.mint}
+            size="sm"
+            style={styles.roleChip}
+          />
+        </Surface>
 
-      {isLoggedIn ? (
-        <Pressable
-          onPress={onSignOut}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
-        >
-          <Text style={styles.signOutLabel}>SIGN OUT</Text>
-        </Pressable>
+        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.statCard}>
+          <StatRow items={stats} divided />
+        </Surface>
+
+        {isLoggedIn && !isVendor ? (
+          <PillButton
+            label="My orders"
+            variant="gradient"
+            size="lg"
+            icon="→"
+            full
+            onPress={() => navigation.navigate('MyOrders')}
+            style={styles.primaryAction}
+          />
+        ) : null}
+
+        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={styles.cardTitle}>Vendor Mode</Text>
+              <Text style={styles.cardBody}>
+                Swaps the app over to the shop owner’s order desk. Stands in for a real vendor
+                sign-in while Firebase Auth is pending.
+              </Text>
+            </View>
+
+            <Switch
+              value={isVendor}
+              onValueChange={onToggle}
+              accessibilityLabel="Vendor mode"
+              trackColor={{ false: colors.surfaceHigh, true: colors.iris }}
+              thumbColor={colors.ivory}
+              ios_backgroundColor={colors.surfaceHigh}
+            />
+          </View>
+        </Surface>
+
+        {isVendor && vendorProfile ? (
+          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+            <View style={styles.shopRow}>
+              <Avatar name={vendorProfile.shopName} size={44} />
+              <View style={styles.shopText}>
+                <Text style={styles.sectionLabel}>YOUR SHOP</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {vendorProfile.shopName}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {[vendorProfile.address?.area, vendorProfile.address?.city]
+                    .filter(Boolean)
+                    .join(', ')}
+                </Text>
+              </View>
+              <IconButton
+                glyph="≡"
+                tone="surface"
+                size={38}
+                onPress={() => navigation.navigate('CatalogManager')}
+                accessibilityLabel="Open catalog"
+              />
+            </View>
+
+            <Text style={styles.meta}>WhatsApp · {vendorProfile.whatsappNumber}</Text>
+          </Surface>
+        ) : null}
+
+        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+          <Text style={styles.sectionLabel}>BACKEND</Text>
+          <Text style={styles.meta}>{API_BASE_URL}</Text>
+          <Text style={styles.meta}>
+            Auth token · {getAuthToken() ? 'set' : 'none (set expo.extra.devAuthToken)'}
+          </Text>
+        </Surface>
+
+        {isLoggedIn ? (
+          <PillButton
+            label="Sign out"
+            variant="ghost"
+            full
+            onPress={onSignOut}
+            style={styles.signOut}
+          />
+        ) : (
+          <PillButton
+            label="Sign in"
+            icon="→"
+            full
+            onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
+            style={styles.signOut}
+          />
+        )}
+      </ScrollView>
+
+      {!isVendor ? (
+        <TabDock items={CUSTOMER_TABS} value="profile" onChange={onTabChange} />
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
   screen: {
     flex: 1,
-    backgroundColor: colors.obsidian,
   },
   content: {
     padding: spacing.md,
-    paddingBottom: spacing.xl,
   },
-  card: {
-    marginBottom: spacing.sm,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm + 2,
+
+  banner: {
+    alignItems: 'flex-start',
     paddingHorizontal: spacing.md,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
     marginBottom: spacing.sm,
   },
-  navRowPressed: { opacity: 0.7 },
-  navRowText: { color: colors.ivory, fontSize: 15 },
-  navRowChevron: { color: colors.ash, fontSize: 22, marginTop: -2 },
-  sectionLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: spacing.sm,
+  bannerFill: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  // The sweep is the light source, not the subject: knocked back this far it
+  // reads as a lit wall behind the avatar rather than a colour block.
+  bannerScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.ink,
+    opacity: 0.72,
+  },
+  bannerGlow: {
+    position: 'absolute',
+    top: -150,
+    right: -110,
   },
   name: {
+    ...typography.h1,
     color: colors.ivory,
-    fontSize: 20,
-    fontWeight: '300',
-    letterSpacing: 0.3,
+    marginTop: spacing.sm + 2,
+  },
+  email: {
+    ...typography.body,
+    color: colors.platinum,
+    marginTop: 3,
+  },
+  roleChip: {
+    marginTop: spacing.sm,
+  },
+
+  statCard: {
+    padding: spacing.md - 2,
+    marginBottom: spacing.sm,
+  },
+  primaryAction: {
+    marginBottom: spacing.sm,
+  },
+  card: {
+    padding: spacing.md - 2,
+    marginBottom: spacing.sm,
+  },
+  sectionLabel: {
+    ...typography.micro,
+    fontSize: 8,
+    letterSpacing: 1.8,
+    color: colors.ash,
+    marginBottom: 5,
+  },
+  cardTitle: {
+    ...typography.h3,
+    color: colors.ivory,
+  },
+  cardBody: {
+    ...typography.caption,
+    color: colors.ash,
+    marginTop: 5,
   },
   meta: {
+    ...typography.caption,
     color: colors.ash,
-    fontSize: 12,
-    lineHeight: 19,
     marginTop: 5,
   },
   toggleRow: {
@@ -168,33 +292,16 @@ const styles = StyleSheet.create({
   toggleText: {
     flex: 1,
   },
-  toggleTitle: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
+  shopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  toggleBody: {
-    color: colors.ash,
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 5,
+  shopText: {
+    flex: 1,
+    minWidth: 0,
   },
   signOut: {
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-  },
-  signOutPressed: {
-    opacity: 0.7,
-  },
-  signOutLabel: {
-    color: colors.crimsonBright,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 2,
+    marginTop: spacing.xs,
   },
 });

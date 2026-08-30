@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import GlassButton from '../../components/GlassButton';
-import GlassCard from '../../components/GlassCard';
 import StatusPill from '../../components/vendor/StatusPill';
+import OrderTimeline from '../../components/OrderTimeline';
+import { Avatar, Chip, PillButton, Surface } from '../../components/ui';
 import { fetchOrder } from '../../api/vendorApi';
-import { colors, spacing } from '../../theme/colors';
+import { colors, radii, spacing } from '../../theme/colors';
+import { typography } from '../../theme/typography';
 import useVendorStore, { selectOrderById } from '../../store/useVendorStore';
 import { formatAddress, formatAge, formatCurrency, shortOrderId } from '../../utils/format';
 
@@ -18,7 +19,7 @@ import { formatAddress, formatAge, formatCurrency, shortOrderId } from '../../ut
  *    fires a WhatsApp confirmation. It gets a confirmation dialog and reports
  *    each leg's outcome, because a 200 here can still mean "no driver coming".
  */
-export default function VendorOrderDetailScreen({ route, navigation }) {
+export default function VendorOrderDetailScreen({ route }) {
   const { orderId } = route.params;
 
   const storeOrder = useVendorStore(selectOrderById(orderId));
@@ -44,10 +45,6 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
       .catch((error) => Alert.alert('Order unavailable', error.message))
       .finally(() => setFetching(false));
   }, [orderId, storeOrder, fetched, fetching]);
-
-  useEffect(() => {
-    navigation.setOptions({ title: shortOrderId(orderId) });
-  }, [navigation, orderId]);
 
   const onAccept = useCallback(async () => {
     try {
@@ -126,17 +123,25 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
   // Cancel stays available until the shop has handed the goods over.
   const canCancel = ['PENDING', 'ACCEPTED', 'PACKED'].includes(status);
 
+  // A guest checkout carries its contact inline rather than on a User document.
+  const customerName = order.customer?.name || order.guestContact?.name || '';
+  const customerPhone = order.customer?.phone || order.guestContact?.phone || '';
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.headerText}>
           <Text style={styles.orderId}>{shortOrderId(order._id)}</Text>
           <Text style={styles.age}>Placed {formatAge(order.createdAt)}</Text>
         </View>
         <StatusPill status={order.status} />
       </View>
 
-      <GlassCard compact style={styles.card}>
+      <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
         <Text style={styles.sectionLabel}>ITEM BREAKDOWN</Text>
 
         {items.map((item, index) => (
@@ -144,9 +149,10 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
             <View style={styles.lineMain}>
               <Text style={styles.lineName}>{item.name}</Text>
               <Text style={styles.lineMeta}>
-                Size {item.size} · {item.quantity} × {formatCurrency(item.price)}
+                {item.quantity} × {formatCurrency(item.price)}
               </Text>
             </View>
+            <Chip label={item.size} size="sm" tone="surface" />
             <Text style={styles.lineTotal}>{formatCurrency(item.price * item.quantity)}</Text>
           </View>
         ))}
@@ -154,28 +160,41 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
         <View style={styles.divider} />
 
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>ORDER TOTAL</Text>
+          <Text style={styles.sectionLabel}>ORDER TOTAL</Text>
           <Text style={styles.totalValue}>{formatCurrency(order.totalPrice)}</Text>
         </View>
-      </GlassCard>
+      </Surface>
 
-      <GlassCard compact style={styles.card}>
+      <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+        <Text style={styles.sectionLabel}>PROGRESS</Text>
+        <OrderTimeline status={order.status} />
+      </Surface>
+
+      <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
         <Text style={styles.sectionLabel}>DELIVERY</Text>
-        <Text style={styles.address}>{formatAddress(order.deliveryAddress)}</Text>
 
-        {order.customer?.name || order.guestContact?.name ? (
-          <Text style={styles.customer}>
-            {order.customer?.name || order.guestContact?.name}
-            {order.customer?.phone || order.guestContact?.phone
-              ? ` · ${order.customer?.phone || order.guestContact?.phone}`
-              : ''}
-            {order.channel === 'WEB' ? '  · web' : ''}
-          </Text>
+        <View style={styles.personRow}>
+          <Avatar name={customerName} size={42} />
+          <View style={styles.personText}>
+            {customerName ? (
+              <Text style={styles.personName} numberOfLines={1}>
+                {customerName}
+              </Text>
+            ) : null}
+            <Text style={styles.address}>{formatAddress(order.deliveryAddress)}</Text>
+          </View>
+        </View>
+
+        {customerPhone || order.channel === 'WEB' ? (
+          <View style={styles.metaChips}>
+            {customerPhone ? <Chip label={customerPhone} size="sm" tone="surface" /> : null}
+            {order.channel === 'WEB' ? <Chip label="Web order" size="sm" tone="surface" /> : null}
+          </View>
         ) : null}
-      </GlassCard>
+      </Surface>
 
       {order.porter?.requestId ? (
-        <GlassCard compact style={styles.card}>
+        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
           <Text style={styles.sectionLabel}>PORTER</Text>
           <Text style={styles.address}>Request {order.porter.requestId}</Text>
           {order.porter.driverName ? (
@@ -186,56 +205,77 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           ) : (
             <Text style={styles.customer}>Waiting for a driver to be assigned</Text>
           )}
-        </GlassCard>
+        </Surface>
       ) : null}
 
       <View style={styles.actions}>
         {status === 'PENDING' ? (
-          <GlassButton label="Accept Order" onPress={onAccept} loading={busy} />
+          <PillButton label="Accept order" icon="✓" size="lg" full onPress={onAccept} loading={busy} />
         ) : null}
 
         {status === 'ACCEPTED' ? (
-          <GlassButton
-            label="Mark Packed"
+          <PillButton
+            label="Mark packed"
             caption="You've packed this order"
+            icon="→"
+            size="lg"
+            full
             onPress={() => onAdvance('PACKED', 'Could not update')}
             loading={busy}
           />
         ) : null}
 
         {status === 'PACKED' ? (
-          <GlassButton
-            label="Mark Ready for Pickup"
+          // The one action on this screen that reaches outside the app — it
+          // books a real driver — so it takes the accent the rest do not.
+          <PillButton
+            label="Mark ready for pickup"
             caption="Dispatches a Porter driver (if configured)"
+            variant="gradient"
+            icon="→"
+            size="lg"
+            full
             onPress={onMarkReady}
             loading={busy}
           />
         ) : null}
 
         {status === 'READY_FOR_PICKUP' ? (
-          <GlassButton
-            label="Mark Out for Delivery"
+          <PillButton
+            label="Mark out for delivery"
             caption="Driver has picked up the order"
+            icon="→"
+            size="lg"
+            full
             onPress={() => onAdvance('IN_TRANSIT', 'Could not update')}
             loading={busy}
           />
         ) : null}
 
         {status === 'IN_TRANSIT' ? (
-          <GlassButton
-            label="Mark Delivered"
+          <PillButton
+            label="Mark delivered"
             caption="Collect Cash on Delivery"
+            icon="✓"
+            size="lg"
+            full
             onPress={() => onAdvance('DELIVERED', 'Could not update')}
             loading={busy}
           />
         ) : null}
 
         {canCancel ? (
-          <GlassButton label="Cancel Order" variant="ghost" onPress={onCancel} loading={busy} />
+          <PillButton
+            label="Cancel order"
+            variant="ghost"
+            full
+            onPress={onCancel}
+            loading={busy}
+          />
         ) : null}
 
         {status === 'DELIVERED' ? (
-          <Text style={styles.terminal}>Delivered — payment collected. ✓</Text>
+          <Text style={styles.terminal}>Delivered — payment collected.</Text>
         ) : null}
         {status === 'CANCELLED' ? (
           <Text style={styles.terminal}>This order was cancelled.</Text>
@@ -248,7 +288,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
   content: {
     padding: spacing.md,
@@ -258,98 +298,120 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
   orderId: {
+    ...typography.h1,
+    letterSpacing: 1.2,
     color: colors.ivory,
-    fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: 1.5,
   },
   age: {
-    color: colors.slate,
+    ...typography.caption,
     fontSize: 11,
-    letterSpacing: 0.8,
+    color: colors.slate,
     marginTop: 4,
   },
   card: {
+    padding: spacing.md - 2,
     marginBottom: spacing.sm,
   },
   sectionLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
+    ...typography.micro,
+    fontSize: 8,
+    letterSpacing: 1.8,
+    color: colors.ash,
     marginBottom: spacing.sm,
   },
   lineRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 7,
-    gap: spacing.sm,
+    gap: spacing.xs + 2,
   },
   lineMain: {
     flex: 1,
+    minWidth: 0,
   },
   lineName: {
+    ...typography.bodyLg,
     color: colors.ivory,
-    fontSize: 15,
   },
   lineMeta: {
-    color: colors.ash,
+    ...typography.caption,
     fontSize: 11,
-    letterSpacing: 0.6,
+    color: colors.ash,
     marginTop: 3,
   },
   lineTotal: {
+    ...typography.caption,
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.platinum,
-    fontSize: 15,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.glassBorder,
-    marginVertical: spacing.sm,
+    marginVertical: spacing.sm + 2,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  totalLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
+    alignItems: 'center',
   },
   totalValue: {
+    ...typography.numericLg,
+    fontSize: 28,
     color: colors.ivory,
-    fontSize: 24,
-    fontWeight: '300',
+  },
+  personRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  personText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  personName: {
+    ...typography.h3,
+    color: colors.ivory,
+    marginBottom: 3,
   },
   address: {
-    color: colors.ivory,
-    fontSize: 14,
-    lineHeight: 21,
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.platinum,
+  },
+  metaChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xxs,
+    marginTop: spacing.sm,
   },
   customer: {
+    ...typography.caption,
     color: colors.ash,
-    fontSize: 12,
-    letterSpacing: 0.5,
     marginTop: 6,
   },
   actions: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     gap: spacing.sm,
   },
   terminal: {
+    ...typography.caption,
     color: colors.slate,
-    fontSize: 12,
-    lineHeight: 19,
     textAlign: 'center',
     paddingHorizontal: spacing.md,
   },

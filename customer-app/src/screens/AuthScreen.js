@@ -6,20 +6,25 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
-import GlassButton from '../components/GlassButton';
-import GlassCard from '../components/GlassCard';
+import { Chip, Field, Glow, PillButton, Surface } from '../components/ui';
 import { colors, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 import useAuthStore from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
 
 /**
- * Customer sign-in / create-account. One screen, two modes toggled by a link at
- * the foot — the fields differ (registration also collects a name and phone,
- * both of which the backend User document requires).
+ * AuthScreen — sign in, or create an account.
+ *
+ * One screen, two modes toggled by a link at the foot. The fields differ:
+ * registration also collects a name and phone, both of which the backend User
+ * document requires.
+ *
+ * This is a conversion screen, so it takes the aurora submit button — the same
+ * accent the marketing CTA hands off from, which makes the handover from the
+ * scrollytelling to the form read as one continuous action.
  *
  * On success the Firebase listener in the auth store sets the session and this
  * screen pops back to wherever the customer came from (the storefront).
@@ -59,7 +64,13 @@ export default function AuthScreen({ navigation, route }) {
       } else {
         await signInWithEmail({ email: form.email.trim(), password: form.password });
       }
-      navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home');
+      // Pop back to wherever the customer came from; a cold start into Auth
+      // has nothing to pop to, so it lands on the storefront instead.
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Home');
+      }
     } catch (err) {
       setError(friendlyAuthError(err));
     } finally {
@@ -72,9 +83,16 @@ export default function AuthScreen({ navigation, route }) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* A single bloom behind the headline, so the page has a light source
+          rather than being flat black behind a form. */}
+      <Glow color={colors.iris} size={420} intensity={0.4} style={styles.glow} />
+
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>KYA PEHNU?</Text>
-        <Text style={styles.title}>{isRegister ? 'Create your account' : 'Welcome back'}</Text>
+        <Chip label="Kya Pehnu?" tone="glass" style={styles.chip} />
+
+        <Text style={styles.title}>
+          {isRegister ? 'Create your\naccount' : 'Welcome\nback'}
+        </Text>
         <Text style={styles.subtitle}>
           {isRegister
             ? 'See what is in stock two streets away.'
@@ -82,18 +100,23 @@ export default function AuthScreen({ navigation, route }) {
         </Text>
 
         {!authAvailable ? (
-          <GlassCard strong compact style={styles.warn}>
+          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.warn}>
             <Text style={styles.warnTitle}>Sign-in not configured</Text>
             <Text style={styles.warnBody}>
               Add your Firebase web keys to app.json → expo.extra.firebase, then rebuild.
             </Text>
-          </GlassCard>
+          </Surface>
         ) : null}
 
-        <GlassCard strong compact style={styles.card}>
+        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
           {isRegister ? (
             <>
-              <Field label="NAME" value={form.name} onChangeText={setField('name')} placeholder="Aarav Sharma" />
+              <Field
+                label="NAME"
+                value={form.name}
+                onChangeText={setField('name')}
+                placeholder="Aarav Sharma"
+              />
               <Field
                 label="PHONE"
                 value={form.phone}
@@ -124,14 +147,18 @@ export default function AuthScreen({ navigation, route }) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <GlassButton
-            label={isRegister ? 'Create Account' : 'Log In'}
+          <PillButton
+            label={isRegister ? 'Create account' : 'Log in'}
+            variant="gradient"
+            size="lg"
+            icon="→"
+            full
             onPress={onSubmit}
             loading={busy}
             disabled={!authAvailable}
             style={styles.submit}
           />
-        </GlassCard>
+        </Surface>
 
         <View style={styles.switchRow}>
           <Text style={styles.switchText}>
@@ -143,65 +170,101 @@ export default function AuthScreen({ navigation, route }) {
               setMode(isRegister ? 'signin' : 'register');
             }}
             accessibilityRole="button"
+            hitSlop={8}
           >
             <Text style={styles.switchLink}>{isRegister ? 'Log in' : 'Create one'}</Text>
           </Pressable>
         </View>
 
-        <Pressable
+        <PillButton
+          label="Own a shop? Register your store"
+          variant="ghost"
+          size="sm"
+          icon="→"
+          full
           onPress={() => navigation.navigate('VendorRegister')}
-          accessibilityRole="button"
-          style={styles.vendorLinkRow}
-        >
-          <Text style={styles.vendorLink}>Own a shop? Register your store →</Text>
-        </Pressable>
+          style={styles.vendorLink}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Field({ label, multiline, style, ...inputProps }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...inputProps}
-        multiline={multiline}
-        placeholderTextColor={colors.slate}
-        style={[styles.input, multiline && styles.inputMultiline, style]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.obsidian },
-  content: { padding: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
-  eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 3, marginBottom: spacing.sm },
-  title: { color: colors.ivory, fontSize: 30, fontWeight: '300', letterSpacing: -0.5 },
-  subtitle: { color: colors.ash, fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: spacing.md },
-  warn: { marginBottom: spacing.sm },
-  warnTitle: { color: colors.ivory, fontSize: 14 },
-  warnBody: { color: colors.ash, fontSize: 12, marginTop: 4, lineHeight: 18 },
-  card: { marginBottom: spacing.md },
-  field: { marginBottom: spacing.sm },
-  fieldLabel: { color: colors.slate, fontSize: 9, letterSpacing: 2, marginBottom: 6 },
-  input: {
-    color: colors.ivory,
-    fontSize: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.obsidianDeep,
+  screen: {
+    flex: 1,
+    backgroundColor: colors.ink,
   },
-  inputMultiline: { minHeight: 74, textAlignVertical: 'top' },
-  error: { color: colors.crimsonBright, fontSize: 13, marginBottom: spacing.sm },
-  submit: { marginTop: spacing.xs },
-  switchRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xs, marginBottom: spacing.md },
-  switchText: { color: colors.ash, fontSize: 13 },
-  switchLink: { color: colors.ivory, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
-  vendorLinkRow: { alignItems: 'center', marginTop: spacing.xs },
-  vendorLink: { color: colors.platinum, fontSize: 13, letterSpacing: 0.4 },
+  glow: {
+    position: 'absolute',
+    top: -180,
+    left: -120,
+  },
+  content: {
+    padding: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  chip: {
+    marginBottom: spacing.md,
+  },
+  title: {
+    ...typography.h1,
+    fontSize: 34,
+    lineHeight: 39,
+    color: colors.ivory,
+  },
+  subtitle: {
+    ...typography.bodyLg,
+    color: colors.ash,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  warn: {
+    padding: spacing.sm + 2,
+    marginBottom: spacing.sm,
+  },
+  warnTitle: {
+    ...typography.h3,
+    fontSize: 14,
+    color: colors.amber,
+  },
+  warnBody: {
+    ...typography.caption,
+    color: colors.ash,
+    marginTop: 4,
+  },
+  card: {
+    padding: spacing.md - 2,
+    marginBottom: spacing.md,
+  },
+  error: {
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.crimsonBright,
+    marginBottom: spacing.sm,
+  },
+  submit: {
+    marginTop: spacing.xs,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  switchText: {
+    ...typography.body,
+    color: colors.ash,
+  },
+  switchLink: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.ivory,
+    textDecorationLine: 'underline',
+  },
+  vendorLink: {
+    marginTop: spacing.xs,
+  },
 });

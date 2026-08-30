@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '../theme/colors';
+import { Chip, PillButton } from './ui';
+import { colors, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 /**
  * AuthCta
@@ -9,10 +11,13 @@ import { colors, radii, spacing } from '../theme/colors';
  * the dress behind this panel, and the panel is the pay-off: the single place
  * the marketing funnel converts a browsing visitor into a signed-in customer.
  *
- * Three affordances, one intent — get an account. "Join Now" is the primary
- * (sign up), with a quieter "Log in" for returning customers. All routes land
- * on the same handler for now; a real Firebase flow will split sign-up from
- * sign-in behind `onJoin` / `onLogin`.
+ * This is the one screen in the app that earns the aurora gradient. It is the
+ * conversion moment, and the accent is rationed precisely so that landing on it
+ * after four monochrome story beats reads as an arrival.
+ *
+ * The copy sits directly on the film with no card behind it — a panel here
+ * would put a wall between the shot and the pitch — so every run of type
+ * carries its own dark halo to stay legible wherever the frame settles bright.
  *
  * Props:
  *  - onJoin:  called when the visitor commits (Join Now / Sign up)
@@ -21,21 +26,24 @@ import { colors, radii, spacing } from '../theme/colors';
 export default function AuthCta({ onJoin, onLogin }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>YOUR CITY IS OPEN</Text>
-      <Text style={styles.title}>Join now. Wear it tonight.</Text>
+      <Chip label="Your city is open" tone="glass" style={styles.chip} />
+
+      <Text style={styles.title}>Join now.{'\n'}Wear it tonight.</Text>
+
       <Text style={styles.body}>
         Create an account to see what is in stock two streets away and have it at
         your door within the hour.
       </Text>
 
-      <Pressable
+      <PillButton
+        label="Join now"
+        variant="gradient"
+        size="lg"
+        icon="→"
         onPress={onJoin}
-        accessibilityRole="button"
-        accessibilityLabel="Join now"
-        style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-      >
-        <Text style={styles.primaryLabel}>JOIN NOW</Text>
-      </Pressable>
+        full
+        style={styles.primary}
+      />
 
       <View style={styles.secondaryRow}>
         <Text style={styles.secondaryText}>Already have an account?</Text>
@@ -56,47 +64,29 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
   },
-  eyebrow: {
-    color: colors.gold,
-    fontSize: 11,
-    letterSpacing: 3,
-    marginBottom: spacing.sm,
-    // No card behind the copy any more — a soft dark halo keeps it legible where
-    // the drone shot settles bright behind it.
-    textShadowColor: colors.obsidian,
-    textShadowRadius: 6,
+  chip: {
+    marginBottom: spacing.md,
   },
   title: {
+    ...typography.h1,
+    fontSize: 36,
+    lineHeight: 42,
     color: colors.ivory,
-    fontSize: 34,
-    fontWeight: '300',
-    letterSpacing: -0.5,
     marginBottom: spacing.sm,
-    textShadowColor: colors.obsidian,
-    textShadowRadius: 8,
+    // No card behind the copy — a soft dark halo keeps it legible where the
+    // drone shot settles bright behind it.
+    textShadowColor: colors.ink,
+    textShadowRadius: 10,
   },
   body: {
+    ...typography.bodyLg,
     color: colors.platinum,
-    fontSize: 15,
-    lineHeight: 23,
     marginBottom: spacing.lg,
-    textShadowColor: colors.obsidian,
-    textShadowRadius: 6,
+    textShadowColor: colors.ink,
+    textShadowRadius: 8,
   },
   primary: {
-    backgroundColor: colors.crimsonBright,
-    borderRadius: radii.md,
-    paddingVertical: spacing.sm + 2,
-    alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  primaryLabel: {
-    color: colors.ivory,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 2,
+    alignSelf: 'stretch',
   },
   secondaryRow: {
     flexDirection: 'row',
@@ -106,13 +96,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   secondaryText: {
-    color: colors.ash,
-    fontSize: 13,
+    ...typography.body,
+    color: colors.platinum,
+    textShadowColor: colors.ink,
+    textShadowRadius: 6,
   },
   secondaryLink: {
+    ...typography.body,
+    fontWeight: '700',
     color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
     textDecorationLine: 'underline',
   },
 });

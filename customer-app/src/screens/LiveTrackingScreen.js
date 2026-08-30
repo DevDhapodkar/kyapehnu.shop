@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassButton from '../components/GlassButton';
+import { Avatar, Chip, IconButton, PillButton, Surface } from '../components/ui';
 import { NAGPUR_CENTER, formatINR, mockStores } from '../data/mockStores';
 import { obsidianMapStyle } from '../theme/mapStyle';
 import { colors, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 /** Delivery address stand-in — the Wathoda belt near Symbiosis Institute of Technology. */
 const DESTINATION = {
@@ -132,8 +133,8 @@ export default function LiveTrackingScreen({ route, navigation }) {
       >
         <Polyline
           coordinates={routeCoords}
-          strokeColor={colors.crimsonBright}
-          strokeWidth={3}
+          strokeColor={colors.iris}
+          strokeWidth={4}
           lineDashPattern={[6, 8]}
         />
 
@@ -159,72 +160,75 @@ export default function LiveTrackingScreen({ route, navigation }) {
         </Marker>
       </MapView>
 
-      {/* Floating header. */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View pointerEvents="none" style={styles.headerFill} />
-        <Pressable
+      {/* Floating header — a disc and a pill over the map, not a bar across it. */}
+      <View style={[styles.header, { top: insets.top + spacing.xs }]} pointerEvents="box-none">
+        <IconButton
+          glyph="←"
+          tone="glass"
           onPress={() => navigation.navigate('Home')}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.circleGlyph}>←</Text>
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text style={styles.headerEyebrow}>LIVE TRACKING</Text>
-          <Text style={styles.headerTitle}>
+          accessibilityLabel="Back to shopping"
+        />
+
+        <Surface tone="glassDense" radius={radii.pill} elevation="high" style={styles.headerPill}>
+          <View style={styles.livePulse} />
+          <Text style={styles.headerTitle} numberOfLines={1}>
             {order ? `Order ${order.id.slice(-6).toUpperCase()}` : 'Demo delivery'}
           </Text>
-        </View>
+        </Surface>
       </View>
 
       {/* Status sheet. */}
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-        <View pointerEvents="none" style={styles.sheetFill} />
-        <View pointerEvents="none" style={styles.sheetHighlight} />
+      <View
+        style={[styles.sheetDock, { paddingBottom: insets.bottom + spacing.sm }]}
+        pointerEvents="box-none"
+      >
+        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
+          <View style={styles.statusRow}>
+            <View style={styles.statusLeft}>
+              <Chip label="Live" tint={colors.mint} size="sm" style={styles.liveChip} />
+              <Text style={styles.statusLabel}>{stage.label}</Text>
+              <Text style={styles.statusDetail}>{stage.detail}</Text>
+            </View>
 
-        <View style={styles.statusRow}>
-          <View style={styles.statusLeft}>
-            <Text style={styles.statusLabel}>{stage.label.toUpperCase()}</Text>
-            <Text style={styles.statusDetail}>{stage.detail}</Text>
+            <View style={styles.etaBlock}>
+              <Text style={styles.etaValue}>{minutesLeft}</Text>
+              <Text style={styles.etaUnit}>MIN</Text>
+            </View>
           </View>
-          <View style={styles.etaBlock}>
-            <Text style={styles.etaValue}>{minutesLeft}</Text>
-            <Text style={styles.etaUnit}>MIN</Text>
+
+          {/* Progress rail. */}
+          <View style={styles.rail}>
+            <View style={[styles.railFill, { width: `${Math.round(progress * 100)}%` }]} />
           </View>
-        </View>
 
-        {/* Progress rail. */}
-        <View style={styles.rail}>
-          <View style={[styles.railFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
-
-        <View style={styles.legRow}>
-          <Text style={styles.legText} numberOfLines={1}>
-            {pickup.label}
-          </Text>
-          <Text style={styles.legText} numberOfLines={1}>
-            {DESTINATION.label}
-          </Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.riderRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>SK</Text>
+          <View style={styles.legRow}>
+            <Text style={styles.legText} numberOfLines={1}>
+              {pickup.label}
+            </Text>
+            <Text style={[styles.legText, styles.legTextEnd]} numberOfLines={1}>
+              {DESTINATION.label}
+            </Text>
           </View>
-          <View style={styles.riderBody}>
-            <Text style={styles.riderName}>Sandeep K.</Text>
-            <Text style={styles.riderMeta}>Porter partner  ·  MH 31 · 4.9 ★</Text>
-          </View>
-          {order ? <Text style={styles.orderTotal}>{formatINR(order.total)}</Text> : null}
-        </View>
 
-        <GlassButton
-          label={progress >= 1 ? 'Done' : 'Back to Shopping'}
-          variant={progress >= 1 ? 'primary' : 'ghost'}
-          onPress={() => navigation.navigate('Home')}
-          style={styles.sheetButton}
-        />
+          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.riderCard}>
+            <Avatar name="Sandeep K" size={42} />
+            <View style={styles.riderBody}>
+              <Text style={styles.riderName}>Sandeep K.</Text>
+              <Text style={styles.riderMeta}>Porter partner  ·  MH 31  ·  4.9 ★</Text>
+            </View>
+            {order ? <Text style={styles.orderTotal}>{formatINR(order.total)}</Text> : null}
+          </Surface>
+
+          <PillButton
+            label={progress >= 1 ? 'Done' : 'Back to shopping'}
+            variant={progress >= 1 ? 'gradient' : 'light'}
+            size="lg"
+            icon="→"
+            full
+            onPress={() => navigation.navigate('Home')}
+            style={styles.sheetButton}
+          />
+        </Surface>
       </View>
     </View>
   );
@@ -233,23 +237,23 @@ export default function LiveTrackingScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
 
   destMarker: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
     borderColor: colors.ivory,
-    backgroundColor: colors.glassFillStrong,
+    backgroundColor: colors.glassFillDense,
     alignItems: 'center',
     justifyContent: 'center',
   },
   destCore: {
     width: 9,
     height: 9,
-    borderRadius: 5,
+    borderRadius: radii.pill,
     backgroundColor: colors.ivory,
   },
   driverMarker: {
@@ -259,192 +263,153 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   driverHalo: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 17,
-    backgroundColor: colors.crimson,
-    opacity: 0.28,
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.pill,
+    backgroundColor: colors.iris,
+    opacity: 0.3,
   },
   driverCore: {
     width: 14,
     height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.crimsonBright,
+    borderRadius: radii.pill,
+    backgroundColor: colors.iris,
     borderWidth: 2,
     borderColor: colors.ivory,
   },
 
   header: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    left: spacing.md,
+    right: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
+    gap: spacing.xs + 2,
   },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  circleButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glassFill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    marginRight: spacing.sm,
-  },
-  circleGlyph: {
-    color: colors.ivory,
-    fontSize: 17,
-    lineHeight: 21,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  headerText: {
+  headerPill: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm + 2,
+    height: 44,
   },
-  headerEyebrow: {
-    color: colors.gold,
-    fontSize: 9,
-    letterSpacing: 2.5,
+  // A solid dot standing in for a blinking "live" indicator; the map behind it
+  // is already moving, so a second animation here would only add noise.
+  livePulse: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.mint,
   },
   headerTitle: {
+    ...typography.caption,
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
-    marginTop: 2,
+    flex: 1,
   },
 
-  sheet: {
+  sheetDock: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
   },
-  sheetFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  sheetHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
+  sheet: {
+    paddingHorizontal: spacing.md - 2,
+    paddingTop: spacing.md - 2,
+    paddingBottom: spacing.sm + 2,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: spacing.sm,
   },
   statusLeft: {
     flex: 1,
   },
+  liveChip: {
+    marginBottom: spacing.xs + 2,
+  },
   statusLabel: {
+    ...typography.h2,
     color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 2,
   },
   statusDetail: {
+    ...typography.caption,
     color: colors.ash,
-    fontSize: 13,
     marginTop: 4,
   },
   etaBlock: {
     alignItems: 'flex-end',
   },
   etaValue: {
+    ...typography.numericLg,
+    fontSize: 42,
+    lineHeight: 44,
     color: colors.ivory,
-    fontSize: 32,
-    fontWeight: '300',
-    lineHeight: 34,
   },
   etaUnit: {
-    color: colors.slate,
+    ...typography.micro,
     fontSize: 9,
-    letterSpacing: 2.5,
+    letterSpacing: 2.4,
+    color: colors.ash,
+    marginTop: 2,
   },
   rail: {
-    height: 2,
-    backgroundColor: colors.graphite,
-    borderRadius: 1,
+    height: 6,
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.pill,
     marginTop: spacing.md,
     overflow: 'hidden',
   },
   railFill: {
-    height: 2,
-    backgroundColor: colors.crimsonBright,
+    height: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.iris,
   },
   legRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    gap: spacing.sm,
+    marginTop: spacing.xs + 2,
   },
   legText: {
-    color: colors.slate,
+    ...typography.caption,
     fontSize: 10,
-    letterSpacing: 0.6,
-    maxWidth: '46%',
+    color: colors.slate,
+    flex: 1,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.glassBorder,
-    marginVertical: spacing.md,
+  legTextEnd: {
+    textAlign: 'right',
   },
-  riderRow: {
+  riderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.graphite,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-  },
-  avatarText: {
-    color: colors.ivory,
-    fontSize: 13,
-    letterSpacing: 1,
+    gap: spacing.sm,
+    padding: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm + 2,
   },
   riderBody: {
     flex: 1,
-    marginLeft: spacing.sm,
+    minWidth: 0,
   },
   riderName: {
+    ...typography.h3,
     color: colors.ivory,
-    fontSize: 15,
   },
   riderMeta: {
-    color: colors.ash,
+    ...typography.caption,
     fontSize: 11,
+    color: colors.ash,
     marginTop: 2,
   },
   orderTotal: {
+    ...typography.numeric,
+    fontSize: 16,
     color: colors.ivory,
-    fontSize: 15,
-    fontWeight: '600',
   },
   sheetButton: {
     width: '100%',

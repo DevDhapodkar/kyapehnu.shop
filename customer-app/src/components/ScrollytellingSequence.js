@@ -155,7 +155,7 @@ export default function ScrollytellingSequence({ scrollY, scrollRange = 1 }) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
   frame: {
     // position:absolute keeps the frame painting *behind* the story ScrollView

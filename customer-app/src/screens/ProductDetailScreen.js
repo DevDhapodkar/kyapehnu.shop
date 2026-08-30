@@ -1,30 +1,27 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import {
-  Dimensions,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Dimensions, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import GlassButton from '../components/GlassButton';
+import { Avatar, Chip, Gradient, IconButton, PillButton, Surface } from '../components/ui';
 import { formatINR } from '../data/mockStores';
 import { selectCartCount, useCartStore } from '../store/useCartStore';
-import { colors, radii, spacing } from '../theme/colors';
+import { colors, gradients, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.62;
+const HERO_HEIGHT = SCREEN_HEIGHT * 0.58;
 
 /**
  * ProductDetailScreen (PDP)
  *
- * Immersive by construction: the photograph runs full-bleed under the status
- * bar, and every piece of chrome is a frosted pane floating over it. The detail
- * sheet overlaps the hero's lower edge so the two layers read as glass on print.
+ * The photograph is the page. It runs full-bleed under the status bar and turns
+ * a corner at its lower edge, so the garment reads as a card the sheet is
+ * sliding out from under rather than a banner with text below it.
+ *
+ * Every piece of chrome floats: circular buttons over the image, a frosted
+ * sheet overlapping its bottom corners, and a docked action bar that never
+ * scrolls away — the price and the commit are always one thumb-reach apart.
  */
 export default function ProductDetailScreen({ route, navigation }) {
   const { product } = route.params;
@@ -46,6 +43,9 @@ export default function ProductDetailScreen({ route, navigation }) {
     setAdded(true);
   };
 
+  const eta = typeof product.etaMinutes === 'number' ? `${product.etaMinutes} min` : null;
+  const distance = typeof product.distanceKm === 'number' ? `${product.distanceKm} km away` : null;
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
@@ -58,19 +58,26 @@ export default function ProductDetailScreen({ route, navigation }) {
         <View style={styles.hero}>
           <Image
             source={{ uri: product.image }}
-            style={styles.heroImage}
+            style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={280}
           />
-          {/* Scrim keeps the floating chrome legible over a bright photograph. */}
-          <View pointerEvents="none" style={styles.heroScrim} />
+          {/* Holds the floating chrome legible over a bright photograph. */}
+          <Gradient
+            pointerEvents="none"
+            colors={gradients.topScrim}
+            direction="vertical"
+            steps={16}
+            style={styles.heroScrim}
+          />
         </View>
 
-        <View style={styles.sheet}>
-          <View pointerEvents="none" style={styles.sheetFill} />
-          <View pointerEvents="none" style={styles.sheetHighlight} />
+        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
+          <View style={styles.chipRow}>
+            {product.category ? <Chip label={product.category} size="sm" tone="glass" /> : null}
+            {eta ? <Chip label={`Ready in ${eta}`} size="sm" tone="light" /> : null}
+          </View>
 
-          <Text style={styles.category}>{product.category.toUpperCase()}</Text>
           <Text style={styles.name}>{product.name}</Text>
 
           <View style={styles.priceRow}>
@@ -78,103 +85,105 @@ export default function ProductDetailScreen({ route, navigation }) {
             {product.mrp ? (
               <>
                 <Text style={styles.mrp}>{formatINR(product.mrp)}</Text>
-                <Text style={styles.discount}>{discount}% off</Text>
+                <Chip label={`${discount}% off`} size="sm" tint={colors.mint} />
               </>
             ) : null}
           </View>
 
-          <Text style={styles.description}>{product.description}</Text>
+          {product.description ? (
+            <Text style={styles.description}>{product.description}</Text>
+          ) : null}
 
-          <View style={styles.divider} />
+          {sizes.length ? (
+            <>
+              <Text style={styles.blockLabel}>{sizes.length > 1 ? 'SELECT SIZE' : 'SIZE'}</Text>
+              <View style={styles.sizeRow}>
+                {sizes.map((size) => {
+                  const active = size === selectedSize;
 
-          <Text style={styles.blockLabel}>
-            {sizes.length > 1 ? 'SELECT SIZE' : 'SIZE'}
-          </Text>
-          <View style={styles.sizeRow}>
-            {sizes.map((size) => {
-              const active = size === selectedSize;
-              return (
-                <Pressable
-                  key={size}
-                  onPress={() => {
-                    setSelectedSize(size);
-                    setAdded(false);
-                  }}
-                  style={[styles.sizeChip, active && styles.sizeChipActive]}
-                >
-                  <Text style={[styles.sizeText, active && styles.sizeTextActive]}>
-                    {size}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                  return (
+                    <Pressable
+                      key={size}
+                      onPress={() => {
+                        setSelectedSize(size);
+                        // The bar flips back to "Add to Cart" so a size change
+                        // never silently applies to the line already in the bag.
+                        setAdded(false);
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`Size ${size}`}
+                      style={({ pressed }) => [
+                        styles.sizeChip,
+                        active && styles.sizeChipActive,
+                        pressed && !active && styles.pressed,
+                      ]}
+                    >
+                      <Text style={[styles.sizeText, active && styles.sizeTextActive]}>{size}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
 
-          <View style={styles.divider} />
+          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.storeCard}>
+            <Avatar name={product.storeName} size={44} />
+            <View style={styles.storeText}>
+              <Text style={styles.storeLabel}>SOLD BY</Text>
+              <Text style={styles.storeName} numberOfLines={1}>
+                {product.storeName}
+              </Text>
+              <Text style={styles.storeMeta} numberOfLines={1}>
+                {[product.storeArea, distance].filter(Boolean).join('  ·  ') || 'Nagpur'}
+              </Text>
+            </View>
+          </Surface>
 
           <Text style={styles.blockLabel}>DETAILS</Text>
-          <Detail label="Brand" value={product.brand} />
-          <Detail label="Colour" value={product.colorway} />
-          <Detail label="Material" value={product.material} />
-          <Detail label="Pattern" value={product.pattern} />
-          <Detail label="Fit" value={product.fit} />
-          <Detail label="Occasion" value={product.occasion} />
-          <Detail label="Care" value={product.careInstructions} />
-          <Detail
-            label="Net Quantity"
-            value={product.netQuantity ? `${product.netQuantity} N` : null}
-          />
-          <Detail label="Country of Origin" value={product.countryOfOrigin} />
-          <Detail label="SKU" value={product.sku} />
-
-          <View style={styles.divider} />
-
-          <Text style={styles.blockLabel}>SOLD BY</Text>
-          <Text style={styles.storeName}>{product.storeName}</Text>
-          <Text style={styles.storeMeta}>
-            {[
-              product.storeArea,
-              typeof product.distanceKm === 'number' ? `${product.distanceKm} km away` : null,
-              typeof product.etaMinutes === 'number' ? `~${product.etaMinutes} min` : null,
-            ]
-              .filter(Boolean)
-              .join('  ·  ')}
-          </Text>
-        </View>
+          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.detailCard}>
+            <Detail label="Brand" value={product.brand} />
+            <Detail label="Colour" value={product.colorway} />
+            <Detail label="Material" value={product.material} />
+            <Detail label="Pattern" value={product.pattern} />
+            <Detail label="Fit" value={product.fit} />
+            <Detail label="Occasion" value={product.occasion} />
+            <Detail label="Care" value={product.careInstructions} />
+            <Detail
+              label="Net Quantity"
+              value={product.netQuantity ? `${product.netQuantity} N` : null}
+            />
+            <Detail label="Country of Origin" value={product.countryOfOrigin} />
+            <Detail label="SKU" value={product.sku} />
+          </Surface>
+        </Surface>
       </ScrollView>
 
-      {/* Floating back / bag chrome. */}
-      <View
-        style={[styles.topBar, { top: insets.top + spacing.xs }]}
-        pointerEvents="box-none"
-      >
-        <Pressable
+      {/* Floating chrome over the hero. */}
+      <View style={[styles.topBar, { top: insets.top + spacing.xs }]} pointerEvents="box-none">
+        <IconButton
+          glyph="←"
+          tone="glass"
           onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.circleGlyph}>←</Text>
-        </Pressable>
-
-        <Pressable
+          accessibilityLabel="Back"
+        />
+        <IconButton
+          glyph="◇"
+          tone="glass"
+          badge={cartCount > 0 ? cartCount : undefined}
           onPress={() => navigation.navigate('Cart')}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.circleGlyph}>◇</Text>
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+          accessibilityLabel={cartCount > 0 ? `Bag, ${cartCount} items` : 'Bag, empty'}
+        />
       </View>
 
       {/* Docked action bar. */}
-      <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.sm }]}>
-        <View pointerEvents="none" style={styles.actionFill} />
-        <View pointerEvents="none" style={styles.actionHighlight} />
-
-        <View style={styles.actionRow}>
+      <View
+        style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.sm }]}
+        pointerEvents="box-none"
+      >
+        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.actionCard}>
           <View style={styles.actionSummary}>
+            <Text style={styles.actionLabel}>TOTAL PRICE</Text>
             <Text style={styles.actionPrice}>{formatINR(product.price)}</Text>
             <Text style={styles.actionMeta}>
               {selectedSize ? `Size ${selectedSize}` : 'One size'}
@@ -182,20 +191,22 @@ export default function ProductDetailScreen({ route, navigation }) {
           </View>
 
           {added ? (
-            <GlassButton
+            <PillButton
               label="View Bag"
+              icon="→"
+              size="lg"
               onPress={() => navigation.navigate('Cart')}
-              style={styles.actionButton}
             />
           ) : (
-            <GlassButton
+            <PillButton
               label="Add to Cart"
+              icon="+"
+              size="lg"
               onPress={handleAdd}
               disabled={sizes.length > 0 && !selectedSize}
-              style={styles.actionButton}
             />
           )}
-        </View>
+        </Surface>
       </View>
     </View>
   );
@@ -203,6 +214,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
 function Detail({ label, value }) {
   if (!value) return null;
+
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -214,147 +226,144 @@ function Detail({ label, value }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: colors.ink,
   },
   hero: {
     height: HERO_HEIGHT,
-    backgroundColor: colors.charcoal,
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.surface,
+    // The sheet rides up over this edge, so the photograph has to stop at the
+    // hero's box rather than painting under the sheet's translucent fill.
+    overflow: 'hidden',
   },
   heroScrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.scrim,
-  },
-  sheet: {
-    position: 'relative',
-    marginTop: -radii.lg * 1.6,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    overflow: 'hidden',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  sheetFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  sheetHighlight: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
+    height: '34%',
   },
-  category: {
-    color: colors.gold,
-    fontSize: 10,
-    letterSpacing: 3,
-    marginBottom: spacing.xs,
+  sheet: {
+    // Rides up over the photograph's lower edge, so the two layers read as
+    // glass laid on print rather than two stacked blocks.
+    marginTop: -radii.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md + 2,
+    paddingBottom: spacing.lg,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   name: {
+    ...typography.h1,
     color: colors.ivory,
-    fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: -0.5,
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginTop: spacing.sm,
   },
   price: {
+    ...typography.numericLg,
+    fontSize: 26,
     color: colors.ivory,
-    fontSize: 22,
-    fontWeight: '600',
   },
   mrp: {
+    ...typography.body,
     color: colors.slate,
-    fontSize: 14,
     textDecorationLine: 'line-through',
-    marginLeft: spacing.sm,
-  },
-  discount: {
-    color: colors.crimsonBright,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    marginLeft: spacing.sm,
   },
   description: {
+    ...typography.bodyLg,
     color: colors.platinum,
-    fontSize: 15,
-    lineHeight: 24,
-    marginTop: spacing.md,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.glassBorder,
-    marginVertical: spacing.md,
+    marginTop: spacing.sm + 2,
   },
   blockLabel: {
+    ...typography.eyebrow,
     color: colors.ash,
-    fontSize: 10,
-    letterSpacing: 2.5,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   sizeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: spacing.xs + 2,
   },
   sizeChip: {
-    minWidth: 54,
-    paddingVertical: spacing.xs + 2,
+    minWidth: 56,
+    height: 44,
     paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
+    borderColor: colors.glassBorderStrong,
+    backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
+    justifyContent: 'center',
   },
   sizeChipActive: {
-    borderColor: colors.ivory,
-    backgroundColor: colors.graphite,
+    backgroundColor: colors.light,
+    borderColor: colors.light,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   sizeText: {
-    color: colors.platinum,
+    ...typography.caption,
     fontSize: 13,
-    letterSpacing: 0.6,
+    fontWeight: '600',
+    color: colors.platinum,
   },
   sizeTextActive: {
+    color: colors.onLight,
+    fontWeight: '700',
+  },
+  storeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm + 2,
+    marginTop: spacing.lg,
+  },
+  storeText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  storeLabel: {
+    ...typography.micro,
+    fontSize: 8,
+    letterSpacing: 1.8,
+    color: colors.ash,
+  },
+  storeName: {
+    ...typography.h3,
     color: colors.ivory,
-    fontWeight: '600',
+    marginTop: 3,
+  },
+  storeMeta: {
+    ...typography.caption,
+    color: colors.ash,
+    marginTop: 2,
+  },
+  detailCard: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
-    marginBottom: spacing.xs,
+    paddingVertical: 6,
   },
   detailLabel: {
+    ...typography.caption,
     color: colors.slate,
-    fontSize: 13,
-    width: 96,
+    width: 108,
   },
   detailValue: {
+    ...typography.caption,
     color: colors.platinum,
-    fontSize: 13,
     flex: 1,
     lineHeight: 19,
-  },
-  storeName: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
-  },
-  storeMeta: {
-    color: colors.ash,
-    fontSize: 12,
-    marginTop: 4,
   },
 
   topBar: {
@@ -364,84 +373,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  circleButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.glassFillStrong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  circleGlyph: {
-    color: colors.ivory,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.crimsonBright,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: colors.ivory,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-
   actionBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+    paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.glassBorder,
-    overflow: 'hidden',
   },
-  actionFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  actionHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
-  },
-  actionRow: {
+  actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md - 2,
   },
   actionSummary: {
     flex: 1,
+    minWidth: 0,
+  },
+  actionLabel: {
+    ...typography.micro,
+    fontSize: 8,
+    letterSpacing: 1.8,
+    color: colors.ash,
   },
   actionPrice: {
+    ...typography.numeric,
+    fontSize: 22,
     color: colors.ivory,
-    fontSize: 19,
-    fontWeight: '600',
-  },
-  actionMeta: {
-    color: colors.ash,
-    fontSize: 11,
-    letterSpacing: 1,
     marginTop: 2,
   },
-  actionButton: {
-    minWidth: 168,
+  actionMeta: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.ash,
+    marginTop: 1,
   },
 });

@@ -1,19 +1,10 @@
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 
-import GlassButton from '../components/GlassButton';
-import GlassCard from '../components/GlassCard';
+import { Chip, Field, Glow, PillButton, SectionHeader, Surface } from '../components/ui';
 import { colors, radii, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import { registerVendor } from '../api/vendorApi';
 
@@ -32,9 +23,15 @@ const EMPTY = {
 };
 
 /**
- * Vendor onboarding. Registers (upserts) the shop for the signed-in Firebase
- * account, captures the shop's coordinates for the customer discovery feed, and
- * flips the app into VENDOR mode on success.
+ * VendorRegisterScreen — shop onboarding.
+ *
+ * Registers (upserts) the shop for the signed-in Firebase account, captures the
+ * shop's coordinates for the customer discovery feed, and flips the app into
+ * VENDOR mode on success.
+ *
+ * The form is split into two bento panels — who you are, then where you are —
+ * because the second half can be filled by one tap on "use my location", and
+ * grouping it makes that shortcut land beside the fields it fills.
  *
  * Requires a signed-in session — the backend keys the shop off the Firebase
  * uid — so an unauthenticated visitor is routed to sign in first.
@@ -138,37 +135,62 @@ export default function VendorRegisterScreen({ navigation }) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <Glow color={colors.amber} size={400} intensity={0.32} style={styles.glow} />
+
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>SELL ON KYA PEHNU?</Text>
-        <Text style={styles.title}>Register your shop</Text>
+        <Chip label="Sell on Kya Pehnu?" tone="glass" style={styles.chip} />
+
+        <Text style={styles.title}>Register{'\n'}your shop</Text>
         <Text style={styles.subtitle}>
           Take a photo, list a garment, and buyers within 5 km can see it tonight. Your listings
           go live after a quick quality check.
         </Text>
 
         {!token ? (
-          <GlassCard strong compact style={styles.warn}>
+          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.warn}>
             <Text style={styles.warnTitle}>Sign in first</Text>
             <Text style={styles.warnBody}>
-              Registration links the shop to your account.{' '}
-              <Text style={styles.warnLink} onPress={() => navigation.navigate('Auth', { mode: 'signin' })}>
-                Sign in
-              </Text>
-              , then come back.
+              Registration links the shop to your account.
             </Text>
-          </GlassCard>
+            <PillButton
+              label="Sign in"
+              size="sm"
+              icon="→"
+              onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
+              style={styles.warnAction}
+            />
+          </Surface>
         ) : null}
 
-        <GlassCard strong compact style={styles.card}>
-          <Field label="SHOP NAME" value={form.shopName} onChangeText={setField('shopName')} placeholder="Sitabuldi Silks" />
-          <Field label="OWNER NAME" value={form.ownerName} onChangeText={setField('ownerName')} placeholder="Priya Deshmukh" />
-          <Field label="PHONE" value={form.phone} onChangeText={setField('phone')} placeholder="+91 98765 43210" keyboardType="phone-pad" />
+        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+          <SectionHeader eyebrow="Step one" title="The shop" style={styles.cardHeader} />
+
+          <Field
+            label="SHOP NAME"
+            value={form.shopName}
+            onChangeText={setField('shopName')}
+            placeholder="Sitabuldi Silks"
+          />
+          <Field
+            label="OWNER NAME"
+            value={form.ownerName}
+            onChangeText={setField('ownerName')}
+            placeholder="Priya Deshmukh"
+          />
+          <Field
+            label="PHONE"
+            value={form.phone}
+            onChangeText={setField('phone')}
+            placeholder="+91 98765 43210"
+            keyboardType="phone-pad"
+          />
           <Field
             label="WHATSAPP (ORDER ALERTS)"
             value={form.whatsappNumber}
             onChangeText={setField('whatsappNumber')}
             placeholder="+91 98765 43210"
             keyboardType="phone-pad"
+            hint="Every new order pings this number the moment it is placed."
           />
           <Field
             label="EMAIL"
@@ -178,79 +200,146 @@ export default function VendorRegisterScreen({ navigation }) {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-        </GlassCard>
+        </Surface>
 
-        <GlassCard strong compact style={styles.card}>
-          <Text style={styles.groupLabel}>SHOP ADDRESS</Text>
-          <Field label="STREET / SHOP NO." value={form.line1} onChangeText={setField('line1')} placeholder="Shop 14, Gandhibagh Rd" />
-          <Field label="AREA" value={form.area} onChangeText={setField('area')} placeholder="Sitabuldi" />
-          <Field label="PINCODE" value={form.pincode} onChangeText={setField('pincode')} placeholder="440012" keyboardType="number-pad" />
+        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+          <SectionHeader
+            eyebrow="Step two"
+            title="Where you are"
+            caption="This is what puts your rail in front of the buyers standing nearest to it."
+            style={styles.cardHeader}
+          />
 
-          <Pressable onPress={useMyLocation} accessibilityRole="button" style={({ pressed }) => [styles.locBtn, pressed && styles.pressed]}>
-            <Text style={styles.locBtnText}>
-              {locating ? 'GETTING LOCATION…' : coords ? '✓ LOCATION CAPTURED' : '📍 USE MY CURRENT LOCATION'}
-            </Text>
-          </Pressable>
-        </GlassCard>
+          <PillButton
+            label={
+              locating
+                ? 'Getting location…'
+                : coords
+                  ? 'Location captured'
+                  : 'Use my current location'
+            }
+            variant={coords ? 'glass' : 'light'}
+            size="sm"
+            icon={coords ? '✓' : '◎'}
+            loading={locating}
+            onPress={useMyLocation}
+            style={styles.locationBtn}
+          />
+
+          <Field
+            label="STREET / SHOP NO."
+            value={form.line1}
+            onChangeText={setField('line1')}
+            placeholder="Shop 14, Gandhibagh Rd"
+          />
+          <View style={styles.twoCol}>
+            <Field
+              label="AREA"
+              value={form.area}
+              onChangeText={setField('area')}
+              placeholder="Sitabuldi"
+              containerStyle={styles.colField}
+            />
+            <Field
+              label="PINCODE"
+              value={form.pincode}
+              onChangeText={setField('pincode')}
+              placeholder="440012"
+              keyboardType="number-pad"
+              containerStyle={styles.colField}
+            />
+          </View>
+        </Surface>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <GlassButton label="Register Shop" onPress={onSubmit} loading={busy} style={styles.submit} />
+        <PillButton
+          label="Register shop"
+          variant="gradient"
+          size="lg"
+          icon="→"
+          full
+          onPress={onSubmit}
+          loading={busy}
+          style={styles.submit}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Field({ label, multiline, style, ...inputProps }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...inputProps}
-        multiline={multiline}
-        placeholderTextColor={colors.slate}
-        style={[styles.input, multiline && styles.inputMultiline, style]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.obsidian },
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
-  eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 3, marginBottom: spacing.sm },
-  title: { color: colors.ivory, fontSize: 28, fontWeight: '300', letterSpacing: -0.5 },
-  subtitle: { color: colors.ash, fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: spacing.md },
-  warn: { marginBottom: spacing.sm },
-  warnTitle: { color: colors.ivory, fontSize: 14 },
-  warnBody: { color: colors.ash, fontSize: 12, marginTop: 4, lineHeight: 18 },
-  warnLink: { color: colors.ivory, textDecorationLine: 'underline' },
-  card: { marginBottom: spacing.sm },
-  groupLabel: { color: colors.slate, fontSize: 9, letterSpacing: 2, marginBottom: spacing.sm },
-  field: { marginBottom: spacing.sm },
-  fieldLabel: { color: colors.slate, fontSize: 9, letterSpacing: 2, marginBottom: 6 },
-  input: {
+  screen: {
+    flex: 1,
+    backgroundColor: colors.ink,
+  },
+  glow: {
+    position: 'absolute',
+    top: -190,
+    right: -130,
+  },
+  content: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  chip: {
+    marginBottom: spacing.md,
+  },
+  title: {
+    ...typography.h1,
+    fontSize: 32,
+    lineHeight: 37,
     color: colors.ivory,
-    fontSize: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.obsidianDeep,
   },
-  inputMultiline: { minHeight: 74, textAlignVertical: 'top' },
-  locBtn: {
+  subtitle: {
+    ...typography.body,
+    color: colors.ash,
     marginTop: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  locBtnText: { color: colors.platinum, fontSize: 11, letterSpacing: 1.4 },
-  pressed: { opacity: 0.7 },
-  error: { color: colors.crimsonBright, fontSize: 13, marginBottom: spacing.sm },
-  submit: { marginTop: spacing.xs },
+  warn: {
+    padding: spacing.sm + 2,
+    marginBottom: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  warnTitle: {
+    ...typography.h3,
+    fontSize: 14,
+    color: colors.amber,
+  },
+  warnBody: {
+    ...typography.caption,
+    color: colors.ash,
+    marginTop: 4,
+  },
+  warnAction: {
+    marginTop: spacing.sm,
+  },
+  card: {
+    padding: spacing.md - 2,
+    marginBottom: spacing.sm,
+  },
+  cardHeader: {
+    marginBottom: spacing.md - 2,
+  },
+  locationBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.md - 2,
+  },
+  twoCol: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  colField: {
+    flex: 1,
+  },
+  error: {
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.crimsonBright,
+    marginBottom: spacing.sm,
+  },
+  submit: {
+    marginTop: spacing.xs,
+  },
 });

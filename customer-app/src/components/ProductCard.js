@@ -1,51 +1,77 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Chip, Gradient, IconButton } from './ui';
 import { formatINR } from '../data/mockStores';
-import { colors, radii, spacing } from '../theme/colors';
-
-export const PRODUCT_CARD_WIDTH = 210;
+import { colors, gradients, radii, shadows, spacing } from '../theme/colors';
+import { typography } from '../theme/typography';
 
 /**
  * ProductCard
  *
- * The horizontal-feed tile on Home. The image fills the top two-thirds and the
- * frosted footer sits on top of its lower edge, so the photo reads as the card
- * surface and the glass reads as a pane laid over it.
+ * A bento tile: the photograph *is* the card, and every piece of type sits on
+ * top of it rather than beside it. That is what keeps a two-column grid reading
+ * as a wall of clothes instead of a spreadsheet with pictures.
+ *
+ * Three layers, back to front:
+ *  1. the image, filling the tile
+ *  2. a gradient scrim over the lower half — without it, white type on a pale
+ *     garment is unreadable, and a flat 50% wash would grey out the whole photo
+ *  3. floating chrome: a category chip and the open-piece disc at the top, a
+ *     frosted caption panel inset from the bottom edge
+ *
+ * The caption is inset rather than flush so the photograph frames it on all
+ * four sides, which is what makes it read as a pane laid on the image.
+ *
+ * The disc sits in the tile's corner rather than in the caption on purpose: in
+ * a two-column grid the caption is about 150pt wide, and a 34pt button inside
+ * it truncates every garment name to two words.
  */
-export default function ProductCard({ product, onPress }) {
+export default function ProductCard({ product, onPress, style }) {
+  const distance = typeof product.distanceKm === 'number' ? `${product.distanceKm} km` : null;
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${product.name}, ${formatINR(product.price)}, from ${product.storeName}`}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
     >
       <Image
         source={{ uri: product.image }}
-        style={styles.image}
+        style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={220}
       />
 
-      {/* Frosted footer: the only place a card shows price and provenance. */}
-      <View style={styles.footer}>
-        <View pointerEvents="none" style={styles.footerFill} />
-        <View pointerEvents="none" style={styles.footerHighlight} />
+      <Gradient
+        pointerEvents="none"
+        colors={gradients.imageScrim}
+        direction="vertical"
+        steps={24}
+        style={styles.scrim}
+      />
 
-        <Text style={styles.category}>{product.category.toUpperCase()}</Text>
-        <Text style={styles.name} numberOfLines={1}>
+      <View style={styles.topRow}>
+        {product.category ? <Chip label={product.category} size="sm" tone="glass" /> : null}
+
+        <IconButton
+          glyph="↗"
+          tone="light"
+          size={34}
+          onPress={onPress}
+          accessibilityLabel={`Open ${product.name}`}
+        />
+      </View>
+
+      <View style={styles.caption}>
+        <Text numberOfLines={2} style={styles.name}>
           {product.name}
         </Text>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.price}>{formatINR(product.price)}</Text>
-          {typeof product.distanceKm === 'number' ? (
-            <Text style={styles.distance}>{product.distanceKm} km</Text>
-          ) : null}
-        </View>
-
-        <Text style={styles.store} numberOfLines={1}>
-          {product.storeName}
+        <Text numberOfLines={1} style={styles.store}>
+          {[product.storeName, distance].filter(Boolean).join('  ·  ')}
         </Text>
+        <Text style={styles.price}>{formatINR(product.price)}</Text>
       </View>
     </Pressable>
   );
@@ -53,75 +79,65 @@ export default function ProductCard({ product, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    width: PRODUCT_CARD_WIDTH,
+    // Portrait, near the 3:4 of the catalogue photography, so the garment fills
+    // the tile instead of being letterboxed inside it.
+    aspectRatio: 0.74,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: colors.charcoal,
+    backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-    marginRight: spacing.sm,
-    shadowColor: colors.glassShadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    elevation: 10,
+    ...shadows.medium,
   },
   pressed: {
-    opacity: 0.82,
+    opacity: 0.86,
+    transform: [{ scale: 0.99 }],
   },
-  image: {
-    width: '100%',
-    height: 240,
-    backgroundColor: colors.charcoalLight,
-  },
-  footer: {
-    position: 'relative',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  footerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  footerHighlight: {
+  scrim: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
+    bottom: 0,
+    height: '62%',
   },
-  category: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    marginBottom: 5,
+  topRow: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  caption: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 8,
+    padding: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.glassFillDense,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.glassBorderStrong,
   },
   name: {
+    ...typography.caption,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
     color: colors.ivory,
-    fontSize: 15,
-    fontWeight: '400',
-    letterSpacing: -0.2,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  price: {
-    color: colors.ivory,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  distance: {
-    color: colors.gold,
-    fontSize: 11,
-    letterSpacing: 0.8,
   },
   store: {
-    color: colors.slate,
-    fontSize: 11,
-    marginTop: 3,
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.ash,
+    marginTop: 2,
+  },
+  price: {
+    ...typography.numeric,
+    fontSize: 16,
+    color: colors.ivory,
+    marginTop: 5,
   },
 });

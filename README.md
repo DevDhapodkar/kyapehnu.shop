@@ -12,10 +12,12 @@ while they try it on. Shopkeepers list and manage their inventory by sending
 a photo to WhatsApp, and get real-time order alerts on the same app their
 customers use.
 
-The product is deliberately styled as a minimalist luxury shopping
-experience: an obsidian/charcoal monochrome palette, heavy glassmorphism, and
-a 3D scrollytelling intro that orbits a men's outfit and a red dress as you
-scroll.
+The product is deliberately styled as a dark, editorial shopping experience:
+a near-black page carrying heavily-rounded bento cards, photography that runs
+to the edge of every tile with frosted panels floating on top, pill navigation
+and circular glyph buttons — and one saturated gradient, rationed to the single
+most important action on a screen. A 3D scrollytelling intro orbits a men's
+outfit and a red dress as a first-time visitor scrolls.
 
 ---
 
@@ -216,7 +218,9 @@ The `/docs` directory holds the product and engineering plan. Start with
 | [Roadmap Phases](docs/06-ROADMAP-PHASES.md) | Nine phases (~22 weeks) with exit criteria and a risk register. |
 
 For the system blueprint and design system, see
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md). The design system itself lives in code
+under `customer-app/src/theme/` (tokens) and `customer-app/src/components/ui/`
+(primitives) — screens compose those and define no colours of their own.
 
 ---
 
