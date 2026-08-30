@@ -13,7 +13,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderTimeline from '../components/OrderTimeline';
 import StatusPill from '../components/vendor/StatusPill';
-import { Avatar, EmptyState, PillButton, SectionHeader, Surface, TabDock } from '../components/ui';
+import {
+  Avatar,
+  EmptyState,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
+  PillButton,
+  SectionHeader,
+  Surface,
+  TabDock,
+} from '../components/ui';
 import { CUSTOMER_TABS, useTabNavigation } from '../navigation/customerTabs';
 import { fetchMyOrders, cancelMyOrder } from '../api/vendorApi';
 import { formatINR } from '../data/mockStores';
@@ -93,7 +102,7 @@ export default function MyOrdersScreen({ navigation }) {
       const itemCount = item.items?.length ?? 0;
 
       return (
-        <Surface tone="surface" radius={radii.lg} elevation="medium" style={styles.card} sheen>
+        <Surface tone="regular" radius={radii.lg} elevation="medium" style={styles.card} sheen>
           <View style={styles.headerRow}>
             <Avatar name={item.vendor?.shopName} size={42} />
 
@@ -141,6 +150,8 @@ export default function MyOrdersScreen({ navigation }) {
     [cancelling, onCancel]
   );
 
+  const header = <GlassHeader title="My Orders" onBack={() => navigation.goBack()} />;
+
   if (!isLoggedIn) {
     return (
       <View style={styles.center}>
@@ -151,6 +162,7 @@ export default function MyOrdersScreen({ navigation }) {
           actionLabel="Sign in"
           onAction={() => navigation.navigate('Auth', { mode: 'signin' })}
         />
+        {header}
       </View>
     );
   }
@@ -161,7 +173,13 @@ export default function MyOrdersScreen({ navigation }) {
         data={orders}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.md,
+            paddingBottom: insets.bottom + 96,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           orders.length ? (
@@ -197,6 +215,8 @@ export default function MyOrdersScreen({ navigation }) {
         }
       />
 
+      {header}
+
       <TabDock items={CUSTOMER_TABS} value="orders" onChange={onTabChange} />
     </View>
   );
@@ -205,10 +225,10 @@ export default function MyOrdersScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   list: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     flexGrow: 1,
   },
   listHeader: {
@@ -271,7 +291,7 @@ const styles = StyleSheet.create({
   center: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   loader: {
     paddingVertical: spacing.xl,

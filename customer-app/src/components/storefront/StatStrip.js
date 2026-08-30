@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Glow, Surface } from '../ui';
+import { Surface } from '../ui';
 import { colors, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
@@ -12,25 +12,22 @@ import { typography } from '../../theme/typography';
  * card rather than a divided row, so the strip reads as part of the bento grid
  * rather than a table dropped into it.
  *
- * The first tile carries an aurora bloom behind it — one lit tile per band is
- * enough to keep the page from going flat, and any more turns the accent into
- * wallpaper.
+ * The tiles carry no light of their own. They are panes of glass over the
+ * app's wallpaper, so each one picks up whatever the aurora happens to be doing
+ * behind it — which is both livelier than a baked-in bloom and free of the hard
+ * circular edge a blob clipped to a small tile leaves behind.
  */
 export default function StatStrip({ items, style }) {
   return (
     <View style={[styles.row, style]}>
-      {items.map((item, index) => (
+      {items.map((item) => (
         <Surface
           key={item.label}
-          tone="surface"
+          tone="regular"
           radius={radii.lg}
           elevation="low"
           style={styles.tile}
         >
-          {index === 0 ? (
-            <Glow color={colors.iris} size={210} intensity={0.5} style={styles.glow} />
-          ) : null}
-
           <Text style={styles.value} numberOfLines={1}>
             {item.value}
           </Text>
@@ -54,11 +51,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     minHeight: 88,
     justifyContent: 'flex-end',
-  },
-  glow: {
-    position: 'absolute',
-    top: -110,
-    left: -60,
   },
   value: {
     ...typography.numeric,

@@ -14,7 +14,6 @@ import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
 import useAuthStore, { ROLES, selectRole } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
-import { typography } from '../theme/typography';
 
 /**
  * Two distinct navigator instances, not one reused twice.
@@ -32,15 +31,19 @@ const VendorStack = createNativeStackNavigator();
 /**
  * Navigation theme.
  *
- * React Navigation paints the screen container itself, so its background has to
- * match the ink base or a light flash shows during the push transition.
+ * Every surface here is transparent on purpose. The aurora backdrop is mounted
+ * once at the app root, *under* the navigator, and screens are panes of glass
+ * over it — so anything the navigator paints would sit between the two and
+ * blank the wallpaper out. This is the change that makes the glass visible at
+ * all; with an opaque container behind every screen there is nothing for a
+ * frosted panel to refract.
  */
 const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: colors.ink,
-    card: colors.inkDeep,
+    background: colors.transparent,
+    card: colors.transparent,
     text: colors.ivory,
     border: colors.glassBorder,
     primary: colors.iris,
@@ -49,24 +52,17 @@ const navTheme = {
 };
 
 /**
- * Shared header styling for the screens that keep a native header. Home and
- * LiveTracking hide it so their content can run under the status bar.
+ * Shared screen options.
  *
- * The title takes the design system's `h3` weight rather than the old hairline
- * 300: a native header sitting above bento cards has to read as part of the
- * same interface, and light type at 17px looks like a different app's chrome.
+ * No screen keeps the native header. A platform header is an opaque bar the app
+ * cannot make out of glass, and it would cut a hard grey line across the
+ * wallpaper at the top of every screen. Each screen draws its own `GlassHeader`
+ * instead, which floats over its content and blurs what scrolls beneath it —
+ * and lets the aurora run edge to edge behind the status bar.
  */
 const screenOptions = {
-  headerStyle: { backgroundColor: colors.ink },
-  headerTitleStyle: {
-    color: colors.ivory,
-    fontWeight: typography.h3.fontWeight,
-    fontSize: typography.h3.fontSize,
-    letterSpacing: typography.h3.letterSpacing,
-  },
-  headerTintColor: colors.ivory,
-  headerShadowVisible: false,
-  contentStyle: { backgroundColor: colors.ink },
+  headerShown: false,
+  contentStyle: { backgroundColor: colors.transparent },
   animation: 'slide_from_right',
 };
 
@@ -74,37 +70,29 @@ const screenOptions = {
 function CustomerFlow() {
   return (
     <CustomerStack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
-      <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <CustomerStack.Screen name="Home" component={HomeScreen} />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}
-        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+        options={{ animation: 'slide_from_bottom' }}
       />
-      <CustomerStack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
+      <CustomerStack.Screen name="Cart" component={CartScreen} />
       <CustomerStack.Screen
         name="LiveTracking"
         component={LiveTrackingScreen}
-        options={{ headerShown: false, animation: 'fade' }}
+        options={{ animation: 'fade' }}
       />
-      <CustomerStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Profile' }}
-      />
-      <CustomerStack.Screen
-        name="MyOrders"
-        component={MyOrdersScreen}
-        options={{ title: 'My Orders' }}
-      />
+      <CustomerStack.Screen name="Profile" component={ProfileScreen} />
+      <CustomerStack.Screen name="MyOrders" component={MyOrdersScreen} />
       <CustomerStack.Screen
         name="Auth"
         component={AuthScreen}
-        options={{ title: 'Sign In', animation: 'slide_from_bottom' }}
+        options={{ animation: 'slide_from_bottom' }}
       />
       <CustomerStack.Screen
         name="VendorRegister"
         component={VendorRegisterScreen}
-        options={{ title: 'Register Your Shop', animation: 'slide_from_bottom' }}
+        options={{ animation: 'slide_from_bottom' }}
       />
     </CustomerStack.Navigator>
   );
@@ -114,29 +102,14 @@ function CustomerFlow() {
 function VendorFlow() {
   return (
     <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={screenOptions}>
-      {/* VendorOrders draws its own header so the shop name can sit under the status bar. */}
-      <VendorStack.Screen
-        name="VendorOrders"
-        component={VendorOrderListScreen}
-        // `title` is still read for the back-button label on pushed screens,
-        // even though this screen paints its own header.
-        options={{ headerShown: false, title: 'Orders' }}
-      />
-      <VendorStack.Screen
-        name="VendorOrderDetail"
-        component={VendorOrderDetailScreen}
-        options={{ title: 'Order' }}
-      />
+      <VendorStack.Screen name="VendorOrders" component={VendorOrderListScreen} />
+      <VendorStack.Screen name="VendorOrderDetail" component={VendorOrderDetailScreen} />
       <VendorStack.Screen
         name="CatalogManager"
         component={CatalogManagerScreen}
-        options={{ title: 'Catalog', animation: 'slide_from_bottom' }}
+        options={{ animation: 'slide_from_bottom' }}
       />
-      <VendorStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Profile' }}
-      />
+      <VendorStack.Screen name="Profile" component={ProfileScreen} />
     </VendorStack.Navigator>
   );
 }

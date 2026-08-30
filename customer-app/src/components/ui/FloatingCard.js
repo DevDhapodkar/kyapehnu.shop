@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import GlassPanel from './GlassPanel';
 import IconButton from './IconButton';
 import { colors, radii, shadows, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -32,8 +33,9 @@ export default function FloatingCard({
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={[title, subtitle].filter(Boolean).join(', ')}
-      style={({ pressed }) => [styles.card, pressed && onPress && styles.pressed, style]}
+      style={({ pressed }) => [styles.shadow, pressed && onPress && styles.pressed, style]}
     >
+      <GlassPanel tone="overImage" radius={radii.lg} style={styles.card}>
       {thumbnail ? (
         <Image source={{ uri: thumbnail }} style={styles.thumb} contentFit="cover" transition={200} />
       ) : null}
@@ -65,22 +67,21 @@ export default function FloatingCard({
           accessibilityLabel={title}
         />
       ) : null}
+      </GlassPanel>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  shadow: {
+    ...shadows.high,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: 9,
     paddingRight: 10,
-    borderRadius: radii.lg,
-    backgroundColor: colors.glassFillDense,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorderStrong,
-    ...shadows.high,
   },
   pressed: {
     opacity: 0.85,

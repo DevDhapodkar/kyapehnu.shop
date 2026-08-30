@@ -166,7 +166,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
       />
 
       {!open ? null : (
-        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.composer} sheen>
+        <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.composer} sheen>
           <SectionHeader
             eyebrow="New listing"
             title="What are you putting on the rail?"
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: radii.pill,
-    backgroundColor: colors.glassFillDense,
+    backgroundColor: colors.glassOverImage,
     alignItems: 'center',
     justifyContent: 'center',
   },

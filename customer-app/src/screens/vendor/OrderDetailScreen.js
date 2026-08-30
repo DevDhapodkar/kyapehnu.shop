@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import StatusPill from '../../components/vendor/StatusPill';
 import OrderTimeline from '../../components/OrderTimeline';
-import { Avatar, Chip, PillButton, Surface } from '../../components/ui';
+import {
+  Avatar,
+  Chip,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
+  PillButton,
+  Surface,
+} from '../../components/ui';
 import { fetchOrder } from '../../api/vendorApi';
 import { colors, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -19,7 +27,8 @@ import { formatAddress, formatAge, formatCurrency, shortOrderId } from '../../ut
  *    fires a WhatsApp confirmation. It gets a confirmation dialog and reports
  *    each leg's outcome, because a 200 here can still mean "no driver coming".
  */
-export default function VendorOrderDetailScreen({ route }) {
+export default function VendorOrderDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { orderId } = route.params;
 
   const storeOrder = useVendorStore(selectOrderById(orderId));
@@ -110,10 +119,13 @@ export default function VendorOrderDetailScreen({ route }) {
     );
   }, [markOrderReady, orderId]);
 
+  const header = <GlassHeader title="Order" onBack={() => navigation.goBack()} />;
+
   if (!order) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.platinum} />
+        {header}
       </View>
     );
   }
@@ -128,177 +140,183 @@ export default function VendorOrderDetailScreen({ route }) {
   const customerPhone = order.customer?.phone || order.guestContact?.phone || '';
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.headerText}>
-          <Text style={styles.orderId}>{shortOrderId(order._id)}</Text>
-          <Text style={styles.age}>Placed {formatAge(order.createdAt)}</Text>
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.md },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.orderId}>{shortOrderId(order._id)}</Text>
+            <Text style={styles.age}>Placed {formatAge(order.createdAt)}</Text>
+          </View>
+          <StatusPill status={order.status} />
         </View>
-        <StatusPill status={order.status} />
-      </View>
 
-      <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
-        <Text style={styles.sectionLabel}>ITEM BREAKDOWN</Text>
+        <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+          <Text style={styles.sectionLabel}>ITEM BREAKDOWN</Text>
 
-        {items.map((item, index) => (
-          <View key={`${item.product ?? item.name}-${item.size}-${index}`} style={styles.lineRow}>
-            <View style={styles.lineMain}>
-              <Text style={styles.lineName}>{item.name}</Text>
-              <Text style={styles.lineMeta}>
-                {item.quantity} × {formatCurrency(item.price)}
-              </Text>
+          {items.map((item, index) => (
+            <View key={`${item.product ?? item.name}-${item.size}-${index}`} style={styles.lineRow}>
+              <View style={styles.lineMain}>
+                <Text style={styles.lineName}>{item.name}</Text>
+                <Text style={styles.lineMeta}>
+                  {item.quantity} × {formatCurrency(item.price)}
+                </Text>
+              </View>
+              <Chip label={item.size} size="sm" tone="thin" />
+              <Text style={styles.lineTotal}>{formatCurrency(item.price * item.quantity)}</Text>
             </View>
-            <Chip label={item.size} size="sm" tone="surface" />
-            <Text style={styles.lineTotal}>{formatCurrency(item.price * item.quantity)}</Text>
+          ))}
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.sectionLabel}>ORDER TOTAL</Text>
+            <Text style={styles.totalValue}>{formatCurrency(order.totalPrice)}</Text>
           </View>
-        ))}
-
-        <View style={styles.divider} />
-
-        <View style={styles.totalRow}>
-          <Text style={styles.sectionLabel}>ORDER TOTAL</Text>
-          <Text style={styles.totalValue}>{formatCurrency(order.totalPrice)}</Text>
-        </View>
-      </Surface>
-
-      <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
-        <Text style={styles.sectionLabel}>PROGRESS</Text>
-        <OrderTimeline status={order.status} />
-      </Surface>
-
-      <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
-        <Text style={styles.sectionLabel}>DELIVERY</Text>
-
-        <View style={styles.personRow}>
-          <Avatar name={customerName} size={42} />
-          <View style={styles.personText}>
-            {customerName ? (
-              <Text style={styles.personName} numberOfLines={1}>
-                {customerName}
-              </Text>
-            ) : null}
-            <Text style={styles.address}>{formatAddress(order.deliveryAddress)}</Text>
-          </View>
-        </View>
-
-        {customerPhone || order.channel === 'WEB' ? (
-          <View style={styles.metaChips}>
-            {customerPhone ? <Chip label={customerPhone} size="sm" tone="surface" /> : null}
-            {order.channel === 'WEB' ? <Chip label="Web order" size="sm" tone="surface" /> : null}
-          </View>
-        ) : null}
-      </Surface>
-
-      {order.porter?.requestId ? (
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
-          <Text style={styles.sectionLabel}>PORTER</Text>
-          <Text style={styles.address}>Request {order.porter.requestId}</Text>
-          {order.porter.driverName ? (
-            <Text style={styles.customer}>
-              {order.porter.driverName}
-              {order.porter.driverPhone ? ` · ${order.porter.driverPhone}` : ''}
-            </Text>
-          ) : (
-            <Text style={styles.customer}>Waiting for a driver to be assigned</Text>
-          )}
         </Surface>
-      ) : null}
 
-      <View style={styles.actions}>
-        {status === 'PENDING' ? (
-          <PillButton label="Accept order" icon="✓" size="lg" full onPress={onAccept} loading={busy} />
-        ) : null}
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
+          <Text style={styles.sectionLabel}>PROGRESS</Text>
+          <OrderTimeline status={order.status} />
+        </Surface>
 
-        {status === 'ACCEPTED' ? (
-          <PillButton
-            label="Mark packed"
-            caption="You've packed this order"
-            icon="→"
-            size="lg"
-            full
-            onPress={() => onAdvance('PACKED', 'Could not update')}
-            loading={busy}
-          />
-        ) : null}
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
+          <Text style={styles.sectionLabel}>DELIVERY</Text>
 
-        {status === 'PACKED' ? (
-          // The one action on this screen that reaches outside the app — it
-          // books a real driver — so it takes the accent the rest do not.
-          <PillButton
-            label="Mark ready for pickup"
-            caption="Dispatches a Porter driver (if configured)"
-            variant="gradient"
-            icon="→"
-            size="lg"
-            full
-            onPress={onMarkReady}
-            loading={busy}
-          />
-        ) : null}
+          <View style={styles.personRow}>
+            <Avatar name={customerName} size={42} />
+            <View style={styles.personText}>
+              {customerName ? (
+                <Text style={styles.personName} numberOfLines={1}>
+                  {customerName}
+                </Text>
+              ) : null}
+              <Text style={styles.address}>{formatAddress(order.deliveryAddress)}</Text>
+            </View>
+          </View>
 
-        {status === 'READY_FOR_PICKUP' ? (
-          <PillButton
-            label="Mark out for delivery"
-            caption="Driver has picked up the order"
-            icon="→"
-            size="lg"
-            full
-            onPress={() => onAdvance('IN_TRANSIT', 'Could not update')}
-            loading={busy}
-          />
+          {customerPhone || order.channel === 'WEB' ? (
+            <View style={styles.metaChips}>
+              {customerPhone ? <Chip label={customerPhone} size="sm" tone="thin" /> : null}
+              {order.channel === 'WEB' ? <Chip label="Web order" size="sm" tone="thin" /> : null}
+            </View>
+          ) : null}
+        </Surface>
+
+        {order.porter?.requestId ? (
+          <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
+            <Text style={styles.sectionLabel}>PORTER</Text>
+            <Text style={styles.address}>Request {order.porter.requestId}</Text>
+            {order.porter.driverName ? (
+              <Text style={styles.customer}>
+                {order.porter.driverName}
+                {order.porter.driverPhone ? ` · ${order.porter.driverPhone}` : ''}
+              </Text>
+            ) : (
+              <Text style={styles.customer}>Waiting for a driver to be assigned</Text>
+            )}
+          </Surface>
         ) : null}
 
-        {status === 'IN_TRANSIT' ? (
-          <PillButton
-            label="Mark delivered"
-            caption="Collect Cash on Delivery"
-            icon="✓"
-            size="lg"
-            full
-            onPress={() => onAdvance('DELIVERED', 'Could not update')}
-            loading={busy}
-          />
-        ) : null}
+        <View style={styles.actions}>
+          {status === 'PENDING' ? (
+            <PillButton label="Accept order" icon="✓" size="lg" full onPress={onAccept} loading={busy} />
+          ) : null}
 
-        {canCancel ? (
-          <PillButton
-            label="Cancel order"
-            variant="ghost"
-            full
-            onPress={onCancel}
-            loading={busy}
-          />
-        ) : null}
+          {status === 'ACCEPTED' ? (
+            <PillButton
+              label="Mark packed"
+              caption="You've packed this order"
+              icon="→"
+              size="lg"
+              full
+              onPress={() => onAdvance('PACKED', 'Could not update')}
+              loading={busy}
+            />
+          ) : null}
 
-        {status === 'DELIVERED' ? (
-          <Text style={styles.terminal}>Delivered — payment collected.</Text>
-        ) : null}
-        {status === 'CANCELLED' ? (
-          <Text style={styles.terminal}>This order was cancelled.</Text>
-        ) : null}
-      </View>
-    </ScrollView>
+          {status === 'PACKED' ? (
+            // The one action on this screen that reaches outside the app — it
+            // books a real driver — so it takes the accent the rest do not.
+            <PillButton
+              label="Mark ready for pickup"
+              caption="Dispatches a Porter driver (if configured)"
+              variant="gradient"
+              icon="→"
+              size="lg"
+              full
+              onPress={onMarkReady}
+              loading={busy}
+            />
+          ) : null}
+
+          {status === 'READY_FOR_PICKUP' ? (
+            <PillButton
+              label="Mark out for delivery"
+              caption="Driver has picked up the order"
+              icon="→"
+              size="lg"
+              full
+              onPress={() => onAdvance('IN_TRANSIT', 'Could not update')}
+              loading={busy}
+            />
+          ) : null}
+
+          {status === 'IN_TRANSIT' ? (
+            <PillButton
+              label="Mark delivered"
+              caption="Collect Cash on Delivery"
+              icon="✓"
+              size="lg"
+              full
+              onPress={() => onAdvance('DELIVERED', 'Could not update')}
+              loading={busy}
+            />
+          ) : null}
+
+          {canCancel ? (
+            <PillButton
+              label="Cancel order"
+              variant="ghost"
+              full
+              onPress={onCancel}
+              loading={busy}
+            />
+          ) : null}
+
+          {status === 'DELIVERED' ? (
+            <Text style={styles.terminal}>Delivered — payment collected.</Text>
+          ) : null}
+          {status === 'CANCELLED' ? (
+            <Text style={styles.terminal}>This order was cancelled.</Text>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {header}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   headerRow: {
     flexDirection: 'row',

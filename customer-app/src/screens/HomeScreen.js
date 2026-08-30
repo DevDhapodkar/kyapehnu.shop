@@ -346,7 +346,7 @@ function Storefront({ insets, query, onOpenProduct }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   scroll: {
     flex: 1,
@@ -371,7 +371,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     // Clears the floating header the storefront scrolls under.
     paddingTop: HEADER_CLEARANCE,
-    backgroundColor: colors.ink,
   },
   headerBlock: {
     marginBottom: spacing.md,

@@ -53,7 +53,7 @@ export default function HeroPanel({ product, onOpen, style }) {
 
       <View style={styles.body}>
         <View style={styles.chips}>
-          <Chip label="Nearest to you" size="sm" tone="glass" />
+          <Chip label="Nearest to you" size="sm" tone="regular" />
           {eta ? <Chip label={eta} size="sm" tone="light" /> : null}
         </View>
 

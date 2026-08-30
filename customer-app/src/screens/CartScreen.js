@@ -7,6 +7,8 @@ import * as Location from 'expo-location';
 import {
   Chip,
   EmptyState,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
   IconButton,
   PillButton,
   SectionHeader,
@@ -152,6 +154,10 @@ export default function CartScreen({ navigation }) {
     }
   };
 
+  const header = (
+    <GlassHeader title="Your Bag" onBack={() => navigation.goBack()} />
+  );
+
   if (empty) {
     return (
       <View style={styles.emptyRoot}>
@@ -162,6 +168,7 @@ export default function CartScreen({ navigation }) {
           actionLabel="Browse nearby"
           onAction={() => navigation.navigate('Home')}
         />
+        {header}
       </View>
     );
   }
@@ -171,7 +178,13 @@ export default function CartScreen({ navigation }) {
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item.key}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 300 }]}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.md,
+            paddingBottom: insets.bottom + 300,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <SectionHeader
@@ -182,7 +195,7 @@ export default function CartScreen({ navigation }) {
           />
         }
         renderItem={({ item }) => (
-          <Surface tone="raised" radius={radii.lg} elevation="low" style={styles.line}>
+          <Surface tone="thin" radius={radii.lg} elevation="low" style={styles.line}>
             <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
 
             <View style={styles.lineBody}>
@@ -191,8 +204,8 @@ export default function CartScreen({ navigation }) {
               </Text>
 
               <View style={styles.lineChips}>
-                {item.size ? <Chip label={item.size} size="sm" tone="surface" /> : null}
-                {item.colorway ? <Chip label={item.colorway} size="sm" tone="surface" /> : null}
+                {item.size ? <Chip label={item.size} size="sm" tone="thin" /> : null}
+                {item.colorway ? <Chip label={item.colorway} size="sm" tone="thin" /> : null}
               </View>
 
               <Text style={styles.lineStore} numberOfLines={1}>
@@ -223,12 +236,14 @@ export default function CartScreen({ navigation }) {
         )}
       />
 
+      {header}
+
       {/* Docked summary. */}
       <View
         style={[styles.summaryDock, { paddingBottom: insets.bottom + spacing.sm }]}
         pointerEvents="box-none"
       >
-        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.summary} sheen>
+        <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.summary} sheen>
           <SummaryRow label="Subtotal" value={formatINR(subtotal)} />
           <SummaryRow label="Delivery (Porter)" value={formatINR(DELIVERY_FEE)} />
           <SummaryRow label="Payment" value="Cash on Delivery" />
@@ -268,17 +283,16 @@ function SummaryRow({ label, value }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   emptyRoot: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
     justifyContent: 'center',
   },
 
   listContent: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
   },
   listHeader: {
     marginBottom: spacing.md,

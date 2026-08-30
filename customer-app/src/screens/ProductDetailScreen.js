@@ -72,9 +72,9 @@ export default function ProductDetailScreen({ route, navigation }) {
           />
         </View>
 
-        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
+        <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
           <View style={styles.chipRow}>
-            {product.category ? <Chip label={product.category} size="sm" tone="glass" /> : null}
+            {product.category ? <Chip label={product.category} size="sm" tone="regular" /> : null}
             {eta ? <Chip label={`Ready in ${eta}`} size="sm" tone="light" /> : null}
           </View>
 
@@ -127,7 +127,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             </>
           ) : null}
 
-          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.storeCard}>
+          <Surface tone="thin" radius={radii.lg} elevation="none" style={styles.storeCard}>
             <Avatar name={product.storeName} size={44} />
             <View style={styles.storeText}>
               <Text style={styles.storeLabel}>SOLD BY</Text>
@@ -141,7 +141,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           </Surface>
 
           <Text style={styles.blockLabel}>DETAILS</Text>
-          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.detailCard}>
+          <Surface tone="thin" radius={radii.lg} elevation="none" style={styles.detailCard}>
             <Detail label="Brand" value={product.brand} />
             <Detail label="Colour" value={product.colorway} />
             <Detail label="Material" value={product.material} />
@@ -181,7 +181,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.sm }]}
         pointerEvents="box-none"
       >
-        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.actionCard}>
+        <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.actionCard}>
           <View style={styles.actionSummary}>
             <Text style={styles.actionLabel}>TOTAL PRICE</Text>
             <Text style={styles.actionPrice}>{formatINR(product.price)}</Text>
@@ -226,7 +226,7 @@ function Detail({ label, value }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   hero: {
     height: HERO_HEIGHT,

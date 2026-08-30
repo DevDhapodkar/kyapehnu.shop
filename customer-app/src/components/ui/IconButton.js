@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, shadows } from '../../theme/colors';
+import GlassPanel from './GlassPanel';
+import { colors, CONTINUOUS, radii, shadows } from '../../theme/colors';
 
 /**
  * IconButton
@@ -12,13 +13,22 @@ import { colors, radii, shadows } from '../../theme/colors';
  *
  * `badge` renders the small count disc used by the bag button. It is offset
  * outside the circle, so the parent must not clip it.
+ *
+ * `glass` is a real frosted disc — these buttons float directly over
+ * photography and over the aurora, which is exactly where a blur earns its
+ * cost. It takes the *thick* white material and a bright rim: the catalogue's
+ * photography runs very dark, and a thinner material there leaves nothing but a
+ * faint ring floating in the image. A disc you can only find by its badge is
+ * not a control.
+ *
+ * `light`, `dark` and `clear` are flat by design — a white disc is meant to be
+ * the most solid thing on the screen, not another pane.
  */
 const TONE_STYLES = {
-  glass: { backgroundColor: colors.glassFillStrong, glyph: colors.ivory, bordered: true },
-  surface: { backgroundColor: colors.surfaceRaised, glyph: colors.ivory, bordered: true },
-  light: { backgroundColor: colors.light, glyph: colors.onLight, bordered: false },
-  dark: { backgroundColor: colors.inkDeep, glyph: colors.ivory, bordered: false },
-  clear: { backgroundColor: colors.transparent, glyph: colors.platinum, bordered: false },
+  glass: { glyph: colors.ivory },
+  light: { backgroundColor: colors.light, glyph: colors.onLight },
+  dark: { backgroundColor: colors.inkDeep, glyph: colors.ivory },
+  clear: { backgroundColor: colors.transparent, glyph: colors.platinum },
 };
 
 export default function IconButton({
@@ -33,6 +43,18 @@ export default function IconButton({
   style,
 }) {
   const palette = TONE_STYLES[tone] ?? TONE_STYLES.glass;
+  const isGlass = tone === 'glass';
+
+  const face = (
+    <Text
+      style={[
+        styles.glyph,
+        { color: palette.glyph, fontSize: glyphSize ?? Math.round(size * 0.4) },
+      ]}
+    >
+      {glyph}
+    </Text>
+  );
 
   return (
     <Pressable
@@ -43,29 +65,39 @@ export default function IconButton({
       accessibilityState={{ disabled }}
       hitSlop={8}
       style={({ pressed }) => [
-        styles.base,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: palette.backgroundColor,
-        },
-        palette.bordered && styles.bordered,
+        { width: size, height: size, borderRadius: size / 2 },
+        CONTINUOUS,
         tone !== 'clear' && shadows.low,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.glyph,
-          { color: palette.glyph, fontSize: glyphSize ?? Math.round(size * 0.4) },
-        ]}
-      >
-        {glyph}
-      </Text>
+      {isGlass ? (
+        <GlassPanel
+          tone="thick"
+          radius={size / 2}
+          borderColor={colors.glassBorderStrong}
+          // A specular edge on a 40pt disc reads as a smudge, not as light.
+          specular={false}
+          style={[styles.fill, styles.base]}
+        >
+          {face}
+        </GlassPanel>
+      ) : (
+        <View
+          style={[
+            styles.base,
+            styles.fill,
+            { borderRadius: size / 2, backgroundColor: palette.backgroundColor },
+          ]}
+        >
+          {face}
+        </View>
+      )}
 
+      {/* Outside the disc, not inside it: the pane clips to its own radius, so
+          a badge rendered within it loses the half that overhangs. */}
       {badge ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge}</Text>
@@ -80,9 +112,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bordered: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorderStrong,
+  fill: {
+    ...StyleSheet.absoluteFillObject,
   },
   disabled: {
     opacity: 0.4,

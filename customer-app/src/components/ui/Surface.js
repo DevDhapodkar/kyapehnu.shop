@@ -1,90 +1,87 @@
 import { StyleSheet, View } from 'react-native';
 
-import Gradient from './Gradient';
-import { colors, gradients, radii, shadows } from '../../theme/colors';
+import GlassPanel from './GlassPanel';
+import { colors, CONTINUOUS, radii, shadows } from '../../theme/colors';
 
 /**
  * Surface
  *
- * The bento panel every screen is built out of. One component owns the
- * relationship between fill, border, corner radius and shadow, so a card on the
- * vendor desk and a card on the storefront are the same object.
+ * The card every screen is built out of. It is glass by default — `Surface`
+ * delegates to `GlassPanel`, so a card blurs and refracts the aurora behind it
+ * rather than sitting on the page as a grey rectangle.
  *
- * Tones split into two families:
- *  - **Opaque** (`surface`, `raised`, `high`) for panels on the page. Elevation
- *    reads as a lighter fill, which is why these carry no heavy border.
- *  - **Glass** (`glass`, `glassStrong`, `glassDense`) for panels over a
- *    photograph or the 3D scene, where an opaque fill would blank the image.
+ * What `Surface` adds on top of the material is the part that is about *layout*
+ * rather than optics: the corner radius, the drop shadow that separates a pane
+ * from the page, and the choice of how much the pane obscures.
  *
- * `sheen` adds the hairline lit edge along the top that makes a flat panel read
- * as a physical pane. It is a gradient rather than a 1px line so it fades out
- * across the width instead of stopping dead at the corner radius.
+ * Tones follow Apple's material vocabulary:
+ *  - `thin`     — a pane sitting inside another pane, or a quiet control.
+ *  - `regular`  — the default card.
+ *  - `thick`    — a pane carrying primary type: docked bars, sheets, the dock.
+ *  - `overImage`— dark glass, for a pane laid over a photograph. A white veil
+ *    on a bright garment washes the picture out.
+ *  - `solid`    — opaque. The escape hatch for the few places a second layer of
+ *    translucency turns to mush: image wells and input backgrounds.
+ *
+ * `backdrop` is decoration painted inside the pane, behind the content and
+ * outside its padding — a card that carries its own light rather than only
+ * refracting the wallpaper.
  */
-const TONE_FILLS = {
-  surface: colors.surface,
-  raised: colors.surfaceRaised,
-  high: colors.surfaceHigh,
-  glass: colors.glassFill,
-  glassStrong: colors.glassFillStrong,
-  glassDense: colors.glassFillDense,
-  clear: colors.transparent,
-};
-
 export default function Surface({
   children,
-  tone = 'surface',
+  backdrop,
+  tone = 'regular',
   radius = radii.lg,
   elevation = 'medium',
   bordered = true,
-  sheen = false,
+  specular = true,
   style,
   ...rest
 }) {
-  const fill = TONE_FILLS[tone] ?? TONE_FILLS.surface;
   const shadow = elevation === 'none' ? null : shadows[elevation] ?? shadows.medium;
 
+  if (tone === 'solid') {
+    return (
+      <View
+        style={[
+          styles.solid,
+          { borderRadius: radius },
+          CONTINUOUS,
+          bordered && styles.bordered,
+          shadow,
+          style,
+        ]}
+        {...rest}
+      >
+        {children}
+      </View>
+    );
+  }
+
   return (
-    <View
-      style={[
-        styles.base,
-        { backgroundColor: fill, borderRadius: radius },
-        bordered && styles.bordered,
-        shadow,
-        style,
-      ]}
+    <GlassPanel
+      tone={tone}
+      backdrop={backdrop}
+      radius={radius}
+      bordered={bordered}
+      specular={specular}
+      // The shadow rides on the panel itself: a shadow on a wrapper around a
+      // clipping view would be clipped away with everything else.
+      style={[shadow, style]}
       {...rest}
     >
-      {sheen ? (
-        <Gradient
-          pointerEvents="none"
-          colors={gradients.sheen}
-          direction="vertical"
-          steps={10}
-          style={styles.sheen}
-        />
-      ) : null}
-
       {children}
-    </View>
+    </GlassPanel>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    // Corners have to clip: every child that bleeds to the edge (hero images,
-    // gradients, sheens) relies on the parent's radius to shape it.
+  solid: {
     overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
   bordered: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-  },
-  sheen: {
-    // Only the top third catches the light; below that the panel is flat.
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '38%',
   },
 });

@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Chip, Gradient, IconButton } from './ui';
+import { Chip, GlassPanel, Gradient, IconButton } from './ui';
 import { formatINR } from '../data/mockStores';
-import { colors, gradients, radii, shadows, spacing } from '../theme/colors';
+import { colors, CONTINUOUS, gradients, radii, shadows, spacing } from '../theme/colors';
 import { typography } from '../theme/typography';
 
 /**
@@ -53,7 +53,7 @@ export default function ProductCard({ product, onPress, style }) {
       />
 
       <View style={styles.topRow}>
-        {product.category ? <Chip label={product.category} size="sm" tone="glass" /> : null}
+        {product.category ? <Chip label={product.category} size="sm" tone="regular" /> : null}
 
         <IconButton
           glyph="↗"
@@ -64,7 +64,11 @@ export default function ProductCard({ product, onPress, style }) {
         />
       </View>
 
-      <View style={styles.caption}>
+      <GlassPanel
+        tone="overImage"
+        radius={radii.md}
+        style={[styles.caption, styles.captionBody]}
+      >
         <Text numberOfLines={2} style={styles.name}>
           {product.name}
         </Text>
@@ -72,7 +76,7 @@ export default function ProductCard({ product, onPress, style }) {
           {[product.storeName, distance].filter(Boolean).join('  ·  ')}
         </Text>
         <Text style={styles.price}>{formatINR(product.price)}</Text>
-      </View>
+      </GlassPanel>
     </Pressable>
   );
 }
@@ -87,6 +91,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
+    ...CONTINUOUS,
     ...shadows.medium,
   },
   pressed: {
@@ -115,11 +120,9 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     bottom: 8,
+  },
+  captionBody: {
     padding: 10,
-    borderRadius: radii.md,
-    backgroundColor: colors.glassFillDense,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorderStrong,
   },
   name: {
     ...typography.caption,

@@ -1,16 +1,18 @@
 /**
  * Kya Pehnu? — spatial system.
  *
- * The redesign is built on bento cards: large, generously rounded panels laid
- * out on a dark page with real air between them. Two things follow from that
- * and are encoded here.
+ * The app is built out of large, generously rounded panes of glass laid on a lit
+ * page. Three things follow from that and are encoded here.
  *
  *  1. Radii are big and come in one family. A card is `radii.xl`, a tile inside
  *     it `radii.lg`, a chip `radii.pill`. Anything under `radii.sm` reads as a
  *     mistake next to the rest.
- *  2. Elevation is a colour problem, not a border problem. A panel separates
- *     from the page by being lighter and casting a soft shadow, so the shadow
- *     presets live beside the spacing rather than being re-typed per screen.
+ *  2. Corners are *continuous*, not circular — see `CONTINUOUS`. This is the
+ *     single loudest tell that separates an interface that looks native on iOS
+ *     from one that looks like a Material app wearing a dark theme.
+ *  3. Elevation is a light problem, not a border problem. A pane separates from
+ *     the page by refracting it and catching a lit edge, and casts a wide, soft,
+ *     nearly-black shadow rather than a tight dark one.
  *
  * No colour token is imported here on purpose — `colors.js` re-exports this
  * module, so a dependency in the other direction would be a cycle.
@@ -35,9 +37,24 @@ export const radii = {
   md: 20,
   lg: 28,
   xl: 36,
+  /** Full-bleed sheets and the largest hero panels. */
+  xxl: 44,
   /** Fully round — pills, avatars, circular icon buttons. */
   pill: 999,
 };
+
+/**
+ * The squircle.
+ *
+ * Apple rounds corners with a continuous curvature ramp rather than a circular
+ * arc, so the straight edge eases into the corner instead of meeting it at a
+ * visible seam. At the radii above the difference is obvious, and it is most of
+ * what makes a rounded rectangle read as iOS rather than as Android.
+ *
+ * `borderCurve` is iOS-only and ignored elsewhere, so this is spread onto every
+ * rounded surface unconditionally.
+ */
+export const CONTINUOUS = { borderCurve: 'continuous' };
 
 /**
  * Shadow presets. React Native takes iOS shadows and Android elevation from
@@ -45,28 +62,28 @@ export const radii = {
  * than tuning five numbers by hand.
  */
 export const shadows = {
-  /** Chips, small controls sitting on a card. */
+  /** Chips, small controls sitting on a pane. */
   low: {
-    shadowColor: 'rgba(0, 0, 0, 0.55)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 4,
   },
-  /** The default for a bento card on the page. */
+  /** The default for a card on the page. */
   medium: {
-    shadowColor: 'rgba(0, 0, 0, 0.65)',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.5,
-    shadowRadius: 26,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.4,
+    shadowRadius: 36,
     elevation: 10,
   },
   /** Docked bars and panels that float over content. */
   high: {
-    shadowColor: 'rgba(0, 0, 0, 0.75)',
-    shadowOffset: { width: 0, height: 22 },
-    shadowOpacity: 0.55,
-    shadowRadius: 38,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 26 },
+    shadowOpacity: 0.5,
+    shadowRadius: 52,
     elevation: 18,
   },
 };

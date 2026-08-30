@@ -11,12 +11,14 @@ import { buildRamp } from '../../utils/color';
  * module, and adding one would force a fresh dev-client build on every
  * contributor for what amounts to paint — so the bands are drawn in JS instead.
  *
- * Each band is sampled at its own centre and tiles *exactly* — bands must never
- * overlap. Half the ramps in the palette are translucent scrims, and where two
- * translucent bands overlap their alpha compounds, which paints a visible
- * stripe at every band boundary. Abutting bands can in principle leave a
- * sub-pixel seam instead, but adjacent bands differ by a fraction of one step
- * of the ramp, so a seam is imperceptible where a doubled alpha is not.
+ * The bands are laid out by flex, not positioned by percentage. Both were tried:
+ * percentages round independently per band, so at some widths two neighbours
+ * fail to meet and the background shows through as a hairline seam — obvious on
+ * a saturated ramp like the aurora button. Overlapping them to cover the seam is
+ * worse still, because half the palette's ramps are translucent scrims and
+ * overlapping alpha compounds into a stripe at every boundary. Flex children
+ * share an exact edge and absorb the rounding remainder between them, so there
+ * is neither a gap nor an overlap.
  *
  * The bands never take touches, so a `Gradient` can be dropped behind an
  * interactive surface without stealing its presses.
@@ -42,28 +44,18 @@ export default function Gradient({
   // over the stops, and this runs on every render of any gradient surface.
   const ramp = useMemo(() => buildRamp(colors, steps), [colors, steps]);
 
-  const size = 100 / ramp.length;
-
   return (
     <View pointerEvents={pointerEvents} style={style}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {ramp.map((color, index) => {
-          const offset = `${index * size}%`;
-          const extent = `${size}%`;
-
-          return (
-            <View
-              key={`${color}-${index}`}
-              style={[
-                styles.band,
-                { backgroundColor: color },
-                isHorizontal
-                  ? { left: offset, width: extent, top: 0, bottom: 0 }
-                  : { top: offset, height: extent, left: 0, right: 0 },
-              ]}
-            />
-          );
-        })}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { flexDirection: isHorizontal ? 'row' : 'column' },
+        ]}
+      >
+        {ramp.map((color, index) => (
+          <View key={`${color}-${index}`} style={[styles.band, { backgroundColor: color }]} />
+        ))}
       </View>
 
       {children}
@@ -73,6 +65,6 @@ export default function Gradient({
 
 const styles = StyleSheet.create({
   band: {
-    position: 'absolute',
+    flex: 1,
   },
 });

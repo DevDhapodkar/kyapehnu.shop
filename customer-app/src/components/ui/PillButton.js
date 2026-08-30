@@ -1,7 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import GlassPanel from './GlassPanel';
 import Gradient from './Gradient';
-import { colors, gradients, radii, shadows, spacing } from '../../theme/colors';
+import { colors, CONTINUOUS, gradients, radii, shadows, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -18,7 +19,9 @@ import { typography } from '../../theme/typography';
  *  - `light`    — the everyday primary. White pill, ink label.
  *  - `dark`     — primary *on* a light surface or a bright photograph.
  *  - `glass`    — secondary; a frosted pane that keeps the image behind it.
- *  - `ghost`    — tertiary; a hairline outline and nothing else.
+ *  - `ghost`    — tertiary; a hairline outline over the faintest veil. Not
+ *    fully transparent: over a lit wallpaper a pure outline button loses its
+ *    own label against the brighter lobes.
  *
  * `icon` renders inside a circular chip at the trailing edge, the way the
  * "View video ▶" and "Add to Cart +" affordances read in the reference: the
@@ -80,6 +83,16 @@ export default function PillButton({
         <Gradient pointerEvents="none" colors={gradients.aurora} steps={40} style={styles.fill} />
       ) : null}
 
+      {variant === 'glass' ? (
+        <GlassPanel
+          pointerEvents="none"
+          tone="regular"
+          radius={radii.pill}
+          specular={false}
+          style={styles.fill}
+        />
+      ) : null}
+
       {loading ? (
         <ActivityIndicator color={labelColor} size="small" />
       ) : (
@@ -133,12 +146,10 @@ const VARIANT_STYLES = StyleSheet.create({
     ...shadows.low,
   },
   glass: {
-    backgroundColor: colors.glassFillStrong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorderStrong,
+    backgroundColor: colors.transparent,
   },
   ghost: {
-    backgroundColor: colors.transparent,
+    backgroundColor: colors.glassThin,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorderStrong,
   },
@@ -150,6 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    ...CONTINUOUS,
   },
   fill: {
     ...StyleSheet.absoluteFillObject,

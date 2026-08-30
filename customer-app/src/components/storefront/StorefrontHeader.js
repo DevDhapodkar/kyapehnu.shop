@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, IconButton, SearchPill } from '../ui';
-import { colors, radii, spacing } from '../../theme/colors';
+import { Avatar, GlassPanel, IconButton, SearchPill } from '../ui';
+import { colors, CONTINUOUS, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -38,9 +38,13 @@ export default function StorefrontHeader({
   const denied = locationStatus === 'denied';
 
   return (
-    <View style={[styles.header, { paddingTop: topInset + spacing.xs }]} pointerEvents="box-none">
-      <View pointerEvents="none" style={styles.fill} />
-
+    <GlassPanel
+      tone="thick"
+      // Flush to the top and both sides — a radius here would let the wallpaper
+      // through beside the status bar.
+      radius={0}
+      style={[styles.header, styles.body, { paddingTop: topInset + spacing.xs }]}
+    >
       <View style={styles.topRow}>
         <View style={styles.wordmark}>
           <Text style={styles.mark}>◆</Text>
@@ -99,7 +103,7 @@ export default function StorefrontHeader({
           />
         ) : null}
       </View>
-    </View>
+    </GlassPanel>
   );
 }
 
@@ -109,15 +113,12 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 10,
+  },
+  body: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-  },
-  fill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.glassFillDense,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
   },
   topRow: {
     flexDirection: 'row',
@@ -162,9 +163,10 @@ const styles = StyleSheet.create({
     height: 42,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassThin,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
+    ...CONTINUOUS,
   },
   // A drawn dot rather than a pin glyph: the map-pin characters are outside
   // the ranges Android's system font reliably covers.

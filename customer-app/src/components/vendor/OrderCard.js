@@ -36,7 +36,7 @@ export default function OrderCard({ order, onPress }) {
       accessibilityLabel={`Order ${shortOrderId(order._id)}, ${order.status}`}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
-      <Surface tone="surface" radius={radii.lg} elevation="medium" style={styles.card} sheen>
+      <Surface tone="regular" radius={radii.lg} elevation="medium" style={styles.card} sheen>
         <View style={styles.headerRow}>
           <View style={styles.headerText}>
             <Text style={styles.orderId}>{shortOrderId(order._id)}</Text>
@@ -55,7 +55,7 @@ export default function OrderCard({ order, onPress }) {
               <Text style={styles.itemName} numberOfLines={1}>
                 {item.name}
               </Text>
-              <Chip label={item.size} size="sm" tone="surface" />
+              <Chip label={item.size} size="sm" tone="thin" />
             </View>
           ))}
 

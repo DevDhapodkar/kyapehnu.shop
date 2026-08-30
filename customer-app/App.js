@@ -5,6 +5,8 @@ import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 
 import AppNavigator from './src/navigation/AppNavigator';
+import AuroraBackdrop from './src/components/ui/AuroraBackdrop';
+import { BlurTargetProvider } from './src/components/ui/BlurTarget';
 import useAuthStore from './src/store/useAuthStore';
 import { colors } from './src/theme/colors';
 
@@ -30,7 +32,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <AppNavigator />
+        {/* Everything the app draws lives inside the blur target, because on
+            Android a pane can only blur a view it has been handed. */}
+        <BlurTargetProvider>
+          {/* Mounted once, under everything. Every translucent surface in the
+              app is refracting this, so it lives at the root rather than per
+              screen — a backdrop that remounted on navigation would make the
+              glass flicker on every push. */}
+          <AuroraBackdrop />
+          <AppNavigator />
+        </BlurTargetProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

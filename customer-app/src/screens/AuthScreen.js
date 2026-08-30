@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,7 +10,14 @@ import {
   View,
 } from 'react-native';
 
-import { Chip, Field, Glow, PillButton, Surface } from '../components/ui';
+import {
+  Chip,
+  Field,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
+  PillButton,
+  Surface,
+} from '../components/ui';
 import { colors, radii, spacing } from '../theme/colors';
 import { typography } from '../theme/typography';
 import useAuthStore from '../store/useAuthStore';
@@ -30,6 +38,7 @@ import { friendlyAuthError } from '../services/auth';
  * screen pops back to wherever the customer came from (the storefront).
  */
 export default function AuthScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const initialMode = route?.params?.mode === 'register' ? 'register' : 'signin';
   const [mode, setMode] = useState(initialMode);
   const isRegister = mode === 'register';
@@ -83,12 +92,19 @@ export default function AuthScreen({ navigation, route }) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* A single bloom behind the headline, so the page has a light source
-          rather than being flat black behind a form. */}
-      <Glow color={colors.iris} size={420} intensity={0.4} style={styles.glow} />
+      <GlassHeader
+        title={isRegister ? 'Create Account' : 'Sign In'}
+        onBack={() => navigation.goBack()}
+      />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Chip label="Kya Pehnu?" tone="glass" style={styles.chip} />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Chip label="Kya Pehnu?" tone="regular" style={styles.chip} />
 
         <Text style={styles.title}>
           {isRegister ? 'Create your\naccount' : 'Welcome\nback'}
@@ -100,7 +116,7 @@ export default function AuthScreen({ navigation, route }) {
         </Text>
 
         {!authAvailable ? (
-          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.warn}>
+          <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.warn}>
             <Text style={styles.warnTitle}>Sign-in not configured</Text>
             <Text style={styles.warnBody}>
               Add your Firebase web keys to app.json → expo.extra.firebase, then rebuild.
@@ -108,7 +124,7 @@ export default function AuthScreen({ navigation, route }) {
           </Surface>
         ) : null}
 
-        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+        <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.card} sheen>
           {isRegister ? (
             <>
               <Field
@@ -193,16 +209,10 @@ export default function AuthScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ink,
-  },
-  glow: {
-    position: 'absolute',
-    top: -180,
-    left: -120,
+    backgroundColor: colors.transparent,
   },
   content: {
-    padding: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
   chip: {

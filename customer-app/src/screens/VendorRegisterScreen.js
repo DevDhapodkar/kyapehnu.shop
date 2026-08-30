@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
-import { Chip, Field, Glow, PillButton, SectionHeader, Surface } from '../components/ui';
+import {
+  Chip,
+  Field,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
+  PillButton,
+  SectionHeader,
+  Surface,
+} from '../components/ui';
 import { colors, radii, spacing } from '../theme/colors';
 import { typography } from '../theme/typography';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
@@ -37,6 +46,7 @@ const EMPTY = {
  * uid — so an unauthenticated visitor is routed to sign in first.
  */
 export default function VendorRegisterScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const setRole = useAuthStore((state) => state.setRole);
@@ -135,10 +145,16 @@ export default function VendorRegisterScreen({ navigation }) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Glow color={colors.amber} size={400} intensity={0.32} style={styles.glow} />
+      <GlassHeader title="Register Your Shop" onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Chip label="Sell on Kya Pehnu?" tone="glass" style={styles.chip} />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Chip label="Sell on Kya Pehnu?" tone="regular" style={styles.chip} />
 
         <Text style={styles.title}>Register{'\n'}your shop</Text>
         <Text style={styles.subtitle}>
@@ -147,7 +163,7 @@ export default function VendorRegisterScreen({ navigation }) {
         </Text>
 
         {!token ? (
-          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.warn}>
+          <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.warn}>
             <Text style={styles.warnTitle}>Sign in first</Text>
             <Text style={styles.warnBody}>
               Registration links the shop to your account.
@@ -162,7 +178,7 @@ export default function VendorRegisterScreen({ navigation }) {
           </Surface>
         ) : null}
 
-        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+        <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.card} sheen>
           <SectionHeader eyebrow="Step one" title="The shop" style={styles.cardHeader} />
 
           <Field
@@ -202,7 +218,7 @@ export default function VendorRegisterScreen({ navigation }) {
           />
         </Surface>
 
-        <Surface tone="surface" radius={radii.xl} elevation="medium" style={styles.card} sheen>
+        <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.card} sheen>
           <SectionHeader
             eyebrow="Step two"
             title="Where you are"
@@ -271,15 +287,10 @@ export default function VendorRegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ink,
-  },
-  glow: {
-    position: 'absolute',
-    top: -190,
-    right: -130,
+    backgroundColor: colors.transparent,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
   chip: {

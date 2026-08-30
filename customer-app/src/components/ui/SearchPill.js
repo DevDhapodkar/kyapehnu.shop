@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radii, spacing } from '../../theme/colors';
+import { colors, CONTINUOUS, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -87,9 +87,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm + 2,
     height: 42,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassThin,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
+    ...CONTINUOUS,
   },
   pressed: {
     opacity: 0.75,

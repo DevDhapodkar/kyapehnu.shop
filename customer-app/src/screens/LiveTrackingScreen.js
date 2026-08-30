@@ -169,7 +169,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
           accessibilityLabel="Back to shopping"
         />
 
-        <Surface tone="glassDense" radius={radii.pill} elevation="high" style={styles.headerPill}>
+        <Surface tone="thick" radius={radii.pill} elevation="high" style={styles.headerPill}>
           <View style={styles.livePulse} />
           <Text style={styles.headerTitle} numberOfLines={1}>
             {order ? `Order ${order.id.slice(-6).toUpperCase()}` : 'Demo delivery'}
@@ -182,7 +182,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
         style={[styles.sheetDock, { paddingBottom: insets.bottom + spacing.sm }]}
         pointerEvents="box-none"
       >
-        <Surface tone="glassDense" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
+        <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
           <View style={styles.statusRow}>
             <View style={styles.statusLeft}>
               <Chip label="Live" tint={colors.mint} size="sm" style={styles.liveChip} />
@@ -210,7 +210,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
             </Text>
           </View>
 
-          <Surface tone="raised" radius={radii.lg} elevation="none" style={styles.riderCard}>
+          <Surface tone="thin" radius={radii.lg} elevation="none" style={styles.riderCard}>
             <Avatar name="Sandeep K" size={42} />
             <View style={styles.riderBody}>
               <Text style={styles.riderName}>Sandeep K.</Text>
@@ -237,7 +237,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
 
   destMarker: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1.5,
     borderColor: colors.ivory,
-    backgroundColor: colors.glassFillDense,
+    backgroundColor: colors.glassOverImage,
     alignItems: 'center',
     justifyContent: 'center',
   },

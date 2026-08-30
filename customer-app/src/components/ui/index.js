@@ -5,11 +5,15 @@
  * directly, so a primitive can be split or renamed without touching a screen.
  */
 
+export { default as AuroraBackdrop } from './AuroraBackdrop';
 export { default as Avatar } from './Avatar';
+export { BlurTargetProvider, useBlurTarget } from './BlurTarget';
 export { default as Chip } from './Chip';
 export { default as EmptyState } from './EmptyState';
 export { default as Field } from './Field';
 export { default as FloatingCard } from './FloatingCard';
+export { default as GlassHeader, GLASS_HEADER_HEIGHT } from './GlassHeader';
+export { default as GlassPanel } from './GlassPanel';
 export { default as Glow } from './Glow';
 export { default as Gradient } from './Gradient';
 export { default as IconButton } from './IconButton';

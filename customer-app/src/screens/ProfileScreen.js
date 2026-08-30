@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Chip,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
   Glow,
   Gradient,
   IconButton,
@@ -74,19 +76,33 @@ export default function ProfileScreen({ navigation }) {
     <View style={styles.root}>
       <ScrollView
         style={styles.screen}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.md,
+            paddingBottom: insets.bottom + 96,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Surface tone="surface" radius={radii.xl} elevation="high" style={styles.banner}>
-          <Gradient
-            pointerEvents="none"
-            colors={gradients.dusk}
-            steps={30}
-            style={styles.bannerFill}
-          />
-          <View pointerEvents="none" style={styles.bannerScrim} />
-          <Glow color={colors.blush} size={280} intensity={0.55} style={styles.bannerGlow} />
-
+        <Surface
+          tone="regular"
+          radius={radii.xl}
+          elevation="high"
+          style={[styles.banner, styles.bannerBody]}
+          backdrop={
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <Gradient
+                pointerEvents="none"
+                colors={gradients.dusk}
+                steps={30}
+                style={StyleSheet.absoluteFill}
+              />
+              <View pointerEvents="none" style={styles.bannerScrim} />
+              <Glow color={colors.blush} size={300} intensity={0.34} style={styles.bannerGlow} />
+            </View>
+          }
+        >
           <Avatar name={user?.displayName ?? user?.email} size={72} ring />
 
           <Text style={styles.name} numberOfLines={1}>
@@ -104,7 +120,7 @@ export default function ProfileScreen({ navigation }) {
           />
         </Surface>
 
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.statCard}>
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.statCard}>
           <StatRow items={stats} divided />
         </Surface>
 
@@ -120,7 +136,7 @@ export default function ProfileScreen({ navigation }) {
           />
         ) : null}
 
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleText}>
               <Text style={styles.cardTitle}>Vendor Mode</Text>
@@ -142,7 +158,7 @@ export default function ProfileScreen({ navigation }) {
         </Surface>
 
         {isVendor && vendorProfile ? (
-          <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+          <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
             <View style={styles.shopRow}>
               <Avatar name={vendorProfile.shopName} size={44} />
               <View style={styles.shopText}>
@@ -158,7 +174,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
               <IconButton
                 glyph="≡"
-                tone="surface"
+                tone="glass"
                 size={38}
                 onPress={() => navigation.navigate('CatalogManager')}
                 accessibilityLabel="Open catalog"
@@ -169,7 +185,7 @@ export default function ProfileScreen({ navigation }) {
           </Surface>
         ) : null}
 
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.card}>
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
           <Text style={styles.sectionLabel}>BACKEND</Text>
           <Text style={styles.meta}>{API_BASE_URL}</Text>
           <Text style={styles.meta}>
@@ -196,6 +212,8 @@ export default function ProfileScreen({ navigation }) {
         )}
       </ScrollView>
 
+      <GlassHeader title="Profile" onBack={() => navigation.goBack()} />
+
       {!isVendor ? (
         <TabDock items={CUSTOMER_TABS} value="profile" onChange={onTabChange} />
       ) : null}
@@ -206,30 +224,29 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   screen: {
     flex: 1,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
   },
 
   banner: {
+    marginBottom: spacing.sm,
+  },
+  bannerBody: {
     alignItems: 'flex-start',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  bannerFill: {
-    ...StyleSheet.absoluteFillObject,
   },
   // The sweep is the light source, not the subject: knocked back this far it
   // reads as a lit wall behind the avatar rather than a colour block.
   bannerScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
     opacity: 0.72,
   },
   bannerGlow: {

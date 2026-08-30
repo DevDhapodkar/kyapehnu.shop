@@ -12,8 +12,16 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import ListingComposer from '../../components/vendor/ListingComposer';
-import { Chip, EmptyState, Surface } from '../../components/ui';
+import {
+  Chip,
+  EmptyState,
+  GlassHeader,
+  GLASS_HEADER_HEIGHT,
+  Surface,
+} from '../../components/ui';
 import { colors, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import useVendorStore from '../../store/useVendorStore';
@@ -36,7 +44,8 @@ const REVIEW_STATUS = {
  * step, and the row is sized around it. Composing a listing is the rarer,
  * heavier task, so it sits behind a pill at the top of the list.
  */
-export default function CatalogManagerScreen() {
+export default function CatalogManagerScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const products = useVendorStore((state) => state.products);
   const loading = useVendorStore((state) => state.catalogLoading);
   const error = useVendorStore((state) => state.catalogError);
@@ -68,7 +77,7 @@ export default function CatalogManagerScreen() {
       const review = REVIEW_STATUS[item.status] ?? null;
 
       return (
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.row}>
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.row}>
           <View style={styles.rowBody}>
             <View style={styles.rowText}>
               <Text style={styles.productName} numberOfLines={1}>
@@ -83,7 +92,7 @@ export default function CatalogManagerScreen() {
                 {review ? <Chip label={review.label} tint={review.tint} size="sm" /> : null}
                 <Chip
                   label={inStock ? 'In stock' : 'Out of stock'}
-                  tone="surface"
+                  tone="thin"
                   size="sm"
                   style={!inStock && styles.badgeMuted}
                 />
@@ -122,7 +131,10 @@ export default function CatalogManagerScreen() {
         data={products}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingTop: insets.top + GLASS_HEADER_HEIGHT + spacing.md },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -136,7 +148,7 @@ export default function CatalogManagerScreen() {
         ListHeaderComponent={
           <View>
             {error ? (
-              <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.banner}>
+              <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.banner}>
                 <Text style={styles.bannerTitle}>Catalog out of sync</Text>
                 <Text style={styles.bannerBody}>{error}</Text>
               </Surface>
@@ -159,6 +171,8 @@ export default function CatalogManagerScreen() {
           )
         }
       />
+
+      <GlassHeader title="Catalog" onBack={() => navigation.goBack()} />
     </KeyboardAvoidingView>
   );
 }
@@ -166,10 +180,10 @@ export default function CatalogManagerScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   list: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
     flexGrow: 1,
   },

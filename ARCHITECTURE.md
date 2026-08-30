@@ -5,34 +5,57 @@ A hyper-local fashion delivery aggregator (Swiggy/Zomato model) for independent 
 
 ## Design System
 
-Dark, editorial, bento-led. It lives in code, not in this document: the tokens
-are `customer-app/src/theme/` (`colors.js`, `typography.js`, `layout.js`) and the
+Dark, glass, iOS-native. It lives in code, not in this document: the tokens are
+`customer-app/src/theme/` (`colors.js`, `typography.js`, `layout.js`) and the
 primitives are `customer-app/src/components/ui/`. A screen composes primitives
 and spends tokens; it never declares a hex value, a radius or a font size of its
 own.
 
-- **Surfaces.** Three layers — a near-black page (`colors.ink`), opaque bento
-  cards that signal elevation by getting *lighter* (`surface` → `surfaceHigh`),
-  and translucent glass for panels that sit over a photograph or the 3D scene.
-- **Shape.** Large radii (`radii.lg` 28 / `radii.xl` 36) on cards, and
-  `radii.pill` on every control. Buttons are pills; icon buttons are perfect
-  discs whose radius is derived from their size.
-- **Type.** One scale (`typography`): a wide-tracked uppercase `display` used
-  once per screen, dense sans for headings, and 10px uppercase micro labels
-  doing the work labels do in a lighter interface.
+- **One wallpaper, everything else is material.** `AuroraBackdrop` is mounted
+  once at the app root: four broad blooms of coloured light drifting on
+  near-black ink. The navigator theme and every screen container are
+  transparent, so it runs behind the whole app. This is not decoration — it is
+  what the glass is *for*. A frosted pane over flat black is indistinguishable
+  from a grey card.
+- **Real blur, not a translucent fill.** `GlassPanel` is the material every
+  card, sheet, header, dock and action bar is made of, in three implementations:
+  Apple's Liquid Glass through `expo-glass-effect` where iOS 26 offers it;
+  `expo-blur` for a true backdrop blur on older iOS, on Android (Dimezis, SDK
+  31+) and on web (CSS `backdrop-filter`); and a heavier veil where no blur can
+  be had. Over the blur go a white veil and a drawn specular top edge — a blur
+  alone is not a material.
+  - Android has no compositor-level backdrop filter: `expo-blur` renders a
+    target view offscreen and blurs that, so each pane must be handed the view
+    it looks through. `BlurTargetProvider` wraps the app once and `GlassPanel`
+    reads the ref from context. Without it the Dimezis methods silently fall
+    back to no blur.
+- **Materials, named after Apple's.** `thin`, `regular`, `thick` say how much a
+  pane obscures; `overImage` is the one dark material, for glass laid over a
+  photograph, where a white veil would wash the picture out.
+- **Continuous corners.** `CONTINUOUS` (`borderCurve: 'continuous'`) is spread
+  onto every rounded surface. Apple eases the straight edge into the corner
+  rather than meeting it at an arc, and it is most of what separates a rounded
+  rectangle that reads as iOS from one that reads as Android.
+- **Type sized against iOS.** Body is 17pt, not the 14 a web-derived scale
+  reaches for, and tracking goes negative as type gets bigger. No font family is
+  named, so the app gets SF Pro on iOS and Roboto on Android rather than opting
+  out of the system face.
+- **No native header.** A platform header is an opaque bar that cannot be made
+  of glass and would cut a flat band across the wallpaper. Every screen draws a
+  `GlassHeader` that floats over its own content instead.
 - **Colour policy.** The interface is monochrome and saturation is a signal.
   `gradients.aurora` is the conversion accent, reserved for the single
-  highest-intent action on a screen (place order, create account). Near-white
-  pills are the everyday primary. `statusColors` is the only other place a hue
-  is allowed, and only to say where an order sits in its lifecycle.
+  highest-intent action on a screen. Near-white pills are the everyday primary.
+  `statusColors` is the only other place a hue is allowed, and only to say where
+  an order sits in its lifecycle.
 - **Gradients ship no dependency.** `components/ui/Gradient.js` paints a ramp as
-  abutting flat bands (`utils/color.js` does the sampling), so no native
-  gradient module is needed and no contributor has to rebuild a dev client for
-  paint. Bands must never overlap — half the ramps are translucent scrims, and
-  overlapping translucent bands compound alpha into visible stripes.
+  flat bands laid out by flex (`utils/color.js` samples them), so no native
+  gradient module is needed. Flex, not percentages: percentage-positioned bands
+  round independently and leave hairline seams, and overlapping them to hide the
+  seams compounds alpha on the translucent ramps into visible stripes.
 - **Navigation.** The customer flow carries a floating pill dock
-  (`navigation/customerTabs.js` + `components/ui/TabDock.js`) rendered per
-  screen over the existing native stack, rather than a second navigator.
+  (`navigation/customerTabs.js` + `components/ui/TabDock.js`) rendered per screen
+  over the existing native stack, rather than a second navigator.
 
 ## Project Structure (Monorepo)
 1. `/backend` - Node.js/Express server handling logistics, databases, and webhooks.

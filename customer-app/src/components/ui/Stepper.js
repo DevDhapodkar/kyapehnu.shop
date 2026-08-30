@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '../../theme/colors';
+import { colors, CONTINUOUS, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -54,15 +54,16 @@ const styles = StyleSheet.create({
     padding: 4,
     gap: spacing.xxs,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.glassThin,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
+    ...CONTINUOUS,
   },
   button: {
     width: BUTTON,
     height: BUTTON,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.glassThick,
     alignItems: 'center',
     justifyContent: 'center',
   },

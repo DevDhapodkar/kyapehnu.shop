@@ -102,14 +102,14 @@ export default function VendorOrderListScreen({ navigation }) {
 
         <IconButton
           glyph="≡"
-          tone="surface"
+          tone="glass"
           size={40}
           onPress={() => navigation.navigate('CatalogManager')}
           accessibilityLabel="Catalog"
         />
         <IconButton
           glyph="○"
-          tone="surface"
+          tone="glass"
           size={40}
           onPress={() => navigation.navigate('Profile')}
           accessibilityLabel="Profile"
@@ -120,7 +120,7 @@ export default function VendorOrderListScreen({ navigation }) {
         {stats.map((stat) => (
           <Surface
             key={stat.label}
-            tone="surface"
+            tone="regular"
             radius={radii.lg}
             elevation="low"
             style={styles.statTile}
@@ -150,7 +150,7 @@ export default function VendorOrderListScreen({ navigation }) {
       />
 
       {error ? (
-        <Surface tone="surface" radius={radii.lg} elevation="low" style={styles.banner}>
+        <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.banner}>
           <Text style={styles.bannerTitle}>Couldn’t reach the store</Text>
           <Text style={styles.bannerBody}>{error}</Text>
         </Surface>
@@ -193,7 +193,7 @@ export default function VendorOrderListScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.transparent,
   },
   header: {
     flexDirection: 'row',

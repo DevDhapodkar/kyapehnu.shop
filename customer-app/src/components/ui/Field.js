@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radii, spacing } from '../../theme/colors';
+import { colors, CONTINUOUS, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -10,9 +10,10 @@ import { typography } from '../../theme/typography';
  * composer each grew their own copy of this before the redesign; they now share
  * one, so a change to input height or focus treatment lands everywhere.
  *
- * The well is *darker* than the card it sits in rather than lighter. On a dark
- * interface a recessed input reads as somewhere to put something, while a
- * raised one competes with the buttons.
+ * The well is *darker* than the pane it sits in rather than lighter. On glass a
+ * recessed input reads as somewhere to put something, while a lighter one
+ * competes with the buttons — and a second frosted layer inside a frosted card
+ * turns both to mush.
  */
 export default function Field({
   label,
@@ -57,7 +58,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-    backgroundColor: colors.inkDeep,
+    backgroundColor: colors.glassWell,
+    ...CONTINUOUS,
   },
   inputMultiline: {
     minHeight: 86,

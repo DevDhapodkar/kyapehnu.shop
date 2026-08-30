@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radii, shadows, spacing } from '../../theme/colors';
+import GlassPanel from './GlassPanel';
+import { colors, CONTINUOUS, radii, shadows, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -27,7 +28,11 @@ export default function TabDock({ items, value, onChange, style }) {
       style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }, style]}
       pointerEvents="box-none"
     >
-      <View style={styles.dock}>
+      <GlassPanel
+        tone="thick"
+        radius={radii.pill}
+        style={[styles.dock, styles.dockRow]}
+      >
         {items.map((item) => {
           const active = item.key === value;
 
@@ -52,7 +57,7 @@ export default function TabDock({ items, value, onChange, style }) {
             </Pressable>
           );
         })}
-      </View>
+      </GlassPanel>
     </View>
   );
 }
@@ -67,15 +72,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   dock: {
+    ...shadows.high,
+  },
+  dockRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxs,
     padding: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.glassFillDense,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorderStrong,
-    ...shadows.high,
   },
   item: {
     flexDirection: 'row',
@@ -90,6 +93,7 @@ const styles = StyleSheet.create({
   itemActive: {
     backgroundColor: colors.light,
     paddingHorizontal: spacing.md - 2,
+    ...CONTINUOUS,
   },
   pressed: {
     opacity: 0.6,

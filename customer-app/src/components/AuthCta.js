@@ -26,7 +26,7 @@ import { typography } from '../theme/typography';
 export default function AuthCta({ onJoin, onLogin }) {
   return (
     <View style={styles.card}>
-      <Chip label="Your city is open" tone="glass" style={styles.chip} />
+      <Chip label="Your city is open" tone="regular" style={styles.chip} />
 
       <Text style={styles.title}>Join now.{'\n'}Wear it tonight.</Text>
 

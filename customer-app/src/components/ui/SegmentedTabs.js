@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '../../theme/colors';
+import { colors, CONTINUOUS, radii, spacing } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -85,9 +85,11 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
     padding: 5,
     borderRadius: radii.pill,
-    backgroundColor: colors.surface,
+    // A veil, not a blur: the switcher rides on a pane that is already frosted.
+    backgroundColor: colors.glassThin,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
+    ...CONTINUOUS,
   },
   tab: {
     flexDirection: 'row',
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.glassRegular,
     alignItems: 'center',
   },
   countActive: {

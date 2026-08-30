@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii } from '../../theme/colors';
+import { colors, CONTINUOUS, radii } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 /**
@@ -14,17 +14,25 @@ import { typography } from '../../theme/typography';
  * `tint` paints a coloured chip at low alpha with the tint at full strength on
  * the border and label, so a status chip reads as tinted glass rather than a
  * solid badge shouting over the card it sits on.
+ *
+ * Chips carry a translucent veil, not a blur of their own. They almost always
+ * sit on a pane that is already frosted, so they inherit that blur visually —
+ * and a screen can hold twenty chips, which is more live blur views than any
+ * phone should be asked to composite for decoration.
+ *
+ * The tone names match the panel materials so a chip and the card it sits on
+ * are described in one vocabulary.
  */
 const TONES = {
-  glass: { background: colors.glassFillStrong, label: colors.platinum, border: colors.glassBorder },
-  surface: { background: colors.surfaceRaised, label: colors.platinum, border: colors.glassBorder },
+  regular: { background: colors.glassRegular, label: colors.platinum, border: colors.glassBorder },
+  thin: { background: colors.glassThin, label: colors.platinum, border: colors.glassBorder },
   light: { background: colors.light, label: colors.onLight, border: colors.transparent },
-  dark: { background: colors.inkDeep, label: colors.ivory, border: colors.glassBorder },
+  dark: { background: colors.glassOverImage, label: colors.ivory, border: colors.glassBorder },
 };
 
 export default function Chip({
   label,
-  tone = 'glass',
+  tone = 'regular',
   tint,
   size = 'md',
   icon,
@@ -32,7 +40,7 @@ export default function Chip({
   selected = false,
   style,
 }) {
-  const palette = TONES[tone] ?? TONES.glass;
+  const palette = TONES[tone] ?? TONES.regular;
   const small = size === 'sm';
 
   const body = (
@@ -91,6 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    ...CONTINUOUS,
   },
   chipSm: {
     paddingHorizontal: 9,
