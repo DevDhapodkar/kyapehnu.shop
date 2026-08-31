@@ -135,7 +135,7 @@ export default function VendorOrderListScreen({ navigation }) {
             >
               {stat.value}
             </Text>
-            <Text style={styles.statLabel}>{stat.label.toUpperCase()}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
           </Surface>
         ))}
       </View>
@@ -237,9 +237,8 @@ const styles = StyleSheet.create({
     color: colors.ivory,
   },
   statLabel: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.4,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
     marginTop: 5,
   },

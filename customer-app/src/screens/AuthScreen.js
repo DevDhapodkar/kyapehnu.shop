@@ -30,7 +30,7 @@ import { friendlyAuthError } from '../services/auth';
  * registration also collects a name and phone, both of which the backend User
  * document requires.
  *
- * This is a conversion screen, so it takes the aurora submit button — the same
+ * This is a conversion screen, so it takes the ember submit button — the same
  * accent the marketing CTA hands off from, which makes the handover from the
  * scrollytelling to the form read as one continuous action.
  *
@@ -128,13 +128,13 @@ export default function AuthScreen({ navigation, route }) {
           {isRegister ? (
             <>
               <Field
-                label="NAME"
+                label="Name"
                 value={form.name}
                 onChangeText={setField('name')}
                 placeholder="Aarav Sharma"
               />
               <Field
-                label="PHONE"
+                label="Phone"
                 value={form.phone}
                 onChangeText={setField('phone')}
                 placeholder="+91 98765 43210"
@@ -144,7 +144,7 @@ export default function AuthScreen({ navigation, route }) {
           ) : null}
 
           <Field
-            label="EMAIL"
+            label="Email"
             value={form.email}
             onChangeText={setField('email')}
             placeholder="you@email.com"
@@ -153,7 +153,7 @@ export default function AuthScreen({ navigation, route }) {
             autoComplete="email"
           />
           <Field
-            label="PASSWORD"
+            label="Password"
             value={form.password}
             onChangeText={setField('password')}
             placeholder="••••••••"

@@ -64,7 +64,7 @@ export default function OrderCard({ order, onPress }) {
 
         <View style={styles.divider} />
 
-        <Text style={styles.addressLabel}>DELIVER TO</Text>
+        <Text style={styles.addressLabel}>Deliver to</Text>
         <Text style={styles.address} numberOfLines={2}>
           {formatAddress(order.deliveryAddress)}
         </Text>

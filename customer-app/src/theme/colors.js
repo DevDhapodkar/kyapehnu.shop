@@ -1,27 +1,25 @@
 /**
  * Kya Pehnu? — colour system.
  *
- * The app is built the way iOS builds a dark interface: a lit ground, and
- * everything above it made of *material* rather than paint. There is one
- * wallpaper — a drift of coloured light (`AuroraBackdrop`) over near-black ink —
- * and every panel is a pane of glass refracting it.
+ * Warm, calm, photographic — the reference interiors, not a neon night. The
+ * app is built the way iOS builds a dark interface (a lit ground, everything
+ * above it made of *material* rather than paint), but the ground is a warm
+ * charcoal and the light in it is nearly colourless.
  *
- *  - **Ground** (`ink`, `inkDeep`) — the page, and the only truly opaque thing
- *    under the chrome. Not pure black: a trace of blue keeps the blobs behind
- *    the glass from reading as grey smoke.
+ *  - **Ground** (`ink`, `inkDeep`) — the page. A warm grey-brown, not a cold
+ *    blue-black: every neutral here carries a trace of warmth so the app reads
+ *    as a lit room rather than a gaming HUD.
  *  - **Materials** (`glass*`) — translucent *white* veils laid over a real
  *    backdrop blur. This is the part people mean by glassmorphism: a frosted
- *    pane brightens what is behind it and picks up a lit edge. A dark fill over
- *    a blur just reads as a grey card, which is what this palette used to do.
+ *    pane brightens what is behind it and picks up a lit edge.
  *  - **Solids** (`surface` → `surfaceHigh`) — the few places that must stay
  *    opaque: image placeholders, input wells, anything that would turn to mush
  *    with a second layer of glass behind it.
  *
- * Accent policy: the interface is monochrome, and saturation is a signal.
- *  - `gradients.aurora` is the conversion accent — the one sweep of colour in
- *    the chrome, reserved for the single most important action on a screen.
+ * Accent policy: colour is rationed hard. The reference spends almost none.
  *  - `light` (near-white) is the everyday primary: white pill, ink label.
- *  - `aurora*` are the backdrop's blob colours. They are light, not surfaces —
+ *  - `ember` is the single signature accent — a warm terracotta, used sparingly.
+ *  - `glow*` are the backdrop's bloom colours. They are light, not surfaces —
  *    nothing is ever *filled* with them.
  *  - `statusColors` is the only other place a hue is allowed, and only to say
  *    where an order sits in its lifecycle.
@@ -31,69 +29,72 @@ export { CONTINUOUS, gutter, radii, shadows, spacing, TOUCH_SIZE } from './layou
 
 export const colors = {
   // ---- Ground -----------------------------------------------------------
-  /** The page. A trace of blue, so the aurora reads as light and not smoke. */
-  ink: '#07070C',
+  // A warm charcoal, not a cold blue-black. The reference interiors read as
+  // grey-brown — lit rooms, not a neon night — and every neutral here carries a
+  // trace of warmth so the whole app feels like the LUMORA reference rather
+  // than a gaming HUD.
+  /** The page. */
+  ink: '#15120F',
   /** Recessed wells — inputs, image placeholders. Darker than the page. */
-  inkDeep: '#04040A',
+  inkDeep: '#0D0B09',
   /** The few surfaces that must stay opaque behind glass. */
-  surface: '#131319',
-  surfaceRaised: '#1B1B23',
-  surfaceHigh: '#26262F',
+  surface: '#201C18',
+  surfaceRaised: '#2A2520',
+  surfaceHigh: '#37312A',
 
   // ---- Text -------------------------------------------------------------
   /** Primary type and anything that must read as "on". */
-  ivory: '#F7F5F2',
-  platinum: '#C9C7C2',
-  ash: '#8A8891',
-  slate: '#5C5A63',
+  ivory: '#F6F3EE',
+  platinum: '#C8C3BB',
+  ash: '#928B81',
+  slate: '#645E56',
 
   // ---- Inverted (type and glyphs on a white pill) -----------------------
-  light: '#F7F5F2',
-  onLight: '#0B0B0D',
-  onLightMuted: '#5C5A63',
+  light: '#F6F3EE',
+  onLight: '#161310',
+  onLightMuted: '#645E56',
 
   // ---- Accents ----------------------------------------------------------
-  // A cool family with one warm exception. Everything sits at a middling
-  // saturation: fully-saturated hues on a dark interface read as a toy, and
-  // these are mostly seen as small tinted chips a few millimetres across.
-  azure: '#5A83F0',
-  iris: '#8A6BE8',
-  blush: '#D2649E',
-  /** The one warm accent, and the only place gold is allowed. */
-  amber: '#D9A05B',
-  mint: '#4FB58E',
+  // Warm and restrained. The reference interfaces spend almost no colour —
+  // a solid pill, a white pill, one quiet gradient — so these are muted on
+  // purpose and mostly appear as small tinted chips a few millimetres across.
+  amber: '#D8A15C',
+  /** The signature warm accent — champagne/terracotta, the app's one hue. */
+  ember: '#C97E54',
+  clay: '#B96A57',
+  sage: '#8AA079',
+  /** Errors, cancellations, and nothing else. */
+  rose: '#C36A63',
+  gold: '#C2A059',
 
   // ---- Backdrop light ---------------------------------------------------
-  // The aurora blooms. Deep and cool rather than bright: they are seen only
-  // through frosted glass, and anything hotter stops reading as light and
-  // starts reading as a colour field the interface is sitting on.
-  //
-  // There is deliberately no orange here. An amber bloom behind a white veil
-  // turns the glass khaki, which is what made the product sheet look muddy.
-  auroraIndigo: '#4654E5',
-  auroraViolet: '#7E52E0',
-  auroraTeal: '#2C89A6',
-  auroraRose: '#BE5089',
-  /** Errors, cancellations, and nothing else. */
-  rose: '#D9556B',
-  gold: '#C2A059',
+  // The room-light blooms behind the glass. Warm and nearly colourless — a
+  // lamp thrown across a charcoal wall, not an aurora. Saturation is kept low
+  // deliberately: the reference has no glowing colour field, and anything
+  // brighter here turns the app back into a nightclub.
+  glowChampagne: '#B39A78',
+  glowTaupe: '#8C7B6A',
+  glowClay: '#A6725A',
+  glowUmber: '#6E5B4A',
 
   // ---- Glass ------------------------------------------------------------
   // White veils, not dark fills. Each of these is laid *over a real backdrop
   // blur* (see `GlassPanel`), which is what turns them from a flat wash into a
   // material. Alpha is deliberately low: the blur does the work, and a heavy
   // fill would hide the light the pane is supposed to be refracting.
+  // Veils are a warm off-white, not pure white — over a warm charcoal ground
+  // they read as the reference's warm frosted glass rather than cold grey.
   /** Barely there — chips and controls that must not compete with a card. */
-  glassThin: 'rgba(255, 255, 255, 0.055)',
+  glassThin: 'rgba(246, 240, 232, 0.06)',
   /** The default pane: cards, sheets, the dock. */
-  glassRegular: 'rgba(255, 255, 255, 0.085)',
+  glassRegular: 'rgba(246, 240, 232, 0.10)',
   /** Where a pane carries primary type and has to lift off a busy backdrop. */
-  glassThick: 'rgba(255, 255, 255, 0.13)',
+  glassThick: 'rgba(246, 240, 232, 0.15)',
   /**
    * The one *dark* material, for glass laid over a photograph. A white veil on
    * a bright garment washes the picture out; this holds the type instead.
    */
-  glassOverImage: 'rgba(7, 7, 12, 0.55)',
+  glassOverImage: 'rgba(12, 10, 8, 0.5)',
 
   /**
    * A recessed well — inputs. Darker than the pane it sits in, so it reads as
@@ -102,8 +103,8 @@ export const colors = {
   glassWell: 'rgba(0, 0, 0, 0.28)',
 
   /** Hairlines. iOS separators are far quieter than a Material divider. */
-  glassBorder: 'rgba(255, 255, 255, 0.14)',
-  glassBorderStrong: 'rgba(255, 255, 255, 0.26)',
+  glassBorder: 'rgba(246, 240, 232, 0.12)',
+  glassBorderStrong: 'rgba(246, 240, 232, 0.24)',
 
   transparent: 'transparent',
 };
@@ -118,17 +119,18 @@ export const colors = {
  */
 export const gradients = {
   /**
-   * The conversion accent. Three stops, not four: the old ramp ran all the way
-   * to orange, which put the entire hue wheel in one pill and read like stock
-   * artwork. Indigo through violet to rose is a single sweep of one family.
+   * The conversion accent. A short, warm sweep — champagne into terracotta —
+   * not a trip round the hue wheel. The reference CTAs are mostly a solid pill;
+   * where a gradient earns its place it stays inside one warm family so it
+   * reads as brushed metal, not stock artwork.
    */
-  aurora: ['#4A5BE8', '#7C5CE8', '#C4568F'],
+  ember: ['#E3B784', '#C97E54', '#A85B44'],
   /** Deeper and quieter, for large fills where the accent sweep would shout. */
-  dusk: ['#252C6B', '#4E3A96', '#7A3A76'],
+  dusk: ['#3A2E26', '#5A4030', '#6E4B3A'],
   /** Transparent → dark: laid over an image so captions stay legible. */
-  imageScrim: ['rgba(4, 4, 10, 0)', 'rgba(4, 4, 10, 0.55)', 'rgba(4, 4, 10, 0.94)'],
+  imageScrim: ['rgba(12, 10, 8, 0)', 'rgba(12, 10, 8, 0.5)', 'rgba(12, 10, 8, 0.92)'],
   /** Dark → transparent: the top edge of a full-bleed hero, under the chrome. */
-  topScrim: ['rgba(4, 4, 10, 0.8)', 'rgba(4, 4, 10, 0.3)', 'rgba(4, 4, 10, 0)'],
+  topScrim: ['rgba(12, 10, 8, 0.72)', 'rgba(12, 10, 8, 0.26)', 'rgba(12, 10, 8, 0)'],
   /**
    * The specular edge. Real glass catches a bright line where light enters the
    * top of the pane and falls away fast; this ramp is steep for that reason —
@@ -150,21 +152,21 @@ export const sceneColors = {
   background: colors.ink,
   fog: colors.inkDeep,
   keyLight: '#FFFFFF',
-  rimLight: colors.iris,
+  rimLight: colors.ember,
 };
 
 /**
- * One tint per order state. The lifecycle reads as a temperature ramp: amber
- * while the shop still owes an action, iris once it is moving, mint on
+ * One tint per order state. The lifecycle reads as a warm ramp: amber while the
+ * shop still owes an action, ember and clay once it is moving, sage on
  * delivery, rose on cancellation.
  */
 export const statusColors = {
   PENDING: colors.amber,
   ACCEPTED: colors.amber,
   PACKED: colors.gold,
-  READY_FOR_PICKUP: colors.iris,
-  IN_TRANSIT: colors.azure,
-  DELIVERED: colors.mint,
+  READY_FOR_PICKUP: colors.ember,
+  IN_TRANSIT: colors.clay,
+  DELIVERED: colors.sage,
   CANCELLED: colors.rose,
 };
 

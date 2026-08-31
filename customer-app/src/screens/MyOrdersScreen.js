@@ -121,7 +121,7 @@ export default function MyOrdersScreen({ navigation }) {
 
           <View style={styles.moneyRow}>
             <View>
-              <Text style={styles.moneyLabel}>TOTAL</Text>
+              <Text style={styles.moneyLabel}>Total</Text>
               <Text style={styles.money}>{formatINR(item.totalPrice)}</Text>
             </View>
             <Text style={styles.payment}>

@@ -26,7 +26,7 @@ export default function StatRow({ items, divided = false, style }) {
             {item.value}
           </Text>
           <Text style={styles.label} numberOfLines={1}>
-            {item.label.toUpperCase()}
+            {item.label}
           </Text>
         </View>
       ))}
@@ -52,10 +52,9 @@ const styles = StyleSheet.create({
     color: colors.ivory,
   },
   label: {
-    ...typography.micro,
-    fontSize: 9,
-    letterSpacing: 1.5,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
-    marginTop: 3,
+    marginTop: 4,
   },
 });

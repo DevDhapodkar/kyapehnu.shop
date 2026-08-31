@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     height: 19,
     paddingHorizontal: 5,
     borderRadius: radii.pill,
-    backgroundColor: colors.blush,
+    backgroundColor: colors.ember,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,

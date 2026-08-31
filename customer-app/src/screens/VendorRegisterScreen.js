@@ -182,26 +182,26 @@ export default function VendorRegisterScreen({ navigation }) {
           <SectionHeader eyebrow="Step one" title="The shop" style={styles.cardHeader} />
 
           <Field
-            label="SHOP NAME"
+            label="Shop name"
             value={form.shopName}
             onChangeText={setField('shopName')}
             placeholder="Sitabuldi Silks"
           />
           <Field
-            label="OWNER NAME"
+            label="Owner name"
             value={form.ownerName}
             onChangeText={setField('ownerName')}
             placeholder="Priya Deshmukh"
           />
           <Field
-            label="PHONE"
+            label="Phone"
             value={form.phone}
             onChangeText={setField('phone')}
             placeholder="+91 98765 43210"
             keyboardType="phone-pad"
           />
           <Field
-            label="WHATSAPP (ORDER ALERTS)"
+            label="WhatsApp (order alerts)"
             value={form.whatsappNumber}
             onChangeText={setField('whatsappNumber')}
             placeholder="+91 98765 43210"
@@ -209,7 +209,7 @@ export default function VendorRegisterScreen({ navigation }) {
             hint="Every new order pings this number the moment it is placed."
           />
           <Field
-            label="EMAIL"
+            label="Email"
             value={form.email}
             onChangeText={setField('email')}
             placeholder="shop@email.com"
@@ -243,21 +243,21 @@ export default function VendorRegisterScreen({ navigation }) {
           />
 
           <Field
-            label="STREET / SHOP NO."
+            label="Street / shop no."
             value={form.line1}
             onChangeText={setField('line1')}
             placeholder="Shop 14, Gandhibagh Rd"
           />
           <View style={styles.twoCol}>
             <Field
-              label="AREA"
+              label="Area"
               value={form.area}
               onChangeText={setField('area')}
               placeholder="Sitabuldi"
               containerStyle={styles.colField}
             />
             <Field
-              label="PINCODE"
+              label="Pincode"
               value={form.pincode}
               onChangeText={setField('pincode')}
               placeholder="440012"

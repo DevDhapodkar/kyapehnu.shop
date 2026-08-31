@@ -86,7 +86,7 @@ export default function StorefrontHeader({
           <View style={[styles.pin, denied && styles.pinOff]} />
           <View style={styles.areaText}>
             <Text style={styles.areaLabel}>
-              {denied ? 'LOCATION OFF' : 'DELIVERING TO'}
+              {denied ? 'Location off' : 'Delivering to'}
             </Text>
             <Text numberOfLines={1} style={styles.area}>
               {denied ? 'Tap to enable GPS' : areaLabel}
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: radii.pill,
-    backgroundColor: colors.mint,
+    backgroundColor: colors.sage,
   },
   pinOff: {
     backgroundColor: colors.amber,
@@ -184,9 +184,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   areaLabel: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.6,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
   },
   area: {

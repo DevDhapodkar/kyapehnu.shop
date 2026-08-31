@@ -10,7 +10,7 @@ import { typography } from '../../theme/typography';
  * HeroPanel
  *
  * The storefront's opening statement, built as one large bento card: a
- * photograph running to all four corners, the pitch in wide uppercase display
+ * photograph running to all four corners, the pitch in sentence-case display
  * type over it, and a frosted card floating at the lower edge carrying the
  * piece the shot is actually of.
  *
@@ -55,7 +55,7 @@ export default function HeroPanel({ product, onOpen, style }) {
           {eta ? <Chip label={eta} size="sm" tone="light" /> : null}
         </View>
 
-        <Text style={styles.display}>IN STOCK,{'\n'}MINUTES AWAY.</Text>
+        <Text style={styles.display}>In stock,{'\n'}minutes away.</Text>
 
         <Text style={styles.blurb} numberOfLines={2}>
           Live from independent Nagpur shops. On a rail, and a rider away.

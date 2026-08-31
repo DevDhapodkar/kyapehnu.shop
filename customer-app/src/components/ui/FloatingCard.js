@@ -43,7 +43,7 @@ export default function FloatingCard({
       <View style={styles.body}>
         {eyebrow ? (
           <Text numberOfLines={1} style={styles.eyebrow}>
-            {eyebrow.toUpperCase()}
+            {eyebrow}
           </Text>
         ) : null}
         <Text numberOfLines={1} style={styles.title}>
@@ -97,10 +97,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.6,
-    color: colors.ash,
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.platinum,
     marginBottom: 3,
   },
   title: {

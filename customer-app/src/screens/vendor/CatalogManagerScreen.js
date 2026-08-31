@@ -30,7 +30,7 @@ import { formatCurrency } from '../../utils/format';
 // How a listing's moderation status reads to the vendor, and its tint.
 const REVIEW_STATUS = {
   PENDING_QC: { label: 'In review', tint: colors.amber },
-  APPROVED: { label: 'Live', tint: colors.mint },
+  APPROVED: { label: 'Live', tint: colors.sage },
   REJECTED: { label: 'Rejected', tint: colors.rose },
   ARCHIVED: { label: 'Archived', tint: colors.slate },
   DRAFT: { label: 'Draft', tint: colors.slate },
@@ -110,7 +110,7 @@ export default function CatalogManagerScreen({ navigation }) {
                 value={inStock}
                 onValueChange={(next) => onToggle(item, next)}
                 accessibilityLabel={`${item.name} availability`}
-                trackColor={{ false: colors.surfaceHigh, true: colors.iris }}
+                trackColor={{ false: colors.surfaceHigh, true: colors.ember }}
                 thumbColor={colors.ivory}
                 ios_backgroundColor={colors.surfaceHigh}
               />

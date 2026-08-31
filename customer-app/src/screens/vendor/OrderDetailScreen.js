@@ -157,7 +157,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
         </View>
 
         <Surface tone="regular" radius={radii.xl} elevation="medium" style={styles.card} sheen>
-          <Text style={styles.sectionLabel}>ITEM BREAKDOWN</Text>
+          <Text style={styles.sectionLabel}>Item breakdown</Text>
 
           {items.map((item, index) => (
             <View key={`${item.product ?? item.name}-${item.size}-${index}`} style={styles.lineRow}>
@@ -175,18 +175,18 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           <View style={styles.divider} />
 
           <View style={styles.totalRow}>
-            <Text style={styles.sectionLabel}>ORDER TOTAL</Text>
+            <Text style={styles.sectionLabel}>Order total</Text>
             <Text style={styles.totalValue}>{formatCurrency(order.totalPrice)}</Text>
           </View>
         </Surface>
 
         <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
-          <Text style={styles.sectionLabel}>PROGRESS</Text>
+          <Text style={styles.sectionLabel}>Progress</Text>
           <OrderTimeline status={order.status} />
         </Surface>
 
         <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
-          <Text style={styles.sectionLabel}>DELIVERY</Text>
+          <Text style={styles.sectionLabel}>Delivery</Text>
 
           <View style={styles.personRow}>
             <Avatar name={customerName} size={42} />
@@ -210,7 +210,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
 
         {order.porter?.requestId ? (
           <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
-            <Text style={styles.sectionLabel}>PORTER</Text>
+            <Text style={styles.sectionLabel}>Porter</Text>
             <Text style={styles.address}>Request {order.porter.requestId}</Text>
             {order.porter.driverName ? (
               <Text style={styles.customer}>
@@ -345,9 +345,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   sectionLabel: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.8,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
     marginBottom: spacing.sm,
   },

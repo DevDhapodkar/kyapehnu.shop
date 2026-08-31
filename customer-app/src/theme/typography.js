@@ -21,20 +21,21 @@
 
 export const typography = {
   /**
-   * The marketing hero, and nothing else. Set tight and heavy so it reads as
-   * one mass rather than a row of words.
+   * The marketing hero, and nothing else. The reference heroes are set in
+   * sentence case at a friendly weight, not shouted in heavy uppercase — so
+   * this is 700, not 800, and paired with sentence-case copy at the call site.
    */
   display: {
-    fontSize: 40,
-    lineHeight: 43,
-    fontWeight: '800',
-    letterSpacing: -1.4,
+    fontSize: 38,
+    lineHeight: 41,
+    fontWeight: '700',
+    letterSpacing: -1.2,
   },
   displaySm: {
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: '800',
-    letterSpacing: -0.9,
+    fontSize: 29,
+    lineHeight: 33,
+    fontWeight: '700',
+    letterSpacing: -0.8,
   },
   /** iOS large title — the top of a scrolling screen. */
   largeTitle: {

@@ -44,10 +44,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: {
-    ...typography.micro,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    color: colors.ash,
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.platinum,
     marginBottom: 7,
   },
   input: {

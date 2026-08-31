@@ -16,66 +16,66 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 /**
  * AuroraBackdrop
  *
- * The app's wallpaper: four broad blooms of coloured light drifting behind
- * everything, on near-black ink.
+ * The app's wallpaper: a few soft blooms of warm room-light drifting behind
+ * everything, on warm charcoal.
  *
- * This is not decoration — it is the thing the glass is for. A frosted pane
- * over flat black is indistinguishable from a grey card; the same pane over
- * moving colour reads unmistakably as glass, because it visibly bends and
- * brightens what is behind it. Every translucent surface in the app is
- * ultimately refracting this view.
+ * "Aurora" is a hangover from a louder first pass — this is deliberately not
+ * that. The reference interfaces have no glowing colour field; they are calm,
+ * warm, photographic rooms. So the blooms here are near-colourless — champagne,
+ * taupe, a little clay — at low intensity, reading as a lamp thrown across a
+ * dark wall rather than neon behind glass. The glass still has something to
+ * refract, but the wallpaper is felt, not looked at.
  *
  * Mounted once at the root, under the navigator. Screens paint no background of
  * their own, so this shows through the whole app.
  *
  * Each bloom is one view painted with a radial gradient that fades to nothing,
- * so the falloff is interpolated per pixel and there is no edge anywhere. That
- * replaced a blurred circle: a blur filter needs the new architecture, is
- * dropped silently by `react-native-web` in its array form, and costs a
- * full-screen offscreen pass per bloom. A gradient costs a fill.
+ * so the falloff is interpolated per pixel and there is no edge anywhere. React
+ * Native 0.86 renders the gradient through `experimental_backgroundImage`, the
+ * browser through `backgroundImage`.
  */
 
-// Position, size and drift for each bloom. Sizes are generous — a blob smaller
+// Position, size and drift for each bloom. Sizes are generous — a bloom smaller
 // than about half the screen stops reading as ambient light and starts reading
 // as an object someone has placed on the page.
-const BLOBS = [
+const BLOOMS = [
   {
-    color: colors.auroraIndigo,
+    color: colors.glowChampagne,
     size: SCREEN_WIDTH * 1.9,
-    top: -SCREEN_HEIGHT * 0.3,
-    left: -SCREEN_WIDTH * 0.7,
-    intensity: 0.62,
-    drift: { x: 34, y: 26, seconds: 19 },
+    top: -SCREEN_HEIGHT * 0.26,
+    left: -SCREEN_WIDTH * 0.55,
+    intensity: 0.3,
+    drift: { x: 26, y: 20, seconds: 22 },
   },
   {
-    color: colors.auroraViolet,
+    color: colors.glowTaupe,
     size: SCREEN_WIDTH * 1.7,
-    top: SCREEN_HEIGHT * 0.02,
-    left: SCREEN_WIDTH * 0.15,
-    intensity: 0.55,
-    drift: { x: -28, y: 34, seconds: 23 },
+    top: SCREEN_HEIGHT * 0.08,
+    left: SCREEN_WIDTH * 0.3,
+    intensity: 0.22,
+    drift: { x: -22, y: 26, seconds: 27 },
   },
   {
-    color: colors.auroraTeal,
-    size: SCREEN_WIDTH * 1.8,
-    top: SCREEN_HEIGHT * 0.42,
-    left: -SCREEN_WIDTH * 0.6,
-    intensity: 0.44,
-    drift: { x: 30, y: -30, seconds: 27 },
+    color: colors.glowClay,
+    size: SCREEN_WIDTH * 1.6,
+    top: SCREEN_HEIGHT * 0.62,
+    left: -SCREEN_WIDTH * 0.4,
+    intensity: 0.2,
+    drift: { x: 22, y: -22, seconds: 31 },
   },
   {
-    color: colors.auroraRose,
-    size: SCREEN_WIDTH * 1.5,
-    top: SCREEN_HEIGHT * 0.68,
-    left: SCREEN_WIDTH * 0.2,
-    intensity: 0.4,
-    drift: { x: -24, y: -22, seconds: 31 },
+    color: colors.glowUmber,
+    size: SCREEN_WIDTH * 1.4,
+    top: SCREEN_HEIGHT * 0.8,
+    left: SCREEN_WIDTH * 0.35,
+    intensity: 0.18,
+    drift: { x: -18, y: -18, seconds: 35 },
   },
 ];
 
-function Blob({ color, size, top, left, intensity, drift }) {
-  // 0 → 1 → 0, looping. One clock per blob, each on its own period, so the
-  // blooms never line up into a single pulsing mass.
+function Bloom({ color, size, top, left, intensity, drift }) {
+  // 0 → 1 → 0, looping. One clock per bloom, each on its own period, so they
+  // never line up into a single pulsing mass.
   const progress = useSharedValue(0);
   const bloom = useMemo(() => toCssBloom(color, intensity), [color, intensity]);
 
@@ -98,7 +98,7 @@ function Blob({ color, size, top, left, intensity, drift }) {
     <Animated.View
       pointerEvents="none"
       style={[
-        styles.blob,
+        styles.bloom,
         { width: size, height: size, top, left },
         Platform.OS === 'web'
           ? { backgroundImage: bloom }
@@ -112,14 +112,13 @@ function Blob({ color, size, top, left, intensity, drift }) {
 export default function AuroraBackdrop({ style }) {
   return (
     <View pointerEvents="none" style={[styles.root, style]}>
-      {BLOBS.map((blob) => (
-        <Blob key={blob.color} {...blob} />
+      {BLOOMS.map((bloom) => (
+        <Bloom key={bloom.color} {...bloom} />
       ))}
 
-      {/* Knocks the blooms back hard. Without this the blobs stop reading as
-          light behind glass and become a colour field the interface is sitting
-          on — and body copy over the brighter lobes drops under the contrast
-          it needs. The wallpaper should be felt, not looked at. */}
+      {/* A soft warm vignette so the light gathers toward the centre and falls
+          off at the edges, the way a room is lit — and so body copy near the
+          corners never fights a bright lobe. */}
       <View style={styles.veil} />
     </View>
   );
@@ -129,16 +128,16 @@ const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.ink,
-    // The blobs are wider than the screen; clipping keeps them from expanding
+    // The blooms are wider than the screen; clipping keeps them from expanding
     // the layout on web.
     overflow: 'hidden',
   },
-  blob: {
+  bloom: {
     position: 'absolute',
   },
   veil: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.ink,
-    opacity: 0.52,
+    opacity: 0.42,
   },
 });

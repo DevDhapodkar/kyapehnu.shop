@@ -133,7 +133,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
       >
         <Polyline
           coordinates={routeCoords}
-          strokeColor={colors.iris}
+          strokeColor={colors.ember}
           strokeWidth={4}
           lineDashPattern={[6, 8]}
         />
@@ -185,7 +185,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
         <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.sheet} sheen>
           <View style={styles.statusRow}>
             <View style={styles.statusLeft}>
-              <Chip label="Live" tint={colors.mint} size="sm" style={styles.liveChip} />
+              <Chip label="Live" tint={colors.sage} size="sm" style={styles.liveChip} />
               <Text style={styles.statusLabel}>{stage.label}</Text>
               <Text style={styles.statusDetail}>{stage.detail}</Text>
             </View>
@@ -265,14 +265,14 @@ const styles = StyleSheet.create({
   driverHalo: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: radii.pill,
-    backgroundColor: colors.iris,
+    backgroundColor: colors.ember,
     opacity: 0.3,
   },
   driverCore: {
     width: 14,
     height: 14,
     borderRadius: radii.pill,
-    backgroundColor: colors.iris,
+    backgroundColor: colors.ember,
     borderWidth: 2,
     borderColor: colors.ivory,
   },
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: radii.pill,
-    backgroundColor: colors.mint,
+    backgroundColor: colors.sage,
   },
   headerTitle: {
     ...typography.caption,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   railFill: {
     height: 6,
     borderRadius: radii.pill,
-    backgroundColor: colors.iris,
+    backgroundColor: colors.ember,
   },
   legRow: {
     flexDirection: 'row',

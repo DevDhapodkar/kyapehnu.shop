@@ -15,7 +15,7 @@ export default function SectionHeader({ eyebrow, title, caption, actionLabel, on
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.text}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text> : null}
+        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
         <Text style={styles.title}>{title}</Text>
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
@@ -47,8 +47,9 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...typography.eyebrow,
-    color: colors.ash,
-    marginBottom: 7,
+    letterSpacing: 0.2,
+    color: colors.ember,
+    marginBottom: 6,
   },
   title: {
     ...typography.h2,

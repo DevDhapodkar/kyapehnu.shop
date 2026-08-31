@@ -174,14 +174,14 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
           />
 
           <Field
-            label="NAME"
+            label="Name"
             value={draft.name}
             onChangeText={setField('name')}
             placeholder="Charcoal linen shirt"
           />
 
           <Field
-            label="BRAND"
+            label="Brand"
             value={draft.brand}
             onChangeText={setField('brand')}
             placeholder="e.g. Raymond, or your shop label"
@@ -204,7 +204,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
           </View>
 
           <Field
-            label="TYPE"
+            label="Type"
             value={draft.subCategory}
             onChangeText={setField('subCategory')}
             placeholder="Shirt, Kurta, Dress, Trousers…"
@@ -212,7 +212,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
 
           <View style={styles.twoCol}>
             <Field
-              label="SELLING PRICE (₹)"
+              label="Selling price (₹)"
               value={draft.price}
               onChangeText={setField('price')}
               placeholder="2400"
@@ -230,7 +230,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
           </View>
 
           <Field
-            label="SIZES & STOCK"
+            label="Sizes & stock"
             value={draft.sizes}
             onChangeText={setField('sizes')}
             placeholder="S:3, M:5, L:2"
@@ -239,7 +239,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
           />
 
           <Field
-            label="COLOURS"
+            label="Colours"
             value={draft.colors}
             onChangeText={setField('colors')}
             placeholder="Black, Ivory"
@@ -247,14 +247,14 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
 
           <View style={styles.twoCol}>
             <Field
-              label="FABRIC / MATERIAL"
+              label="Fabric / material"
               value={draft.material}
               onChangeText={setField('material')}
               placeholder="100% Cotton"
               containerStyle={styles.colField}
             />
             <Field
-              label="PATTERN"
+              label="Pattern"
               value={draft.pattern}
               onChangeText={setField('pattern')}
               placeholder="Solid, Printed…"
@@ -264,14 +264,14 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
 
           <View style={styles.twoCol}>
             <Field
-              label="FIT"
+              label="Fit"
               value={draft.fit}
               onChangeText={setField('fit')}
               placeholder="Regular, Slim…"
               containerStyle={styles.colField}
             />
             <Field
-              label="OCCASION"
+              label="Occasion"
               value={draft.occasion}
               onChangeText={setField('occasion')}
               placeholder="Casual, Formal…"
@@ -281,7 +281,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
 
           <View style={styles.twoCol}>
             <Field
-              label="NET QTY (units)"
+              label="Net qty (units)"
               value={draft.netQuantity}
               onChangeText={setField('netQuantity')}
               placeholder="1"
@@ -289,7 +289,7 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
               containerStyle={styles.colField}
             />
             <Field
-              label="COUNTRY OF ORIGIN"
+              label="Country of origin"
               value={draft.countryOfOrigin}
               onChangeText={setField('countryOfOrigin')}
               placeholder="India"
@@ -298,14 +298,14 @@ export default function ListingComposer({ open, onToggle, onSubmit }) {
           </View>
 
           <Field
-            label="CARE INSTRUCTIONS"
+            label="Care instructions"
             value={draft.careInstructions}
             onChangeText={setField('careInstructions')}
             placeholder="Machine wash cold, do not bleach"
           />
 
           <Field
-            label="DESCRIPTION"
+            label="Description"
             value={draft.description}
             onChangeText={setField('description')}
             placeholder="Optional"

@@ -98,7 +98,7 @@ export default function ProfileScreen({ navigation }) {
                 style={StyleSheet.absoluteFill}
               />
               <View pointerEvents="none" style={styles.bannerScrim} />
-              <Glow color={colors.blush} size={300} intensity={0.34} style={styles.bannerGlow} />
+              <Glow color={colors.ember} size={300} intensity={0.34} style={styles.bannerGlow} />
             </View>
           }
         >
@@ -151,7 +151,7 @@ export default function ProfileScreen({ navigation }) {
               value={isVendor}
               onValueChange={onToggle}
               accessibilityLabel="Vendor mode"
-              trackColor={{ false: colors.surfaceHigh, true: colors.iris }}
+              trackColor={{ false: colors.surfaceHigh, true: colors.ember }}
               thumbColor={colors.ivory}
               ios_backgroundColor={colors.surfaceHigh}
             />
@@ -163,7 +163,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.shopRow}>
               <Avatar name={vendorProfile.shopName} size={44} />
               <View style={styles.shopText}>
-                <Text style={styles.sectionLabel}>YOUR SHOP</Text>
+                <Text style={styles.sectionLabel}>Your shop</Text>
                 <Text style={styles.cardTitle} numberOfLines={1}>
                   {vendorProfile.shopName}
                 </Text>
@@ -187,7 +187,7 @@ export default function ProfileScreen({ navigation }) {
         ) : null}
 
         <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.card}>
-          <Text style={styles.sectionLabel}>BACKEND</Text>
+          <Text style={styles.sectionLabel}>Backend</Text>
           <Text style={styles.meta}>{API_BASE_URL}</Text>
           <Text style={styles.meta}>
             Auth token · {getAuthToken() ? 'set' : 'none (set expo.extra.devAuthToken)'}
@@ -287,9 +287,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   sectionLabel: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.8,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
     marginBottom: 5,
   },

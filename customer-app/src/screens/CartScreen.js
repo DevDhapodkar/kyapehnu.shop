@@ -251,7 +251,7 @@ export default function CartScreen({ navigation }) {
           <View style={styles.summaryDivider} />
 
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{formatINR(total)}</Text>
           </View>
 

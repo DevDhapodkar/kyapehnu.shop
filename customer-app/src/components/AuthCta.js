@@ -11,7 +11,7 @@ import { typography } from '../theme/typography';
  * the dress behind this panel, and the panel is the pay-off: the single place
  * the marketing funnel converts a browsing visitor into a signed-in customer.
  *
- * This is the one screen in the app that earns the aurora gradient. It is the
+ * This is the one screen in the app that earns the ember gradient. It is the
  * conversion moment, and the accent is rationed precisely so that landing on it
  * after four monochrome story beats reads as an arrival.
  *

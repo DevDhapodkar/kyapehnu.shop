@@ -46,8 +46,8 @@ const navTheme = {
     card: colors.transparent,
     text: colors.ivory,
     border: colors.glassBorder,
-    primary: colors.iris,
-    notification: colors.blush,
+    primary: colors.ember,
+    notification: colors.ember,
   },
 };
 

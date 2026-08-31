@@ -12,13 +12,13 @@ while they try it on. Shopkeepers list and manage their inventory by sending
 a photo to WhatsApp, and get real-time order alerts on the same app their
 customers use.
 
-The product is deliberately styled as a dark, glassy, iOS-native shopping
-experience. A drift of coloured light runs behind the whole app, and every
-card, header, dock and action bar is a pane of frosted glass over it — Apple's
-Liquid Glass where iOS 26 offers it, a real backdrop blur everywhere else.
-Corners are continuous, type is sized against iOS, and one saturated gradient is
-rationed to the single most important action on a screen. A 3D scrollytelling
-intro orbits a men's outfit and a red dress as a first-time visitor scrolls.
+The product is deliberately styled as a warm, calm, glassy shopping experience:
+a warm-charcoal interior lit by soft room-light, with every card, header, dock
+and action bar a pane of frosted glass over it — Apple's Liquid Glass where
+iOS 26 offers it, a real backdrop blur everywhere else. Photography leads each
+screen, colour is rationed to a single warm accent, corners are continuous, and
+type is sized against iOS. A 3D scrollytelling intro orbits a men's outfit and a
+red dress as a first-time visitor scrolls.
 
 ---
 

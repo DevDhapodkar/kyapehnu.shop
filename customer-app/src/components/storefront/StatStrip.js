@@ -32,7 +32,7 @@ export default function StatStrip({ items, style }) {
             {item.value}
           </Text>
           <Text style={styles.label} numberOfLines={2}>
-            {item.label.toUpperCase()}
+            {item.label}
           </Text>
         </Surface>
       ))}
@@ -58,9 +58,8 @@ const styles = StyleSheet.create({
     color: colors.ivory,
   },
   label: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.4,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
     marginTop: 5,
   },

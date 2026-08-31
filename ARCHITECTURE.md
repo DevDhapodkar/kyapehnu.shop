@@ -43,13 +43,20 @@ own.
 - **No native header.** A platform header is an opaque bar that cannot be made
   of glass and would cut a flat band across the wallpaper. Every screen draws a
   `GlassHeader` that floats over its own content instead.
-- **Colour policy.** The interface is monochrome and saturation is a signal.
-  `gradients.aurora` is the conversion accent — indigo through violet to rose,
-  one family rather than a trip round the hue wheel — reserved for the single
-  highest-intent action on a screen. Near-white pills are the everyday primary.
-  `statusColors` is the only other place a hue is allowed, and only to say where
-  an order sits in its lifecycle. The backdrop's blooms are deliberately cool
-  and carry no orange: an amber bloom behind a white veil turns the glass khaki.
+- **Warm and calm, not neon.** The reference interfaces are warm, photographic,
+  lit rooms — so the ground is a warm charcoal (grey-brown, not a cold
+  blue-black), the glass is a warm off-white frost, and the backdrop's blooms
+  are near-colourless warm room-light (`AuroraBackdrop`, champagne/taupe/clay),
+  not a saturated aurora. An earlier pass ran "dark + glass + gradient" into a
+  glowing nightclub; this is the correction.
+- **Colour is rationed hard.** The reference spends almost none. Near-white
+  pills are the everyday primary; `gradients.ember` (champagne → terracotta) is
+  the single signature accent, reserved for the one highest-intent action on a
+  screen. `statusColors` is the only other place a hue is allowed, and only to
+  say where an order sits in its lifecycle.
+- **Quiet type.** Labels are sentence case, not shouted in tracked all-caps, and
+  the marketing hero is set in sentence case at a friendly weight — matching the
+  reference's calm labelling rather than a dashboard's.
 - **Gradients ship no dependency.** Every ramp and bloom in the app is one view
   painted with a CSS gradient string: React Native 0.86 renders it through
   `experimental_backgroundImage` and the browser through `backgroundImage`, so

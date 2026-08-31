@@ -14,8 +14,9 @@ import { typography } from '../../theme/typography';
  *
  * Variant hierarchy, strongest first. Only one of the top two belongs on a
  * screen at a time:
- *  - `gradient` — the aurora sweep. Reserved for the moment of conversion:
- *    placing an order, creating an account. One per screen, at most.
+ *  - `gradient` — the warm ember sweep, the app's one spot of colour. Reserved
+ *    for the moment of conversion: placing an order, creating an account. One
+ *    per screen, at most, and never where a solid pill would do.
  *  - `light`    — the everyday primary. White pill, ink label.
  *  - `dark`     — primary *on* a light surface or a bright photograph.
  *  - `glass`    — secondary; a frosted pane that keeps the image behind it.
@@ -80,7 +81,7 @@ export default function PillButton({
       ]}
     >
       {isGradient ? (
-        <Gradient pointerEvents="none" colors={gradients.aurora} style={styles.fill} />
+        <Gradient pointerEvents="none" colors={gradients.ember} style={styles.fill} />
       ) : null}
 
       {variant === 'glass' ? (
@@ -138,7 +139,7 @@ const VARIANT_STYLES = StyleSheet.create({
     ...shadows.low,
   },
   gradient: {
-    backgroundColor: colors.iris,
+    backgroundColor: colors.ember,
     ...shadows.medium,
   },
   dark: {

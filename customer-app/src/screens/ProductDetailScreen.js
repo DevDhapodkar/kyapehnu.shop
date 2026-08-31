@@ -98,7 +98,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
           {sizes.length ? (
             <>
-              <Text style={styles.blockLabel}>{sizes.length > 1 ? 'SELECT SIZE' : 'SIZE'}</Text>
+              <Text style={styles.blockLabel}>{sizes.length > 1 ? 'Select size' : 'Size'}</Text>
               <View style={styles.sizeRow}>
                 {sizes.map((size) => {
                   const active = size === selectedSize;
@@ -132,7 +132,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Surface tone="thin" radius={radii.lg} elevation="none" style={styles.storeCard}>
             <Avatar name={product.storeName} size={44} />
             <View style={styles.storeText}>
-              <Text style={styles.storeLabel}>SOLD BY</Text>
+              <Text style={styles.storeLabel}>Sold by</Text>
               <Text style={styles.storeName} numberOfLines={1}>
                 {product.storeName}
               </Text>
@@ -142,7 +142,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             </View>
           </Surface>
 
-          <Text style={styles.blockLabel}>DETAILS</Text>
+          <Text style={styles.blockLabel}>Details</Text>
           <Surface tone="thin" radius={radii.lg} elevation="none" style={styles.detailCard}>
             <Detail label="Brand" value={product.brand} />
             <Detail label="Colour" value={product.colorway} />
@@ -185,7 +185,7 @@ export default function ProductDetailScreen({ route, navigation }) {
       >
         <Surface tone="thick" radius={radii.xl} elevation="high" style={styles.actionCard}>
           <View style={styles.actionSummary}>
-            <Text style={styles.actionLabel}>TOTAL PRICE</Text>
+            <Text style={styles.actionLabel}>Total price</Text>
             <Text style={styles.actionPrice}>{formatINR(product.price)}</Text>
             <Text style={styles.actionMeta}>
               {selectedSize ? `Size ${selectedSize}` : 'One size'}
@@ -283,7 +283,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm + 2,
   },
   blockLabel: {
-    ...typography.eyebrow,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
@@ -395,9 +396,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   actionLabel: {
-    ...typography.micro,
-    fontSize: 8,
-    letterSpacing: 1.8,
+    ...typography.caption,
+    fontSize: 12,
     color: colors.ash,
   },
   actionPrice: {
