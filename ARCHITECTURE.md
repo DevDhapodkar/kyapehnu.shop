@@ -44,15 +44,23 @@ own.
   of glass and would cut a flat band across the wallpaper. Every screen draws a
   `GlassHeader` that floats over its own content instead.
 - **Colour policy.** The interface is monochrome and saturation is a signal.
-  `gradients.aurora` is the conversion accent, reserved for the single
+  `gradients.aurora` is the conversion accent — indigo through violet to rose,
+  one family rather than a trip round the hue wheel — reserved for the single
   highest-intent action on a screen. Near-white pills are the everyday primary.
   `statusColors` is the only other place a hue is allowed, and only to say where
-  an order sits in its lifecycle.
-- **Gradients ship no dependency.** `components/ui/Gradient.js` paints a ramp as
-  flat bands laid out by flex (`utils/color.js` samples them), so no native
-  gradient module is needed. Flex, not percentages: percentage-positioned bands
-  round independently and leave hairline seams, and overlapping them to hide the
-  seams compounds alpha on the translucent ramps into visible stripes.
+  an order sits in its lifecycle. The backdrop's blooms are deliberately cool
+  and carry no orange: an amber bloom behind a white veil turns the glass khaki.
+- **Gradients ship no dependency.** Every ramp and bloom in the app is one view
+  painted with a CSS gradient string: React Native 0.86 renders it through
+  `experimental_backgroundImage` and the browser through `backgroundImage`, so
+  `components/ui/Gradient.js` and `Glow.js` build the string (`utils/color.js`)
+  and hand it to whichever key the platform reads. No native gradient module,
+  and no dev-client rebuild for paint.
+  - This replaced a hand-rolled renderer that laid ramps down as runs of flat
+    bands and blooms as stacks of concentric discs. Both banded visibly on short
+    ramps — a 46pt specular edge gives each band a few pixels — and raising the
+    count until the steps go sub-pixel means dozens of views per gradient on
+    screens that hold a dozen gradients.
 - **Navigation.** The customer flow carries a floating pill dock
   (`navigation/customerTabs.js` + `components/ui/TabDock.js`) rendered per screen
   over the existing native stack, rather than a second navigator.

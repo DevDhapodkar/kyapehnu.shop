@@ -67,7 +67,6 @@ export default function ProductDetailScreen({ route, navigation }) {
             pointerEvents="none"
             colors={gradients.topScrim}
             direction="vertical"
-            steps={16}
             style={styles.heroScrim}
           />
         </View>
@@ -85,7 +84,10 @@ export default function ProductDetailScreen({ route, navigation }) {
             {product.mrp ? (
               <>
                 <Text style={styles.mrp}>{formatINR(product.mrp)}</Text>
-                <Chip label={`${discount}% off`} size="sm" tint={colors.mint} />
+                {/* A solid light pill, not a green tint. A saturated success
+                    colour on a price is the one place this interface would
+                    look like a discount-store banner. */}
+                <Chip label={`${discount}% off`} size="sm" tone="light" />
               </>
             ) : null}
           </View>

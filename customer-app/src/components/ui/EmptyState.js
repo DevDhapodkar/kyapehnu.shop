@@ -17,7 +17,7 @@ export default function EmptyState({ glyph = '◇', title, body, actionLabel, on
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.disc}>
-        <Gradient pointerEvents="none" colors={gradients.dusk} steps={20} style={styles.discFill} />
+        <Gradient pointerEvents="none" colors={gradients.dusk} style={styles.discFill} />
         <View pointerEvents="none" style={styles.discScrim} />
         <Text style={styles.glyph}>{glyph}</Text>
       </View>
@@ -54,11 +54,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   // The sweep is decoration, not the subject — knocking it back keeps the glyph
-  // the brightest thing in the disc.
+  // the brightest thing in the disc, while leaving the disc enough presence to
+  // read against a wallpaper that is itself lit.
   discScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.ink,
-    opacity: 0.62,
+    opacity: 0.42,
   },
   glyph: {
     color: colors.ivory,

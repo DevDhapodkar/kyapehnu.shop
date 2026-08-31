@@ -48,7 +48,6 @@ export default function ProductCard({ product, onPress, style }) {
         pointerEvents="none"
         colors={gradients.imageScrim}
         direction="vertical"
-        steps={24}
         style={styles.scrim}
       />
 

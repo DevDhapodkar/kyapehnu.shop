@@ -53,22 +53,30 @@ export const colors = {
   onLightMuted: '#5C5A63',
 
   // ---- Accents ----------------------------------------------------------
-  azure: '#4C6FFF',
-  iris: '#8B5CF6',
-  blush: '#E5479B',
-  amber: '#F5A05A',
-  mint: '#3FB27F',
+  // A cool family with one warm exception. Everything sits at a middling
+  // saturation: fully-saturated hues on a dark interface read as a toy, and
+  // these are mostly seen as small tinted chips a few millimetres across.
+  azure: '#5A83F0',
+  iris: '#8A6BE8',
+  blush: '#D2649E',
+  /** The one warm accent, and the only place gold is allowed. */
+  amber: '#D9A05B',
+  mint: '#4FB58E',
 
   // ---- Backdrop light ---------------------------------------------------
-  // The aurora blobs. Saturated on purpose: they are seen only through frosted
-  // glass and a lot of dark, and anything softer arrives as grey.
-  auroraViolet: '#7A3BFF',
-  auroraAzure: '#1E5BFF',
-  auroraBlush: '#FF3D8B',
-  auroraAmber: '#FF8A3D',
+  // The aurora blooms. Deep and cool rather than bright: they are seen only
+  // through frosted glass, and anything hotter stops reading as light and
+  // starts reading as a colour field the interface is sitting on.
+  //
+  // There is deliberately no orange here. An amber bloom behind a white veil
+  // turns the glass khaki, which is what made the product sheet look muddy.
+  auroraIndigo: '#4654E5',
+  auroraViolet: '#7E52E0',
+  auroraTeal: '#2C89A6',
+  auroraRose: '#BE5089',
   /** Errors, cancellations, and nothing else. */
-  crimsonBright: '#C4243A',
-  gold: '#C8A24A',
+  rose: '#D9556B',
+  gold: '#C2A059',
 
   // ---- Glass ------------------------------------------------------------
   // White veils, not dark fills. Each of these is laid *over a real backdrop
@@ -109,9 +117,14 @@ export const colors = {
  * the warm/cool washes that light the page behind the bento grid.
  */
 export const gradients = {
-  aurora: ['#4C6FFF', '#8B5CF6', '#E5479B', '#F5A05A'],
-  /** Cooler half of aurora, for large fills where the full sweep is loud. */
-  dusk: ['#2E3A8C', '#6D4BC7', '#B84A8E'],
+  /**
+   * The conversion accent. Three stops, not four: the old ramp ran all the way
+   * to orange, which put the entire hue wheel in one pill and read like stock
+   * artwork. Indigo through violet to rose is a single sweep of one family.
+   */
+  aurora: ['#4A5BE8', '#7C5CE8', '#C4568F'],
+  /** Deeper and quieter, for large fills where the accent sweep would shout. */
+  dusk: ['#252C6B', '#4E3A96', '#7A3A76'],
   /** Transparent → dark: laid over an image so captions stay legible. */
   imageScrim: ['rgba(4, 4, 10, 0)', 'rgba(4, 4, 10, 0.55)', 'rgba(4, 4, 10, 0.94)'],
   /** Dark → transparent: the top edge of a full-bleed hero, under the chrome. */
@@ -119,11 +132,11 @@ export const gradients = {
   /**
    * The specular edge. Real glass catches a bright line where light enters the
    * top of the pane and falls away fast; this ramp is steep for that reason —
-   * a linear fade reads as a grey gradient, not as an edge catching light.
+   * a linear fade reads as a grey wash, not as an edge catching light.
    */
   specular: [
-    'rgba(255, 255, 255, 0.34)',
-    'rgba(255, 255, 255, 0.07)',
+    'rgba(255, 255, 255, 0.28)',
+    'rgba(255, 255, 255, 0.05)',
     'rgba(255, 255, 255, 0.0)',
   ],
 };
@@ -143,7 +156,7 @@ export const sceneColors = {
 /**
  * One tint per order state. The lifecycle reads as a temperature ramp: amber
  * while the shop still owes an action, iris once it is moving, mint on
- * delivery, crimson on cancellation.
+ * delivery, rose on cancellation.
  */
 export const statusColors = {
   PENDING: colors.amber,
@@ -152,7 +165,7 @@ export const statusColors = {
   READY_FOR_PICKUP: colors.iris,
   IN_TRANSIT: colors.azure,
   DELIVERED: colors.mint,
-  CANCELLED: colors.crimsonBright,
+  CANCELLED: colors.rose,
 };
 
 export const statusLabels = {

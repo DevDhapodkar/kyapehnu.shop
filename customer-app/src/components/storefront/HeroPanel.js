@@ -40,14 +40,12 @@ export default function HeroPanel({ product, onOpen, style }) {
         pointerEvents="none"
         colors={gradients.topScrim}
         direction="vertical"
-        steps={16}
         style={styles.topScrim}
       />
       <Gradient
         pointerEvents="none"
         colors={gradients.imageScrim}
         direction="vertical"
-        steps={28}
         style={styles.bottomScrim}
       />
 

@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   error: {
     ...typography.caption,
     fontSize: 13,
-    color: colors.crimsonBright,
+    color: colors.rose,
     marginBottom: spacing.sm,
   },
   submit: {

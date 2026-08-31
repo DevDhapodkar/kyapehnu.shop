@@ -44,7 +44,7 @@ export default function Avatar({ name, uri, size = 40, ring = false, style }) {
         <Image source={{ uri }} style={styles.image} contentFit="cover" transition={180} />
       ) : (
         <>
-          <Gradient pointerEvents="none" colors={gradients.dusk} steps={18} style={styles.fill} />
+          <Gradient pointerEvents="none" colors={gradients.dusk} style={styles.fill} />
           <Text style={[styles.initials, { fontSize: Math.round(size * 0.36) }]}>
             {initialsFrom(name)}
           </Text>

@@ -31,7 +31,7 @@ import { formatCurrency } from '../../utils/format';
 const REVIEW_STATUS = {
   PENDING_QC: { label: 'In review', tint: colors.amber },
   APPROVED: { label: 'Live', tint: colors.mint },
-  REJECTED: { label: 'Rejected', tint: colors.crimsonBright },
+  REJECTED: { label: 'Rejected', tint: colors.rose },
   ARCHIVED: { label: 'Archived', tint: colors.slate },
   DRAFT: { label: 'Draft', tint: colors.slate },
 };

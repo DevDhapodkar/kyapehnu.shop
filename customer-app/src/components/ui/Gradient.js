@@ -1,70 +1,61 @@
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
-import { buildRamp } from '../../utils/color';
+import { toCssGradient } from '../../utils/color';
 
 /**
  * Gradient
  *
- * A linear gradient with no native dependency: the ramp is laid down as a run
- * of flat, absolutely-positioned bands. `expo-linear-gradient` is a native
- * module, and adding one would force a fresh dev-client build on every
- * contributor for what amounts to paint — so the bands are drawn in JS instead.
+ * A linear gradient with no native dependency. `expo-linear-gradient` is a
+ * native module, and adding one would force a fresh dev-client build on every
+ * contributor for what amounts to paint.
  *
- * The bands are laid out by flex, not positioned by percentage. Both were tried:
- * percentages round independently per band, so at some widths two neighbours
- * fail to meet and the background shows through as a hairline seam — obvious on
- * a saturated ramp like the aurora button. Overlapping them to cover the seam is
- * worse still, because half the palette's ramps are translucent scrims and
- * overlapping alpha compounds into a stripe at every boundary. Flex children
- * share an exact edge and absorb the rounding remainder between them, so there
- * is neither a gap nor an overlap.
+ * The ramp is drawn by the platform, from one CSS `linear-gradient()` string:
+ * React Native 0.86 renders it through `experimental_backgroundImage`, and the
+ * browser through plain `backgroundImage`. Both take the same syntax, so the
+ * string is built once and handed to whichever key the platform reads.
  *
- * The bands never take touches, so a `Gradient` can be dropped behind an
- * interactive surface without stealing its presses.
+ * This replaced a hand-rolled renderer that laid the ramp down as a run of flat
+ * bands. Bands are fine in the abstract and terrible in practice: on a short
+ * ramp — a 46pt specular edge, say — each band is a few pixels tall, and the
+ * eye reads the steps as banding no matter how many are used. Raising the count
+ * until the steps go sub-pixel means dozens of views per gradient, on a screen
+ * that may hold a dozen gradients. A real gradient is one view and interpolates
+ * per pixel.
  *
  * Props:
  *  - colors:    two or more colour strings, treated as evenly spaced
  *  - direction: 'horizontal' (default) | 'vertical'
- *  - steps:     band count; raise it for large fills, lower it for small pills
- *               (the ramp is linear, so more bands only ever means a finer
- *               staircase — never a different set of colours)
  */
 export default function Gradient({
   colors,
   direction = 'horizontal',
-  steps = 48,
   pointerEvents,
   style,
   children,
 }) {
-  const isHorizontal = direction === 'horizontal';
-
-  // Rebuilt only when the ramp itself changes — band colours are pure maths
-  // over the stops, and this runs on every render of any gradient surface.
-  const ramp = useMemo(() => buildRamp(colors, steps), [colors, steps]);
+  const css = useMemo(() => toCssGradient(colors, direction), [colors, direction]);
 
   return (
-    <View pointerEvents={pointerEvents} style={style}>
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          { flexDirection: isHorizontal ? 'row' : 'column' },
-        ]}
-      >
-        {ramp.map((color, index) => (
-          <View key={`${color}-${index}`} style={[styles.band, { backgroundColor: color }]} />
-        ))}
-      </View>
-
+    <View
+      pointerEvents={pointerEvents}
+      style={[
+        style,
+        // Both keys carry the same string. Each platform reads the one it
+        // knows and ignores the other, which keeps this a single style object
+        // rather than a Platform.select over the whole component.
+        Platform.OS === 'web'
+          ? { backgroundImage: css }
+          : { experimental_backgroundImage: css },
+      ]}
+    >
       {children}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  band: {
-    flex: 1,
-  },
-});
+/**
+ * Kept so a caller can still reason about the ramp's extent in layout, and so
+ * `StyleSheet` stays imported for consumers spreading `absoluteFillObject`.
+ */
+export const GRADIENT_FILL = StyleSheet.absoluteFillObject;

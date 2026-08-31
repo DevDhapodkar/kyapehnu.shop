@@ -1,62 +1,42 @@
-import { StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
+import { toCssBloom } from '../../utils/color';
 import { radii } from '../../theme/colors';
 
 /**
  * Glow
  *
- * A soft radial bloom used to light the page behind the bento grid, so the
- * background reads as a lit room rather than flat black.
+ * A soft bloom of light, used where a surface needs to carry its own highlight
+ * rather than only refracting the wallpaper — the lit corner of the profile
+ * banner, for instance.
  *
- * Built as concentric discs of falling opacity instead of a blur: view blur
- * filters are new-architecture-only and silently no-op where they are not
- * supported, whereas nested discs render the same everywhere.
- *
- * The ring count is what keeps it from reading as a set of rings: at this many
- * steps each disc contributes about a percent of alpha, and the accumulated
- * falloff is a smooth cone. The radii step *evenly* — bunching them toward the
- * centre thins them out at the rim, which is exactly where a visible arc gives
- * the trick away.
+ * It is one view painted with a radial gradient. It used to be a stack of two
+ * dozen concentric translucent discs, which is what you resort to without
+ * gradients, and every ring edge showed as a step. React Native 0.86 renders
+ * `radial-gradient()` through `experimental_backgroundImage` and the browser
+ * through `backgroundImage`, so the falloff is now interpolated per pixel.
  */
-const RINGS = 24;
-
 export default function Glow({ color, size = 320, intensity = 0.16, style }) {
+  const bloom = useMemo(() => toCssBloom(color, intensity), [color, intensity]);
+
   return (
     <View
       pointerEvents="none"
-      style={[styles.wrap, { width: size, height: size }, style]}
-    >
-      {Array.from({ length: RINGS }, (_, index) => {
-        // Ring 0 is the outermost; each step in is smaller, and the stack sums
-        // to roughly `intensity` at the centre.
-        const ringSize = size * (1 - index / RINGS);
-
-        return (
-          <View
-            key={index}
-            style={[
-              styles.ring,
-              {
-                width: ringSize,
-                height: ringSize,
-                borderRadius: radii.pill,
-                backgroundColor: color,
-                opacity: intensity / RINGS,
-              },
-            ]}
-          />
-        );
-      })}
-    </View>
+      style={[
+        styles.bloom,
+        { width: size, height: size },
+        Platform.OS === 'web'
+          ? { backgroundImage: bloom }
+          : { experimental_backgroundImage: bloom },
+        style,
+      ]}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ring: {
-    position: 'absolute',
+  bloom: {
+    borderRadius: radii.pill,
   },
 });

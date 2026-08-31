@@ -81,7 +81,6 @@ export default function GlassPanel({
           pointerEvents="none"
           colors={gradients.specular}
           direction="vertical"
-          steps={14}
           style={styles.specular}
         />
       ) : null}

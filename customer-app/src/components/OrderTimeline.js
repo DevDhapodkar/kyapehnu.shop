@@ -20,7 +20,7 @@ export default function OrderTimeline({ status }) {
   if (isCancelled(status)) {
     return (
       <View style={styles.cancelledRow}>
-        <View style={[styles.dot, { backgroundColor: colors.crimsonBright, borderColor: colors.crimsonBright }]} />
+        <View style={[styles.dot, { backgroundColor: colors.rose, borderColor: colors.rose }]} />
         <Text style={styles.cancelledText}>Order cancelled</Text>
       </View>
     );
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   cancelledText: {
     ...typography.caption,
     fontSize: 13,
-    color: colors.crimsonBright,
+    color: colors.rose,
     marginLeft: spacing.sm,
   },
 });

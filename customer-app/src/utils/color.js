@@ -1,11 +1,12 @@
 /**
- * Colour maths for the `Gradient` primitive.
+ * Colour maths behind the app's gradients.
  *
- * React Native has no native gradient, and the app deliberately ships no
- * gradient dependency: `expo-linear-gradient` is a native module, which would
- * cost a rebuild of every dev client for what is, at this size, pure paint.
- * `Gradient` instead lays down a run of flat bands, and this module is what
- * tells it what colour each band should be.
+ * The app ships no gradient dependency: `expo-linear-gradient` is a native
+ * module, which would cost a rebuild of every dev client for what is, at this
+ * size, pure paint. Instead `Gradient` and `Glow` hand the platform a CSS
+ * gradient string — React Native 0.86 renders one through
+ * `experimental_backgroundImage`, the browser through `backgroundImage` — and
+ * this module builds those strings from the palette's colour tokens.
  *
  * Only the two notations the palette actually uses are parsed — `#rgb`/`#rrggbb`
  * and `rgb()`/`rgba()`. An unrecognised value degrades to opaque black rather
@@ -73,54 +74,60 @@ export function toRgba({ r, g, b, a }) {
 }
 
 /**
- * Linear blend of two colour strings.
- * @param {string} from
- * @param {string} to
- * @param {number} t 0 → `from`, 1 → `to`
+ * The same colour at a given alpha.
+ *
+ * @param {string} value any colour this module can parse
+ * @param {number} alpha 0 → 1
+ * @returns {string}
  */
-export function mixColors(from, to, t) {
-  const a = parseColor(from);
-  const b = parseColor(to);
-  const ratio = clamp(t, 0, 1);
-
-  return toRgba({
-    r: a.r + (b.r - a.r) * ratio,
-    g: a.g + (b.g - a.g) * ratio,
-    b: a.b + (b.b - a.b) * ratio,
-    a: a.a + (b.a - a.a) * ratio,
-  });
+export function withAlpha(value, alpha) {
+  const { r, g, b } = parseColor(value);
+  return toRgba({ r, g, b, a: clamp(alpha, 0, 1) });
 }
 
 /**
- * Sample an evenly-spaced multi-stop ramp.
+ * A CSS `radial-gradient()` that fades one colour out to nothing.
  *
- * Stops are treated as equidistant, which is all the palette's ramps need and
- * keeps callers from having to hand-author offset arrays.
+ * This is how every soft bloom in the app is drawn — the backdrop's blooms and
+ * the lit corner of a card. The alternative, a stack of concentric translucent
+ * discs, is what a renderer without gradients has to do, and it shows: every
+ * ring edge is a visible step. `circle closest-side` puts the falloff exactly
+ * at the edge of a square container, so the bloom neither clips nor stops
+ * short.
+ *
+ * @param {string} color
+ * @param {number} intensity alpha at the centre, 0 → 1
+ * @returns {string}
+ */
+export function toCssBloom(color, intensity) {
+  const core = withAlpha(color, intensity);
+  const mid = withAlpha(color, intensity * 0.35);
+  const edge = withAlpha(color, 0);
+
+  // Three stops, not two: a linear falloff from centre to edge reads as a
+  // flat-ish disc, while an early knee gives the soft shoulder real light has.
+  return `radial-gradient(circle closest-side at 50% 50%, ${core} 0%, ${mid} 45%, ${edge} 100%)`;
+}
+
+/**
+ * A CSS `linear-gradient()` for an evenly-spaced ramp.
+ *
+ * The same string drives both platforms: React Native 0.86 accepts it on
+ * `experimental_backgroundImage`, and the browser on `backgroundImage`. Stops
+ * are emitted without explicit offsets, which both engines read as "distribute
+ * evenly" — the spacing this palette's ramps already assume.
+ *
+ * A single stop is emitted twice, because `linear-gradient(colour)` is invalid
+ * and would silently drop the whole declaration.
  *
  * @param {string[]} stops two or more colour strings
- * @param {number} t position along the ramp, 0 → 1
+ * @param {'horizontal' | 'vertical'} direction
+ * @returns {string}
  */
-export function sampleStops(stops, t) {
-  if (!Array.isArray(stops) || stops.length === 0) return toRgba(OPAQUE_BLACK);
-  if (stops.length === 1) return toRgba(parseColor(stops[0]));
+export function toCssGradient(stops, direction = 'horizontal') {
+  const list = Array.isArray(stops) && stops.length ? stops : ['#000000'];
+  const ramp = list.length === 1 ? [list[0], list[0]] : list;
+  const angle = direction === 'horizontal' ? 'to right' : 'to bottom';
 
-  const position = clamp(t, 0, 1) * (stops.length - 1);
-  // The final stop lands exactly on the last index, which would read past the
-  // end of the array — clamp the segment so it blends from the penultimate one.
-  const index = Math.min(Math.floor(position), stops.length - 2);
-
-  return mixColors(stops[index], stops[index + 1], position - index);
-}
-
-/**
- * The band colours for a gradient of `steps` slices, sampled at each band's
- * centre so the ramp is symmetric across the fill.
- *
- * @param {string[]} stops
- * @param {number} steps
- * @returns {string[]}
- */
-export function buildRamp(stops, steps) {
-  const count = Math.max(2, Math.round(steps));
-  return Array.from({ length: count }, (_, i) => sampleStops(stops, (i + 0.5) / count));
+  return `linear-gradient(${angle}, ${ramp.join(', ')})`;
 }

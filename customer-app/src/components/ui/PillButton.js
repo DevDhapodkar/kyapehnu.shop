@@ -80,7 +80,7 @@ export default function PillButton({
       ]}
     >
       {isGradient ? (
-        <Gradient pointerEvents="none" colors={gradients.aurora} steps={40} style={styles.fill} />
+        <Gradient pointerEvents="none" colors={gradients.aurora} style={styles.fill} />
       ) : null}
 
       {variant === 'glass' ? (

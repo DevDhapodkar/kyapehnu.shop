@@ -95,7 +95,6 @@ export default function ProfileScreen({ navigation }) {
               <Gradient
                 pointerEvents="none"
                 colors={gradients.dusk}
-                steps={30}
                 style={StyleSheet.absoluteFill}
               />
               <View pointerEvents="none" style={styles.bannerScrim} />
@@ -112,12 +111,14 @@ export default function ProfileScreen({ navigation }) {
             {user?.email ?? 'Not signed in'}
           </Text>
 
-          <Chip
-            label={isVendor ? 'Vendor mode' : 'Customer'}
-            tint={isVendor ? colors.amber : colors.mint}
-            size="sm"
-            style={styles.roleChip}
-          />
+          {/* Vendor mode is a state worth flagging, so it takes a tint. Being
+              a customer is just the default, and a green badge for "normal"
+              spends colour on nothing. */}
+          {isVendor ? (
+            <Chip label="Vendor mode" tint={colors.amber} size="sm" style={styles.roleChip} />
+          ) : (
+            <Chip label="Customer" tone="regular" size="sm" style={styles.roleChip} />
+          )}
         </Surface>
 
         <Surface tone="regular" radius={radii.lg} elevation="low" style={styles.statCard}>
@@ -242,12 +243,18 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  // The sweep is the light source, not the subject: knocked back this far it
-  // reads as a lit wall behind the avatar rather than a colour block.
+  /**
+   * The sweep is the light source, not the subject.
+   *
+   * This has to be `ink` — an earlier pass that made every screen container
+   * transparent so the wallpaper could show through caught this scrim too, and
+   * a transparent scrim knocks nothing back: the banner rendered as a solid
+   * block of violet rather than a lit pane.
+   */
   bannerScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.transparent,
-    opacity: 0.72,
+    backgroundColor: colors.ink,
+    opacity: 0.78,
   },
   bannerGlow: {
     position: 'absolute',
