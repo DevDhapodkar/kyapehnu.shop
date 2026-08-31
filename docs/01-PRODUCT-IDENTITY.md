@@ -31,10 +31,12 @@ Three pillars, in priority order:
 
 ### 2.1 What to keep
 
-The obsidian / charcoal / single-crimson palette in `src/theme/colors.js` is
-already distinctive and disciplined. Keep the monochrome rule absolutely. In a
-category where every app is white-with-a-brand-colour, a dark-only fashion app
-is instantly recognisable in a screenshot.
+The disciplined, single-accent palette in `src/theme/colors.js` is what makes
+the app distinctive. Keep the rationed-colour rule absolutely: one warm
+terracotta accent, and hues nowhere else except to flag an order's state. The
+app now reads as a warm peach-and-cream light interface — soft, photographic,
+lit from within — with the 3D scrollytelling intro kept as the one deliberately
+dark island. Colour restraint, not the darkness, is the identity.
 
 ### 2.2 The missing 60% — typography
 
@@ -75,11 +77,13 @@ Add **three** tokens, no more:
 Glassmorphism is already in place. Sharpen it into a rule:
 
 - **Glass = something floating over the world** (headers, the live tracking
-  sheet, the cart bar). Never for static content.
-- **Charcoal cards = merchandise.** Product cards get a 1px `glassBorder`, a
-  4:5 image, and no shadow — they read as prints pinned to a dark wall.
-- **Full-bleed obsidian = editorial.** Chapters, story blocks, the answer
-  engine.
+  sheet, the cart bar). Frosted white panes over the warm wash — never for
+  static content.
+- **Photograph + frosted caption = merchandise.** Product cards run the garment
+  shot full-bleed with a frosted white caption card floating over its lower
+  edge — the picture is the card.
+- **Full-bleed dark = editorial.** The scrollytelling chapters and story blocks
+  stay dark: the one cinematic island the light app is built around.
 
 ---
 

@@ -1,74 +1,75 @@
 /**
- * Obsidian map style for Google Maps (Android, and iOS when PROVIDER_GOOGLE is
+ * Warm map style for Google Maps (Android, and iOS when PROVIDER_GOOGLE is
  * forced). Apple Maps ignores `customMapStyle` entirely — the MapView there is
- * darkened with `userInterfaceStyle="dark"` instead.
+ * kept light with `userInterfaceStyle="light"` instead.
  *
- * Every surface is pinned to the app's own ink ramp so the map reads as another
- * panel of the interface, and the two markers and the iris route are the only
- * saturated things on screen.
+ * Every surface is pinned to the app's own light ramp so the map reads as
+ * another pane of the interface: warm cream land, white roads, soft muted
+ * water. The two markers and the terracotta route are the only saturated things
+ * on screen.
  *
  * The colours are literals rather than palette imports because Google Maps takes
- * this array as raw JSON and the file has to stay serialisable; they mirror
- * `colors.inkDeep`, `surface`, `surfaceRaised`, `surfaceHigh`, `ash`, `platinum`
- * and `slate` exactly.
+ * this array as raw JSON and the file has to stay serialisable; they mirror the
+ * light palette's `ink`, `inkDeep`, `surface`, `surfaceRaised`, `surfaceHigh`,
+ * `ivory`, `platinum`, `ash` and `slate` closely.
  */
-export const obsidianMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0B0B0D' }] },
+export const warmMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#F0E4D7' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8A8891' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#050506' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#5F544A' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#FCF6EF' }] },
   {
     featureType: 'administrative',
     elementType: 'geometry',
-    stylers: [{ color: '#26262C' }],
+    stylers: [{ color: '#D8C6B3' }],
   },
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#C9C7C2' }],
+    stylers: [{ color: '#2B231D' }],
   },
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#5C5A63' }],
+    stylers: [{ color: '#8C8073' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'geometry',
-    stylers: [{ color: '#101318' }],
+    stylers: [{ color: '#DCE4CF' }],
   },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#141417' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
   {
     featureType: 'road',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#1C1C21' }],
+    stylers: [{ color: '#EADBCB' }],
   },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#5C5A63' }],
+    stylers: [{ color: '#8C8073' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry',
-    stylers: [{ color: '#1C1C21' }],
+    stylers: [{ color: '#F6ECE1' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#26262C' }],
+    stylers: [{ color: '#E9D8C9' }],
   },
   {
     featureType: 'transit',
     elementType: 'geometry',
-    stylers: [{ color: '#141417' }],
+    stylers: [{ color: '#EDE0D1' }],
   },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#04040A' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#CFDCE0' }] },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#26262C' }],
+    stylers: [{ color: '#9BB0B6' }],
   },
 ];
 
-export default obsidianMapStyle;
+export default warmMapStyle;

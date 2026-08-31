@@ -110,7 +110,7 @@ export default function GlassPanel({
     <View style={[styles.panel, shape, style]} {...rest}>
       <BlurView
         pointerEvents="none"
-        tint="dark"
+        tint="light"
         intensity={material.intensity}
         blurMethod={ANDROID_BLUR_METHOD}
         blurTarget={blurTarget ?? undefined}

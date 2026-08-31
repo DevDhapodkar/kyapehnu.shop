@@ -102,7 +102,7 @@ function materialiseStyle(er, x, baseTracking, blurScale, scatter) {
     letterSpacing: baseTracking + soft * scatter,
     // Warm amber light (the sunset end of the aurora ramp, lifted off the
     // dress) cooling to a thin ink halo as the words settle.
-    textShadowColor: interpolateColor(r, [0, 0.55, 1], [colors.amber, colors.amber, colors.ink]),
+    textShadowColor: interpolateColor(r, [0, 0.55, 1], [colors.amber, colors.amber, colors.sceneDeep]),
     textShadowRadius: SHADOW_FLOOR + soft * 10,
   };
 }
@@ -211,15 +211,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     // The halo colour + radius are driven per-frame by the worklet; these are
     // just the offset (kept at origin so the bloom is symmetric).
-    textShadowColor: colors.ink,
+    textShadowColor: colors.sceneDeep,
     textShadowOffset: { width: 0, height: 0 },
   },
   title: {
-    color: colors.ivory,
+    color: colors.onScene,
     fontSize: 38,
     fontWeight: '700',
     lineHeight: 44,
-    textShadowColor: colors.ink,
+    textShadowColor: colors.sceneDeep,
     textShadowOffset: { width: 0, height: 0 },
   },
   titleWordGap: {
@@ -227,10 +227,10 @@ const styles = StyleSheet.create({
   },
   body: {
     ...typography.bodyLg,
-    color: colors.platinum,
+    color: colors.onSceneMuted,
     fontSize: 16,
     lineHeight: 24,
-    textShadowColor: colors.ink,
+    textShadowColor: colors.sceneDeep,
     textShadowOffset: { width: 0, height: 0 },
   },
 });

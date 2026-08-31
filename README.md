@@ -13,12 +13,13 @@ a photo to WhatsApp, and get real-time order alerts on the same app their
 customers use.
 
 The product is deliberately styled as a warm, calm, glassy shopping experience:
-a warm-charcoal interior lit by soft room-light, with every card, header, dock
-and action bar a pane of frosted glass over it — Apple's Liquid Glass where
+a soft peach-and-cream interior lit from within, with every card, header, dock
+and action bar a pane of frosted white glass over it — Apple's Liquid Glass where
 iOS 26 offers it, a real backdrop blur everywhere else. Photography leads each
-screen, colour is rationed to a single warm accent, corners are continuous, and
-type is sized against iOS. A 3D scrollytelling intro orbits a men's outfit and a
-red dress as a first-time visitor scrolls.
+screen, colour is rationed to a single terracotta accent, corners are continuous,
+and type is sized against iOS. A 3D scrollytelling intro orbits a men's outfit and
+a red dress as a first-time visitor scrolls — the one deliberately dark island in
+an otherwise light app.
 
 ---
 

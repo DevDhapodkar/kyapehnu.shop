@@ -1,164 +1,168 @@
 /**
- * Kya Pehnu? — colour system.
+ * Kya Pehnu? — colour system (light).
  *
- * Warm, calm, photographic — the reference interiors, not a neon night. The
- * app is built the way iOS builds a dark interface (a lit ground, everything
- * above it made of *material* rather than paint), but the ground is a warm
- * charcoal and the light in it is nearly colourless.
+ * The app is a warm, light interface — soft peach and cream, lit from within,
+ * the way the reference food app reads. Cards are panes of frosted white glass
+ * over a warm wash; type is warm ink; colour is rationed to a single terracotta
+ * accent.
  *
- *  - **Ground** (`ink`, `inkDeep`) — the page. A warm grey-brown, not a cold
- *    blue-black: every neutral here carries a trace of warmth so the app reads
- *    as a lit room rather than a gaming HUD.
- *  - **Materials** (`glass*`) — translucent *white* veils laid over a real
- *    backdrop blur. This is the part people mean by glassmorphism: a frosted
- *    pane brightens what is behind it and picks up a lit edge.
- *  - **Solids** (`surface` → `surfaceHigh`) — the few places that must stay
- *    opaque: image placeholders, input wells, anything that would turn to mush
- *    with a second layer of glass behind it.
+ * Token names are semantic, not literal, which is what lets the whole app flip
+ * theme by editing this one file. `ivory` means "primary text", not "the colour
+ * ivory" — so it is a dark warm ink here. `light` means "the loud solid
+ * element" — a near-black pill on this light ground, the way the reference's
+ * "Add to Cart" is. Read the names by their role, never by their dictionary
+ * colour.
  *
- * Accent policy: colour is rationed hard. The reference spends almost none.
- *  - `light` (near-white) is the everyday primary: white pill, ink label.
- *  - `ember` is the single signature accent — a warm terracotta, used sparingly.
- *  - `glow*` are the backdrop's bloom colours. They are light, not surfaces —
- *    nothing is ever *filled* with them.
- *  - `statusColors` is the only other place a hue is allowed, and only to say
- *    where an order sits in its lifecycle.
+ * Three text contexts, because a photograph does not obey the page:
+ *  - **On the page** — `ivory`/`platinum`/`ash`/`slate`, warm ink on light.
+ *  - **On a photo** — `onPhoto*`, near-white, for chrome laid directly over a
+ *    dark garment shot or the map, where page ink would vanish.
+ *  - **On the film** — `onScene*`, near-white, reserved for the dark 3D
+ *    scrollytelling intro, which stays a dark island in a light app.
  */
 
 export { CONTINUOUS, gutter, radii, shadows, spacing, TOUCH_SIZE } from './layout';
 
 export const colors = {
   // ---- Ground -----------------------------------------------------------
-  // A warm charcoal, not a cold blue-black. The reference interiors read as
-  // grey-brown — lit rooms, not a neon night — and every neutral here carries a
-  // trace of warmth so the whole app feels like the LUMORA reference rather
-  // than a gaming HUD.
+  // Warm cream and peach. The backdrop lays a soft wash over this; on its own
+  // it is the base paper the whole app sits on.
   /** The page. */
-  ink: '#15120F',
-  /** Recessed wells — inputs, image placeholders. Darker than the page. */
-  inkDeep: '#0D0B09',
-  /** The few surfaces that must stay opaque behind glass. */
-  surface: '#201C18',
-  surfaceRaised: '#2A2520',
-  surfaceHigh: '#37312A',
+  ink: '#F3E7DB',
+  /** A hair deeper — section insets, the recessed edge of things. */
+  inkDeep: '#E9D8C9',
+  /** Opaque cards, where a second layer of glass would turn to mush. */
+  surface: '#FCF6EF',
+  surfaceRaised: '#FFFFFF',
+  surfaceHigh: '#F6ECE1',
 
-  // ---- Text -------------------------------------------------------------
-  /** Primary type and anything that must read as "on". */
-  ivory: '#F6F3EE',
-  platinum: '#C8C3BB',
-  ash: '#928B81',
-  slate: '#645E56',
+  // ---- Text (on the page) -----------------------------------------------
+  /** Primary type. Warm near-black, never pure #000 on a warm ground. */
+  ivory: '#2B231D',
+  /** Secondary type. */
+  platinum: '#5F544A',
+  /** Tertiary / muted labels. */
+  ash: '#8C8073',
+  /** Faint captions, placeholders. */
+  slate: '#AC9F90',
 
-  // ---- Inverted (type and glyphs on a white pill) -----------------------
-  light: '#F6F3EE',
-  onLight: '#161310',
-  onLightMuted: '#645E56',
+  // ---- The loud solid element + its label -------------------------------
+  // On a light ground the prominent pill is dark (the reference "Add to Cart").
+  /** Solid prominent surfaces: primary pill, active tab, white-circle button. */
+  light: '#241D18',
+  /** Type/glyphs sitting on that dark solid. */
+  onLight: '#FBF5EE',
+  onLightMuted: '#B9AC9C',
+
+  // ---- Text on a photograph ---------------------------------------------
+  // A dark garment shot or the map does not follow the page. Chrome laid over
+  // it stays near-white with a scrim beneath, the way LUMORA sets white type on
+  // a room photo.
+  onPhoto: '#FCF8F3',
+  onPhotoMuted: 'rgba(252, 248, 243, 0.76)',
+
+  // ---- Text on the film -------------------------------------------------
+  // The scrollytelling intro is the one dark island. Its copy is near-white.
+  scene: '#141110',
+  sceneDeep: '#0C0A09',
+  onScene: '#F6F0E8',
+  onSceneMuted: '#B6AB9E',
 
   // ---- Accents ----------------------------------------------------------
-  // Warm and restrained. The reference interfaces spend almost no colour —
-  // a solid pill, a white pill, one quiet gradient — so these are muted on
-  // purpose and mostly appear as small tinted chips a few millimetres across.
-  amber: '#D8A15C',
-  /** The signature warm accent — champagne/terracotta, the app's one hue. */
-  ember: '#C97E54',
-  clay: '#B96A57',
-  sage: '#8AA079',
+  // Warm and restrained, deepened a step so they hold contrast on light. Mostly
+  // seen as small tinted chips a few millimetres across.
+  amber: '#C4863A',
+  /** The signature accent — warm terracotta/coral, the app's one hue. */
+  ember: '#C06A44',
+  clay: '#B0543C',
+  sage: '#6F8C5C',
   /** Errors, cancellations, and nothing else. */
-  rose: '#C36A63',
-  gold: '#C2A059',
+  rose: '#BF5049',
+  gold: '#A9863C',
 
   // ---- Backdrop light ---------------------------------------------------
-  // The room-light blooms behind the glass. Warm and nearly colourless — a
-  // lamp thrown across a charcoal wall, not an aurora. Saturation is kept low
-  // deliberately: the reference has no glowing colour field, and anything
-  // brighter here turns the app back into a nightclub.
-  glowChampagne: '#B39A78',
-  glowTaupe: '#8C7B6A',
-  glowClay: '#A6725A',
-  glowUmber: '#6E5B4A',
+  // The soft blooms behind the glass. On a light ground these are warm peach,
+  // blush and apricot — the reference food app's wash — kept gentle so the page
+  // reads as lit paper, not a poster.
+  glowPeach: '#F6C79B',
+  glowBlush: '#F2B7AE',
+  glowApricot: '#F4CDA0',
+  glowRose: '#EDB1C0',
 
   // ---- Glass ------------------------------------------------------------
-  // White veils, not dark fills. Each of these is laid *over a real backdrop
-  // blur* (see `GlassPanel`), which is what turns them from a flat wash into a
-  // material. Alpha is deliberately low: the blur does the work, and a heavy
-  // fill would hide the light the pane is supposed to be refracting.
-  // Veils are a warm off-white, not pure white — over a warm charcoal ground
-  // they read as the reference's warm frosted glass rather than cold grey.
+  // Frosted *white* veils over a light backdrop blur — soft translucent cards,
+  // the way the reference's panels read. Alpha is higher than a dark theme's:
+  // on light, a card needs enough white to separate from the warm wash behind.
   /** Barely there — chips and controls that must not compete with a card. */
-  glassThin: 'rgba(246, 240, 232, 0.06)',
+  glassThin: 'rgba(255, 255, 255, 0.34)',
   /** The default pane: cards, sheets, the dock. */
-  glassRegular: 'rgba(246, 240, 232, 0.10)',
+  glassRegular: 'rgba(255, 255, 255, 0.5)',
   /** Where a pane carries primary type and has to lift off a busy backdrop. */
-  glassThick: 'rgba(246, 240, 232, 0.15)',
+  glassThick: 'rgba(255, 255, 255, 0.66)',
   /**
-   * The one *dark* material, for glass laid over a photograph. A white veil on
-   * a bright garment washes the picture out; this holds the type instead.
+   * Glass laid over a photograph. A light frost lightens the dark garment
+   * behind it just enough that warm ink type reads on top — the LUMORA caption
+   * treatment.
    */
-  glassOverImage: 'rgba(12, 10, 8, 0.5)',
+  glassOverImage: 'rgba(255, 255, 255, 0.58)',
 
-  /**
-   * A recessed well — inputs. Darker than the pane it sits in, so it reads as
-   * somewhere to put something rather than as another layer of glass.
-   */
-  glassWell: 'rgba(0, 0, 0, 0.28)',
+  /** A recessed input well — a faint warm inset, darker than the card. */
+  glassWell: 'rgba(70, 50, 36, 0.06)',
 
-  /** Hairlines. iOS separators are far quieter than a Material divider. */
-  glassBorder: 'rgba(246, 240, 232, 0.12)',
-  glassBorderStrong: 'rgba(246, 240, 232, 0.24)',
+  /** Hairlines. Warm dark at low alpha on a light ground. */
+  glassBorder: 'rgba(58, 44, 32, 0.1)',
+  glassBorderStrong: 'rgba(58, 44, 32, 0.18)',
 
   transparent: 'transparent',
 };
 
 /**
  * Multi-stop sweeps consumed by the `Gradient` primitive.
- *
- * `aurora` is the app's signature: one saturated ribbon reserved for the
- * highest-intent action on a screen, so colour never becomes decoration. The
- * rest are utilities — scrims that let white type sit on any photograph, and
- * the warm/cool washes that light the page behind the bento grid.
  */
 export const gradients = {
   /**
-   * The conversion accent. A short, warm sweep — champagne into terracotta —
-   * not a trip round the hue wheel. The reference CTAs are mostly a solid pill;
-   * where a gradient earns its place it stays inside one warm family so it
-   * reads as brushed metal, not stock artwork.
+   * The conversion accent — a warm peach-into-terracotta sweep, the app's one
+   * spot of colour, on the single highest-intent action per screen.
    */
-  ember: ['#E3B784', '#C97E54', '#A85B44'],
-  /** Deeper and quieter, for large fills where the accent sweep would shout. */
-  dusk: ['#3A2E26', '#5A4030', '#6E4B3A'],
-  /** Transparent → dark: laid over an image so captions stay legible. */
-  imageScrim: ['rgba(12, 10, 8, 0)', 'rgba(12, 10, 8, 0.5)', 'rgba(12, 10, 8, 0.92)'],
-  /** Dark → transparent: the top edge of a full-bleed hero, under the chrome. */
-  topScrim: ['rgba(12, 10, 8, 0.72)', 'rgba(12, 10, 8, 0.26)', 'rgba(12, 10, 8, 0)'],
+  ember: ['#F0B27A', '#D9805A', '#BE5E42'],
+  /** Warm peach fill, for identity discs (avatars, empty states). */
+  dusk: ['#F4CBA1', '#E8A57C', '#D98763'],
   /**
-   * The specular edge. Real glass catches a bright line where light enters the
-   * top of the pane and falls away fast; this ramp is steep for that reason —
-   * a linear fade reads as a grey wash, not as an edge catching light.
+   * Transparent → dark: laid over a photograph so near-white chrome stays
+   * legible on it. Photo-overlaid text is light regardless of the page theme,
+   * so this stays a dark scrim.
+   */
+  imageScrim: ['rgba(18, 14, 11, 0)', 'rgba(18, 14, 11, 0.35)', 'rgba(18, 14, 11, 0.82)'],
+  /** Dark → transparent: the top edge of a full-bleed hero, under the chrome. */
+  topScrim: ['rgba(18, 14, 11, 0.6)', 'rgba(18, 14, 11, 0.22)', 'rgba(18, 14, 11, 0)'],
+  /**
+   * The specular edge. On a light frosted pane the lit edge is a soft white
+   * highlight along the top — gentler than a dark theme's, or it reads as a
+   * grey smear on the cream.
    */
   specular: [
-    'rgba(255, 255, 255, 0.28)',
-    'rgba(255, 255, 255, 0.05)',
+    'rgba(255, 255, 255, 0.7)',
+    'rgba(255, 255, 255, 0.18)',
     'rgba(255, 255, 255, 0.0)',
   ],
 };
 
 /**
- * Canvas / scene colors, kept alongside the UI palette so they stay in sync.
- * Garment colour comes from the GLB materials, so only the environment — clear
- * colour, fog, and the light rig — is themed here.
+ * Canvas / scene colors for the 3D scrollytelling intro — the one dark island.
+ * Kept dark on purpose: the film's frames are baked dark, and the copy over
+ * them is near-white.
  */
 export const sceneColors = {
-  background: colors.ink,
-  fog: colors.inkDeep,
+  background: colors.scene,
+  fog: colors.sceneDeep,
   keyLight: '#FFFFFF',
   rimLight: colors.ember,
 };
 
 /**
- * One tint per order state. The lifecycle reads as a warm ramp: amber while the
- * shop still owes an action, ember and clay once it is moving, sage on
- * delivery, rose on cancellation.
+ * One tint per order state. A warm ramp: amber while the shop still owes an
+ * action, ember and clay once it is moving, sage on delivery, rose on
+ * cancellation.
  */
 export const statusColors = {
   PENDING: colors.amber,

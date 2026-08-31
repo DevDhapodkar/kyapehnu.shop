@@ -121,8 +121,11 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+    // The logged-in storefront is light and lets the peach backdrop through;
+    // the logged-out marketing path is the dark 3D film, a deliberate dark
+    // island, so it paints its own dark ground and takes a light status bar.
+    <View style={[styles.root, isLoggedIn ? styles.rootLight : styles.rootScene]}>
+      <StatusBar barStyle={isLoggedIn ? 'dark-content' : 'light-content'} />
 
       {isLoggedIn ? (
         <>
@@ -131,14 +134,13 @@ export default function HomeScreen({ navigation }) {
           <TabDock items={CUSTOMER_TABS} value="home" onChange={onTabChange} />
         </>
       ) : (
-        <>
-          <MarketingScrollytelling
-            insets={insets}
-            onJoin={() => openAuth('register')}
-            onLogin={() => openAuth('signin')}
-          />
-          {header}
-        </>
+        // No floating header over the film — the intro is a full-bleed
+        // cinematic, and a light frosted bar there would break the dark island.
+        <MarketingScrollytelling
+          insets={insets}
+          onJoin={() => openAuth('register')}
+          onLogin={() => openAuth('signin')}
+        />
       )}
     </View>
   );
@@ -346,7 +348,12 @@ function Storefront({ insets, query, onOpenProduct }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  rootLight: {
     backgroundColor: colors.transparent,
+  },
+  rootScene: {
+    backgroundColor: colors.scene,
   },
   scroll: {
     flex: 1,

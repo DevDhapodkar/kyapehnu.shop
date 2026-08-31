@@ -71,18 +71,18 @@ const styles = StyleSheet.create({
     ...typography.h1,
     fontSize: 36,
     lineHeight: 42,
-    color: colors.ivory,
+    color: colors.onScene,
     marginBottom: spacing.sm,
     // No card behind the copy — a soft dark halo keeps it legible where the
     // drone shot settles bright behind it.
-    textShadowColor: colors.ink,
+    textShadowColor: colors.sceneDeep,
     textShadowRadius: 10,
   },
   body: {
     ...typography.bodyLg,
-    color: colors.platinum,
+    color: colors.onSceneMuted,
     marginBottom: spacing.lg,
-    textShadowColor: colors.ink,
+    textShadowColor: colors.sceneDeep,
     textShadowRadius: 8,
   },
   primary: {
@@ -97,14 +97,14 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     ...typography.body,
-    color: colors.platinum,
-    textShadowColor: colors.ink,
+    color: colors.onSceneMuted,
+    textShadowColor: colors.sceneDeep,
     textShadowRadius: 6,
   },
   secondaryLink: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.ivory,
+    color: colors.onScene,
     textDecorationLine: 'underline',
   },
 });

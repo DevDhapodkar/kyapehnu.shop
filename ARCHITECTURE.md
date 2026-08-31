@@ -5,18 +5,23 @@ A hyper-local fashion delivery aggregator (Swiggy/Zomato model) for independent 
 
 ## Design System
 
-Dark, glass, iOS-native. It lives in code, not in this document: the tokens are
+Light, glass, iOS-native. It lives in code, not in this document: the tokens are
 `customer-app/src/theme/` (`colors.js`, `typography.js`, `layout.js`) and the
 primitives are `customer-app/src/components/ui/`. A screen composes primitives
 and spends tokens; it never declares a hex value, a radius or a font size of its
 own.
 
+The token *names* are semantic, not literal — `ivory` means "primary text",
+`light` means "the one loud solid element" — so the whole app flips theme by
+editing `colors.js` alone. It currently resolves to a warm light interface:
+`ivory` is a dark warm ink, `light` is a near-black pill on a peach ground.
+
 - **One wallpaper, everything else is material.** `AuroraBackdrop` is mounted
-  once at the app root: four broad blooms of coloured light drifting on
-  near-black ink. The navigator theme and every screen container are
-  transparent, so it runs behind the whole app. This is not decoration — it is
-  what the glass is *for*. A frosted pane over flat black is indistinguishable
-  from a grey card.
+  once at the app root: four broad blooms of soft peach, blush and apricot
+  light drifting on warm cream. The navigator theme and every screen container
+  are transparent, so it runs behind the whole app. This is not decoration — it
+  is what the glass is *for*. A frosted pane over flat white is indistinguishable
+  from a grey card; the warm wash gives it something to refract.
 - **Real blur, not a translucent fill.** `GlassPanel` is the material every
   card, sheet, header, dock and action bar is made of, in three implementations:
   Apple's Liquid Glass through `expo-glass-effect` where iOS 26 offers it;
@@ -30,8 +35,9 @@ own.
     reads the ref from context. Without it the Dimezis methods silently fall
     back to no blur.
 - **Materials, named after Apple's.** `thin`, `regular`, `thick` say how much a
-  pane obscures; `overImage` is the one dark material, for glass laid over a
-  photograph, where a white veil would wash the picture out.
+  pane obscures; `overImage` is the material for glass laid *over* a photograph —
+  a lighter white frost that lifts a dark garment shot just enough for warm ink
+  to read on top, the LUMORA caption treatment.
 - **Continuous corners.** `CONTINUOUS` (`borderCurve: 'continuous'`) is spread
   onto every rounded surface. Apple eases the straight edge into the corner
   rather than meeting it at an arc, and it is most of what separates a rounded
@@ -43,17 +49,28 @@ own.
 - **No native header.** A platform header is an opaque bar that cannot be made
   of glass and would cut a flat band across the wallpaper. Every screen draws a
   `GlassHeader` that floats over its own content instead.
-- **Warm and calm, not neon.** The reference interfaces are warm, photographic,
-  lit rooms — so the ground is a warm charcoal (grey-brown, not a cold
-  blue-black), the glass is a warm off-white frost, and the backdrop's blooms
-  are near-colourless warm room-light (`AuroraBackdrop`, champagne/taupe/clay),
-  not a saturated aurora. An earlier pass ran "dark + glass + gradient" into a
-  glowing nightclub; this is the correction.
-- **Colour is rationed hard.** The reference spends almost none. Near-white
-  pills are the everyday primary; `gradients.ember` (champagne → terracotta) is
+- **Light, warm and calm.** The reference interfaces are warm, photographic and
+  lit from within — so the ground is soft peach and cream, the glass is a
+  frosted white, and the backdrop's blooms are gentle peach, blush and apricot
+  (`AuroraBackdrop`), a wash the page reads as lit paper rather than a poster.
+  An earlier pass ran "dark + glass + gradient" into a glowing nightclub, then a
+  warm-charcoal correction; this is the light peach direction the food-app
+  reference actually points at.
+- **Colour is rationed hard.** The reference spends almost none. Near-black
+  pills are the everyday primary; `gradients.ember` (peach → terracotta) is
   the single signature accent, reserved for the one highest-intent action on a
   screen. `statusColors` is the only other place a hue is allowed, and only to
   say where an order sits in its lifecycle.
+- **One dark island, on purpose.** The 3D scrollytelling intro stays dark: its
+  film frames are baked dark and its copy is near-white, so it reads as a
+  cinematic threshold before the light app opens. `colors.scene`/`onScene*` are
+  reserved for it, and the logged-out home paints a dark ground under it instead
+  of the light header. It is the one place the theme is allowed to invert.
+- **Three text contexts, because a photo doesn't obey the page.** `ivory`/
+  `platinum`/`ash`/`slate` are warm ink for type on the light page; `onPhoto*`
+  are near-white for chrome laid directly over a dark garment shot or the map;
+  `onScene*` are near-white for the dark scrollytelling. A screen picks the set
+  by what its type sits on, never by the theme.
 - **Quiet type.** Labels are sentence case, not shouted in tracked all-caps, and
   the marketing hero is set in sentence case at a friendly weight — matching the
   reference's calm labelling rather than a dashboard's.

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, Chip, IconButton, PillButton, Surface } from '../components/ui';
 import { NAGPUR_CENTER, formatINR, mockStores } from '../data/mockStores';
-import { obsidianMapStyle } from '../theme/mapStyle';
+import { warmMapStyle } from '../theme/mapStyle';
 import { colors, radii, spacing } from '../theme/colors';
 import { typography } from '../theme/typography';
 
@@ -116,7 +116,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       <MapView
         ref={mapRef}
@@ -124,8 +124,8 @@ export default function LiveTrackingScreen({ route, navigation }) {
         // Apple Maps on iOS honours userInterfaceStyle; Google on Android takes
         // the custom JSON style instead.
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        customMapStyle={obsidianMapStyle}
-        userInterfaceStyle="dark"
+        customMapStyle={warmMapStyle}
+        userInterfaceStyle="light"
         initialRegion={initialRegion}
         showsPointsOfInterest={false}
         showsTraffic={false}

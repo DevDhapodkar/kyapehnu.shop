@@ -119,11 +119,13 @@ const styles = StyleSheet.create({
   },
   display: {
     ...typography.display,
-    color: colors.ivory,
+    // Directly on the dark garment photo, so near-white regardless of the
+    // light page theme, with the imageScrim beneath carrying the contrast.
+    color: colors.onPhoto,
   },
   blurb: {
     ...typography.body,
-    color: colors.platinum,
+    color: colors.onPhotoMuted,
     marginTop: spacing.sm,
     maxWidth: 300,
   },

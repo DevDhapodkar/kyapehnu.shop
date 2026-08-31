@@ -62,29 +62,32 @@ export const CONTINUOUS = { borderCurve: 'continuous' };
  * than tuning five numbers by hand.
  */
 export const shadows = {
+  // Warm, soft and low on a light ground — a near-black drop shadow that reads
+  // as premium on dark reads as dirt on cream, so these are a warm brown at low
+  // opacity, spread wide.
   /** Chips, small controls sitting on a pane. */
   low: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowColor: '#4A3728',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 3,
   },
   /** The default for a card on the page. */
   medium: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.4,
-    shadowRadius: 36,
-    elevation: 10,
+    shadowColor: '#4A3728',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.12,
+    shadowRadius: 30,
+    elevation: 8,
   },
   /** Docked bars and panels that float over content. */
   high: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 26 },
-    shadowOpacity: 0.5,
-    shadowRadius: 52,
-    elevation: 18,
+    shadowColor: '#4A3728',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.16,
+    shadowRadius: 46,
+    elevation: 16,
   },
 };
 

@@ -19,12 +19,11 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
  * The app's wallpaper: a few soft blooms of warm room-light drifting behind
  * everything, on warm charcoal.
  *
- * "Aurora" is a hangover from a louder first pass — this is deliberately not
- * that. The reference interfaces have no glowing colour field; they are calm,
- * warm, photographic rooms. So the blooms here are near-colourless — champagne,
- * taupe, a little clay — at low intensity, reading as a lamp thrown across a
- * dark wall rather than neon behind glass. The glass still has something to
- * refract, but the wallpaper is felt, not looked at.
+ * On the light theme this is a soft warm wash — peach, blush and apricot
+ * blooms on warm cream — the reference food app's background. It is what the
+ * frosted glass refracts, and it is what keeps a light interface from reading
+ * as flat white. Gentle on purpose: the page should look like lit paper, not a
+ * poster.
  *
  * Mounted once at the root, under the navigator. Screens paint no background of
  * their own, so this shows through the whole app.
@@ -40,35 +39,35 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // as an object someone has placed on the page.
 const BLOOMS = [
   {
-    color: colors.glowChampagne,
-    size: SCREEN_WIDTH * 1.9,
-    top: -SCREEN_HEIGHT * 0.26,
-    left: -SCREEN_WIDTH * 0.55,
-    intensity: 0.3,
+    color: colors.glowPeach,
+    size: SCREEN_WIDTH * 2.0,
+    top: -SCREEN_HEIGHT * 0.24,
+    left: -SCREEN_WIDTH * 0.5,
+    intensity: 0.55,
     drift: { x: 26, y: 20, seconds: 22 },
   },
   {
-    color: colors.glowTaupe,
-    size: SCREEN_WIDTH * 1.7,
-    top: SCREEN_HEIGHT * 0.08,
-    left: SCREEN_WIDTH * 0.3,
-    intensity: 0.22,
+    color: colors.glowBlush,
+    size: SCREEN_WIDTH * 1.8,
+    top: SCREEN_HEIGHT * 0.04,
+    left: SCREEN_WIDTH * 0.35,
+    intensity: 0.5,
     drift: { x: -22, y: 26, seconds: 27 },
   },
   {
-    color: colors.glowClay,
-    size: SCREEN_WIDTH * 1.6,
-    top: SCREEN_HEIGHT * 0.62,
-    left: -SCREEN_WIDTH * 0.4,
-    intensity: 0.2,
+    color: colors.glowApricot,
+    size: SCREEN_WIDTH * 1.7,
+    top: SCREEN_HEIGHT * 0.6,
+    left: -SCREEN_WIDTH * 0.45,
+    intensity: 0.45,
     drift: { x: 22, y: -22, seconds: 31 },
   },
   {
-    color: colors.glowUmber,
-    size: SCREEN_WIDTH * 1.4,
-    top: SCREEN_HEIGHT * 0.8,
-    left: SCREEN_WIDTH * 0.35,
-    intensity: 0.18,
+    color: colors.glowRose,
+    size: SCREEN_WIDTH * 1.5,
+    top: SCREEN_HEIGHT * 0.82,
+    left: SCREEN_WIDTH * 0.3,
+    intensity: 0.42,
     drift: { x: -18, y: -18, seconds: 35 },
   },
 ];
@@ -116,9 +115,9 @@ export default function AuroraBackdrop({ style }) {
         <Bloom key={bloom.color} {...bloom} />
       ))}
 
-      {/* A soft warm vignette so the light gathers toward the centre and falls
-          off at the edges, the way a room is lit — and so body copy near the
-          corners never fights a bright lobe. */}
+      {/* A whisper of the cream ground over the blooms, so they read as soft
+          wash rather than saturated blobs. On light this is barely there — the
+          blooms are meant to tint the paper, not paint it. */}
       <View style={styles.veil} />
     </View>
   );
@@ -138,6 +137,6 @@ const styles = StyleSheet.create({
   veil: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.ink,
-    opacity: 0.42,
+    opacity: 0.28,
   },
 });
