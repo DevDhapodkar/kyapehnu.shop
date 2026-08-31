@@ -70,6 +70,17 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
   const order = route.params?.order ?? null;
 
+  // Destination: the pin the buyer dropped on the address screen (carried on the
+  // order), falling back to the demo address so the screen still works without
+  // going through checkout.
+  const destination = useMemo(() => {
+    const dropped = order?.destination;
+    if (dropped?.latitude != null && dropped?.longitude != null) {
+      return { ...dropped, label: dropped.label || DESTINATION.label };
+    }
+    return DESTINATION;
+  }, [order]);
+
   // Pickup point: the store the first line item came from, falling back to the
   // Sitabuldi shop so the screen is demoable without going through checkout.
   const pickup = useMemo(() => {
@@ -81,7 +92,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
     return { ...fallback.coordinates, label: fallback.name };
   }, [order]);
 
-  const routeCoords = useMemo(() => buildRoute(pickup, DESTINATION), [pickup]);
+  const routeCoords = useMemo(() => buildRoute(pickup, destination), [pickup, destination]);
 
   const [index, setIndex] = useState(0);
   const driver = routeCoords[Math.min(index, routeCoords.length - 1)];
@@ -107,10 +118,10 @@ export default function LiveTrackingScreen({ route, navigation }) {
   }, [index, driver]);
 
   const initialRegion = {
-    latitude: (pickup.latitude + DESTINATION.latitude) / 2 || NAGPUR_CENTER.latitude,
-    longitude: (pickup.longitude + DESTINATION.longitude) / 2 || NAGPUR_CENTER.longitude,
-    latitudeDelta: Math.abs(pickup.latitude - DESTINATION.latitude) * 2.6 + 0.05,
-    longitudeDelta: Math.abs(pickup.longitude - DESTINATION.longitude) * 2.6 + 0.05,
+    latitude: (pickup.latitude + destination.latitude) / 2 || NAGPUR_CENTER.latitude,
+    longitude: (pickup.longitude + destination.longitude) / 2 || NAGPUR_CENTER.longitude,
+    latitudeDelta: Math.abs(pickup.latitude - destination.latitude) * 2.6 + 0.05,
+    longitudeDelta: Math.abs(pickup.longitude - destination.longitude) * 2.6 + 0.05,
   };
 
   return (
@@ -138,7 +149,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
         />
 
         {/* Destination */}
-        <Marker coordinate={DESTINATION} title="Delivery address" description={DESTINATION.label}>
+        <Marker coordinate={destination} title="Delivery address" description={destination.label}>
           <View style={styles.destMarker}>
             <View style={styles.destCore} />
           </View>

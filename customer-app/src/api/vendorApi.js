@@ -19,7 +19,9 @@ const extra = Constants.expoConfig?.extra ?? {};
  * On a physical device set `extra.apiBaseUrl` in app.json to the LAN IP.
  */
 const resolveBaseUrl = () => {
-  const configured = extra.apiBaseUrl || 'http://localhost:5000';
+  // The backend listens on 5001 (5000 is taken by macOS AirPlay Receiver), so
+  // the local-dev fallback has to match or every call 403s against AirTunes.
+  const configured = extra.apiBaseUrl || 'http://localhost:5001';
 
   if (Platform.OS === 'android') {
     return configured.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
@@ -30,9 +32,16 @@ const resolveBaseUrl = () => {
 
 export const API_BASE_URL = resolveBaseUrl();
 
+// The backend runs on Render's free tier, which spins the instance down after
+// ~15 min idle and takes 30–60s to cold-start. A short timeout turns that nap
+// into a "network error" on the first request after a lull (the classic
+// "sign-up failed but the account exists" report), so we wait long enough for
+// the dyno to wake and retry idempotent reads/upserts below.
+const REQUEST_TIMEOUT_MS = 45000;
+
 const client = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 15000,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -68,12 +77,46 @@ const toError = (error, fallback) => {
   return wrapped;
 };
 
-const request = async (fn, fallback) => {
-  try {
-    const response = await fn();
-    return response.data;
-  } catch (error) {
-    throw toError(error, fallback);
+/**
+ * True when a failure is worth retrying: a cold-starting or briefly overloaded
+ * server (no response, a timeout, or a 5xx). A 4xx is the caller's fault and is
+ * never retried — repeating it just wastes the shopper's time.
+ */
+const isTransient = (error) => {
+  if (!error.response) return true; // network error or timeout — no HTTP reply
+  const status = error.response.status;
+  return status >= 500 && status < 600;
+};
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs `fn`, unwraps axios' envelope, and rethrows a single readable Error.
+ *
+ * `retries` re-attempts transient failures with exponential backoff — set it
+ * only for calls that are safe to repeat (reads and idempotent upserts). Never
+ * retry a non-idempotent create (e.g. placing an order), or a cold start could
+ * silently duplicate it.
+ *
+ * @param {() => Promise<import('axios').AxiosResponse>} fn
+ * @param {string} fallback
+ * @param {{ retries?: number }} [options]
+ */
+const request = async (fn, fallback, { retries = 0 } = {}) => {
+  let attempt = 0;
+
+  for (;;) {
+    try {
+      const response = await fn();
+      return response.data;
+    } catch (error) {
+      if (attempt < retries && isTransient(error)) {
+        attempt += 1;
+        await wait(800 * 2 ** (attempt - 1)); // 800ms, 1.6s, 3.2s, …
+        continue;
+      }
+      throw toError(error, fallback);
+    }
   }
 };
 
@@ -81,11 +124,15 @@ const request = async (fn, fallback) => {
 
 /** POST /api/users/sync — upsert the customer profile for the signed-in uid. */
 export const syncUserProfile = (payload) =>
-  request(() => client.post('/users/sync', payload), 'Failed to sync profile');
+  request(() => client.post('/users/sync', payload), 'Failed to sync profile', { retries: 3 });
 
 /** GET /api/users/me — the customer profile behind the current token. */
 export const fetchUserProfile = () =>
-  request(() => client.get('/users/me'), 'Failed to load profile');
+  request(() => client.get('/users/me'), 'Failed to load profile', { retries: 2 });
+
+/** POST /api/users/me/addresses — save a delivery address to the profile book. */
+export const saveUserAddress = (address) =>
+  request(() => client.post('/users/me/addresses', address), 'Failed to save address');
 
 /** POST /api/vendors/sync — register or update the shop for the signed-in uid. */
 export const registerVendor = (payload) =>
@@ -98,7 +145,7 @@ export const registerVendor = (payload) =>
  * @param {{ category?: string, page?: number, limit?: number }} [params]
  */
 export const fetchStorefront = (params) =>
-  request(() => client.get('/products', { params }), 'Failed to load products');
+  request(() => client.get('/products', { params }), 'Failed to load products', { retries: 3 });
 
 /* --------------------------------------------------------------- orders -- */
 
@@ -108,7 +155,7 @@ export const placeOrder = (payload) =>
 
 /** GET /api/orders/mine — the signed-in customer's orders, newest first. */
 export const fetchMyOrders = () =>
-  request(() => client.get('/orders/mine'), 'Failed to load your orders');
+  request(() => client.get('/orders/mine'), 'Failed to load your orders', { retries: 2 });
 
 /** PATCH /api/orders/:id/cancel — customer cancels their own order. */
 export const cancelMyOrder = (orderId, reason) =>
@@ -161,7 +208,7 @@ export const uploadProductImages = (assets) => {
 
 /** GET /api/vendors/me — the shop profile behind the current token. */
 export const fetchVendorProfile = () =>
-  request(() => client.get('/vendors/me'), 'Failed to load shop profile');
+  request(() => client.get('/vendors/me'), 'Failed to load shop profile', { retries: 2 });
 
 /* ---------------------------------------------------------------- orders -- */
 
@@ -206,7 +253,7 @@ export const markOrderReady = (orderId) =>
 
 /** GET /api/products/mine — includes out-of-stock listings. */
 export const fetchCatalog = () =>
-  request(() => client.get('/products/mine'), 'Failed to load catalog');
+  request(() => client.get('/products/mine'), 'Failed to load catalog', { retries: 2 });
 
 /** PATCH /api/products/:productId — the In Stock / Out of Stock toggle. */
 export const setProductAvailability = (productId, isAvailable) =>
