@@ -1,5 +1,6 @@
 import express from 'express';
 import { verifyToken, requireUser, requireVendor } from '../middleware/authMiddleware.js';
+import { authLimiter, orderLimiter } from '../middleware/rateLimit.js';
 import {
   createOrder,
   createGuestOrder,
@@ -15,8 +16,10 @@ import {
 const router = express.Router();
 
 // Public web storefront: guest COD checkout + order tracking (no account).
-router.post('/guest', createGuestOrder);
-router.get('/track', trackGuestOrder);
+// Both are unauthenticated, so both are rate-limited — order creation against
+// spam, tracking against phone/order-id guessing.
+router.post('/guest', orderLimiter, createGuestOrder);
+router.get('/track', authLimiter, trackGuestOrder);
 
 router.post('/', verifyToken, requireUser, createOrder);
 

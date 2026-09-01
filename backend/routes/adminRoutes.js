@@ -1,6 +1,7 @@
 import express from 'express';
 
 import { requireAdmin } from '../middleware/adminMiddleware.js';
+import { authLimiter } from '../middleware/rateLimit.js';
 import {
   login,
   getSetupStatus,
@@ -21,8 +22,8 @@ const router = express.Router();
 
 // Public: first-run setup + obtain an admin session.
 router.get('/needs-setup', getSetupStatus);
-router.post('/setup', setupFirstAdmin);
-router.post('/login', login);
+router.post('/setup', authLimiter, setupFirstAdmin);
+router.post('/login', authLimiter, login);
 
 // Everything below requires a valid admin JWT.
 router.use(requireAdmin);
