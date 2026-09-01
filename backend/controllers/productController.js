@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+
 import Product from '../models/Product.js';
 import {
   PRODUCT_STATUS,
@@ -86,10 +88,21 @@ const listMyProducts = async (req, res) => {
 
 const getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate(
-      'vendor',
-      'shopName address location'
-    );
+    // Public route (no auth). It must not become a back door to unmoderated
+    // listings, so it serves only what the storefront feed serves: APPROVED
+    // and available. A pending, rejected or hidden item — or a bad id — is a
+    // 404, indistinguishable from one that never existed. The vendor sees
+    // their own full catalog through GET /api/products/mine instead.
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const product = await Product.findOne({
+      _id: req.params.id,
+      status: PRODUCT_STATUS.APPROVED,
+      isAvailable: true,
+    }).populate('vendor', 'shopName address location');
+
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (error) {
