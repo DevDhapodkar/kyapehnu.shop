@@ -1,0 +1,51 @@
+name: Keep backend warm
+
+# Render's free tier spins the backend down after ~15 min idle, and the cold
+# start (30–60s) is what made the first sign-in / sign-up after a lull fail.
+# This pings the health endpoint every ~10 minutes so the instance never idles
+# out — a free alternative to a paid always-on plan.
+#
+# The ping doubles as basic uptime monitoring: if the backend is unreachable the
+# run goes red and GitHub emails you.
+#
+# Set the target once under Settings → Secrets and variables → Actions →
+# Variables → new variable BACKEND_URL (e.g. https://kyapehnu-backend.onrender.com).
+# It falls back to the current Render URL if that variable is unset.
+#
+# NOTE: scheduled workflows only run from the repository's DEFAULT branch, so
+# this takes effect once it's merged to `main`. GitHub also pauses schedules
+# after 60 days with no repo activity — a normal commit cadence keeps it live.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # every 10 minutes (UTC); GitHub may delay under load
+  workflow_dispatch: {} # manual "Run workflow" button for testing
+
+# Don't pile up runs if one is slow (e.g. waiting on a cold start).
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        env:
+          BASE_URL: ${{ vars.BACKEND_URL || 'https://kyapehnu-backend.onrender.com' }}
+        run: |
+          set -euo pipefail
+          echo "Pinging ${BASE_URL}/health"
+          # --max-time 90 gives a sleeping dyno time to wake within one attempt;
+          # --retry with --retry-all-errors rides out the cold start / brief 5xx.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            --max-time 90 \
+            --retry 4 --retry-delay 15 --retry-all-errors \
+            "${BASE_URL}/health")
+          echo "HTTP ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::error::Backend health check returned ${code}"
+            exit 1
+          fi
+          echo "Backend is awake."

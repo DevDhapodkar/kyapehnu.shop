@@ -44,6 +44,15 @@ export const useAuthStore = create((set, get) => ({
   /** Customer profile from `GET /api/users/me`. */
   profile: null,
 
+  /**
+   * Registration details that were captured but not yet persisted to the
+   * backend (the Firebase account was created, but the profile upsert hasn't
+   * succeeded — e.g. the server was cold-starting). The auth listener retries
+   * this on every token change until it lands, so a flaky network can never
+   * leave a signed-in account without its `User` document.
+   */
+  pendingProfile: null,
+
   /** Vendor profile from `GET /api/vendors/me`, populated on entering VENDOR. */
   vendorProfile: null,
 
@@ -77,9 +86,19 @@ export const useAuthStore = create((set, get) => ({
       // Non-fatal: a brand-new account has no profile until registration syncs.
       try {
         const profile = await fetchUserProfile();
-        set({ profile });
+        set({ profile, pendingProfile: null });
       } catch {
-        /* no profile yet — created by registerWithEmail */
+        // No profile yet. If registration captured the details but its own sync
+        // never landed, finish it here so the account is never left half-made.
+        const pending = get().pendingProfile;
+        if (pending) {
+          try {
+            const profile = await syncUserProfile(pending);
+            set({ profile, pendingProfile: null });
+          } catch {
+            /* still unreachable — retried on the next token change */
+          }
+        }
       }
 
       // Register this device for order-status push notifications (best-effort).
@@ -105,16 +124,51 @@ export const useAuthStore = create((set, get) => ({
   /**
    * Create a customer account, then upsert the backend profile so the User
    * document (required for placing orders) exists immediately.
+   *
+   * Two failure modes are handled so registration never dead-ends:
+   *
+   *  1. The Firebase account was created on a previous attempt but the profile
+   *     sync failed (the reported "it errored but the account exists" bug).
+   *     Re-registering then throws `auth/email-already-in-use`. If the password
+   *     matches, we adopt that account instead of erroring, and finish the sync.
+   *
+   *  2. The account is created but the backend is still cold-starting, so the
+   *     profile upsert times out. The account and session are already valid, so
+   *     we keep the shopper signed in and stash the details in `pendingProfile`;
+   *     the auth listener finishes the sync as soon as the server answers.
+   *
+   * Resolves to `{ profileSynced }` so the screen can proceed either way.
    */
   registerWithEmail: async ({ name, email, phone, password }) => {
-    const cred = await registerEmail(email, password, name);
+    let cred;
+    try {
+      cred = await registerEmail(email, password, name);
+    } catch (error) {
+      if (error?.code !== 'auth/email-already-in-use') throw error;
+      // The email is taken — most likely by a half-finished earlier attempt.
+      // If the password is right, this is the same person finishing sign-up.
+      try {
+        cred = await signInEmail(email, password);
+      } catch {
+        throw error; // genuinely someone else's account — surface the original.
+      }
+    }
+
     const token = await cred.user.getIdToken();
     setAuthToken(token);
     set({ user: cred.user, token });
 
-    const profile = await syncUserProfile({ name, email, phone });
-    set({ profile });
-    return profile;
+    try {
+      const profile = await syncUserProfile({ name, email, phone });
+      set({ profile, pendingProfile: null });
+      return { profileSynced: true, profile };
+    } catch {
+      // Account + session are live; the profile upsert just hasn't reached the
+      // (waking) server yet. Don't fail the sign-up over it — the listener will
+      // retry until it lands.
+      set({ pendingProfile: { name, email, phone } });
+      return { profileSynced: false, profile: null };
+    }
   },
 
   /** Legacy explicit sign-in used before Firebase auth landed / for tests. */
@@ -128,7 +182,14 @@ export const useAuthStore = create((set, get) => ({
       await signOutFirebase();
     } finally {
       setAuthToken(null);
-      set({ user: null, token: null, profile: null, role: ROLES.CUSTOMER, vendorProfile: null });
+      set({
+        user: null,
+        token: null,
+        profile: null,
+        pendingProfile: null,
+        role: ROLES.CUSTOMER,
+        vendorProfile: null,
+      });
     }
   },
 
