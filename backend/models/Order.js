@@ -34,6 +34,11 @@ const orderSchema = new mongoose.Schema(
     channel: { type: String, enum: ['APP', 'WEB'], default: 'APP' },
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
     items: [cartItemSchema],
+    // The total is server-computed: subtotal (catalog prices x quantities) plus
+    // a flat delivery fee. Both parts are stored so an order can be audited
+    // without re-deriving them from a catalog that may since have changed.
+    subtotal: { type: Number },
+    deliveryFee: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
     deliveryAddress: {
       // 'Home' | 'Work' | 'Other' — the tag the buyer picked on the map screen.

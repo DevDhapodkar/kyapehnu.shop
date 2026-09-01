@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import { verifyMetaSignature } from '../utils/metaSignature.js';
+
 const META_API_URL = `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`;
 
 // Placeholder: notify a vendor on WhatsApp that a new order landed.
@@ -87,9 +89,21 @@ const notifyVendorOrderReady = async (vendor, order) => {
 // Placeholder: incoming webhook from Meta Cloud API for vendor replies
 // (e.g. vendor managing inventory via WhatsApp chat commands).
 const handleIncomingWebhook = async (req, res) => {
+  // This route is public by necessity — Meta calls it with no credentials. The
+  // signature is the only thing separating a real delivery from a stranger's
+  // POST, so it is checked before the body is read, logged or acted on.
+  if (!process.env.META_APP_SECRET) {
+    console.error('META_APP_SECRET is not configured — refusing unverifiable webhook');
+    return res.sendStatus(503);
+  }
+
+  if (!verifyMetaSignature(req.rawBody, req.get('x-hub-signature-256'), process.env.META_APP_SECRET)) {
+    return res.sendStatus(401);
+  }
+
   const body = req.body;
 
-  if (body.object !== 'whatsapp_business_account') {
+  if (body?.object !== 'whatsapp_business_account') {
     return res.sendStatus(404);
   }
 

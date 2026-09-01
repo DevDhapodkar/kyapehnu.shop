@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+
 import Order, { ORDER_STATUSES } from '../models/Order.js';
 import Vendor from '../models/Vendor.js';
 import Product from '../models/Product.js';
@@ -12,8 +14,48 @@ import {
   appendHistory,
   CUSTOMER_CANCELLABLE,
 } from '../utils/orderStatus.js';
+import { parseCartLines, priceOrderLines } from '../utils/orderPricing.js';
 
 const shortId = (id) => String(id).slice(-6).toUpperCase();
+
+/** @returns {Error & { status: number }} */
+const badRequest = (message) => {
+  const err = new Error(message);
+  err.status = 400;
+  return err;
+};
+
+/**
+ * Turn the request's cart into catalog-priced lines. The client chooses the
+ * products, sizes and quantities; the server decides what they cost. Throws a
+ * 400-tagged error for anything the buyer can act on (empty cart, item gone,
+ * not enough stock).
+ */
+const priceCart = async (vendorId, rawItems) => {
+  const lines = parseCartLines(rawItems);
+  const ids = [...new Set(lines.map((line) => line.product))];
+
+  // A malformed id is an item that cannot exist, not a server fault.
+  if (ids.some((id) => !mongoose.isValidObjectId(id))) {
+    throw badRequest('One of the items is no longer in the catalog');
+  }
+
+  const products = await Product.find({ _id: { $in: ids } }).select(
+    'name price vendor status isAvailable sizes'
+  );
+
+  return priceOrderLines(lines, products, vendorId);
+};
+
+/**
+ * Order-creation failures split cleanly in two: a 400 the buyer can fix (and
+ * should read verbatim), and anything else, which stays opaque.
+ */
+const failOrderCreation = (res, error, fallback) => {
+  const status = error.status === 400 ? 400 : 500;
+  if (status === 400) return res.status(400).json({ message: error.message });
+  return res.status(500).json({ message: fallback, error: error.message });
+};
 
 /**
  * Best-effort stock adjustment across an order's lines. `sign` is -1 to reserve
@@ -60,19 +102,27 @@ const pushToVendor = async (vendor, order) => {
 
 const createOrder = async (req, res) => {
   try {
-    const { vendor: vendorId, items, totalPrice, deliveryAddress, paymentMethod } = req.body;
+    const { vendor: vendorId, deliveryAddress, paymentMethod } = req.body;
 
     if (paymentMethod && paymentMethod !== 'COD') {
       return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
     }
 
+    if (!mongoose.isValidObjectId(vendorId)) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+
+    // Priced here, never from req.body.
+    const { items, subtotal, deliveryFee, totalPrice } = await priceCart(vendorId, req.body.items);
 
     const order = await Order.create({
       customer: req.user._id,
       vendor: vendorId,
       items,
+      subtotal,
+      deliveryFee,
       totalPrice,
       deliveryAddress,
       paymentMethod: 'COD',
@@ -90,7 +140,7 @@ const createOrder = async (req, res) => {
 
     res.status(201).json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create order', error: error.message });
+    failOrderCreation(res, error, 'Failed to create order');
   }
 };
 
@@ -100,7 +150,7 @@ const createOrder = async (req, res) => {
  */
 const createGuestOrder = async (req, res) => {
   try {
-    const { vendor: vendorId, items, totalPrice, deliveryAddress, contact, paymentMethod } = req.body;
+    const { vendor: vendorId, deliveryAddress, contact, paymentMethod } = req.body;
 
     if (paymentMethod && paymentMethod !== 'COD') {
       return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
@@ -108,21 +158,27 @@ const createGuestOrder = async (req, res) => {
     if (!contact?.name || !contact?.phone) {
       return res.status(400).json({ message: 'Your name and phone number are required' });
     }
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'Your cart is empty' });
-    }
     if (!deliveryAddress?.line1 || !deliveryAddress?.pincode) {
       return res.status(400).json({ message: 'A delivery address (street + pincode) is required' });
     }
 
+    if (!mongoose.isValidObjectId(vendorId)) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Shop not found' });
+
+    // Priced here, never from req.body. This endpoint is unauthenticated, so it
+    // is the one most worth not trusting.
+    const { items, subtotal, deliveryFee, totalPrice } = await priceCart(vendorId, req.body.items);
 
     const order = await Order.create({
       guestContact: { name: contact.name, phone: contact.phone },
       channel: 'WEB',
       vendor: vendorId,
       items,
+      subtotal,
+      deliveryFee,
       totalPrice,
       deliveryAddress,
       paymentMethod: 'COD',
@@ -139,7 +195,7 @@ const createGuestOrder = async (req, res) => {
 
     res.status(201).json({ orderId: order._id, status: order.status, totalPrice: order.totalPrice });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to place order', error: error.message });
+    failOrderCreation(res, error, 'Failed to place order');
   }
 };
 
@@ -161,13 +217,40 @@ const trackGuestOrder = async (req, res) => {
   }
 };
 
+/**
+ * Is this Firebase caller a party to the order? Two roles can read one order —
+ * the buyer who placed it and the shop fulfilling it — and the route carries
+ * only `verifyToken`, so both are resolved here from the token's uid.
+ */
+const isPartyToOrder = async (order, firebaseUid) => {
+  const [user, vendor] = await Promise.all([
+    order.customer ? User.findOne({ firebaseUid }).select('_id') : null,
+    Vendor.findOne({ firebaseUid }).select('_id'),
+  ]);
+
+  if (user && order.customer?._id?.equals(user._id)) return true;
+  if (vendor && order.vendor?._id?.equals(vendor._id)) return true;
+  return false;
+};
+
 const getOrderById = async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
     const order = await Order.findById(req.params.id)
       .populate('customer', 'name phone')
       .populate('vendor', 'shopName whatsappNumber location address');
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // An order carries the buyer's name, phone and doorstep. A signed-in
+    // stranger must not be able to walk the id space and read them, so a
+    // non-party gets the same answer as a bad id — no existence oracle.
+    if (!(await isPartyToOrder(order, req.firebaseUser.uid))) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
 
     res.json(order);
   } catch (error) {
@@ -367,10 +450,16 @@ const adminAdvanceOrder = async (req, res) => {
 /** PATCH /api/orders/:id/cancel — the customer cancels their own order. */
 const cancelOrder = async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    if (!order.customer.equals(req.user._id)) {
+    // A guest (web COD) order has no `customer` at all — reaching for .equals()
+    // on it threw, and the caller saw a 500 instead of "not yours".
+    if (!order.customer?.equals(req.user._id)) {
       return res.status(403).json({ message: 'This is not your order' });
     }
 

@@ -19,7 +19,16 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// The WhatsApp webhook has to HMAC the exact bytes Meta signed, so keep them
+// alongside the parsed body. Capped: a webhook payload is never megabytes.
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // Admin panel — a same-origin static page that talks to /api/admin. Served at
 // /admin.html (and /admin). Same origin means no CORS and no separate host.
