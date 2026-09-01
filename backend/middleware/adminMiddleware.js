@@ -1,5 +1,6 @@
 import Admin from '../models/Admin.js';
 import { verifyAdminToken } from '../utils/adminAuth.js';
+import { serverError } from '../utils/httpError.js';
 
 /**
  * Gate a route behind a valid admin JWT and load the admin document onto
@@ -30,6 +31,6 @@ export const requireAdmin = async (req, res, next) => {
     req.admin = admin;
     next();
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to resolve admin', error: error.message });
+    return serverError(res, 'Failed to resolve admin', error);
   }
 };

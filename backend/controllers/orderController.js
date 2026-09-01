@@ -16,6 +16,7 @@ import {
 } from '../utils/orderStatus.js';
 import { parseCartLines, priceOrderLines } from '../utils/orderPricing.js';
 import { buildStockUpdate } from '../utils/stock.js';
+import { serverError } from '../utils/httpError.js';
 
 const shortId = (id) => String(id).slice(-6).toUpperCase();
 
@@ -55,7 +56,7 @@ const priceCart = async (vendorId, rawItems) => {
 const failOrderCreation = (res, error, fallback) => {
   const status = error.status === 400 ? 400 : 500;
   if (status === 400) return res.status(400).json({ message: error.message });
-  return res.status(500).json({ message: fallback, error: error.message });
+  return serverError(res, fallback, error);
 };
 
 /**
@@ -214,8 +215,9 @@ const trackGuestOrder = async (req, res) => {
     }
     res.json(order);
   } catch (error) {
-    // A malformed order id lands here as a CastError.
-    res.status(400).json({ message: 'Could not load that order', error: error.message });
+    // A malformed order id lands here as a CastError — a client problem, so 400,
+    // but the CastError detail stays out of the response.
+    res.status(400).json({ message: 'Could not load that order' });
   }
 };
 
@@ -256,7 +258,7 @@ const getOrderById = async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch order', error: error.message });
+    serverError(res, 'Failed to fetch order', error);
   }
 };
 
@@ -268,7 +270,7 @@ const listMyOrders = async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load your orders', error: error.message });
+    serverError(res, 'Failed to load your orders', error);
   }
 };
 
@@ -302,7 +304,7 @@ const listVendorOrders = async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to list vendor orders', error: error.message });
+    serverError(res, 'Failed to list vendor orders', error);
   }
 };
 
@@ -362,7 +364,7 @@ const markOrderReady = async (req, res) => {
     const logistics = await transitionToReady(order, order.vendor);
     res.json({ order, logistics });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to mark order ready', error: error.message });
+    serverError(res, 'Failed to mark order ready', error);
   }
 };
 
@@ -412,7 +414,7 @@ const updateOrderStatus = async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update order status', error: error.message });
+    serverError(res, 'Failed to update order status', error);
   }
 };
 
@@ -445,7 +447,7 @@ const adminAdvanceOrder = async (req, res) => {
     pushToCustomer(order);
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update order status', error: error.message });
+    serverError(res, 'Failed to update order status', error);
   }
 };
 
@@ -479,7 +481,7 @@ const cancelOrder = async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to cancel order', error: error.message });
+    serverError(res, 'Failed to cancel order', error);
   }
 };
 

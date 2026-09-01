@@ -1,6 +1,7 @@
 import { verifyIdToken, isFirebaseConfigured } from '../config/firebase.js';
 import User from '../models/User.js';
 import Vendor from '../models/Vendor.js';
+import { serverError } from '../utils/httpError.js';
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -22,7 +23,6 @@ const verifyToken = async (req, res, next) => {
     const status = error.status || 401;
     return res.status(status).json({
       message: status === 503 ? error.message : 'Invalid or expired token',
-      error: error.message,
     });
   }
 };
@@ -34,7 +34,7 @@ const requireUser = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to resolve user', error: error.message });
+    return serverError(res, 'Failed to resolve user', error);
   }
 };
 
@@ -45,7 +45,7 @@ const requireVendor = async (req, res, next) => {
     req.vendor = vendor;
     next();
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to resolve vendor', error: error.message });
+    return serverError(res, 'Failed to resolve vendor', error);
   }
 };
 

@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.js';
+import { serverError } from '../utils/httpError.js';
 
 const syncProfile = async (req, res) => {
   try {
@@ -22,7 +23,7 @@ const syncProfile = async (req, res) => {
 
     res.json(vendor);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to sync vendor profile', error: error.message });
+    serverError(res, 'Failed to sync vendor profile', error);
   }
 };
 
@@ -48,7 +49,7 @@ const listNearby = async (req, res) => {
 
     res.json(vendors);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to list nearby vendors', error: error.message });
+    serverError(res, 'Failed to list nearby vendors', error);
   }
 };
 
@@ -63,7 +64,7 @@ const savePushToken = async (req, res) => {
     );
     res.json({ ok: true });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to save push token', error: error.message });
+    serverError(res, 'Failed to save push token', error);
   }
 };
 

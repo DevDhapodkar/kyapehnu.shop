@@ -6,6 +6,7 @@ import {
   PRODUCT_SOURCE,
   requiresRequalification,
 } from '../utils/productStatus.js';
+import { serverError } from '../utils/httpError.js';
 
 // Fields the client may never set directly — the server owns the moderation state.
 const PROTECTED_FIELDS = ['status', 'source', 'sku', 'qc', 'vendor', '_id'];
@@ -27,7 +28,7 @@ const createProduct = async (req, res) => {
     });
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create product', error: error.message });
+    serverError(res, 'Failed to create product', error);
   }
 };
 
@@ -54,7 +55,7 @@ const listStorefront = async (req, res) => {
 
     res.json({ items, meta: { total, page, limit } });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load storefront', error: error.message });
+    serverError(res, 'Failed to load storefront', error);
   }
 };
 
@@ -68,7 +69,7 @@ const listByVendor = async (req, res) => {
     });
     res.json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to list products', error: error.message });
+    serverError(res, 'Failed to list products', error);
   }
 };
 
@@ -82,7 +83,7 @@ const listMyProducts = async (req, res) => {
     const products = await Product.find({ vendor: req.vendor._id }).sort({ updatedAt: -1 });
     res.json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to list catalog', error: error.message });
+    serverError(res, 'Failed to list catalog', error);
   }
 };
 
@@ -106,7 +107,7 @@ const getProduct = async (req, res) => {
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch product', error: error.message });
+    serverError(res, 'Failed to fetch product', error);
   }
 };
 
@@ -135,7 +136,7 @@ const updateProduct = async (req, res) => {
     await existing.save();
     res.json(existing);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update product', error: error.message });
+    serverError(res, 'Failed to update product', error);
   }
 };
 

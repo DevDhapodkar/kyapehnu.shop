@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { serverError } from '../utils/httpError.js';
 
 // Upsert the User profile linked to the authenticated Firebase account.
 const syncProfile = async (req, res) => {
@@ -13,7 +14,7 @@ const syncProfile = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to sync profile', error: error.message });
+    serverError(res, 'Failed to sync profile', error);
   }
 };
 
@@ -27,7 +28,7 @@ const addAddress = async (req, res) => {
     await req.user.save();
     res.status(201).json(req.user);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to add address', error: error.message });
+    serverError(res, 'Failed to add address', error);
   }
 };
 
@@ -38,7 +39,7 @@ const updateLocation = async (req, res) => {
     await req.user.save();
     res.json(req.user);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update location', error: error.message });
+    serverError(res, 'Failed to update location', error);
   }
 };
 
@@ -53,7 +54,7 @@ const savePushToken = async (req, res) => {
     );
     res.json({ ok: true });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to save push token', error: error.message });
+    serverError(res, 'Failed to save push token', error);
   }
 };
 

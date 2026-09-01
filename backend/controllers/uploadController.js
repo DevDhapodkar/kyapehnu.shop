@@ -1,6 +1,7 @@
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary.js';
 import { uploadImages, runMiddleware } from '../middleware/upload.js';
 import { buildProductFolder, buildThumbnails } from '../utils/imageValidation.js';
+import { serverError } from '../utils/httpError.js';
 
 /**
  * Stream one in-memory file buffer to Cloudinary.
@@ -58,7 +59,7 @@ export const uploadProductImages = async (req, res) => {
     const results = await Promise.all(req.files.map((file) => uploadBuffer(file.buffer, folder)));
     res.status(201).json({ images: results.map(toImagePayload) });
   } catch (error) {
-    res.status(502).json({ message: 'Image upload to Cloudinary failed', error: error.message });
+    serverError(res, 'Image upload to Cloudinary failed', error, 502);
   }
 };
 
@@ -84,6 +85,6 @@ export const deleteProductImage = async (req, res) => {
     }
     res.json({ deleted: true, publicId, result: result.result });
   } catch (error) {
-    res.status(502).json({ message: 'Failed to delete image', error: error.message });
+    serverError(res, 'Failed to delete image', error, 502);
   }
 };

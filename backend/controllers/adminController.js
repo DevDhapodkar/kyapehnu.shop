@@ -5,6 +5,7 @@ import Order from '../models/Order.js';
 import { verifyPassword, hashPassword, signAdminToken } from '../utils/adminAuth.js';
 import { PRODUCT_STATUS, statusForReview } from '../utils/productStatus.js';
 import { generateSku } from '../utils/sku.js';
+import { serverError } from '../utils/httpError.js';
 
 /** GET /api/admin/needs-setup -> { needsSetup } (true when no admin exists yet). */
 export const getSetupStatus = async (req, res) => {
@@ -12,7 +13,7 @@ export const getSetupStatus = async (req, res) => {
     const count = await Admin.countDocuments();
     res.json({ needsSetup: count === 0 });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to check setup status', error: error.message });
+    serverError(res, 'Failed to check setup status', error);
   }
 };
 
@@ -50,7 +51,8 @@ export const setupFirstAdmin = async (req, res) => {
     });
   } catch (error) {
     const status = error.status || 500;
-    res.status(status).json({ message: status === 503 ? error.message : 'Setup failed', error: error.message });
+    if (status === 500) console.error('Admin setup failed:', error.message);
+    res.status(status).json({ message: status === 503 ? error.message : 'Setup failed' });
   }
 };
 
@@ -75,7 +77,8 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     const status = error.status || 500;
-    res.status(status).json({ message: status === 503 ? error.message : 'Login failed', error: error.message });
+    if (status === 500) console.error('Admin login failed:', error.message);
+    res.status(status).json({ message: status === 503 ? error.message : 'Login failed' });
   }
 };
 
@@ -93,7 +96,7 @@ export const listPendingProducts = async (req, res) => {
       .sort({ createdAt: 1 }); // oldest first — a real queue
     res.json(products);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load QC queue', error: error.message });
+    serverError(res, 'Failed to load QC queue', error);
   }
 };
 
@@ -126,7 +129,7 @@ export const reviewProduct = async (req, res) => {
 
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to review product', error: error.message });
+    serverError(res, 'Failed to review product', error);
   }
 };
 
@@ -137,7 +140,7 @@ export const listVendors = async (req, res) => {
     const vendors = await Vendor.find(filter).sort({ createdAt: -1 });
     res.json(vendors);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load vendors', error: error.message });
+    serverError(res, 'Failed to load vendors', error);
   }
 };
 
@@ -159,7 +162,7 @@ export const reviewVendor = async (req, res) => {
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
     res.json(vendor);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to review vendor', error: error.message });
+    serverError(res, 'Failed to review vendor', error);
   }
 };
 
@@ -184,7 +187,7 @@ export const createVendorAsAdmin = async (req, res) => {
     });
     res.status(201).json(vendor);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create shop', error: error.message });
+    serverError(res, 'Failed to create shop', error);
   }
 };
 
@@ -206,7 +209,7 @@ export const createProductAsAdmin = async (req, res) => {
     });
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create product', error: error.message });
+    serverError(res, 'Failed to create product', error);
   }
 };
 
@@ -222,7 +225,7 @@ export const listOrders = async (req, res) => {
       .limit(limit);
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load orders', error: error.message });
+    serverError(res, 'Failed to load orders', error);
   }
 };
 
@@ -237,6 +240,6 @@ export const getStats = async (req, res) => {
     ]);
     res.json({ pendingProducts, pendingVendors, totalVendors, totalOrders });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to load stats', error: error.message });
+    serverError(res, 'Failed to load stats', error);
   }
 };
