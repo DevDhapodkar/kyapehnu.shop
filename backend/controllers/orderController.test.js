@@ -135,7 +135,11 @@ test('createGuestOrder ignores a client-supplied price and bills the catalog', a
       },
     ])
   );
-  mock.method(Product, 'updateOne', () => Promise.resolve({}));
+  const stockOps = [];
+  mock.method(Product, 'updateOne', (filter, update) => {
+    stockOps.push({ filter, update });
+    return Promise.resolve({ matchedCount: 1 });
+  });
   mock.method(axios, 'post', async () => ({ data: {} }));
 
   let created;
@@ -157,6 +161,12 @@ test('createGuestOrder ignores a client-supplied price and bills the catalog', a
   assert.equal(created.deliveryFee, DELIVERY_FEE, 'the fee is the server\'s, not the cart\'s');
   assert.equal(created.totalPrice, 2998 + DELIVERY_FEE, 'total is recomputed, not accepted');
   assert.equal(res.body.totalPrice, 2998 + DELIVERY_FEE);
+
+  // Stock is reserved with the atomic, never-negative guard.
+  assert.equal(stockOps.length, 1, 'one reservation for the one line');
+  const [{ filter, update }] = stockOps;
+  assert.ok(filter.sizes.$elemMatch.stock.$gte >= 2, 'guarded on available stock');
+  assert.equal(update.$inc['sizes.$.stock'], -2, 'decrements by the ordered quantity');
 });
 
 test('createGuestOrder accepts the payload shape the app actually sends', async () => {

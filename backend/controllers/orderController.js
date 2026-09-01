@@ -15,6 +15,7 @@ import {
   CUSTOMER_CANCELLABLE,
 } from '../utils/orderStatus.js';
 import { parseCartLines, priceOrderLines } from '../utils/orderPricing.js';
+import { buildStockUpdate } from '../utils/stock.js';
 
 const shortId = (id) => String(id).slice(-6).toUpperCase();
 
@@ -63,12 +64,12 @@ const failOrderCreation = (res, error, fallback) => {
  */
 const adjustStock = (items, sign) =>
   Promise.all(
-    (items || []).map((it) =>
-      Product.updateOne(
-        { _id: it.product, 'sizes.size': it.size },
-        { $inc: { 'sizes.$.stock': sign * it.quantity } }
-      ).catch((e) => console.error(`Stock adjust failed for ${it.product}:`, e.message))
-    )
+    (items || []).map((it) => {
+      const { filter, update } = buildStockUpdate(it, sign);
+      return Product.updateOne(filter, update).catch((e) =>
+        console.error(`Stock adjust failed for ${it.product}:`, e.message)
+      );
+    })
   );
 
 /** Push an order-status update to the buyer's device(s). Best-effort. */
@@ -131,8 +132,9 @@ const createOrder = async (req, res) => {
       statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
     });
 
-    // Reserve stock, notify the shop (WhatsApp + push), all best-effort.
-    adjustStock(items, -1);
+    // Reserve stock (atomic, never negative) before replying; notify the shop
+    // (WhatsApp + push) best-effort.
+    await adjustStock(items, -1);
     notifyVendorNewOrder(vendor, order).catch((err) =>
       console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
     );
@@ -187,7 +189,7 @@ const createGuestOrder = async (req, res) => {
       statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
     });
 
-    adjustStock(items, -1);
+    await adjustStock(items, -1);
     notifyVendorNewOrder(vendor, order).catch((err) =>
       console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
     );
