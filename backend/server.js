@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import connectDB from './config/db.js';
+import { buildCorsOptions, parseAllowedOrigins } from './utils/cors.js';
 import { ensureAdminSeed } from './config/seedAdmin.js';
 import userRoutes from './routes/userRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
@@ -18,7 +19,9 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// Cross-origin browser access is limited to CORS_ALLOWED_ORIGINS; native-app
+// and same-origin requests (no Origin header) are unaffected. See utils/cors.js.
+app.use(cors(buildCorsOptions(parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS))));
 // The WhatsApp webhook has to HMAC the exact bytes Meta signed, so keep them
 // alongside the parsed body. Capped: a webhook payload is never megabytes.
 app.use(
