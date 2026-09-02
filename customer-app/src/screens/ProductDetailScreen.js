@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import {
-  Dimensions,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Dimensions, StatusBar, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
+import PressableScale from '../components/PressableScale';
+import CartBadge from '../components/CartBadge';
 import { formatINR } from '../data/mockStores';
 import { selectCartCount, useCartStore } from '../store/useCartStore';
+import { notifySuccess, selection } from '../utils/haptics';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -41,27 +43,52 @@ export default function ProductDetailScreen({ route, navigation }) {
     ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
     : 0;
 
+  // The photograph parallaxes: as the sheet scrolls up over it, the image
+  // travels up at a slower rate and scales fractionally, so the two layers read
+  // as glass sliding over print with real depth between them. Driven entirely on
+  // the UI thread off the scroll offset — no re-render per frame.
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.set(event.contentOffset.y);
+  });
+
+  const heroStyle = useAnimatedStyle(() => {
+    const y = scrollY.get();
+    return {
+      transform: [
+        { translateY: y * 0.35 },
+        { scale: interpolate(y, [0, HERO_HEIGHT], [1, 1.12], Extrapolation.CLAMP) },
+      ],
+    };
+  });
+
   const handleAdd = () => {
     addToCart(product, selectedSize);
     setAdded(true);
+    // The bag received it — a success note the user was waiting on.
+    notifySuccess();
   };
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 150 }}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         bounces={false}
       >
         <View style={styles.hero}>
-          <Image
-            source={{ uri: product.image }}
-            style={styles.heroImage}
-            contentFit="cover"
-            transition={280}
-          />
+          <Animated.View style={[StyleSheet.absoluteFill, heroStyle]}>
+            <Image
+              source={{ uri: product.image }}
+              style={styles.heroImage}
+              contentFit="cover"
+              transition={280}
+            />
+          </Animated.View>
           {/* Scrim keeps the floating chrome legible over a bright photograph. */}
           <View pointerEvents="none" style={styles.heroScrim} />
         </View>
@@ -94,18 +121,24 @@ export default function ProductDetailScreen({ route, navigation }) {
             {sizes.map((size) => {
               const active = size === selectedSize;
               return (
-                <Pressable
+                <PressableScale
                   key={size}
+                  haptic={false}
                   onPress={() => {
+                    if (size === selectedSize) return;
+                    // A value ticked past a step — the selection detent.
+                    selection();
                     setSelectedSize(size);
                     setAdded(false);
                   }}
+                  accessibilityLabel={`Size ${size}`}
+                  accessibilityState={{ selected: active }}
                   style={[styles.sizeChip, active && styles.sizeChipActive]}
                 >
                   <Text style={[styles.sizeText, active && styles.sizeTextActive]}>
                     {size}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -141,31 +174,30 @@ export default function ProductDetailScreen({ route, navigation }) {
               .join('  ·  ')}
           </Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Floating back / bag chrome. */}
       <View
         style={[styles.topBar, { top: insets.top + spacing.xs }]}
         pointerEvents="box-none"
       >
-        <Pressable
+        <PressableScale
           onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
+          accessibilityLabel="Go back"
+          style={styles.circleButton}
         >
           <Text style={styles.circleGlyph}>←</Text>
-        </Pressable>
+        </PressableScale>
 
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('Cart')}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
+          haptic={false}
+          accessibilityLabel="Open bag"
+          style={styles.circleButton}
         >
           <Text style={styles.circleGlyph}>◇</Text>
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+          {cartCount > 0 ? <CartBadge count={cartCount} style={styles.badge} /> : null}
+        </PressableScale>
       </View>
 
       {/* Docked action bar. */}
@@ -219,6 +251,8 @@ const styles = StyleSheet.create({
   hero: {
     height: HERO_HEIGHT,
     backgroundColor: colors.charcoal,
+    // Clip the parallax/scale so the moving image never bleeds past the hero.
+    overflow: 'hidden',
   },
   heroImage: {
     ...StyleSheet.absoluteFill,
@@ -374,30 +408,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
   },
-  pressed: {
-    opacity: 0.7,
-  },
   circleGlyph: {
     color: colors.ivory,
     fontSize: 18,
     lineHeight: 22,
   },
   badge: {
-    position: 'absolute',
     top: -4,
     right: -4,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.crimsonBright,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: colors.ivory,
-    fontSize: 10,
-    fontWeight: '700',
   },
 
   actionBar: {

@@ -1,5 +1,6 @@
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import HomeScreen from '../screens/HomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
@@ -51,8 +52,11 @@ const navTheme = {
 /**
  * Shared header styling for the screens that keep a native header. Home and
  * LiveTracking hide it so their content can run under the status bar.
+ *
+ * The transition is built per-flow from the device's reduce-motion setting, so
+ * `animation` is not baked in here — `makeScreenOptions` adds it.
  */
-const screenOptions = {
+const baseScreenOptions = {
   headerStyle: { backgroundColor: colors.obsidianDeep },
   headerTitleStyle: {
     color: colors.ivory,
@@ -63,18 +67,43 @@ const screenOptions = {
   headerTintColor: colors.ivory,
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.obsidian },
-  animation: 'slide_from_right',
 };
+
+/**
+ * Screen transitions honour the platform: the native push runs on the OS side,
+ * keeps the interactive back-swipe, and matches every other app on the device —
+ * never rebuild it in JS. Under reduce-motion the sliding push collapses to a
+ * cross-fade (the gentler, non-vestibular equivalent), everywhere at once.
+ */
+function makeScreenOptions(reduced) {
+  return {
+    ...baseScreenOptions,
+    animation: reduced ? 'fade' : 'slide_from_right',
+  };
+}
+
+// A screen that slides up from the edge (modal-ish tasks the user can abandon).
+// `animationMatchesGesture` makes the iOS back-swipe run this same transition in
+// reverse under the finger, so dragging back never looks like a different app
+// than pushing forward. Collapses to a fade under reduce-motion.
+function slideUpOptions(reduced, extra = {}) {
+  return {
+    animation: reduced ? 'fade' : 'slide_from_bottom',
+    animationMatchesGesture: true,
+    ...extra,
+  };
+}
 
 /** Buyer side: the scrollytelling storefront through to live delivery tracking. */
 function CustomerFlow() {
+  const reduced = useReducedMotion();
   return (
-    <CustomerStack.Navigator initialRouteName="Home" screenOptions={screenOptions}>
+    <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced)}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}
-        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+        options={slideUpOptions(reduced, { headerShown: false })}
       />
       <CustomerStack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
       <CustomerStack.Screen
@@ -100,12 +129,12 @@ function CustomerFlow() {
       <CustomerStack.Screen
         name="Auth"
         component={AuthScreen}
-        options={{ title: 'Sign In', animation: 'slide_from_bottom' }}
+        options={slideUpOptions(reduced, { title: 'Sign In' })}
       />
       <CustomerStack.Screen
         name="VendorRegister"
         component={VendorRegisterScreen}
-        options={{ title: 'Register Your Shop', animation: 'slide_from_bottom' }}
+        options={slideUpOptions(reduced, { title: 'Register Your Shop' })}
       />
     </CustomerStack.Navigator>
   );
@@ -113,8 +142,9 @@ function CustomerFlow() {
 
 /** Shop-owner side: the order desk and catalogue controls. */
 function VendorFlow() {
+  const reduced = useReducedMotion();
   return (
-    <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={screenOptions}>
+    <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={makeScreenOptions(reduced)}>
       {/* VendorOrders draws its own header so the shop name can sit under the status bar. */}
       <VendorStack.Screen
         name="VendorOrders"
@@ -131,7 +161,7 @@ function VendorFlow() {
       <VendorStack.Screen
         name="CatalogManager"
         component={CatalogManagerScreen}
-        options={{ title: 'Catalog', animation: 'slide_from_bottom' }}
+        options={slideUpOptions(reduced, { title: 'Catalog' })}
       />
       <VendorStack.Screen
         name="Profile"

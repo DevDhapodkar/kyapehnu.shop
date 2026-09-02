@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import PressableScale from './PressableScale';
 import { formatINR } from '../data/mockStores';
 import { colors, radii, spacing } from '../theme/colors';
 
@@ -15,9 +16,11 @@ export const PRODUCT_CARD_WIDTH = 210;
  */
 export default function ProductCard({ product, onPress }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      haptic={false}
+      accessibilityLabel={`${product.name}, ${formatINR(product.price)}`}
+      style={styles.card}
     >
       <Image
         source={{ uri: product.image }}
@@ -47,7 +50,7 @@ export default function ProductCard({ product, onPress }) {
           {product.storeName}
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -65,9 +68,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 22,
     elevation: 10,
-  },
-  pressed: {
-    opacity: 0.82,
   },
   image: {
     width: '100%',

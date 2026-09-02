@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
+import PressableScale from '../components/PressableScale';
 import { NAGPUR_CENTER, formatINR, mockStores } from '../data/mockStores';
 import { obsidianMapStyle } from '../theme/mapStyle';
 import { colors, radii, spacing } from '../theme/colors';
@@ -100,6 +108,22 @@ export default function LiveTrackingScreen({ route, navigation }) {
   const stage = stageFor(progress);
   const minutesLeft = Math.max(1, Math.round((1 - progress) * 34));
 
+  // The progress rail glides between ticks instead of jumping in 14-step
+  // increments: each new position eases in over exactly one tick with linear
+  // timing, so the fill reads as continuous constant motion (a driver moving)
+  // rather than a stuttering bar.
+  const fill = useSharedValue(0);
+  useEffect(() => {
+    fill.set(
+      withTiming(progress, {
+        duration: TICK_MS,
+        easing: Easing.linear,
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [progress, fill]);
+  const railFillStyle = useAnimatedStyle(() => ({ width: `${fill.get() * 100}%` }));
+
   // Mock telemetry: advance one step per tick and stop at the destination.
   useEffect(() => {
     const timer = setInterval(() => {
@@ -173,12 +197,14 @@ export default function LiveTrackingScreen({ route, navigation }) {
       {/* Floating header. */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
         <View pointerEvents="none" style={styles.headerFill} />
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('Home')}
-          style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}
+          haptic={false}
+          accessibilityLabel="Back to shopping"
+          style={styles.circleButton}
         >
           <Text style={styles.circleGlyph}>←</Text>
-        </Pressable>
+        </PressableScale>
         <View style={styles.headerText}>
           <Text style={styles.headerEyebrow}>LIVE TRACKING</Text>
           <Text style={styles.headerTitle}>
@@ -205,7 +231,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
         {/* Progress rail. */}
         <View style={styles.rail}>
-          <View style={[styles.railFill, { width: `${Math.round(progress * 100)}%` }]} />
+          <Animated.View style={[styles.railFill, railFillStyle]} />
         </View>
 
         <View style={styles.legRow}>
@@ -317,9 +343,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 21,
   },
-  pressed: {
-    opacity: 0.7,
-  },
   headerText: {
     flex: 1,
   },
@@ -393,6 +416,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5,
   },
   rail: {
+    position: 'relative',
     height: 2,
     backgroundColor: colors.graphite,
     borderRadius: 1,
@@ -400,7 +424,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   railFill: {
-    height: 2,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: colors.crimsonBright,
   },
   legRow: {

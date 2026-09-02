@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import PressableScale from './PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -9,8 +10,10 @@ import { colors, radii, spacing } from '../theme/colors';
  *  - primary (default): crimson fill, the only saturated surface in the app
  *  - ghost:             frosted pane with a hairline border, for secondary paths
  *
- * Pressed state dims via opacity rather than a colour swap so the glass layers
- * underneath stay visible through the transition.
+ * Press feedback is a 0.97 scale (via PressableScale) rather than an opacity
+ * dim, so the whole button — label and all — reads as one object the finger is
+ * physically pressing, and a single quiet haptic confirms the tap landed. The
+ * scale settles back on release; the disabled/loading state still dims.
  */
 export default function GlassButton({
   label,
@@ -20,19 +23,22 @@ export default function GlassButton({
   loading = false,
   caption,
   style,
+  accessibilityLabel,
 }) {
   const isPrimary = variant === 'primary';
   const inert = disabled || loading;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={inert}
-      style={({ pressed }) => [
+      haptic={inert ? false : 'light'}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: inert, busy: loading }}
+      style={[
         styles.base,
         isPrimary ? styles.primary : styles.ghost,
         inert && styles.disabled,
-        pressed && !inert && styles.pressed,
         style,
       ]}
     >
@@ -47,7 +53,7 @@ export default function GlassButton({
           {caption ? <Text style={styles.caption}>{caption}</Text> : null}
         </>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -84,9 +90,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.75,
   },
   label: {
     color: colors.ivory,

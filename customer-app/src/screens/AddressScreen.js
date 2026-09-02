@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
 import GlassButton from '../components/GlassButton';
+import PressableScale from '../components/PressableScale';
+import { selection, notifySuccess, notifyError } from '../utils/haptics';
 import { NAGPUR_CENTER, formatINR } from '../data/mockStores';
 import { obsidianMapStyle } from '../theme/mapStyle';
 import { colors, radii, spacing } from '../theme/colors';
@@ -207,6 +208,9 @@ export default function AddressScreen({ navigation }) {
       // brand-new account whose profile hasn't synced yet just skips it).
       saveUserAddress(deliveryAddress).catch(() => {});
 
+      // The order is placed — the one moment on this screen a success note earns
+      // its place.
+      notifySuccess();
       clearCart();
       navigation.navigate('LiveTracking', {
         order: {
@@ -219,6 +223,7 @@ export default function AddressScreen({ navigation }) {
         },
       });
     } catch (err) {
+      notifyError();
       setError(err.message || 'Could not place your order. Please try again.');
     } finally {
       setPlacing(false);
@@ -263,10 +268,10 @@ export default function AddressScreen({ navigation }) {
           </View>
         </View>
 
-        <Pressable
+        <PressableScale
           onPress={goToMyLocation}
-          style={({ pressed }) => [styles.locateButton, pressed && styles.pressed]}
-          accessibilityRole="button"
+          haptic="light"
+          style={styles.locateButton}
           accessibilityLabel="Use my current location"
         >
           {locating ? (
@@ -274,7 +279,7 @@ export default function AddressScreen({ navigation }) {
           ) : (
             <Text style={styles.locateGlyph}>◎</Text>
           )}
-        </Pressable>
+        </PressableScale>
       </View>
 
       <KeyboardAvoidingView
@@ -297,18 +302,20 @@ export default function AddressScreen({ navigation }) {
           {ADDRESS_LABELS.map((label) => {
             const active = form.label === label;
             return (
-              <Pressable
+              <PressableScale
                 key={label}
-                onPress={() => setForm((f) => ({ ...f, label }))}
-                style={({ pressed }) => [
-                  styles.chip,
-                  active && styles.chipActive,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
+                haptic={false}
+                onPress={() => {
+                  if (form.label === label) return;
+                  selection();
+                  setForm((f) => ({ ...f, label }));
+                }}
+                accessibilityLabel={`${label} address`}
+                accessibilityState={{ selected: active }}
+                style={[styles.chip, active && styles.chipActive]}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -483,5 +490,4 @@ const styles = StyleSheet.create({
 
   error: { color: colors.crimsonBright, fontSize: 13, marginTop: spacing.xs, marginBottom: spacing.sm },
   confirm: { marginTop: spacing.md },
-  pressed: { opacity: 0.6 },
 });

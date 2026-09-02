@@ -1,5 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import PressableScale from '../PressableScale';
+import { selection } from '../../utils/haptics';
 import { colors, radii, spacing } from '../../theme/colors';
 
 /**
@@ -24,16 +26,18 @@ export default function FilterTabs({ options, value, onChange, counts = {} }) {
         const count = counts[option.key];
 
         return (
-          <Pressable
+          <PressableScale
             key={option.key}
-            onPress={() => onChange(option.key)}
+            haptic={false}
+            onPress={() => {
+              if (option.key === value) return;
+              selection();
+              onChange(option.key);
+            }}
             accessibilityRole="tab"
+            accessibilityLabel={option.label}
             accessibilityState={{ selected: active }}
-            style={({ pressed }) => [
-              styles.tab,
-              active && styles.tabActive,
-              pressed && styles.pressed,
-            ]}
+            style={[styles.tab, active && styles.tabActive]}
           >
             <Text style={[styles.label, active && styles.labelActive]}>
               {option.label.toUpperCase()}
@@ -43,7 +47,7 @@ export default function FilterTabs({ options, value, onChange, counts = {} }) {
                 <Text style={[styles.badgeText, active && styles.badgeTextActive]}>{count}</Text>
               </View>
             ) : null}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </ScrollView>
@@ -74,9 +78,6 @@ const styles = StyleSheet.create({
   tabActive: {
     backgroundColor: colors.charcoalLight,
     borderColor: colors.graphite,
-  },
-  pressed: {
-    opacity: 0.7,
   },
   label: {
     fontSize: 11,

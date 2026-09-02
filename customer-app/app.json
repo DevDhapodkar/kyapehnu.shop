@@ -9,7 +9,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.dhapodkardev.kyapehnu"
+      "bundleIdentifier": "com.dhapodkardev.kyapehnu",
+      "infoPlist": {
+        "CADisableMinimumFrameDurationOnPhone": true
+      }
     },
     "android": {
       "package": "com.dhapodkardev.kyapehnu",

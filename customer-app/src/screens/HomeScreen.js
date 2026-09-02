@@ -10,10 +10,17 @@ import {
   View,
 } from 'react-native';
 import { useCallback, useEffect } from 'react';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  ReduceMotion,
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AuthCta from '../components/AuthCta';
+import CartBadge from '../components/CartBadge';
+import PressableScale from '../components/PressableScale';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
@@ -22,9 +29,21 @@ import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import useStorefrontStore from '../store/useStorefrontStore';
 import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { EASE_OUT, duration } from '../theme/motion';
 import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Storefront first-view entrance. The header title precipitates in, then the
+// rail of cards a beat later — a short cascade the returning customer sees once
+// per open, not motion they pay for on every scroll.
+const FEED_HEADER_ENTER = FadeInDown.duration(duration.enter)
+  .easing(EASE_OUT)
+  .reduceMotion(ReduceMotion.System);
+const FEED_LIST_ENTER = FadeInDown.duration(duration.enter)
+  .delay(90)
+  .easing(EASE_OUT)
+  .reduceMotion(ReduceMotion.System);
 
 // The story sells the product in four beats, each one timed to a beat of the
 // drone shot behind it: what this is, where the clothes come from, how they are
@@ -98,29 +117,27 @@ export default function HomeScreen({ navigation }) {
       </Pressable>
 
       <View style={styles.headerRight}>
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('Profile')}
-          accessibilityRole="button"
+          haptic={false}
           accessibilityLabel="Profile and settings"
-          style={({ pressed }) => [styles.profileButton, pressed && styles.bagPressed]}
+          style={styles.profileButton}
         >
           <Text style={styles.profileGlyph}>◇</Text>
-        </Pressable>
+        </PressableScale>
 
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('Cart')}
-          style={({ pressed }) => [styles.bagButton, pressed && styles.bagPressed]}
+          haptic={false}
+          accessibilityLabel="Open bag"
+          style={styles.bagButton}
         >
           <Text style={styles.bagLabel}>BAG</Text>
           <Text style={styles.bagValue}>
             {cartCount > 0 ? formatINR(cartTotal) : '—'}
           </Text>
-          {cartCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{cartCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+          {cartCount > 0 ? <CartBadge count={cartCount} style={styles.badge} /> : null}
+        </PressableScale>
       </View>
     </View>
   );
@@ -236,13 +253,13 @@ function Storefront({ insets, onOpenProduct }) {
       }
     >
       <View style={styles.feed}>
-        <View style={styles.feedHeader}>
+        <Animated.View style={styles.feedHeader} entering={FEED_HEADER_ENTER}>
           <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
           <Text style={styles.feedTitle}>In stock, minutes away.</Text>
           <Text style={styles.feedBody}>
             Live from independent Nagpur shops — every piece here is approved and in stock.
           </Text>
-        </View>
+        </Animated.View>
 
         {loading && !products.length ? (
           <ActivityIndicator color={colors.platinum} style={styles.feedLoader} />
@@ -253,7 +270,7 @@ function Storefront({ insets, onOpenProduct }) {
               : 'No listings yet. Newly approved products from local shops appear here.'}
           </Text>
         ) : (
-          <>
+          <Animated.View entering={FEED_LIST_ENTER}>
             <FlatList
               data={products}
               keyExtractor={(item) => item.id}
@@ -269,7 +286,7 @@ function Storefront({ insets, onOpenProduct }) {
             <Text style={styles.feedFootnote}>
               {products.length} {products.length === 1 ? 'piece' : 'pieces'} live near you.
             </Text>
-          </>
+          </Animated.View>
         )}
       </View>
 
@@ -421,9 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     minWidth: 84,
   },
-  bagPressed: {
-    opacity: 0.7,
-  },
   bagLabel: {
     color: colors.ash,
     fontSize: 9,
@@ -436,20 +450,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   badge: {
-    position: 'absolute',
     top: -7,
     right: -7,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.crimsonBright,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: colors.ivory,
-    fontSize: 10,
-    fontWeight: '700',
   },
 });

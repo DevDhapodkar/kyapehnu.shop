@@ -5,7 +5,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Switch,
@@ -19,9 +18,11 @@ import * as ImagePicker from 'expo-image-picker';
 
 import GlassButton from '../../components/GlassButton';
 import GlassCard from '../../components/GlassCard';
+import PressableScale from '../../components/PressableScale';
 import { colors, radii, spacing } from '../../theme/colors';
 import useVendorStore from '../../store/useVendorStore';
 import { uploadProductImages } from '../../api/vendorApi';
+import { selection, notifySuccess, notifyError } from '../../utils/haptics';
 import { formatCurrency } from '../../utils/format';
 
 const CATEGORIES = ['MEN', 'WOMEN', 'KIDS', 'UNISEX'];
@@ -135,9 +136,13 @@ export default function CatalogManagerScreen() {
 
   const onToggle = useCallback(
     async (product, next) => {
+      // In/out of stock is flipped a dozen times a day — a selection detent is
+      // the right weight, and it fires on the intent, before the round trip.
+      selection();
       try {
         await toggleAvailability(product._id, next);
       } catch (err) {
+        notifyError();
         Alert.alert('Could not update', err.message);
       }
     },
@@ -182,9 +187,11 @@ export default function CatalogManagerScreen() {
         isAvailable: true,
       });
 
+      notifySuccess();
       setDraft(EMPTY_DRAFT);
       setComposerOpen(false);
     } catch (err) {
+      notifyError();
       Alert.alert('Could not add listing', err.message);
     } finally {
       setSaving(false);
@@ -269,15 +276,16 @@ export default function CatalogManagerScreen() {
               </GlassCard>
             ) : null}
 
-            <Pressable
+            <PressableScale
               onPress={() => setComposerOpen((open) => !open)}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.composerToggle, pressed && styles.pressed]}
+              haptic="light"
+              accessibilityLabel={composerOpen ? 'Close new listing form' : 'New listing'}
+              style={styles.composerToggle}
             >
               <Text style={styles.composerToggleText}>
                 {composerOpen ? '— CLOSE' : '+ NEW LISTING'}
               </Text>
-            </Pressable>
+            </PressableScale>
 
             {composerOpen ? (
               <GlassCard strong compact style={styles.composer}>
@@ -300,21 +308,23 @@ export default function CatalogManagerScreen() {
                   {CATEGORIES.map((category) => {
                     const active = draft.category === category;
                     return (
-                      <Pressable
+                      <PressableScale
                         key={category}
-                        onPress={() => setDraft((d) => ({ ...d, category }))}
+                        haptic={false}
+                        onPress={() => {
+                          if (draft.category === category) return;
+                          selection();
+                          setDraft((d) => ({ ...d, category }));
+                        }}
                         accessibilityRole="radio"
+                        accessibilityLabel={category}
                         accessibilityState={{ selected: active }}
-                        style={({ pressed }) => [
-                          styles.categoryChip,
-                          active && styles.categoryChipActive,
-                          pressed && styles.pressed,
-                        ]}
+                        style={[styles.categoryChip, active && styles.categoryChipActive]}
                       >
                         <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
                           {category}
                         </Text>
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
                 </View>
@@ -431,9 +441,10 @@ export default function CatalogManagerScreen() {
                 <Text style={styles.fieldLabel}>PHOTOS ({draft.images.length}/{MAX_IMAGES})</Text>
                 <View style={styles.thumbRow}>
                   {draft.images.map((img) => (
-                    <Pressable
+                    <PressableScale
                       key={img.publicId}
                       onPress={() => removeImage(img.publicId)}
+                      haptic="medium"
                       accessibilityLabel="Remove photo"
                       style={styles.thumbWrap}
                     >
@@ -445,22 +456,22 @@ export default function CatalogManagerScreen() {
                       <View style={styles.thumbRemove}>
                         <Text style={styles.thumbRemoveText}>×</Text>
                       </View>
-                    </Pressable>
+                    </PressableScale>
                   ))}
 
                   {draft.images.length < MAX_IMAGES ? (
-                    <Pressable
+                    <PressableScale
                       onPress={onPickImages}
-                      accessibilityRole="button"
+                      haptic="light"
                       accessibilityLabel="Add photos"
-                      style={({ pressed }) => [styles.addThumb, pressed && styles.pressed]}
+                      style={styles.addThumb}
                     >
                       {uploading ? (
                         <ActivityIndicator color={colors.platinum} />
                       ) : (
                         <Text style={styles.addThumbText}>＋</Text>
                       )}
-                    </Pressable>
+                    </PressableScale>
                   ) : null}
                 </View>
 
@@ -546,9 +557,6 @@ const styles = StyleSheet.create({
     color: colors.platinum,
     fontSize: 10,
     letterSpacing: 1.6,
-  },
-  pressed: {
-    opacity: 0.7,
   },
   composer: {
     marginBottom: spacing.md,

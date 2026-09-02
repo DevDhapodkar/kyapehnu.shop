@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,8 @@ import * as Location from 'expo-location';
 
 import GlassButton from '../components/GlassButton';
 import GlassCard from '../components/GlassCard';
+import PressableScale from '../components/PressableScale';
+import { impactLight, notifySuccess, notifyError } from '../utils/haptics';
 import { colors, radii, spacing } from '../theme/colors';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import { registerVendor } from '../api/vendorApi';
@@ -64,6 +65,8 @@ export default function VendorRegisterScreen({ navigation }) {
       }
       const pos = await Location.getCurrentPositionAsync({});
       setCoords([pos.coords.longitude, pos.coords.latitude]);
+      // The pin dropped — a light confirmation that the fix landed.
+      impactLight();
 
       // Auto-fill the address from the device's free geocoder (no API key).
       try {
@@ -124,9 +127,11 @@ export default function VendorRegisterScreen({ navigation }) {
         operatingHours: [],
       });
 
+      notifySuccess();
       setVendorProfile(vendor);
       setRole(ROLES.VENDOR);
     } catch (err) {
+      notifyError();
       setError(err.message || 'Could not register your shop.');
     } finally {
       setBusy(false);
@@ -186,11 +191,16 @@ export default function VendorRegisterScreen({ navigation }) {
           <Field label="AREA" value={form.area} onChangeText={setField('area')} placeholder="Sitabuldi" />
           <Field label="PINCODE" value={form.pincode} onChangeText={setField('pincode')} placeholder="440012" keyboardType="number-pad" />
 
-          <Pressable onPress={useMyLocation} accessibilityRole="button" style={({ pressed }) => [styles.locBtn, pressed && styles.pressed]}>
+          <PressableScale
+            onPress={useMyLocation}
+            haptic={false}
+            accessibilityLabel="Use my current location"
+            style={styles.locBtn}
+          >
             <Text style={styles.locBtnText}>
               {locating ? 'GETTING LOCATION…' : coords ? '✓ LOCATION CAPTURED' : '📍 USE MY CURRENT LOCATION'}
             </Text>
-          </Pressable>
+          </PressableScale>
         </GlassCard>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -250,7 +260,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   locBtnText: { color: colors.platinum, fontSize: 11, letterSpacing: 1.4 },
-  pressed: { opacity: 0.7 },
   error: { color: colors.crimsonBright, fontSize: 13, marginBottom: spacing.sm },
   submit: { marginTop: spacing.xs },
 });

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import PressableScale from './PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -28,14 +29,14 @@ export default function AuthCta({ onJoin, onLogin }) {
         your door within the hour.
       </Text>
 
-      <Pressable
+      <PressableScale
         onPress={onJoin}
-        accessibilityRole="button"
+        haptic="medium"
         accessibilityLabel="Join now"
-        style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+        style={styles.primary}
       >
         <Text style={styles.primaryLabel}>JOIN NOW</Text>
-      </Pressable>
+      </PressableScale>
 
       <View style={styles.secondaryRow}>
         <Text style={styles.secondaryText}>Already have an account?</Text>
@@ -88,9 +89,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingVertical: spacing.sm + 2,
     alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.8,
   },
   primaryLabel: {
     color: colors.ivory,

@@ -2,7 +2,6 @@ import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { useShallow } from 'zustand/react/shallow';
 import FilterTabs from '../../components/vendor/FilterTabs';
 import GlassCard from '../../components/GlassCard';
 import OrderCard from '../../components/vendor/OrderCard';
+import PressableScale from '../../components/PressableScale';
 import { colors, spacing } from '../../theme/colors';
 import useAuthStore from '../../store/useAuthStore';
 import useVendorStore, {
@@ -130,13 +130,14 @@ export default function VendorOrderListScreen({ navigation }) {
 
 function HeaderButton({ label, onPress }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+      haptic={false}
+      accessibilityLabel={label}
+      style={styles.headerButton}
     >
       <Text style={styles.headerButtonText}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -185,9 +186,6 @@ const styles = StyleSheet.create({
     color: colors.platinum,
     fontSize: 10,
     letterSpacing: 1.6,
-  },
-  pressed: {
-    opacity: 0.7,
   },
   banner: {
     marginHorizontal: spacing.md,

@@ -1,7 +1,9 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import GlassCard from '../components/GlassCard';
+import PressableScale from '../components/PressableScale';
 import { API_BASE_URL, getAuthToken } from '../api/vendorApi';
+import { selection } from '../utils/haptics';
 import { colors, spacing } from '../theme/colors';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import useVendorStore from '../store/useVendorStore';
@@ -27,6 +29,9 @@ export default function ProfileScreen({ navigation }) {
   const isVendor = role === ROLES.VENDOR;
 
   const onToggle = (next) => {
+    // Flipping the whole app between flows is a heavy, deliberate switch — the
+    // selection detent confirms it registered.
+    selection();
     if (!next) resetVendorState();
     toggleVendorMode();
   };
@@ -48,14 +53,15 @@ export default function ProfileScreen({ navigation }) {
       </GlassCard>
 
       {isLoggedIn && !isVendor ? (
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('MyOrders')}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
+          haptic={false}
+          accessibilityLabel="My Orders"
+          style={styles.navRow}
         >
           <Text style={styles.navRowText}>My Orders</Text>
           <Text style={styles.navRowChevron}>›</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
 
       <GlassCard compact style={styles.card}>
@@ -101,14 +107,14 @@ export default function ProfileScreen({ navigation }) {
       </GlassCard>
 
       {isLoggedIn ? (
-        <Pressable
+        <PressableScale
           onPress={onSignOut}
-          accessibilityRole="button"
+          haptic="medium"
           accessibilityLabel="Sign out"
-          style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
+          style={styles.signOut}
         >
           <Text style={styles.signOutLabel}>SIGN OUT</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
     </ScrollView>
   );
@@ -138,7 +144,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.glassFill,
     marginBottom: spacing.sm,
   },
-  navRowPressed: { opacity: 0.7 },
   navRowText: { color: colors.ivory, fontSize: 15 },
   navRowChevron: { color: colors.ash, fontSize: 22, marginTop: -2 },
   sectionLabel: {
@@ -187,9 +192,6 @@ const styles = StyleSheet.create({
     borderColor: colors.glassBorder,
     backgroundColor: colors.glassFill,
     alignItems: 'center',
-  },
-  signOutPressed: {
-    opacity: 0.7,
   },
   signOutLabel: {
     color: colors.crimsonBright,

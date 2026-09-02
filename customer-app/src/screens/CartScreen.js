@@ -1,13 +1,21 @@
 import { Image } from 'expo-image';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import GlassButton from '../components/GlassButton';
+import PressableScale from '../components/PressableScale';
 import { formatINR } from '../data/mockStores';
 import { selectCartItems, selectCartTotal, useCartStore } from '../store/useCartStore';
 import { DELIVERY_FEE } from '../config/checkout';
 import useAuthStore from '../store/useAuthStore';
+import { selection, impactMedium, notifyError } from '../utils/haptics';
 import { colors, radii, spacing } from '../theme/colors';
+
+// Closing the gap a removed line leaves is the list's job — the surviving rows
+// slide up to fill it instead of snapping. Built at module scope so the builder
+// isn't recreated every render.
+const ROW_LAYOUT = LinearTransition.duration(240);
 
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -28,6 +36,7 @@ export default function CartScreen({ navigation }) {
    */
   const handleConfirm = () => {
     if (!isLoggedIn) {
+      notifyError();
       Alert.alert('Sign in to order', 'Please sign in to place your order.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign in', onPress: () => navigation.navigate('Auth', { mode: 'signin' }) },
@@ -57,9 +66,10 @@ export default function CartScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <FlatList
+      <Animated.FlatList
         data={cartItems}
         keyExtractor={(item) => item.key}
+        itemLayoutAnimation={ROW_LAYOUT}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + 230 },
@@ -92,19 +102,31 @@ export default function CartScreen({ navigation }) {
 
               <View style={styles.lineFooter}>
                 <View style={styles.stepper}>
-                  <Pressable
-                    onPress={() => removeFromCart(item.key)}
-                    style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
+                  <PressableScale
+                    haptic={false}
+                    onPress={() => {
+                      selection();
+                      removeFromCart(item.key);
+                    }}
+                    accessibilityLabel="Decrease quantity"
+                    hitSlop={6}
+                    style={styles.stepButton}
                   >
                     <Text style={styles.stepGlyph}>−</Text>
-                  </Pressable>
+                  </PressableScale>
                   <Text style={styles.stepCount}>{item.quantity}</Text>
-                  <Pressable
-                    onPress={() => addToCart(item, item.size)}
-                    style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}
+                  <PressableScale
+                    haptic={false}
+                    onPress={() => {
+                      selection();
+                      addToCart(item, item.size);
+                    }}
+                    accessibilityLabel="Increase quantity"
+                    hitSlop={6}
+                    style={styles.stepButton}
                   >
                     <Text style={styles.stepGlyph}>+</Text>
-                  </Pressable>
+                  </PressableScale>
                 </View>
 
                 <Text style={styles.linePrice}>
@@ -113,13 +135,18 @@ export default function CartScreen({ navigation }) {
               </View>
             </View>
 
-            <Pressable
-              onPress={() => removeFromCart(item.key, { all: true })}
+            <PressableScale
+              onPress={() => {
+                impactMedium();
+                removeFromCart(item.key, { all: true });
+              }}
+              haptic={false}
+              accessibilityLabel={`Remove ${item.name}`}
               hitSlop={10}
-              style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
+              wrapperStyle={styles.remove}
             >
               <Text style={styles.removeGlyph}>×</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         )}
       />
@@ -299,9 +326,6 @@ const styles = StyleSheet.create({
     color: colors.slate,
     fontSize: 20,
     lineHeight: 22,
-  },
-  pressed: {
-    opacity: 0.6,
   },
 
   summary: {

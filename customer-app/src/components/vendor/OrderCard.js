@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import GlassCard from '../GlassCard';
+import PressableScale from '../PressableScale';
 import StatusPill from './StatusPill';
 import { colors, spacing } from '../../theme/colors';
 import {
@@ -25,11 +26,11 @@ export default function OrderCard({ order, onPress }) {
   const overflow = items.length - visibleItems.length;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      accessibilityRole="button"
+      haptic={false}
       accessibilityLabel={`Order ${shortOrderId(order._id)}, ${order.status}`}
-      style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
+      style={styles.pressable}
     >
       <GlassCard compact>
         <View style={styles.headerRow}>
@@ -66,16 +67,13 @@ export default function OrderCard({ order, onPress }) {
           <Text style={styles.total}>{formatCurrency(order.totalPrice)}</Text>
         </View>
       </GlassCard>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   pressable: {
     marginBottom: spacing.sm,
-  },
-  pressed: {
-    opacity: 0.8,
   },
   headerRow: {
     flexDirection: 'row',

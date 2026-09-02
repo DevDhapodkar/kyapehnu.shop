@@ -5,6 +5,7 @@ import GlassButton from '../../components/GlassButton';
 import GlassCard from '../../components/GlassCard';
 import StatusPill from '../../components/vendor/StatusPill';
 import { fetchOrder } from '../../api/vendorApi';
+import { notifySuccess, notifyError } from '../../utils/haptics';
 import { colors, spacing } from '../../theme/colors';
 import useVendorStore, { selectOrderById } from '../../store/useVendorStore';
 import { formatAddress, formatAge, formatCurrency, shortOrderId } from '../../utils/format';
@@ -52,7 +53,9 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
   const onAccept = useCallback(async () => {
     try {
       await acceptOrder(orderId);
+      notifySuccess();
     } catch (error) {
+      notifyError();
       Alert.alert('Could not accept', error.message);
     }
   }, [acceptOrder, orderId]);
@@ -61,7 +64,9 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
     async (status, failLabel) => {
       try {
         await advanceStatus(orderId, status);
+        notifySuccess();
       } catch (error) {
+        notifyError();
         Alert.alert(failLabel, error.message);
       }
     },
@@ -91,6 +96,10 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               const { logistics } = await markOrderReady(orderId);
+              // A 200 can still mean "no driver coming" — let the haptic match the
+              // real outcome, not just that the request returned.
+              if (logistics.porter.ok) notifySuccess();
+              else notifyError();
               const lines = [
                 logistics.porter.ok
                   ? '✓ Porter driver dispatched'
@@ -105,6 +114,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
                 lines.join('\n')
               );
             } catch (error) {
+              notifyError();
               Alert.alert('Could not mark ready', error.message);
             }
           },
