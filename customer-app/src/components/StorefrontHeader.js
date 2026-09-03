@@ -1,4 +1,5 @@
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import CartBadge from './CartBadge';
 import { colors, spacing } from '../theme/colors';
@@ -8,7 +9,7 @@ import { colors, spacing } from '../theme/colors';
  *
  * Apple Glass minimal top navigation bar:
  * - Brand wordmark: "KYA PEHNU?" + gold accent dot
- * - Center/Right: Location pill ("📍 Sitabuldi, Nagpur ▾")
+ * - Center/Right: Location pill ("Sitabuldi, Nagpur")
  * - Profile button & Bag indicator with live item count badge
  */
 export default function StorefrontHeader({
@@ -42,11 +43,11 @@ export default function StorefrontHeader({
           accessibilityRole="button"
           accessibilityLabel="Select Location"
         >
-          <Text style={styles.locationIcon}>📍</Text>
+          <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
           <Text style={styles.locationText} numberOfLines={1}>
             {areaLabel}
           </Text>
-          <Text style={styles.chevron}>▾</Text>
+          <MaterialIcons name="expand-more" size={15} color={colors.textAsh} />
         </PressableScale>
 
         {/* Right: Profile & Bag Buttons */}
@@ -58,7 +59,11 @@ export default function StorefrontHeader({
               accessibilityRole="button"
               accessibilityLabel="Profile and settings"
             >
-              <Text style={styles.profileGlyph}>👤</Text>
+              <MaterialIcons
+                name="account-circle"
+                size={18}
+                color={colors.textObsidian}
+              />
             </PressableScale>
           ) : null}
 
@@ -69,7 +74,11 @@ export default function StorefrontHeader({
               accessibilityRole="button"
               accessibilityLabel="View shopping bag"
             >
-              <Text style={styles.bagGlyph}>👜</Text>
+              <MaterialIcons
+                name="shopping-bag"
+                size={16}
+                color={colors.textObsidian}
+              />
               {cartCount > 0 ? (
                 <CartBadge count={cartCount} style={styles.badge} />
               ) : null}

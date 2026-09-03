@@ -40,40 +40,25 @@ const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: colors.obsidian,
+    background: '#F4EFE7',
     card: colors.obsidianDeep,
-    text: colors.ivory,
+    text: colors.textObsidian,
     border: colors.glassBorder,
-    primary: colors.crimsonBright,
-    notification: colors.crimsonBright,
+    primary: colors.accentCrimson,
+    notification: colors.accentCrimson,
   },
 };
 
 /**
- * Shared header styling for the screens that keep a native header. Home and
- * LiveTracking hide it so their content can run under the status bar.
- *
- * The transition is built per-flow from the device's reduce-motion setting, so
- * `animation` is not baked in here — `makeScreenOptions` adds it.
+ * Shared header styling for the screens that keep a native header.
  */
 const baseScreenOptions = {
-  headerStyle: { backgroundColor: colors.obsidianDeep },
-  headerTitleStyle: {
-    color: colors.ivory,
-    fontWeight: '300',
-    fontSize: 17,
-    letterSpacing: 0.5,
-  },
-  headerTintColor: colors.ivory,
-  headerShadowVisible: false,
-  contentStyle: { backgroundColor: colors.obsidian },
+  headerShown: false,
+  contentStyle: { backgroundColor: '#F4EFE7' },
 };
 
 /**
- * Screen transitions honour the platform: the native push runs on the OS side,
- * keeps the interactive back-swipe, and matches every other app on the device —
- * never rebuild it in JS. Under reduce-motion the sliding push collapses to a
- * cross-fade (the gentler, non-vestibular equivalent), everywhere at once.
+ * Screen transitions honour the platform.
  */
 function makeScreenOptions(reduced) {
   return {
@@ -82,19 +67,16 @@ function makeScreenOptions(reduced) {
   };
 }
 
-// A screen that slides up from the edge (modal-ish tasks the user can abandon).
-// `animationMatchesGesture` makes the iOS back-swipe run this same transition in
-// reverse under the finger, so dragging back never looks like a different app
-// than pushing forward. Collapses to a fade under reduce-motion.
 function slideUpOptions(reduced, extra = {}) {
   return {
+    headerShown: false,
     animation: reduced ? 'fade' : 'slide_from_bottom',
     animationMatchesGesture: true,
     ...extra,
   };
 }
 
-/** Buyer side: the scrollytelling storefront through to live delivery tracking. */
+/** Buyer side: the full Frosted Glass & Ambient Blobs commerce flow. */
 function CustomerFlow() {
   const reduced = useReducedMotion();
   return (
@@ -105,11 +87,11 @@ function CustomerFlow() {
         component={ProductDetailScreen}
         options={slideUpOptions(reduced, { headerShown: false })}
       />
-      <CustomerStack.Screen name="Cart" component={CartScreen} options={{ title: 'Your Bag' }} />
+      <CustomerStack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="Address"
         component={AddressScreen}
-        options={{ title: 'Delivery Address' }}
+        options={{ headerShown: false }}
       />
       <CustomerStack.Screen
         name="LiveTracking"
@@ -119,22 +101,22 @@ function CustomerFlow() {
       <CustomerStack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
+        options={{ headerShown: false }}
       />
       <CustomerStack.Screen
         name="MyOrders"
         component={MyOrdersScreen}
-        options={{ title: 'My Orders' }}
+        options={{ headerShown: false }}
       />
       <CustomerStack.Screen
         name="Auth"
         component={AuthScreen}
-        options={slideUpOptions(reduced, { title: 'Sign In' })}
+        options={slideUpOptions(reduced, { headerShown: false })}
       />
       <CustomerStack.Screen
         name="VendorRegister"
         component={VendorRegisterScreen}
-        options={slideUpOptions(reduced, { title: 'Register Your Shop' })}
+        options={slideUpOptions(reduced, { headerShown: false })}
       />
     </CustomerStack.Navigator>
   );

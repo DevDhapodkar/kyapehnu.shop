@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
@@ -15,9 +16,11 @@ export const AMBIENT_CARD_WIDTH = 200;
  * Implements Stitch's Frosted Glass & Ambient Blobs horizontal rail card:
  * - 200px width with glass-card semi-translucent backdrop
  * - 3:4 aspect ratio photo
- * - Glass schedule badge ("⏱ 32 min") & heart button
+ * - Glass schedule badge: schedule 32 min (MaterialIcons)
+ * - Glass favorite heart toggle (MaterialIcons)
  * - Bottom glass pill locality banner ("Gandhibagh · 2.1 km")
- * - Compact horizontal footer: Name & Price on left, glass-pill "+" on right
+ * - Compact horizontal footer: Name & Price on left, glass-pill "add" on right
+ * - Zero Emojis
  */
 export default function StorefrontAmbientProductCard({
   product,
@@ -66,7 +69,7 @@ export default function StorefrontAmbientProductCard({
 
         {/* Top-left Glass Schedule Pill */}
         <View style={styles.schedulePill}>
-          <Text style={styles.scheduleIcon}>⏱</Text>
+          <MaterialIcons name="schedule" size={11} color={colors.accentGold} />
           <Text style={styles.scheduleText}>{deliveryMins} min</Text>
         </View>
 
@@ -78,9 +81,11 @@ export default function StorefrontAmbientProductCard({
           accessibilityRole="button"
           accessibilityLabel="Wishlist item"
         >
-          <Text style={[styles.favIcon, isWishlisted && styles.favActive]}>
-            {isWishlisted ? '♥' : '♡'}
-          </Text>
+          <MaterialIcons
+            name={isWishlisted ? 'favorite' : 'favorite-border'}
+            size={14}
+            color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
+          />
         </Pressable>
 
         {/* Floating Locality Banner */}
@@ -112,7 +117,7 @@ export default function StorefrontAmbientProductCard({
             accessibilityRole="button"
             accessibilityLabel="Quick add to bag"
           >
-            <Text style={styles.addIcon}>+</Text>
+            <MaterialIcons name="add" size={17} color={colors.textObsidian} />
           </PressableScale>
         ) : null}
       </View>
@@ -172,9 +177,6 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  scheduleIcon: {
-    fontSize: 9.5,
-  },
   scheduleText: {
     color: colors.textObsidian,
     fontSize: 9.5,
@@ -198,13 +200,6 @@ const styles = StyleSheet.create({
         WebkitBackdropFilter: 'blur(16px)',
       },
     }),
-  },
-  favIcon: {
-    fontSize: 12,
-    color: colors.textObsidian,
-  },
-  favActive: {
-    color: colors.accentCrimson,
   },
   localityBanner: {
     position: 'absolute',
@@ -269,11 +264,5 @@ const styles = StyleSheet.create({
         WebkitBackdropFilter: 'blur(16px)',
       },
     }),
-  },
-  addIcon: {
-    color: colors.textObsidian,
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: -1,
   },
 });

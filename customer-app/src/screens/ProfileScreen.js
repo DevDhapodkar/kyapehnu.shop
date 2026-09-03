@@ -1,202 +1,738 @@
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-import GlassCard from '../components/GlassCard';
+import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { API_BASE_URL, getAuthToken } from '../api/vendorApi';
-import { selection } from '../utils/haptics';
-import { colors, spacing } from '../theme/colors';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 import useVendorStore from '../store/useVendorStore';
+import { colors, radii, spacing } from '../theme/colors';
 
 /**
- * Profile / Settings — reachable from both flows, and the seam between them.
+ * ProfileScreen — Profile & Concierge (Frosted Glass & Ambient Blobs)
  *
- * The Vendor Mode switch is a testing affordance standing in for a real
- * sign-in: in production the role comes from whether the Firebase uid resolves
- * to a Vendor document on the backend. Flipping it swaps the entire navigator,
- * so the vendor working set is cleared on the way out to avoid one shop's
- * orders surviving into the next session.
+ * Implements Stitch Screen a42b188e2b8b48ed8c17bb5b2d9b487e:
+ * - Animated drifting ambient background blobs
+ * - Frosted glass client portal header
+ * - Ivory Concierge tier badge & Ananya Sharma profile card
+ * - Action tiles: Orders (2 Active), Addresses (Civil Lines), Wishlist (6 Pieces)
+ * - Boutique & Atelier Partner Mode switch
+ * - Concierge hotline (+91 712 254 9900) & WhatsApp stylist links
+ * - Sign Out action with haptic confirmation
+ * - Zero Emojis (MaterialIcons throughout)
  */
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   const role = useAuthStore((state) => state.role);
   const user = useAuthStore((state) => state.user);
-  const vendorProfile = useAuthStore((state) => state.vendorProfile);
   const toggleVendorMode = useAuthStore((state) => state.toggleVendorMode);
-  const isLoggedIn = useAuthStore((state) => Boolean(state.token));
   const signOut = useAuthStore((state) => state.signOut);
   const resetVendorState = useVendorStore((state) => state.reset);
 
   const isVendor = role === ROLES.VENDOR;
 
-  const onToggle = (next) => {
-    // Flipping the whole app between flows is a heavy, deliberate switch — the
-    // selection detent confirms it registered.
-    selection();
+  const handleToggleVendor = (next) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
     if (!next) resetVendorState();
     toggleVendorMode();
   };
 
-  // Signing out clears the session token, which drops the home screen back to
-  // the logged-out marketing scrollytelling.
-  const onSignOut = () => {
-    resetVendorState();
-    signOut();
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of your Sitabuldi account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            resetVendorState();
+            signOut();
+            navigation.navigate('Home');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleStylistChat = () => {
+    Linking.openURL(
+      'https://wa.me/917122549900?text=Hi%20Kya%20Pehnu%20Concierge,%20I%20need%20styling%20assistance%20for%20an%20upcoming%20event.'
+    ).catch(() => {
+      Alert.alert('Concierge', 'Stylist chat available on WhatsApp (+91 712 254 9900).');
+    });
+  };
+
+  const handleCallHotline = () => {
+    Linking.openURL('tel:+917122549900').catch(() => {
+      Alert.alert('Nagpur Care Hotline', 'Call +91 712 254 9900 (10 AM - 10 PM).');
+    });
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <GlassCard compact style={styles.card}>
-        <Text style={styles.sectionLabel}>SIGNED IN AS</Text>
-        <Text style={styles.name}>{user?.displayName ?? 'Guest'}</Text>
-        <Text style={styles.meta}>{user?.email ?? 'Not signed in'}</Text>
-        <Text style={styles.meta}>Role · {role}</Text>
-      </GlassCard>
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" />
 
-      {isLoggedIn && !isVendor ? (
-        <PressableScale
-          onPress={() => navigation.navigate('MyOrders')}
-          haptic={false}
-          accessibilityLabel="My Orders"
-          style={styles.navRow}
-        >
-          <Text style={styles.navRowText}>My Orders</Text>
-          <Text style={styles.navRowChevron}>›</Text>
-        </PressableScale>
-      ) : null}
+      {/* 1. Animated Drifting Background Blobs */}
+      <AmbientBackgroundBlobs />
 
-      <GlassCard compact style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleText}>
-            <Text style={styles.toggleTitle}>Vendor Mode</Text>
-            <Text style={styles.toggleBody}>
-              Swaps the app over to the shop owner’s order desk. Stands in for a real vendor
-              sign-in while Firebase Auth is pending.
+      {/* 2. Floating Top Header */}
+      <View
+        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.topBarInner} pointerEvents="auto">
+          <PressableScale
+            onPress={() => navigation.goBack()}
+            style={styles.topBarBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons
+              name="arrow-back-ios-new"
+              size={17}
+              color={colors.textObsidian}
+            />
+          </PressableScale>
+
+          <View style={styles.locationPill}>
+            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
+            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
+            <MaterialIcons
+              name="expand-more"
+              size={15}
+              color={colors.textAsh}
+            />
+          </View>
+
+          <View style={{ width: 34 }} />
+        </View>
+      </View>
+
+      {/* 3. Main Scrollable Content */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 68,
+            paddingBottom: insets.bottom + spacing.xl,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Screen Header */}
+        <View style={styles.titleSection}>
+          <Text style={styles.eyebrow}>
+            Client Portal & Concierge · Nagpur Central
+          </Text>
+          <Text style={styles.title}>Profile & Concierge</Text>
+          <Text style={styles.subtitle}>
+            Personal couture account & doorstep fittings
+          </Text>
+        </View>
+
+        {/* Member Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.tierRow}>
+            <View style={styles.tierBadge}>
+              <MaterialIcons
+                name="workspace-premium"
+                size={14}
+                color={colors.accentGoldDeep}
+              />
+              <Text style={styles.tierText}>Ivory Concierge</Text>
+            </View>
+            <MaterialIcons
+              name="verified"
+              size={18}
+              color={colors.accentGold}
+            />
+          </View>
+
+          <Text style={styles.userName}>
+            {user?.displayName || 'Ananya Sharma'}
+          </Text>
+
+          <View style={styles.userMetaRow}>
+            <View style={styles.userMetaItem}>
+              <MaterialIcons
+                name="location-on"
+                size={13}
+                color={colors.accentGold}
+              />
+              <Text style={styles.userMetaText}>Sitabuldi, Nagpur</Text>
+            </View>
+            <Text style={styles.userMetaDivider}>•</Text>
+            <Text style={styles.userMetaText}>Size S (Custom Tailor)</Text>
+          </View>
+
+          {/* 3 Action Tiles */}
+          <View style={styles.tilesRow}>
+            {/* Orders Tile */}
+            <PressableScale
+              onPress={() => navigation.navigate('MyOrders')}
+              style={styles.tileBtn}
+              accessibilityRole="button"
+              accessibilityLabel="View orders"
+            >
+              <MaterialIcons
+                name="inventory-2"
+                size={20}
+                color={colors.accentCrimson}
+              />
+              <Text style={styles.tileLabel}>Orders</Text>
+              <Text style={styles.tileValue}>2 Active</Text>
+            </PressableScale>
+
+            {/* Addresses Tile */}
+            <PressableScale
+              onPress={() => navigation.navigate('Address')}
+              style={styles.tileBtn}
+              accessibilityRole="button"
+              accessibilityLabel="View addresses"
+            >
+              <MaterialIcons
+                name="pin-drop"
+                size={20}
+                color={colors.accentGold}
+              />
+              <Text style={styles.tileLabel}>Addresses</Text>
+              <Text style={styles.tileValue}>Civil Lines</Text>
+            </PressableScale>
+
+            {/* Wishlist Tile */}
+            <PressableScale
+              onPress={() =>
+                Alert.alert(
+                  'Wishlist',
+                  '6 curated pieces saved from Studio Anamika & Maheshwari Handlooms.'
+                )
+              }
+              style={styles.tileBtn}
+              accessibilityRole="button"
+              accessibilityLabel="View wishlist"
+            >
+              <MaterialIcons
+                name="favorite"
+                size={20}
+                color={colors.accentCrimson}
+              />
+              <Text style={styles.tileLabel}>Wishlist</Text>
+              <Text style={styles.tileValue}>6 Pieces</Text>
+            </PressableScale>
+          </View>
+        </View>
+
+        {/* Boutique & Atelier Partner Mode */}
+        <View style={styles.partnerCard}>
+          <View style={styles.partnerIconWrap}>
+            <MaterialIcons
+              name="storefront"
+              size={22}
+              color={colors.accentGold}
+            />
+          </View>
+
+          <View style={styles.partnerInfoCol}>
+            <View style={styles.partnerTitleRow}>
+              <Text style={styles.partnerTitle}>Boutique & Atelier Mode</Text>
+              <View style={styles.partnerBadge}>
+                <Text style={styles.partnerBadgeText}>PARTNER</Text>
+              </View>
+            </View>
+            <Text style={styles.partnerSubtitle}>
+              Switch to artisan inventory & rapid dispatch pickups
             </Text>
           </View>
 
           <Switch
             value={isVendor}
-            onValueChange={onToggle}
-            accessibilityLabel="Vendor mode"
-            trackColor={{ false: colors.graphite, true: colors.crimson }}
-            thumbColor={colors.ivory}
-            ios_backgroundColor={colors.graphite}
+            onValueChange={handleToggleVendor}
+            trackColor={{
+              false: 'rgba(0,0,0,0.1)',
+              true: colors.accentCrimson,
+            }}
+            thumbColor="#FFFFFF"
           />
         </View>
-      </GlassCard>
 
-      {isVendor && vendorProfile ? (
-        <GlassCard compact style={styles.card}>
-          <Text style={styles.sectionLabel}>SHOP</Text>
-          <Text style={styles.name}>{vendorProfile.shopName}</Text>
-          <Text style={styles.meta}>
-            {[vendorProfile.address?.area, vendorProfile.address?.city]
-              .filter(Boolean)
-              .join(', ')}
-          </Text>
-          <Text style={styles.meta}>WhatsApp · {vendorProfile.whatsappNumber}</Text>
-        </GlassCard>
-      ) : null}
+        {/* Concierge & Preferences Section */}
+        <View style={styles.glassCard}>
+          <Text style={styles.sectionTitle}>Concierge & Preferences</Text>
 
-      <GlassCard compact style={styles.card}>
-        <Text style={styles.sectionLabel}>BACKEND</Text>
-        <Text style={styles.meta}>{API_BASE_URL}</Text>
-        <Text style={styles.meta}>
-          Auth token · {getAuthToken() ? 'set' : 'none (set expo.extra.devAuthToken)'}
-        </Text>
-      </GlassCard>
+          {/* Doorstep Try & Buy */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefIconWrap}>
+              <MaterialIcons
+                name="timer"
+                size={18}
+                color={colors.accentGold}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Doorstep Try & Buy (15m)</Text>
+              <Text style={styles.prefSubtitle}>
+                Rider waits while you inspect & drape
+              </Text>
+            </View>
+            <View style={styles.statusActiveRow}>
+              <Text style={styles.statusActiveText}>Enabled</Text>
+              <MaterialIcons
+                name="check-circle"
+                size={15}
+                color={colors.accentGold}
+              />
+            </View>
+          </View>
 
-      {isLoggedIn ? (
+          {/* Express 45-Min Corridor */}
+          <View style={styles.prefRow}>
+            <View style={styles.prefIconWrap}>
+              <MaterialIcons
+                name="bolt"
+                size={18}
+                color={colors.accentGold}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Express 45-Min Corridor</Text>
+              <Text style={styles.prefSubtitle}>
+                Sitabuldi · Dharampeth · Civil Lines
+              </Text>
+            </View>
+            <Text style={styles.statusActiveText}>Active</Text>
+          </View>
+
+          {/* WhatsApp Stylist */}
+          <PressableScale
+            onPress={handleStylistChat}
+            style={styles.actionRow}
+            accessibilityRole="button"
+            accessibilityLabel="Contact stylist on WhatsApp"
+          >
+            <View style={styles.prefIconWrap}>
+              <MaterialIcons
+                name="forum"
+                size={18}
+                color={colors.accentCrimson}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Nagpur Stylist Concierge</Text>
+              <Text style={styles.prefSubtitle}>Instant response on WhatsApp</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={colors.textAsh}
+            />
+          </PressableScale>
+
+          {/* Care Hotline */}
+          <PressableScale
+            onPress={handleCallHotline}
+            style={styles.actionRow}
+            accessibilityRole="button"
+            accessibilityLabel="Call care hotline"
+          >
+            <View style={styles.prefIconWrap}>
+              <MaterialIcons
+                name="support-agent"
+                size={18}
+                color={colors.accentGold}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Nagpur Care Hotline</Text>
+              <Text style={styles.prefSubtitle}>+91 712 254 9900 (10 AM - 10 PM)</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={colors.textAsh}
+            />
+          </PressableScale>
+        </View>
+
+        {/* Sign Out Button */}
         <PressableScale
-          onPress={onSignOut}
-          haptic="medium"
+          onPress={handleSignOut}
+          style={styles.signOutBtn}
+          accessibilityRole="button"
           accessibilityLabel="Sign out"
-          style={styles.signOut}
         >
-          <Text style={styles.signOutLabel}>SIGN OUT</Text>
+          <MaterialIcons name="logout" size={17} color={colors.accentCrimson} />
+          <Text style={styles.signOutText}>
+            Sign Out of Sitabuldi Account
+          </Text>
         </PressableScale>
-      ) : null}
-    </ScrollView>
+
+        {/* Footer Edition Stamp */}
+        <View style={styles.footerSection}>
+          <Text style={styles.footerEdition}>
+            Kya Pehnu? v2.5 · Nagpur Atelier Edition
+          </Text>
+          <Text style={styles.footerLocalities}>
+            Sitabuldi · Dharampeth · Gandhibagh · Sadar
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: '#F4EFE7',
   },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  card: {
-    marginBottom: spacing.sm,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm + 2,
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
     paddingHorizontal: spacing.md,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    marginBottom: spacing.sm,
   },
-  navRowText: { color: colors.ivory, fontSize: 15 },
-  navRowChevron: { color: colors.ash, fontSize: 22, marginTop: -2 },
-  sectionLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: spacing.sm,
-  },
-  name: {
-    color: colors.ivory,
-    fontSize: 20,
-    fontWeight: '300',
-    letterSpacing: 0.3,
-  },
-  meta: {
-    color: colors.ash,
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 5,
-  },
-  toggleRow: {
+  topBarInner: {
+    height: 52,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.82)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 4,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+      },
+    }),
   },
-  toggleText: {
+  topBarBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+  },
+  locationText: {
+    color: colors.textObsidian,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  scroll: {
     flex: 1,
   },
-  toggleTitle: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
   },
-  toggleBody: {
-    color: colors.ash,
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 5,
+  titleSection: {
+    paddingHorizontal: 4,
+    marginTop: spacing.xs,
   },
-  signOut: {
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-  },
-  signOutLabel: {
-    color: colors.crimsonBright,
-    fontSize: 12,
+  eyebrow: {
+    color: colors.accentGoldDeep,
+    fontSize: 9.5,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: colors.textObsidian,
+    fontSize: 28,
+    fontWeight: '400',
+    letterSpacing: -0.4,
+    marginTop: 4,
+  },
+  subtitle: {
+    color: colors.textSlate,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  profileCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(32px) saturate(210%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(210%)',
+      },
+    }),
+  },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  tierBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 9999,
+  },
+  tierText: {
+    color: colors.accentGoldDeep,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  userName: {
+    color: colors.textObsidian,
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  userMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: spacing.md,
+  },
+  userMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  userMetaText: {
+    color: colors.textAsh,
+    fontSize: 11.5,
+  },
+  userMetaDivider: {
+    color: colors.textAsh,
+    fontSize: 10,
+  },
+  tilesRow: {
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    paddingTop: spacing.sm,
+  },
+  tileBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    alignItems: 'center',
+    gap: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  tileLabel: {
+    color: colors.textSlate,
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  tileValue: {
+    color: colors.textObsidian,
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  partnerCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+      },
+    }),
+  },
+  partnerIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  partnerInfoCol: {
+    flex: 1,
+  },
+  partnerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  partnerTitle: {
+    color: colors.textObsidian,
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  partnerBadge: {
+    backgroundColor: 'rgba(18, 18, 20, 0.06)',
+    paddingVertical: 1,
+    paddingHorizontal: 5,
+    borderRadius: 9999,
+  },
+  partnerBadgeText: {
+    color: colors.textSlate,
+    fontSize: 8.5,
+    fontWeight: '700',
+  },
+  partnerSubtitle: {
+    color: colors.textSlate,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    gap: spacing.sm + 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(32px) saturate(210%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(210%)',
+      },
+    }),
+  },
+  sectionTitle: {
+    color: colors.textObsidian,
+    fontSize: 12.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  prefIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prefTextCol: {
+    flex: 1,
+  },
+  prefTitle: {
+    color: colors.textObsidian,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  prefSubtitle: {
+    color: colors.textAsh,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  statusActiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusActiveText: {
+    color: colors.accentGoldDeep,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  signOutBtn: {
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    borderRadius: radii.md,
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.25)',
+  },
+  signOutText: {
+    color: colors.accentCrimson,
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  footerSection: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: 2,
+  },
+  footerEdition: {
+    color: colors.textAsh,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  footerLocalities: {
+    color: colors.textSlate,
+    fontSize: 10,
   },
 });

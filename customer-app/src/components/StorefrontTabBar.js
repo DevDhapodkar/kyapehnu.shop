@@ -1,4 +1,5 @@
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import CartBadge from './CartBadge';
 import { colors, spacing } from '../theme/colors';
@@ -11,6 +12,7 @@ import { colors, spacing } from '../theme/colors';
  * - Search
  * - Bag (with live item count badge)
  * - Orders
+ * - Zero Emojis (MaterialIcons throughout)
  */
 export default function StorefrontTabBar({
   insets,
@@ -19,10 +21,10 @@ export default function StorefrontTabBar({
   onSelectTab,
 }) {
   const tabs = [
-    { id: 'explore', label: 'Explore', icon: '🏪' },
-    { id: 'search', label: 'Search', icon: '🔍' },
-    { id: 'bag', label: 'Bag', icon: '👜', badge: cartCount },
-    { id: 'orders', label: 'Orders', icon: '🧾' },
+    { id: 'explore', label: 'Explore', iconName: 'storefront' },
+    { id: 'search', label: 'Search', iconName: 'search' },
+    { id: 'bag', label: 'Bag', iconName: 'shopping-bag', badge: cartCount },
+    { id: 'orders', label: 'Orders', iconName: 'receipt-long' },
   ];
 
   return (
@@ -47,7 +49,11 @@ export default function StorefrontTabBar({
               accessibilityState={{ selected: isActive }}
             >
               <View style={styles.iconWrap}>
-                <Text style={styles.tabIcon}>{tab.icon}</Text>
+                <MaterialIcons
+                  name={tab.iconName}
+                  size={22}
+                  color={isActive ? colors.accentCrimson : colors.textAsh}
+                />
                 {tab.badge > 0 ? (
                   <CartBadge count={tab.badge} style={styles.badge} />
                 ) : null}

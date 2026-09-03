@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
@@ -12,11 +13,11 @@ import { colors, radii, spacing } from '../theme/colors';
  *
  * Implements Stitch's Heavy Frosted Glass & Reduced Text Spotlight Card:
  * - 4:5 aspect ratio image
- * - Glass proximity pill: "⚡ 28 min"
- * - Glass wishlist toggle
- * - Floating glass atelier bar: "Studio Anamika | Dharampeth · 1.4 km"
+ * - Glass proximity pill: bolt 28 min (MaterialIcons)
+ * - Glass wishlist toggle: favorite / favorite_border (MaterialIcons)
+ * - Floating glass atelier bar: Studio Anamika | Dharampeth · 1.4 km
  * - Compact horizontal footer: Title & Price on left, Pill "Bag" button on right
- * - High glass translucency reflecting the colorful background orbs behind it
+ * - Zero Emojis throughout
  */
 export default function StorefrontAmbientSpotlightCard({
   product,
@@ -73,7 +74,7 @@ export default function StorefrontAmbientSpotlightCard({
 
           {/* Top-left Glass Pill */}
           <View style={styles.deliveryPill}>
-            <Text style={styles.boltIcon}>⚡</Text>
+            <MaterialIcons name="bolt" size={14} color={colors.accentGold} />
             <Text style={styles.deliveryText}>
               {item.deliveryMinutes || 28} min
             </Text>
@@ -92,14 +93,11 @@ export default function StorefrontAmbientSpotlightCard({
               isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'
             }
           >
-            <Text
-              style={[
-                styles.heartIcon,
-                isWishlisted && styles.heartIconActive,
-              ]}
-            >
-              {isWishlisted ? '♥' : '♡'}
-            </Text>
+            <MaterialIcons
+              name={isWishlisted ? 'favorite' : 'favorite-border'}
+              size={17}
+              color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
+            />
           </Pressable>
 
           {/* Bottom Floating Atelier Tag */}
@@ -134,7 +132,7 @@ export default function StorefrontAmbientSpotlightCard({
             accessibilityRole="button"
             accessibilityLabel="Bag item"
           >
-            <Text style={styles.bagIcon}>👜</Text>
+            <MaterialIcons name="shopping-bag" size={15} color="#FFFFFF" />
             <Text style={styles.bagLabel}>BAG</Text>
           </PressableScale>
         </View>
@@ -199,10 +197,6 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  boltIcon: {
-    color: colors.accentGold,
-    fontSize: 11,
-  },
   deliveryText: {
     color: colors.textObsidian,
     fontSize: 10.5,
@@ -226,13 +220,6 @@ const styles = StyleSheet.create({
         WebkitBackdropFilter: 'blur(20px)',
       },
     }),
-  },
-  heartIcon: {
-    fontSize: 15,
-    color: colors.textObsidian,
-  },
-  heartIconActive: {
-    color: colors.accentCrimson,
   },
   btnPressed: {
     transform: [{ scale: 0.92 }],
@@ -315,9 +302,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,
-  },
-  bagIcon: {
-    fontSize: 12,
   },
   bagLabel: {
     color: '#FFFFFF',

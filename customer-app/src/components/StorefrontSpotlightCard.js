@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
@@ -76,7 +77,7 @@ export default function StorefrontSpotlightCard({
 
           {/* Top-left Proximity Badge */}
           <View style={styles.deliveryPill}>
-            <Text style={styles.boltIcon}>⚡</Text>
+            <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
             <Text style={styles.deliveryText}>
               {item.deliveryMinutes || 28} min delivery
             </Text>
@@ -95,14 +96,11 @@ export default function StorefrontSpotlightCard({
               isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'
             }
           >
-            <Text
-              style={[
-                styles.heartIcon,
-                isWishlisted && styles.heartIconActive,
-              ]}
-            >
-              {isWishlisted ? '♥' : '♡'}
-            </Text>
+            <MaterialIcons
+              name={isWishlisted ? 'favorite' : 'favorite-border'}
+              size={16}
+              color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
+            />
           </Pressable>
 
           {/* Floating Atelier Tag over bottom of image */}
@@ -157,7 +155,7 @@ export default function StorefrontSpotlightCard({
               accessibilityRole="button"
               accessibilityLabel="Bag Now"
             >
-              <Text style={styles.bagNowIcon}>👜</Text>
+              <MaterialIcons name="shopping-bag" size={14} color="#FFFFFF" />
               <Text style={styles.bagNowLabel}>BAG NOW</Text>
             </PressableScale>
           </View>

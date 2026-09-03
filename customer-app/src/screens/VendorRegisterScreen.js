@@ -198,7 +198,7 @@ export default function VendorRegisterScreen({ navigation }) {
             style={styles.locBtn}
           >
             <Text style={styles.locBtnText}>
-              {locating ? 'GETTING LOCATION…' : coords ? '✓ LOCATION CAPTURED' : '📍 USE MY CURRENT LOCATION'}
+              {locating ? 'GETTING LOCATION…' : coords ? 'LOCATION CAPTURED' : 'USE MY CURRENT LOCATION'}
             </Text>
           </PressableScale>
         </GlassCard>

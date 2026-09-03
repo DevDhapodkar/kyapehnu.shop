@@ -1,4 +1,5 @@
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import CartBadge from './CartBadge';
 import { colors, spacing } from '../theme/colors';
@@ -10,7 +11,7 @@ import { colors, spacing } from '../theme/colors';
  * - Floating glass pill capsule suspended below status bar
  * - Frosted blur background refracts glowing ambient orbs behind it
  * - Brand Wordmark: "KYA PEHNU? •"
- * - Compact Location selector: "📍 Sitabuldi, Nagpur ▾"
+ * - Location selector: near_me Sitabuldi, Nagpur expand_more (Zero Emojis)
  * - Profile and Bag triggers with live badge
  */
 export default function StorefrontAmbientHeader({
@@ -44,11 +45,11 @@ export default function StorefrontAmbientHeader({
           accessibilityRole="button"
           accessibilityLabel="Select Location"
         >
-          <Text style={styles.locationIcon}>📍</Text>
+          <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
           <Text style={styles.locationText} numberOfLines={1}>
             {areaLabel}
           </Text>
-          <Text style={styles.chevron}>▾</Text>
+          <MaterialIcons name="expand-more" size={15} color={colors.textAsh} />
         </PressableScale>
 
         {/* Right: Actions */}
@@ -60,7 +61,11 @@ export default function StorefrontAmbientHeader({
               accessibilityRole="button"
               accessibilityLabel="View shopping bag"
             >
-              <Text style={styles.actionGlyph}>👜</Text>
+              <MaterialIcons
+                name="shopping-bag"
+                size={16}
+                color={colors.textObsidian}
+              />
               {cartCount > 0 ? (
                 <CartBadge count={cartCount} style={styles.badge} />
               ) : null}
@@ -74,7 +79,11 @@ export default function StorefrontAmbientHeader({
               accessibilityRole="button"
               accessibilityLabel="Profile and settings"
             >
-              <Text style={styles.actionGlyph}>👤</Text>
+              <MaterialIcons
+                name="account-circle"
+                size={18}
+                color={colors.textObsidian}
+              />
               <View style={styles.crimsonStatusDot} />
             </PressableScale>
           ) : null}
@@ -146,10 +155,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 9999,
-    maxWidth: 155,
-  },
-  locationIcon: {
-    fontSize: 10.5,
+    maxWidth: 160,
   },
   locationText: {
     color: colors.textObsidian,
@@ -157,10 +163,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
     textTransform: 'uppercase',
-  },
-  chevron: {
-    color: colors.textAsh,
-    fontSize: 9.5,
   },
   rightGroup: {
     flexDirection: 'row',
@@ -177,9 +179,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  actionGlyph: {
-    fontSize: 13,
   },
   badge: {
     position: 'absolute',

@@ -17,6 +17,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MaterialIcons } from '@expo/vector-icons';
+
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import AuthCta from '../components/AuthCta';
 import PressableScale from '../components/PressableScale';
@@ -85,7 +87,7 @@ export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [guestExplore, setGuestExplore] = useState(false);
 
-  const { areaLabel, status, refresh } = useDeliveryLocation();
+  const { areaLabel, status } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
   const addToCart = useCartStore((state) => state.addToCart);
 
@@ -115,13 +117,13 @@ export default function HomeScreen({ navigation }) {
           insets={insets}
           areaLabel={areaLabel}
           status={status}
-          onSelectLocation={status === 'denied' ? refresh : undefined}
+          onSelectLocation={() => navigation.navigate('Address')}
           onOpenProduct={openProduct}
           onOpenProfile={openProfile}
           onOpenBag={openBag}
           cartCount={cartCount}
           onQuickAdd={(product) => addToCart(product)}
-          onNavigateOrders={() => (isLoggedIn ? navigation.navigate('Profile') : openAuth('signin'))}
+          onNavigateOrders={() => (isLoggedIn ? navigation.navigate('MyOrders') : openAuth('signin'))}
         />
       </View>
     );
@@ -326,7 +328,7 @@ function Storefront({
         {/* Streamlined Apple-Style Header Banner (Decluttered) */}
         <Animated.View style={styles.heroBanner} entering={FEED_HEADER_ENTER}>
           <View style={styles.bannerEyebrowRow}>
-            <Text style={styles.bannerEyebrowIcon}>⚡</Text>
+            <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
             <Text style={styles.bannerEyebrow}>NAGPUR EXPRESS</Text>
           </View>
           <Text style={styles.bannerTitle}>In stock, near you</Text>
@@ -354,7 +356,11 @@ function Storefront({
               style={styles.viewAllBtn}
             >
               <Text style={styles.viewAllText}>View All</Text>
-              <Text style={styles.viewAllArrow}>›</Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={16}
+                color={colors.accentCrimson}
+              />
             </PressableScale>
           </View>
 
