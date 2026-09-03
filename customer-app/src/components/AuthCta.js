@@ -19,7 +19,7 @@ import { colors, radii, spacing } from '../theme/colors';
  *  - onJoin:  called when the visitor commits (Join Now / Sign up)
  *  - onLogin: called when a returning customer taps Log in
  */
-export default function AuthCta({ onJoin, onLogin }) {
+export default function AuthCta({ onJoin, onLogin, onExploreGuest }) {
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>YOUR CITY IS OPEN</Text>
@@ -37,6 +37,16 @@ export default function AuthCta({ onJoin, onLogin }) {
       >
         <Text style={styles.primaryLabel}>JOIN NOW</Text>
       </PressableScale>
+
+      {onExploreGuest ? (
+        <PressableScale
+          onPress={onExploreGuest}
+          accessibilityLabel="Explore as Guest"
+          style={styles.guestBtn}
+        >
+          <Text style={styles.guestLabel}>EXPLORE AS GUEST →</Text>
+        </PressableScale>
+      ) : null}
 
       <View style={styles.secondaryRow}>
         <Text style={styles.secondaryText}>Already have an account?</Text>
@@ -95,6 +105,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 2,
+  },
+  guestBtn: {
+    backgroundColor: 'rgba(245, 243, 239, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 243, 239, 0.2)',
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm + 2,
+    alignItems: 'center',
+    marginTop: spacing.xs + 2,
+  },
+  guestLabel: {
+    color: colors.ivory,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   secondaryRow: {
     flexDirection: 'row',

@@ -35,6 +35,24 @@ export const colors = {
   // Scrim used to keep type legible above the 3D scene.
   scrim: 'rgba(5, 5, 6, 0.35)',
 
+  // Ivory Studio Luxury / Apple Glass Tokens (Stitch Design System)
+  groundBase: '#FAF9F5',
+  groundSubtle: '#F4F3EE',
+  surfacePorcelain: '#FFFFFF',
+  surfaceGlass: 'rgba(255, 255, 255, 0.75)',
+  surfaceGlassCard: 'rgba(255, 255, 255, 0.88)',
+  borderHairline: '#E5E3DC',
+  borderHairlineAlpha: 'rgba(18, 18, 20, 0.08)',
+  textObsidian: '#121215',
+  textSlate: '#4A4950',
+  textAsh: '#7E7C85',
+  accentCrimson: '#C4243A',
+  accentCrimsonHover: '#A81C30',
+  accentCrimsonDeep: '#8E1B29',
+  accentGold: '#B38A2B',
+  accentGoldDeep: '#946C18',
+  accentGoldLight: '#F7F2E7',
+
   transparent: 'transparent',
 };
 

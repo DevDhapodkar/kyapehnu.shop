@@ -2,14 +2,13 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Pressable,
   RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Animated, {
   FadeInDown,
   ReduceMotion,
@@ -19,18 +18,21 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AuthCta from '../components/AuthCta';
-import CartBadge from '../components/CartBadge';
 import PressableScale from '../components/PressableScale';
 import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import { formatINR } from '../data/mockStores';
+import StorefrontBoutiquesList from '../components/StorefrontBoutiquesList';
+import StorefrontFilterPills from '../components/StorefrontFilterPills';
+import StorefrontHeader from '../components/StorefrontHeader';
+import StorefrontSpotlightCard from '../components/StorefrontSpotlightCard';
+import StorefrontTabBar from '../components/StorefrontTabBar';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import useStorefrontStore from '../store/useStorefrontStore';
-import { selectCartCount, selectCartTotal, useCartStore } from '../store/useCartStore';
+import { selectCartCount, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { EASE_OUT, duration } from '../theme/motion';
-import { colors, radii, spacing } from '../theme/colors';
+import { colors, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -80,16 +82,17 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const [guestExplore, setGuestExplore] = useState(false);
 
   const { areaLabel, status, refresh } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
-  const cartTotal = useCartStore(selectCartTotal);
+  const addToCart = useCartStore((state) => state.addToCart);
 
-  // The scrollytelling is a first-run marketing funnel: it only runs for a
-  // visitor who has not signed in. Once there is a session token the home
+  // The returning customer check: if we already have an active session, this
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+  const showStorefront = isLoggedIn || guestExplore;
 
   // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
   // register mode, "Log in" in sign-in mode. The Firebase session, once
@@ -100,54 +103,25 @@ export default function HomeScreen({ navigation }) {
   );
 
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
+  const openBag = () => navigation.navigate('Cart');
+  const openProfile = () => (isLoggedIn ? navigation.navigate('Profile') : openAuth('signin'));
 
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-      <View pointerEvents="none" style={styles.headerFill} />
-
-      <Pressable
-        onPress={status === 'denied' ? refresh : undefined}
-        style={styles.headerLeft}
-      >
-        <Text style={styles.headerEyebrow}>DELIVERING TO</Text>
-        <Text style={styles.headerArea} numberOfLines={1}>
-          {areaLabel}
-          {status === 'denied' ? '  ·  enable GPS' : ''}
-        </Text>
-      </Pressable>
-
-      <View style={styles.headerRight}>
-        <PressableScale
-          onPress={() => navigation.navigate('Profile')}
-          haptic={false}
-          accessibilityLabel="Profile and settings"
-          style={styles.profileButton}
-        >
-          <Text style={styles.profileGlyph}>◇</Text>
-        </PressableScale>
-
-        <PressableScale
-          onPress={() => navigation.navigate('Cart')}
-          haptic={false}
-          accessibilityLabel="Open bag"
-          style={styles.bagButton}
-        >
-          <Text style={styles.bagLabel}>BAG</Text>
-          <Text style={styles.bagValue}>
-            {cartCount > 0 ? formatINR(cartTotal) : '—'}
-          </Text>
-          {cartCount > 0 ? <CartBadge count={cartCount} style={styles.badge} /> : null}
-        </PressableScale>
-      </View>
-    </View>
-  );
-
-  if (isLoggedIn) {
+  if (showStorefront) {
     return (
-      <View style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <Storefront insets={insets} onOpenProduct={openProduct} />
-        {header}
+      <View style={styles.storefrontRoot}>
+        <StatusBar barStyle="dark-content" />
+        <Storefront
+          insets={insets}
+          areaLabel={areaLabel}
+          status={status}
+          onSelectLocation={status === 'denied' ? refresh : undefined}
+          onOpenProduct={openProduct}
+          onOpenProfile={openProfile}
+          onOpenBag={openBag}
+          cartCount={cartCount}
+          onQuickAdd={(product) => addToCart(product)}
+          onNavigateOrders={() => (isLoggedIn ? navigation.navigate('Profile') : openAuth('signin'))}
+        />
       </View>
     );
   }
@@ -159,8 +133,8 @@ export default function HomeScreen({ navigation }) {
         insets={insets}
         onJoin={() => openAuth('register')}
         onLogin={() => openAuth('signin')}
+        onExploreGuest={() => setGuestExplore(true)}
       />
-      {header}
     </View>
   );
 }
@@ -169,7 +143,7 @@ export default function HomeScreen({ navigation }) {
  * The logged-out cinematic pitch: the 3D drone shot behind a stack of glass
  * story cards, closing on the sign-up CTA.
  */
-function MarketingScrollytelling({ insets, onJoin, onLogin }) {
+function MarketingScrollytelling({ insets, onJoin, onLogin, onExploreGuest }) {
   const scrollY = useSharedValue(0);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -201,7 +175,11 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
 
         {/* Closing frame — the drone arrives on the dress as this scrolls in. */}
         <View style={[styles.section, styles.ctaSection]}>
-          <AuthCta onJoin={onJoin} onLogin={onLogin} />
+          <AuthCta
+            onJoin={onJoin}
+            onLogin={onLogin}
+            onExploreGuest={onExploreGuest}
+          />
         </View>
 
         <View style={{ height: insets.bottom + spacing.xl }} />
@@ -227,71 +205,206 @@ function MarketingScrollytelling({ insets, onJoin, onLogin }) {
 }
 
 /**
- * The logged-in storefront: the proximity-sorted catalogue on the flat obsidian
- * base, with no 3D scene behind it.
+ * The Apple Glass storefront: Ivory Studio Luxury aesthetic directly based on
+ * Stitch Screen 3d6d813c978a4d408e4911aa14703b08.
  */
-function Storefront({ insets, onOpenProduct }) {
+function Storefront({
+  insets,
+  areaLabel,
+  onSelectLocation,
+  onOpenProduct,
+  onOpenProfile,
+  onOpenBag,
+  cartCount,
+  onQuickAdd,
+  onNavigateOrders,
+}) {
   const products = useStorefrontStore((state) => state.products);
   const loading = useStorefrontStore((state) => state.loading);
   const loaded = useStorefrontStore((state) => state.loaded);
   const error = useStorefrontStore((state) => state.error);
   const load = useStorefrontStore((state) => state.load);
 
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('explore');
+
   useEffect(() => {
     load();
   }, [load]);
 
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products;
+    const cat = selectedCategory.toLowerCase();
+    return products.filter((p) => {
+      const pCat = (p.category || '').toLowerCase();
+      const pName = (p.name || '').toLowerCase();
+      if (cat === 'silks') {
+        return (
+          pCat.includes('silk') ||
+          pCat.includes('sari') ||
+          pCat.includes('kurta') ||
+          pName.includes('silk') ||
+          pName.includes('angrakha')
+        );
+      }
+      if (cat === 'evening') {
+        return (
+          pCat.includes('evening') ||
+          pCat.includes('dress') ||
+          pName.includes('dress') ||
+          pName.includes('gown')
+        );
+      }
+      if (cat === 'linen') {
+        return (
+          pCat.includes('linen') ||
+          pCat.includes('co-ord') ||
+          pName.includes('linen') ||
+          pName.includes('coord')
+        );
+      }
+      if (cat === 'festive') {
+        return (
+          pCat.includes('festive') ||
+          pCat.includes('lehenga') ||
+          pName.includes('festive') ||
+          pName.includes('zardozi')
+        );
+      }
+      return true;
+    });
+  }, [products, selectedCategory]);
+
+  const spotlightProduct = products[0] || null;
+
+  const handleTabSelect = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === 'bag') {
+      onOpenBag?.();
+    } else if (tabId === 'orders') {
+      onNavigateOrders?.();
+    }
+  };
+
   const isEmpty = loaded && !loading && products.length === 0;
 
   return (
-    <Animated.ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.scrollContent, styles.storefront]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.platinum} />
-      }
-    >
-      <View style={styles.feed}>
-        <Animated.View style={styles.feedHeader} entering={FEED_HEADER_ENTER}>
-          <Text style={styles.feedEyebrow}>NEAREST TO YOU</Text>
-          <Text style={styles.feedTitle}>In stock, minutes away.</Text>
-          <Text style={styles.feedBody}>
-            Live from independent Nagpur shops — every piece here is approved and in stock.
+    <View style={styles.storefrontRoot}>
+      {/* 1. Apple Glass Pinned Header */}
+      <StorefrontHeader
+        insets={insets}
+        areaLabel={areaLabel}
+        onSelectLocation={onSelectLocation}
+        onOpenProfile={onOpenProfile}
+        onOpenBag={onOpenBag}
+        cartCount={cartCount}
+      />
+
+      {/* 2. Scrollable Commerce Feed */}
+      <Animated.ScrollView
+        style={styles.storefrontScroll}
+        contentContainerStyle={[
+          styles.storefrontContent,
+          {
+            paddingTop: insets.top + 58,
+            paddingBottom: insets.bottom + 100,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={load}
+            tintColor={colors.accentCrimson}
+          />
+        }
+      >
+        {/* Apple Minimal Banner */}
+        <Animated.View style={styles.heroBanner} entering={FEED_HEADER_ENTER}>
+          <View style={styles.bannerEyebrowRow}>
+            <Text style={styles.bannerEyebrowIcon}>✦</Text>
+            <Text style={styles.bannerEyebrow}>NAGPUR RAPID CONCIERGE</Text>
+          </View>
+          <Text style={styles.bannerTitle}>In stock, minutes away.</Text>
+          <Text style={styles.bannerSubtitle}>
+            Curated designer garments from local ateliers, delivered to your
+            doorstep in 15–40 minutes.
           </Text>
         </Animated.View>
 
-        {loading && !products.length ? (
-          <ActivityIndicator color={colors.platinum} style={styles.feedLoader} />
-        ) : isEmpty ? (
-          <Text style={styles.feedEmpty}>
-            {error
-              ? `Could not load the storefront: ${error}`
-              : 'No listings yet. Newly approved products from local shops appear here.'}
-          </Text>
-        ) : (
-          <Animated.View entering={FEED_LIST_ENTER}>
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ProductCard product={item} onPress={() => onOpenProduct(item)} />
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.feedList}
-              initialNumToRender={5}
+        {/* Category Filters (Horizontal Apple Glass Pills) */}
+        <StorefrontFilterPills
+          selectedId={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
+
+        {/* Hero Spotlight Garment Card */}
+        <StorefrontSpotlightCard
+          product={spotlightProduct}
+          onPress={onOpenProduct}
+          onBagNow={onQuickAdd}
+        />
+
+        {/* Rapid Dispatch Horizontal Rail (Under 45 Minutes Away) */}
+        <View style={styles.railSection}>
+          <View style={styles.railHeaderRow}>
+            <View>
+              <Text style={styles.railEyebrow}>RAPID DISPATCH</Text>
+              <Text style={styles.railTitle}>Under 45 Minutes Away</Text>
+            </View>
+            <PressableScale
+              onPress={() => setSelectedCategory('all')}
+              style={styles.viewAllBtn}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllArrow}>→</Text>
+            </PressableScale>
+          </View>
+
+          {loading && !products.length ? (
+            <ActivityIndicator
+              color={colors.accentCrimson}
+              style={styles.loader}
             />
-
-            <Text style={styles.feedFootnote}>
-              {products.length} {products.length === 1 ? 'piece' : 'pieces'} live near you.
+          ) : isEmpty ? (
+            <Text style={styles.emptyText}>
+              {error
+                ? `Could not load catalogue: ${error}`
+                : 'No listings currently available in this radius.'}
             </Text>
-          </Animated.View>
-        )}
-      </View>
+          ) : (
+            <Animated.View entering={FEED_LIST_ENTER}>
+              <FlatList
+                data={filteredProducts.length > 0 ? filteredProducts : products}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <ProductCard
+                    product={item}
+                    onPress={() => onOpenProduct(item)}
+                    onQuickAdd={onQuickAdd}
+                  />
+                )}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.railList}
+                initialNumToRender={5}
+              />
+            </Animated.View>
+          )}
+        </View>
 
-      <View style={{ height: insets.bottom + spacing.xl * 2 }} />
-    </Animated.ScrollView>
+        {/* Stores Curating in Nagpur */}
+        <StorefrontBoutiquesList onSelectBoutique={onOpenProduct} />
+      </Animated.ScrollView>
+
+      {/* 3. Floating Frosted Glass Bottom Navigation Bar */}
+      <StorefrontTabBar
+        insets={insets}
+        activeTab={activeTab}
+        cartCount={cartCount}
+        onSelectTab={handleTabSelect}
+      />
+    </View>
   );
 }
 
@@ -300,16 +413,111 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.obsidian,
   },
+  storefrontRoot: {
+    flex: 1,
+    backgroundColor: colors.groundBase,
+  },
+  storefrontScroll: {
+    flex: 1,
+  },
+  storefrontContent: {
+    backgroundColor: colors.groundBase,
+  },
+  heroBanner: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs + 2,
+    paddingBottom: spacing.xs,
+  },
+  bannerEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
+  bannerEyebrowIcon: {
+    color: colors.accentGold,
+    fontSize: 12,
+  },
+  bannerEyebrow: {
+    color: colors.accentGoldDeep,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  bannerTitle: {
+    color: colors.textObsidian,
+    fontSize: 30,
+    fontWeight: '400',
+    letterSpacing: -0.4,
+    lineHeight: 36,
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    color: colors.textSlate,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  railSection: {
+    marginTop: spacing.xl,
+  },
+  railHeaderRow: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  railEyebrow: {
+    color: colors.accentGoldDeep,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  railTitle: {
+    color: colors.textObsidian,
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  viewAllText: {
+    color: colors.accentCrimson,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  viewAllArrow: {
+    color: colors.accentCrimson,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  railList: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  loader: {
+    marginVertical: spacing.lg,
+  },
+  emptyText: {
+    color: colors.textAsh,
+    fontSize: 13,
+    paddingHorizontal: spacing.md,
+    marginVertical: spacing.md,
+  },
   scroll: {
     flex: 1,
     backgroundColor: colors.transparent,
   },
   scrollContent: {
     backgroundColor: colors.transparent,
-  },
-  storefront: {
-    // Clears the floating header the storefront scrolls under.
-    paddingTop: SCREEN_HEIGHT * 0.14,
   },
   section: {
     height: SCREEN_HEIGHT,
@@ -318,139 +526,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl * 1.5,
   },
   ctaSection: {
-    // The CTA reads as the resting frame, so it sits a touch higher than the
-    // story cards rather than hard against the bottom edge.
     justifyContent: 'center',
-  },
-
-  // Feed
-  feed: {
-    paddingTop: spacing.lg,
-    // Opaque base so the 3D canvas stops showing through once the story ends.
-    backgroundColor: colors.obsidian,
-  },
-  feedHeader: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-  },
-  feedEyebrow: {
-    color: colors.gold,
-    fontSize: 10,
-    letterSpacing: 3,
-    marginBottom: spacing.xs,
-  },
-  feedTitle: {
-    color: colors.ivory,
-    fontSize: 26,
-    fontWeight: '300',
-    letterSpacing: -0.4,
-    marginBottom: spacing.xs,
-  },
-  feedBody: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  feedList: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  feedFootnote: {
-    color: colors.slate,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.sm,
-  },
-  feedLoader: {
-    paddingVertical: spacing.xl,
-  },
-  feedEmpty: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-  },
-
-  // Header
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
-  },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  headerLeft: {
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  headerEyebrow: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 2.5,
-  },
-  headerArea: {
-    color: colors.ivory,
-    fontSize: 17,
-    fontWeight: '400',
-    letterSpacing: -0.2,
-    marginTop: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  profileButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileGlyph: {
-    color: colors.platinum,
-    fontSize: 14,
-    lineHeight: 17,
-  },
-  bagButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'flex-end',
-    minWidth: 84,
-  },
-  bagLabel: {
-    color: colors.ash,
-    fontSize: 9,
-    letterSpacing: 2,
-  },
-  bagValue: {
-    color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  badge: {
-    top: -7,
-    right: -7,
   },
 });
