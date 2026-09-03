@@ -127,28 +127,25 @@ function VendorFlow() {
   const reduced = useReducedMotion();
   return (
     <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={makeScreenOptions(reduced)}>
-      {/* VendorOrders draws its own header so the shop name can sit under the status bar. */}
       <VendorStack.Screen
         name="VendorOrders"
         component={VendorOrderListScreen}
-        // `title` is still read for the back-button label on pushed screens,
-        // even though this screen paints its own header.
-        options={{ headerShown: false, title: 'Orders' }}
+        options={{ headerShown: false }}
       />
       <VendorStack.Screen
         name="VendorOrderDetail"
         component={VendorOrderDetailScreen}
-        options={{ title: 'Order' }}
+        options={{ headerShown: false }}
       />
       <VendorStack.Screen
         name="CatalogManager"
         component={CatalogManagerScreen}
-        options={slideUpOptions(reduced, { title: 'Catalog' })}
+        options={slideUpOptions(reduced, { headerShown: false })}
       />
       <VendorStack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
+        options={{ headerShown: false }}
       />
     </VendorStack.Navigator>
   );
