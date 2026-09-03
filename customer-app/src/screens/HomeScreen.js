@@ -17,16 +17,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import AuthCta from '../components/AuthCta';
 import PressableScale from '../components/PressableScale';
-import ProductCard from '../components/ProductCard';
 import RevealText from '../components/RevealText';
 import ScrollytellingSequence from '../components/ScrollytellingSequence';
-import StorefrontBoutiquesList from '../components/StorefrontBoutiquesList';
-import StorefrontFilterPills from '../components/StorefrontFilterPills';
-import StorefrontHeader from '../components/StorefrontHeader';
-import StorefrontSpotlightCard from '../components/StorefrontSpotlightCard';
-import StorefrontTabBar from '../components/StorefrontTabBar';
+import StorefrontAmbientBoutiquesList from '../components/StorefrontAmbientBoutiquesList';
+import StorefrontAmbientFilterPills from '../components/StorefrontAmbientFilterPills';
+import StorefrontAmbientHeader from '../components/StorefrontAmbientHeader';
+import StorefrontAmbientProductCard from '../components/StorefrontAmbientProductCard';
+import StorefrontAmbientSpotlightCard from '../components/StorefrontAmbientSpotlightCard';
+import StorefrontAmbientTabBar from '../components/StorefrontAmbientTabBar';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import useStorefrontStore from '../store/useStorefrontStore';
 import { selectCartCount, useCartStore } from '../store/useCartStore';
@@ -290,8 +291,11 @@ function Storefront({
 
   return (
     <View style={styles.storefrontRoot}>
-      {/* 1. Apple Glass Pinned Header */}
-      <StorefrontHeader
+      {/* Floating Ambient Gradient Orbs for Frosted Glass Refraction */}
+      <AmbientBackgroundBlobs />
+
+      {/* 1. Floating Frosted Glass Capsule Header */}
+      <StorefrontAmbientHeader
         insets={insets}
         areaLabel={areaLabel}
         onSelectLocation={onSelectLocation}
@@ -306,8 +310,8 @@ function Storefront({
         contentContainerStyle={[
           styles.storefrontContent,
           {
-            paddingTop: insets.top + 58,
-            paddingBottom: insets.bottom + 100,
+            paddingTop: insets.top + 68,
+            paddingBottom: insets.bottom + 96,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -319,45 +323,38 @@ function Storefront({
           />
         }
       >
-        {/* Apple Minimal Banner */}
+        {/* Streamlined Apple-Style Header Banner (Decluttered) */}
         <Animated.View style={styles.heroBanner} entering={FEED_HEADER_ENTER}>
           <View style={styles.bannerEyebrowRow}>
-            <Text style={styles.bannerEyebrowIcon}>✦</Text>
-            <Text style={styles.bannerEyebrow}>NAGPUR RAPID CONCIERGE</Text>
+            <Text style={styles.bannerEyebrowIcon}>⚡</Text>
+            <Text style={styles.bannerEyebrow}>NAGPUR EXPRESS</Text>
           </View>
-          <Text style={styles.bannerTitle}>In stock, minutes away.</Text>
-          <Text style={styles.bannerSubtitle}>
-            Curated designer garments from local ateliers, delivered to your
-            doorstep in 15–40 minutes.
-          </Text>
+          <Text style={styles.bannerTitle}>In stock, near you</Text>
         </Animated.View>
 
-        {/* Category Filters (Horizontal Apple Glass Pills) */}
-        <StorefrontFilterPills
+        {/* Frosted Glass Filter Pill Rails */}
+        <StorefrontAmbientFilterPills
           selectedId={selectedCategory}
           onSelectCategory={setSelectedCategory}
         />
 
-        {/* Hero Spotlight Garment Card */}
-        <StorefrontSpotlightCard
+        {/* Hero Spotlight Garment Card: Heavy Frosted Glass & Reduced Text */}
+        <StorefrontAmbientSpotlightCard
           product={spotlightProduct}
           onPress={onOpenProduct}
           onBagNow={onQuickAdd}
         />
 
-        {/* Rapid Dispatch Horizontal Rail (Under 45 Minutes Away) */}
+        {/* Horizontal Scroll Rail: Express Ateliers (Under 45 Minutes) */}
         <View style={styles.railSection}>
           <View style={styles.railHeaderRow}>
-            <View>
-              <Text style={styles.railEyebrow}>RAPID DISPATCH</Text>
-              <Text style={styles.railTitle}>Under 45 Minutes Away</Text>
-            </View>
+            <Text style={styles.railTitle}>Under 45 Minutes</Text>
             <PressableScale
               onPress={() => setSelectedCategory('all')}
               style={styles.viewAllBtn}
             >
               <Text style={styles.viewAllText}>View All</Text>
-              <Text style={styles.viewAllArrow}>→</Text>
+              <Text style={styles.viewAllArrow}>›</Text>
             </PressableScale>
           </View>
 
@@ -378,7 +375,7 @@ function Storefront({
                 data={filteredProducts.length > 0 ? filteredProducts : products}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <ProductCard
+                  <StorefrontAmbientProductCard
                     product={item}
                     onPress={() => onOpenProduct(item)}
                     onQuickAdd={onQuickAdd}
@@ -393,12 +390,12 @@ function Storefront({
           )}
         </View>
 
-        {/* Stores Curating in Nagpur */}
-        <StorefrontBoutiquesList onSelectBoutique={onOpenProduct} />
+        {/* Curating Boutiques Section (Decluttered Frosted Glass) */}
+        <StorefrontAmbientBoutiquesList onSelectBoutique={onOpenProduct} />
       </Animated.ScrollView>
 
-      {/* 3. Floating Frosted Glass Bottom Navigation Bar */}
-      <StorefrontTabBar
+      {/* 3. Frosted Glass Floating Tab Bar */}
+      <StorefrontAmbientTabBar
         insets={insets}
         activeTab={activeTab}
         cartCount={cartCount}
@@ -415,13 +412,13 @@ const styles = StyleSheet.create({
   },
   storefrontRoot: {
     flex: 1,
-    backgroundColor: colors.groundBase,
+    backgroundColor: '#F4EFE7',
   },
   storefrontScroll: {
     flex: 1,
   },
   storefrontContent: {
-    backgroundColor: colors.groundBase,
+    backgroundColor: 'transparent',
   },
   heroBanner: {
     paddingHorizontal: spacing.md,
