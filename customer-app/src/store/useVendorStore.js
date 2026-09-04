@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import * as api from '../api/vendorApi';
-import useAuthStore from './useAuthStore';
+import { useAuthStore } from './useAuthStore';
 import { registerForPush } from '../services/notifications';
 
 /**

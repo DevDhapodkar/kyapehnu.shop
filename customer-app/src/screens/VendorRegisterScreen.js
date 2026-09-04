@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
-import useAuthStore, { ROLES } from '../store/useAuthStore';
+import { useAuthStore, ROLES } from '../store/useAuthStore';
 import { registerVendor } from '../api/vendorApi';
 
 const NAGPUR_AREAS = [
@@ -34,51 +34,55 @@ const NAGPUR_AREAS = [
 /**
  * VendorRegisterScreen — Register Your Shop (Frosted Glass & Ambient Blobs)
  *
- * Implements Stitch Screen f1d9473f02554406a6a4bda46d0bc3bc:
+ * Implements Stitch Screen eba3920c8b6b4e43be4c600109968434:
  * - Animated drifting ambient background blobs
- * - Floating frosted header
- * - 3 Value prop pill cards: 0% Setup, <45m Dispatch, Daily T+1 Payouts
- * - Section 1: Boutique Identity (Name, Designer, Phone)
- * - Section 2: Boutique Location with Nagpur Hub quick pills & GPS capture
- * - Section 3: Express Corridor toggle
- * - Submit partner application CTA
+ * - Frosted glass top header with close button
+ * - Clean input cards for boutique details: Shop Name, Owner, Phone, Area, Address
+ * - GPS location quick-pin banner
+ * - Nagpur boutique area chips
+ * - Sticky bottom glass CTA: "Register Boutique · Free Onboarding"
  * - Zero Emojis (MaterialIcons throughout)
  */
 export default function VendorRegisterScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const setRole = useAuthStore((state) => state.setRole);
   const setVendorProfile = useAuthStore((state) => state.setVendorProfile);
 
   const [shopName, setShopName] = useState('');
-  const [ownerName, setOwnerName] = useState(user?.displayName || '');
+  const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedArea, setSelectedArea] = useState('Dharampeth');
+  const [selectedArea, setSelectedArea] = useState(NAGPUR_AREAS[0]);
   const [addressLine, setAddressLine] = useState('');
-  const [expressOptIn, setExpressOptIn] = useState(true);
-  const [coords, setCoords] = useState(null);
-  const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [coords, setCoords] = useState([79.0882, 21.1458]);
+  const [expressOptIn, setExpressOptIn] = useState(true);
 
   const handleUseMyLocation = async () => {
-    setLocating(true);
     try {
+      setLocating(true);
+      if (Platform.OS !== 'web') {
+        Haptics.selectionAsync();
+      }
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Location Permission',
-          'Permission to access location was denied.'
+          'Allow location access so nearby shoppers in Nagpur can find your atelier.'
         );
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
       setCoords([loc.coords.longitude, loc.coords.latitude]);
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (err) {
-      Alert.alert('Location Error', err.message);
+      Alert.alert(
+        'GPS Pin Updated',
+        `Coordinates captured: [${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}]`
+      );
+    } catch (_e) {
+      // ignore
     } finally {
       setLocating(false);
     }
@@ -93,13 +97,31 @@ export default function VendorRegisterScreen({ navigation }) {
       return;
     }
 
+    if (!token) {
+      Alert.alert(
+        'Account Required',
+        'Please sign in or create an account before registering your boutique so your catalog is securely saved.',
+        [
+          { text: 'Sign In', onPress: () => navigation.navigate('Auth', { mode: 'register' }) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
     setSubmitting(true);
+    const userEmail = user?.email || `${shopName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@kyapehnu.local`;
     const payload = {
       shopName: shopName.trim(),
       ownerName: ownerName.trim(),
       phone: phone.trim(),
-      area: selectedArea,
-      line1: addressLine.trim() || `${selectedArea}, Nagpur`,
+      email: userEmail,
+      address: {
+        line1: addressLine.trim() || `${selectedArea}, Nagpur`,
+        area: selectedArea,
+        city: 'Nagpur',
+        pincode: '440001',
+      },
       location: {
         type: 'Point',
         coordinates: coords || [79.0882, 21.1458],
@@ -107,11 +129,9 @@ export default function VendorRegisterScreen({ navigation }) {
     };
 
     try {
-      if (token) {
-        await registerVendor(payload);
-      }
+      const savedVendor = await registerVendor(payload);
       setRole(ROLES.VENDOR);
-      setVendorProfile(payload);
+      setVendorProfile(savedVendor || payload);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -120,11 +140,14 @@ export default function VendorRegisterScreen({ navigation }) {
         `${payload.shopName} is now registered on Nagpur 45-min corridor!`
       );
       navigation.replace('VendorOrderList');
-    } catch (_err) {
-      // In guest / offline preview, simulate successful onboarding
-      setRole(ROLES.VENDOR);
-      setVendorProfile(payload);
-      navigation.replace('VendorOrderList');
+    } catch (err) {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      Alert.alert(
+        'Registration Failed',
+        err.message || 'Could not register boutique. Please check connection and try again.'
+      );
     } finally {
       setSubmitting(false);
     }

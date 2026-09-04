@@ -58,6 +58,27 @@ const pushToVendor = async (vendor, order) => {
   }
 };
 
+const normalizeOrderItems = (items) =>
+  (items || []).map((i) => ({
+    product: i.product || i.productId,
+    name: i.name,
+    size: i.size || 'Free',
+    quantity: i.quantity || 1,
+    price: i.price,
+  }));
+
+const normalizeAddress = (address) => ({
+  ...address,
+  city: address?.city || 'Nagpur',
+  location: {
+    type: 'Point',
+    coordinates:
+      Array.isArray(address?.location?.coordinates) && address.location.coordinates.length === 2
+        ? address.location.coordinates
+        : [79.0882, 21.1458],
+  },
+});
+
 const createOrder = async (req, res) => {
   try {
     const { vendor: vendorId, items, totalPrice, deliveryAddress, paymentMethod } = req.body;
@@ -69,12 +90,15 @@ const createOrder = async (req, res) => {
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
+    const normalizedItems = normalizeOrderItems(items);
+    const normalizedAddress = normalizeAddress(deliveryAddress);
+
     const order = await Order.create({
       customer: req.user._id,
       vendor: vendorId,
-      items,
+      items: normalizedItems,
       totalPrice,
-      deliveryAddress,
+      deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',
       status: ORDER_STATUS.PENDING,
@@ -82,7 +106,7 @@ const createOrder = async (req, res) => {
     });
 
     // Reserve stock, notify the shop (WhatsApp + push), all best-effort.
-    adjustStock(items, -1);
+    adjustStock(normalizedItems, -1);
     notifyVendorNewOrder(vendor, order).catch((err) =>
       console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
     );
@@ -118,26 +142,34 @@ const createGuestOrder = async (req, res) => {
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Shop not found' });
 
+    const normalizedItems = normalizeOrderItems(items);
+    const normalizedAddress = normalizeAddress(deliveryAddress);
+
     const order = await Order.create({
       guestContact: { name: contact.name, phone: contact.phone },
       channel: 'WEB',
       vendor: vendorId,
-      items,
+      items: normalizedItems,
       totalPrice,
-      deliveryAddress,
+      deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',
       status: ORDER_STATUS.PENDING,
       statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
     });
 
-    adjustStock(items, -1);
+    adjustStock(normalizedItems, -1);
     notifyVendorNewOrder(vendor, order).catch((err) =>
       console.error(`WhatsApp notify failed for order ${order._id}:`, err.message)
     );
     pushToVendor(vendor, order);
 
-    res.status(201).json({ orderId: order._id, status: order.status, totalPrice: order.totalPrice });
+    res.status(201).json({
+      _id: order._id,
+      orderId: order._id,
+      status: order.status,
+      totalPrice: order.totalPrice,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Failed to place order', error: error.message });
   }

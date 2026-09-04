@@ -4,7 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import { colors, radii, spacing } from '../theme/colors';
 
 export const PRODUCT_CARD_WIDTH = 210;

@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -26,20 +26,9 @@ export default function StorefrontAmbientSpotlightCard({
 }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  const defaultSpotlight = {
-    id: 'spotlight-chanderi-angrakha',
-    name: 'Chanderi Silk Angrakha',
-    category: 'Mulmul & Silks',
-    price: 4800,
-    originalPrice: 6499,
-    deliveryMinutes: 28,
-    distanceKm: 1.4,
-    locality: 'Dharampeth',
-    storeName: 'Studio Anamika',
-    image: require('../../assets/images/spotlight-angrakha.jpg'),
-  };
+  if (!product) return null;
 
-  const item = product || defaultSpotlight;
+  const item = product;
 
   const handleToggleWishlist = () => {
     if (Platform.OS !== 'web') {
@@ -60,13 +49,12 @@ export default function StorefrontAmbientSpotlightCard({
       <PressableScale
         onPress={() => onPress?.(item)}
         style={styles.card}
-        accessibilityRole="button"
         accessibilityLabel={`${item.name}, ${formatINR(item.price)}`}
       >
         {/* Media Container */}
         <View style={styles.imageContainer}>
           <Image
-            source={item.image}
+            source={typeof item.image === 'string' ? { uri: item.image } : item.image}
             style={styles.image}
             contentFit="cover"
             transition={300}

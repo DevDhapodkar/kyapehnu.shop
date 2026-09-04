@@ -18,6 +18,7 @@ export default function StorefrontAmbientHeader({
   insets,
   areaLabel = 'Sitabuldi, Nagpur',
   onSelectLocation,
+  onOpenSearch,
   onOpenProfile,
   onOpenBag,
   cartCount = 0,
@@ -54,6 +55,20 @@ export default function StorefrontAmbientHeader({
 
         {/* Right: Actions */}
         <View style={styles.rightGroup}>
+          {onOpenSearch ? (
+            <PressableScale
+              onPress={onOpenSearch}
+              style={styles.actionBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Search catalogue"
+            >
+              <MaterialIcons
+                name="search"
+                size={18}
+                color={colors.textObsidian}
+              />
+            </PressableScale>
+          ) : null}
           {onOpenBag ? (
             <PressableScale
               onPress={onOpenBag}

@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import { colors, radii, spacing } from '../theme/colors';
 
 export const AMBIENT_CARD_WIDTH = 200;

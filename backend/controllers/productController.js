@@ -14,14 +14,20 @@ const stripProtected = (body = {}) => {
   return clean;
 };
 
-/** POST /api/products (vendor) — always enters the QC queue. */
+/** POST /api/products (vendor) — enters QC or approved if vendor is verified. */
 const createProduct = async (req, res) => {
   try {
+    const isApprovedVendor = req.vendor?.approvalStatus === 'APPROVED';
+    const status =
+      process.env.NODE_ENV !== 'production' || isApprovedVendor
+        ? PRODUCT_STATUS.APPROVED
+        : PRODUCT_STATUS.PENDING_QC;
+
     const product = await Product.create({
       ...stripProtected(req.body),
       vendor: req.vendor._id,
       source: PRODUCT_SOURCE.APP,
-      status: PRODUCT_STATUS.PENDING_QC,
+      status,
     });
     res.status(201).json(product);
   } catch (error) {

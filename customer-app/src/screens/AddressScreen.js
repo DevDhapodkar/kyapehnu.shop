@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -18,13 +19,15 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import {
   selectCartItems,
   selectCartTotal,
   useCartStore,
 } from '../store/useCartStore';
-import useAuthStore from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { placeCartOrders, placeGuestCartOrders } from '../services/checkout';
+import { saveUserAddress } from '../api/vendorApi';
 import { colors, radii, spacing } from '../theme/colors';
 
 const ADDRESS_TYPES = [
@@ -56,20 +59,27 @@ export default function AddressScreen({ navigation }) {
   const subtotal = useCartStore(selectCartTotal);
   const clearCart = useCartStore((state) => state.clearCart);
   const profile = useAuthStore((state) => state.profile);
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
+  const isLoggedIn = Boolean(token);
 
   const [addressType, setAddressType] = useState('home');
-  const [flatNo, setFlatNo] = useState('Flat 402, Palm Grove');
+  const [flatNo, setFlatNo] = useState(
+    profile?.savedAddresses?.[0]?.line1 || 'Flat 402, Palm Grove'
+  );
   const [streetArea, setStreetArea] = useState(
-    'Palm Grove Apts, VCA Stadium Rd, Civil Lines'
+    profile?.savedAddresses?.[0]?.line2 || 'VCA Stadium Rd, Civil Lines'
   );
   const [receiverName, setReceiverName] = useState(
-    profile?.displayName || 'Ananya Sharma'
+    profile?.name || user?.displayName || 'Ananya Sharma'
   );
   const [phone, setPhone] = useState(profile?.phone || '+91 98230 44102');
   const [isLocating, setIsLocating] = useState(false);
   const [detectedArea, setDetectedArea] = useState('Civil Lines, Nagpur (440001)');
+  const [coords, setCoords] = useState([79.0882, 21.1458]);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  const total = subtotal > 0 ? subtotal : 4800;
+  const total = subtotal > 0 ? subtotal : 0;
 
   const handleShare = async () => {
     try {
@@ -97,6 +107,7 @@ export default function AddressScreen({ navigation }) {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
+      setCoords([loc.coords.longitude, loc.coords.latitude]);
       const [geo] = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
@@ -114,36 +125,90 @@ export default function AddressScreen({ navigation }) {
     }
   };
 
-  const handlePlaceOrder = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handlePlaceOrder = async () => {
+    if (cartItems.length === 0) {
+      Alert.alert(
+        'Empty Bag',
+        'Your shopping bag is empty. Please add garments before checking out.',
+        [{ text: 'Browse Storefront', onPress: () => navigation.navigate('Home') }]
+      );
+      return;
     }
 
-    const orderPayload = {
-      orderId: 'KP-' + Math.floor(1000 + Math.random() * 9000),
-      items: cartItems.length > 0 ? cartItems : [{ name: 'Chanderi Angrakha', price: 4800, quantity: 1 }],
-      total,
-      address: {
-        flatNo,
-        streetArea,
-        area: detectedArea,
-        type: addressType,
-        receiverName,
-        phone,
-      },
-      createdAt: new Date().toISOString(),
-      etaMinutes: 18,
-      status: 'out_for_delivery',
-      rider: {
-        name: 'Rameshwar T.',
-        vehicle: 'Honda Activa · MH 31 EQ 8492',
-        phone: '+91 98221 55940',
+    if (!receiverName.trim() || !phone.trim()) {
+      Alert.alert('Missing Contact Details', 'Please provide receiver name and contact phone number.');
+      return;
+    }
+
+    if (!flatNo.trim() || !streetArea.trim()) {
+      Alert.alert('Missing Address', 'Please enter your flat/house number and street/area.');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const rawDigits = cleanPhone.replace(/[^0-9]/g, '');
+    if (rawDigits.length < 10) {
+      Alert.alert('Invalid Phone', 'Please enter a valid 10-digit mobile number for order and delivery updates.');
+      return;
+    }
+
+    const pinMatch = (detectedArea + ' ' + streetArea).match(/\b(44\d{4})\b/);
+    const pincode = pinMatch ? pinMatch[1] : '440001';
+
+    const deliveryAddress = {
+      label: addressType.toUpperCase(),
+      line1: `${flatNo.trim()}, ${streetArea.trim()}`,
+      line2: detectedArea,
+      city: 'Nagpur',
+      pincode,
+      receiverName: receiverName.trim(),
+      receiverPhone: cleanPhone,
+      location: {
+        type: 'Point',
+        coordinates: coords || [79.0882, 21.1458],
       },
     };
 
-    clearCart();
+    setIsPlacingOrder(true);
 
-    navigation.navigate('LiveTracking', { order: orderPayload });
+    try {
+      let placedOrders;
+      if (isLoggedIn) {
+        placedOrders = await placeCartOrders({
+          items: cartItems,
+          deliveryAddress,
+          deliveryFee: 0,
+        });
+        saveUserAddress(deliveryAddress).catch(() => {});
+      } else {
+        placedOrders = await placeGuestCartOrders({
+          items: cartItems,
+          deliveryAddress,
+          contact: { name: receiverName.trim(), phone: cleanPhone },
+          deliveryFee: 0,
+        });
+      }
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      clearCart();
+
+      const primaryOrder = placedOrders[0];
+      navigation.navigate('LiveTracking', {
+        orderId: primaryOrder.id || primaryOrder._id,
+        order: primaryOrder,
+        phone: cleanPhone,
+      });
+    } catch (err) {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      Alert.alert('Checkout Failed', err.message || 'Could not place order. Please try again.');
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   return (
@@ -408,12 +473,19 @@ export default function AddressScreen({ navigation }) {
 
           <PressableScale
             onPress={handlePlaceOrder}
-            style={styles.placeOrderBtn}
+            style={[styles.placeOrderBtn, isPlacingOrder && { opacity: 0.7 }]}
+            disabled={isPlacingOrder}
             accessibilityRole="button"
             accessibilityLabel="Place Order"
           >
-            <Text style={styles.placeOrderLabel}>Place Order · COD</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+            {isPlacingOrder ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.placeOrderLabel}>Place Order · COD</Text>
+                <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+              </>
+            )}
           </PressableScale>
         </View>
       </View>

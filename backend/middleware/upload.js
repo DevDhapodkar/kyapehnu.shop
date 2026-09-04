@@ -2,7 +2,7 @@ import multer from 'multer';
 
 import {
   isAllowedMime,
-  MAX_IMAGE_BYTES,
+  MAX_MEDIA_BYTES,
   MAX_IMAGES_PER_REQUEST,
 } from '../utils/imageValidation.js';
 
@@ -17,11 +17,11 @@ const fileFilter = (req, file, cb) => {
   cb(err);
 };
 
-// Field name is `images`; accepts up to MAX_IMAGES_PER_REQUEST files.
+// Field name is `images`; accepts up to MAX_IMAGES_PER_REQUEST files (photos or video clips).
 export const uploadImages = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_IMAGE_BYTES, files: MAX_IMAGES_PER_REQUEST },
+  limits: { fileSize: MAX_MEDIA_BYTES, files: MAX_IMAGES_PER_REQUEST },
 }).array('images', MAX_IMAGES_PER_REQUEST);
 
 /**

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 import connectDB from './config/db.js';
 import { ensureAdminSeed } from './config/seedAdmin.js';
+import { ensureBootstrapData } from './config/seedData.js';
 import userRoutes from './routes/userRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
 import productRoutes from './routes/productRoutes.js';
@@ -49,6 +50,7 @@ const PORT = process.env.PORT || 5001;
 const start = async () => {
   await connectDB();
   await ensureAdminSeed();
+  await ensureBootstrapData();
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };
 

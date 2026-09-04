@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Platform,
@@ -15,7 +16,9 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
+import { fetchOrder, trackGuestOrder, cancelMyOrder } from '../api/vendorApi';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -25,66 +28,141 @@ import { colors, radii, spacing } from '../theme/colors';
  * - Animated drifting ambient background blobs
  * - Subtle optical glass pinned header with location selector
  * - Animated route radar card: Studio Anamika -> Rider in Motion -> Civil Lines
- * - Live ETA pill (18m ETA · En Route) with recenter button
+ * - Live ETA pill with status
  * - Step progression: Confirmed -> Picked Up -> On the Way
- * - Rider profile card: Rameshwar T., Honda Activa, Call & WhatsApp actions
+ * - Rider profile card with Porter partner details
  * - Order summary chip with garment details
  * - Help & Return to Storefront CTAs
  * - Zero Emojis (MaterialIcons throughout)
  */
 export default function LiveTrackingScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const { order } = route.params || {};
+  const { order, orderId: paramOrderId, phone } = route.params || {};
 
-  const [etaMinutes, setEtaMinutes] = useState(order?.etaMinutes || 18);
+  const token = useAuthStore((state) => state.token);
+  const orderId = paramOrderId || order?.id || order?._id || 'KP-8902';
 
-  // Countdown timer simulation
+  const [liveOrder, setLiveOrder] = useState(order || null);
+  const [etaMinutes] = useState(order?.etaMinutes || 22);
+  const [cancelling, setCancelling] = useState(false);
+
   useEffect(() => {
-    const timer = setInterval(() => {
-      setEtaMinutes((prev) => (prev > 2 ? prev - 1 : prev));
-    }, 15000);
-    return () => clearInterval(timer);
-  }, []);
+    const idToFetch = orderId || liveOrder?._id || liveOrder?.id;
+    if (!idToFetch || String(idToFetch).startsWith('mock-')) return;
+    let active = true;
 
-  const orderId = order?.orderId || 'KP-8902';
-  const orderItem = order?.items?.[0] || {
-    name: 'Handwoven Chanderi Angrakha',
-    price: 4800,
-    storeName: 'Studio Anamika',
-  };
-  const total = order?.total || 4800;
-  const rider = order?.rider || {
-    name: 'Rameshwar T.',
-    rating: '4.9',
-    vehicle: 'Honda Activa · MH 31 EQ 8492',
-    phone: '+91 98221 55940',
-  };
+    const poll = async () => {
+      try {
+        let data;
+        if (token) {
+          data = await fetchOrder(idToFetch);
+        } else if (phone) {
+          data = await trackGuestOrder(idToFetch, phone);
+        }
+        if (active && data) {
+          setLiveOrder(data);
+        }
+      } catch (_err) {
+        // transient network
+      }
+    };
 
-  const handleCallRider = () => {
+    poll();
+    const interval = setInterval(poll, 8000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [orderId, liveOrder?._id, liveOrder?.id, token, phone]);
+
+  // Status mapping
+  const rawStatus = (liveOrder?.status || order?.status || 'PENDING').toUpperCase();
+
+  const isConfirmed = ['PENDING', 'ACCEPTED', 'PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isPickedUp = ['PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isOnTheWay = ['IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isDelivered = rawStatus === 'DELIVERED';
+  const isCancelled = rawStatus === 'CANCELLED';
+  const isCancellable = ['PENDING', 'ACCEPTED'].includes(rawStatus);
+
+  const displayTitle = isCancelled
+    ? 'Order Cancelled'
+    : isDelivered
+    ? 'Garments Delivered'
+    : isOnTheWay
+    ? 'Rider in Motion'
+    : isPickedUp
+    ? 'Driver Assigned'
+    : rawStatus === 'ACCEPTED'
+    ? 'Boutique Preparing'
+    : 'Order Confirmed';
+
+  const storeName = liveOrder?.vendor?.shopName || order?.items?.[0]?.storeName || 'Nagpur Boutique';
+  const storeArea = liveOrder?.vendor?.area || liveOrder?.vendor?.address?.area || order?.items?.[0]?.storeArea || 'Dharampeth';
+  const dropAddress = liveOrder?.deliveryAddress?.line1 || order?.deliveryAddress?.line1 || 'Nagpur';
+  const dropArea = liveOrder?.deliveryAddress?.line2 || liveOrder?.deliveryAddress?.area || 'Civil Lines';
+  const items = liveOrder?.items?.length ? liveOrder.items : order?.items?.length ? order.items : [];
+
+  const porterDriver = liveOrder?.porter?.driverName
+    ? {
+        name: liveOrder.porter.driverName,
+        vehicle: 'Porter Logistics Partner',
+        phone: liveOrder.porter.driverPhone || '+91 712 254 9900',
+        rating: '4.9',
+      }
+    : null;
+
+  const handleCall = (contactPhone) => {
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
     }
-    Linking.openURL(`tel:${rider.phone}`).catch(() => {
-      Alert.alert('Call Concierge', `Calling ${rider.name} at ${rider.phone}...`);
+    Linking.openURL(`tel:${contactPhone}`).catch(() => {
+      Alert.alert('Concierge', `Calling ${contactPhone}...`);
     });
   };
 
-  const handleWhatsAppRider = () => {
+  const handleWhatsApp = (contactPhone, name) => {
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
     }
-    const cleanPhone = rider.phone.replace(/[^0-9]/g, '');
+    const clean = String(contactPhone).replace(/[^0-9]/g, '');
     Linking.openURL(
-      `https://wa.me/${cleanPhone}?text=Hi%20${rider.name},%20regarding%20my%20Kya%20Pehnu%20order%20${orderId}`
+      `https://wa.me/${clean}?text=Hi%20${name || ''},%20regarding%20my%20Kya%20Pehnu%20order%20${orderId}`
     ).catch(() => {
       Alert.alert('WhatsApp Concierge', 'Opening WhatsApp concierge chat...');
     });
   };
 
+  const handleCancelOrder = () => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? The atelier will be notified immediately.',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await cancelMyOrder(orderId);
+              setLiveOrder((prev) => ({ ...prev, status: 'CANCELLED' }));
+              Alert.alert('Order Cancelled', 'Your order has been cancelled.');
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Could not cancel order.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleNeedHelp = () => {
     Alert.alert(
       'Nagpur Concierge Care',
-      'Doorstep fitting coordinator available at +91 712 254 9900.\nMaster tailor on standby for fittings.',
+      'Doorstep fitting coordinator available at +91 712 254 9900.\nMaster tailor on standby for alterations.',
       [
         { text: 'Call Hotline', onPress: () => Linking.openURL('tel:+917122549900').catch(() => {}) },
         { text: 'Close', style: 'cancel' },
@@ -174,14 +252,14 @@ export default function LiveTrackingScreen({ route, navigation }) {
                   color={colors.accentGoldDeep}
                 />
               </View>
-              <Text style={styles.nodeTitle}>Studio Anamika</Text>
-              <Text style={styles.nodeSub}>Dharampeth</Text>
+              <Text style={styles.nodeTitle} numberOfLines={1}>{storeName}</Text>
+              <Text style={styles.nodeSub} numberOfLines={1}>{storeArea}</Text>
             </View>
 
             {/* Connecting line with moving rider */}
             <View style={styles.routeTrack}>
               <View style={styles.trackLine} />
-              <View style={styles.riderMarker}>
+              <View style={[styles.riderMarker, isOnTheWay && { backgroundColor: colors.accentCrimson }]}>
                 <MaterialIcons name="two-wheeler" size={16} color="#FFFFFF" />
               </View>
             </View>
@@ -195,8 +273,8 @@ export default function LiveTrackingScreen({ route, navigation }) {
                   color={colors.accentCrimson}
                 />
               </View>
-              <Text style={styles.nodeTitle}>Palm Grove 402</Text>
-              <Text style={styles.nodeSub}>Civil Lines</Text>
+              <Text style={styles.nodeTitle} numberOfLines={1}>{dropAddress}</Text>
+              <Text style={styles.nodeSub} numberOfLines={1}>{dropArea}</Text>
             </View>
           </View>
 
@@ -204,10 +282,18 @@ export default function LiveTrackingScreen({ route, navigation }) {
           <View style={styles.etaBar}>
             <View style={styles.etaPill}>
               <MaterialIcons name="bolt" size={14} color={colors.accentGold} />
-              <Text style={styles.etaText}>{etaMinutes}m ETA · En Route</Text>
+              <Text style={styles.etaText}>
+                {isCancelled
+                  ? 'Order Cancelled'
+                  : isDelivered
+                  ? 'Delivered · Fitting Complete'
+                  : `${etaMinutes}m ETA · ${displayTitle}`}
+              </Text>
             </View>
             <View style={styles.distancePill}>
-              <Text style={styles.distanceText}>2.4 km remaining</Text>
+              <Text style={styles.distanceText}>
+                {isDelivered ? 'Doorstep Trial' : 'Rapid Radius'}
+              </Text>
             </View>
           </View>
         </View>
@@ -215,15 +301,17 @@ export default function LiveTrackingScreen({ route, navigation }) {
         {/* Live Status Card */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeaderRow}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.statusEyebrow}>
                 NAGPUR EXPRESS · {orderId}
               </Text>
-              <Text style={styles.statusTitle}>Rider in Motion</Text>
+              <Text style={styles.statusTitle}>{displayTitle}</Text>
             </View>
-            <View style={styles.liveBadge}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.liveBadgeText}>LIVE</Text>
+            <View style={[styles.liveBadge, isCancelled && { backgroundColor: 'rgba(180, 40, 40, 0.15)' }]}>
+              <View style={[styles.livePulseDot, isCancelled && { backgroundColor: '#D32F2F' }]} />
+              <Text style={[styles.liveBadgeText, isCancelled && { color: '#D32F2F' }]}>
+                {isCancelled ? 'CANCELLED' : isDelivered ? 'DONE' : 'LIVE'}
+              </Text>
             </View>
           </View>
 
@@ -231,68 +319,95 @@ export default function LiveTrackingScreen({ route, navigation }) {
           <View style={styles.progressRow}>
             {/* Step 1: Confirmed */}
             <View style={styles.progressStep}>
-              <View style={styles.stepCircleDone}>
-                <MaterialIcons name="check" size={12} color="#FFFFFF" />
+              <View style={isConfirmed ? styles.stepCircleDone : styles.stepCircleActive}>
+                {isConfirmed ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
               </View>
-              <Text style={styles.stepLabelDone}>Confirmed</Text>
+              <Text style={isConfirmed ? styles.stepLabelDone : styles.stepLabelActive}>Confirmed</Text>
             </View>
 
-            <View style={styles.progressLineDone} />
+            <View style={isPickedUp ? styles.progressLineDone : styles.progressLineActive} />
 
-            {/* Step 2: Picked Up */}
+            {/* Step 2: Packed */}
             <View style={styles.progressStep}>
-              <View style={styles.stepCircleDone}>
-                <MaterialIcons name="check" size={12} color="#FFFFFF" />
+              <View style={isPickedUp ? styles.stepCircleDone : isConfirmed ? styles.stepCircleActive : styles.stepCircleInactive}>
+                {isPickedUp ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
               </View>
-              <Text style={styles.stepLabelDone}>Picked Up</Text>
+              <Text style={isPickedUp ? styles.stepLabelDone : styles.stepLabelActive}>Ready</Text>
             </View>
 
-            <View style={styles.progressLineDone} />
+            <View style={isOnTheWay ? styles.progressLineDone : styles.progressLineActive} />
 
-            {/* Step 3: On the Way */}
+            {/* Step 3: Out for delivery */}
             <View style={styles.progressStep}>
-              <View style={styles.stepCircleActive}>
-                <View style={styles.activeCoreDot} />
+              <View style={isDelivered ? styles.stepCircleDone : isOnTheWay ? styles.stepCircleActive : styles.stepCircleInactive}>
+                {isDelivered ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
               </View>
-              <Text style={styles.stepLabelActive}>On the Way</Text>
+              <Text style={isDelivered ? styles.stepLabelDone : styles.stepLabelActive}>On the Way</Text>
             </View>
           </View>
         </View>
 
-        {/* Rider Profile Card */}
+        {/* Courier / Dispatch Partner Card */}
         <View style={styles.riderCard}>
           <View style={styles.riderAvatar}>
-            <Text style={styles.riderAvatarText}>R</Text>
+            <Text style={styles.riderAvatarText}>
+              {porterDriver ? porterDriver.name.charAt(0).toUpperCase() : 'A'}
+            </Text>
           </View>
 
           <View style={styles.riderInfoCol}>
             <View style={styles.riderNameRow}>
-              <Text style={styles.riderName}>{rider.name}</Text>
+              <Text style={styles.riderName}>
+                {porterDriver ? porterDriver.name : storeName}
+              </Text>
               <View style={styles.ratingBadge}>
-                <MaterialIcons name="star" size={12} color={colors.accentGold} />
-                <Text style={styles.ratingText}>{rider.rating}</Text>
+                <MaterialIcons name="verified" size={12} color={colors.accentGold} />
+                <Text style={styles.ratingText}>Verified</Text>
               </View>
             </View>
-            <Text style={styles.riderVehicle}>{rider.vehicle}</Text>
+            <Text style={styles.riderVehicle}>
+              {porterDriver ? porterDriver.vehicle : 'Atelier Express Fitting Partner'}
+            </Text>
           </View>
 
           {/* Contact Action Buttons */}
           <View style={styles.riderActions}>
             <PressableScale
-              onPress={handleCallRider}
+              onPress={() =>
+                handleCall(
+                  porterDriver?.phone || liveOrder?.vendor?.phone || '+917122549900'
+                )
+              }
               style={styles.contactBtn}
               accessibilityRole="button"
-              accessibilityLabel="Call rider"
+              accessibilityLabel="Call concierge"
             >
               <MaterialIcons name="call" size={16} color={colors.textObsidian} />
               <Text style={styles.contactBtnLabel}>Call</Text>
             </PressableScale>
 
             <PressableScale
-              onPress={handleWhatsAppRider}
+              onPress={() =>
+                handleWhatsApp(
+                  porterDriver?.phone || liveOrder?.vendor?.phone || '+917122549900',
+                  porterDriver?.name || storeName
+                )
+              }
               style={styles.contactBtn}
               accessibilityRole="button"
-              accessibilityLabel="WhatsApp rider"
+              accessibilityLabel="WhatsApp concierge"
             >
               <MaterialIcons name="chat" size={16} color={colors.textObsidian} />
               <Text style={styles.contactBtnLabel}>WhatsApp</Text>
@@ -300,25 +415,62 @@ export default function LiveTrackingScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Garment Summary Chip */}
-        <View style={styles.garmentCard}>
-          <View style={styles.garmentIconWrap}>
-            <MaterialIcons
-              name="checkroom"
-              size={18}
-              color={colors.accentGold}
-            />
-          </View>
-          <View style={styles.garmentInfoCol}>
-            <Text style={styles.garmentName} numberOfLines={1}>
-              {orderItem.name}
+        {/* Cancel Order Action (if order is in early stage) */}
+        {isCancellable && (
+          <PressableScale
+            onPress={handleCancelOrder}
+            disabled={cancelling}
+            style={{
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: radii.md,
+              backgroundColor: 'rgba(211, 47, 47, 0.08)',
+              borderWidth: 1,
+              borderColor: 'rgba(211, 47, 47, 0.25)',
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel order"
+          >
+            {cancelling ? (
+              <ActivityIndicator size="small" color="#D32F2F" />
+            ) : (
+              <>
+                <MaterialIcons name="cancel" size={16} color="#D32F2F" />
+                <Text style={{ color: '#D32F2F', fontWeight: '700', fontSize: 13 }}>
+                  Cancel Order
+                </Text>
+              </>
+            )}
+          </PressableScale>
+        )}
+
+        {/* Garment Summary Chips */}
+        {items.map((item, idx) => (
+          <View key={item.product || item.id || idx} style={styles.garmentCard}>
+            <View style={styles.garmentIconWrap}>
+              <MaterialIcons
+                name="checkroom"
+                size={18}
+                color={colors.accentGold}
+              />
+            </View>
+            <View style={styles.garmentInfoCol}>
+              <Text style={styles.garmentName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.garmentStore}>
+                Size {item.size || 'Free'} · {item.quantity || 1} unit · {storeName}
+              </Text>
+            </View>
+            <Text style={styles.garmentPrice}>
+              {formatINR((item.price || 0) * (item.quantity || 1))}
             </Text>
-            <Text style={styles.garmentStore}>
-              {orderItem.storeName || 'Studio Anamika'} · Dharampeth
-            </Text>
           </View>
-          <Text style={styles.garmentPrice}>{formatINR(total)}</Text>
-        </View>
+        ))}
       </ScrollView>
 
       {/* 4. Sticky Bottom Action Bar */}

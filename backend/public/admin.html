@@ -260,8 +260,13 @@
                 '<span class="pill">PENDING_QC</span></div>' +
               (imgs ? '<div class="thumbs">' + imgs + '</div>' : '<div class="sub" style="margin-top:8px">No photos submitted</div>') +
               (p.description ? '<div class="sub" style="margin-top:8px">' + esc(p.description) + '</div>' : '') +
-              '<hr /><div class="row">' +
-                '<button class="ok" onclick="reviewProduct(\'' + p._id + '\',\'APPROVE\')">Approve</button>' +
+              '<hr /><div class="row" style="margin-bottom:8px;align-items:center">' +
+                '<label style="margin:0;font-size:12px;color:var(--ash);font-weight:600">SET PRINTED MRP (₹):</label>' +
+                '<input id="mrp-' + p._id + '" type="number" value="' + (p.mrp || p.price || '') + '" style="width:110px;padding:6px 10px;font-size:14px;border-radius:6px;background:var(--deep);color:var(--ivory);border:1px solid var(--line)" placeholder="e.g. ' + (p.price || 2000) + '" />' +
+                '<span class="muted" style="font-size:12px">Vendor Selling Price: ₹' + esc(p.price) + '</span>' +
+              '</div>' +
+              '<div class="row">' +
+                '<button class="ok" onclick="reviewProduct(\'' + p._id + '\',\'APPROVE\')">Approve (Set MRP & Go Live)</button>' +
                 '<input id="reason-' + p._id + '" placeholder="Reason (required to reject)" style="flex:1;min-width:160px" />' +
                 '<button onclick="reviewProduct(\'' + p._id + '\',\'REJECT\')">Reject</button>' +
               '</div></div>';
@@ -275,8 +280,9 @@
       async function reviewProduct(id, decision) {
         const reason = decision === 'REJECT' ? ($('reason-' + id)?.value || '').trim() : undefined;
         if (decision === 'REJECT' && !reason) { alert('A reason is required to reject.'); return; }
+        const mrpVal = $('mrp-' + id)?.value ? Number($('mrp-' + id).value) : undefined;
         try {
-          await api('/products/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision, reason }) });
+          await api('/products/' + id + '/review', { method: 'PATCH', body: JSON.stringify({ decision, reason, mrp: mrpVal }) });
           $('p-' + id)?.remove();
           loadStats();
         } catch (e) { alert(e.message); }

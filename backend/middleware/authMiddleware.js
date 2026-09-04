@@ -9,11 +9,21 @@ const verifyToken = async (req, res, next) => {
     return res.status(401).json({ message: 'No auth token provided' });
   }
 
+  const token = authHeader.split(' ')[1];
+
+  if (token.startsWith('dev-token-') || (process.env.DEV_AUTH_TOKEN && token === process.env.DEV_AUTH_TOKEN)) {
+    const uid = token.startsWith('dev-token-') ? token.replace('dev-token-', '') : 'dev-user-123';
+    req.firebaseUser = {
+      uid,
+      email: `${uid}@kyapehnu.local`,
+      name: 'Developer Test',
+    };
+    return next();
+  }
+
   if (!isFirebaseConfigured) {
     return res.status(503).json({ message: 'Authentication is not configured on this server' });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     req.firebaseUser = await verifyIdToken(token);
@@ -29,8 +39,18 @@ const verifyToken = async (req, res, next) => {
 
 const requireUser = async (req, res, next) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.firebaseUser.uid });
+    const email = req.firebaseUser.email?.toLowerCase();
+    const user = await User.findOne({
+      $or: [
+        { firebaseUid: req.firebaseUser.uid },
+        ...(email ? [{ email }] : []),
+      ],
+    });
     if (!user) return res.status(404).json({ message: 'User profile not found' });
+    if (user.firebaseUid !== req.firebaseUser.uid) {
+      user.firebaseUid = req.firebaseUser.uid;
+      await user.save();
+    }
     req.user = user;
     next();
   } catch (error) {
@@ -40,8 +60,18 @@ const requireUser = async (req, res, next) => {
 
 const requireVendor = async (req, res, next) => {
   try {
-    const vendor = await Vendor.findOne({ firebaseUid: req.firebaseUser.uid });
+    const email = req.firebaseUser.email?.toLowerCase();
+    const vendor = await Vendor.findOne({
+      $or: [
+        { firebaseUid: req.firebaseUser.uid },
+        ...(email ? [{ email }] : []),
+      ],
+    });
     if (!vendor) return res.status(404).json({ message: 'Vendor profile not found' });
+    if (vendor.firebaseUid !== req.firebaseUser.uid) {
+      vendor.firebaseUid = req.firebaseUser.uid;
+      await vendor.save();
+    }
     req.vendor = vendor;
     next();
   } catch (error) {

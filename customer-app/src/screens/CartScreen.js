@@ -15,13 +15,13 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import {
   selectCartItems,
   selectCartTotal,
   useCartStore,
 } from '../store/useCartStore';
-import useAuthStore from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -61,17 +61,14 @@ export default function CartScreen({ navigation }) {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    removeFromCart(item.cartItemId || item.id, item.size);
+    removeFromCart(item.key || item.productId || item.id);
   };
 
   const handleRemoveLine = (item) => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-    // Remove all quantities of this line item
-    for (let i = 0; i < item.quantity; i++) {
-      removeFromCart(item.cartItemId || item.id, item.size);
-    }
+    removeFromCart(item.key || item.productId || item.id, { all: true });
   };
 
   const handleProceedToCheckout = () => {
@@ -189,7 +186,7 @@ export default function CartScreen({ navigation }) {
             {/* Bag Items List */}
             <View style={styles.itemsList}>
               {cartItems.map((item) => (
-                <View key={`${item.id}-${item.size}`} style={styles.itemCard}>
+                <View key={item.key || `${item.productId || item.id}-${item.size}`} style={styles.itemCard}>
                   {/* Thumbnail */}
                   <View style={styles.thumbWrap}>
                     <Image
@@ -224,9 +221,26 @@ export default function CartScreen({ navigation }) {
                       </PressableScale>
                     </View>
 
-                    <Text style={styles.itemMeta}>
-                      Size {item.size || 'Free'} · {item.storeName || 'Atelier'}
-                    </Text>
+                    <View style={styles.itemMetaRow}>
+                      <Text style={styles.itemMeta}>Size {item.size || 'Free'}</Text>
+                      {item.color ? (
+                        <View style={styles.itemColorBadge}>
+                          {item.colorHex ? (
+                            <View
+                              style={[
+                                styles.itemColorDot,
+                                { backgroundColor: item.colorHex },
+                              ]}
+                            />
+                          ) : null}
+                          <Text style={styles.itemColorText}>{item.color}</Text>
+                        </View>
+                      ) : null}
+                      <Text style={styles.itemMetaDot}>·</Text>
+                      <Text style={styles.itemMetaStore} numberOfLines={1}>
+                        {item.storeName || 'Atelier'}
+                      </Text>
+                    </View>
 
                     <View style={styles.itemBottomRow}>
                       <Text style={styles.itemPrice}>
@@ -627,7 +641,45 @@ const styles = StyleSheet.create({
   itemMeta: {
     color: colors.textAsh,
     fontSize: 11,
-    marginTop: 2,
+  },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 3,
+  },
+  itemColorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  itemColorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  itemColorText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  itemMetaDot: {
+    color: colors.textAsh,
+    fontSize: 10,
+  },
+  itemMetaStore: {
+    color: colors.textAsh,
+    fontSize: 11,
+    maxWidth: 120,
   },
   itemBottomRow: {
     flexDirection: 'row',

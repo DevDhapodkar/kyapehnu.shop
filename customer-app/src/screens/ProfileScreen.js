@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -5,7 +6,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -15,8 +15,9 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import useAuthStore, { ROLES } from '../store/useAuthStore';
-import useVendorStore from '../store/useVendorStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useVendorStore } from '../store/useVendorStore';
+import { fetchMyOrders } from '../api/vendorApi';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -25,9 +26,8 @@ import { colors, radii, spacing } from '../theme/colors';
  * Implements Stitch Screen a42b188e2b8b48ed8c17bb5b2d9b487e:
  * - Animated drifting ambient background blobs
  * - Frosted glass client portal header
- * - Ivory Concierge tier badge & Ananya Sharma profile card
- * - Action tiles: Orders (2 Active), Addresses (Civil Lines), Wishlist (6 Pieces)
- * - Boutique & Atelier Partner Mode switch
+ * - Concierge tier badge & patron profile card
+ * - Action tiles: Orders, Addresses, Saved
  * - Concierge hotline (+91 712 254 9900) & WhatsApp stylist links
  * - Sign Out action with haptic confirmation
  * - Zero Emojis (MaterialIcons throughout)
@@ -35,39 +35,60 @@ import { colors, radii, spacing } from '../theme/colors';
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const role = useAuthStore((state) => state.role);
   const user = useAuthStore((state) => state.user);
-  const toggleVendorMode = useAuthStore((state) => state.toggleVendorMode);
+  const profile = useAuthStore((state) => state.profile);
+  const token = useAuthStore((state) => state.token);
   const signOut = useAuthStore((state) => state.signOut);
   const resetVendorState = useVendorStore((state) => state.reset);
 
-  const isVendor = role === ROLES.VENDOR;
+  const [activeCount, setActiveCount] = useState(0);
 
-  const handleToggleVendor = (next) => {
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
+  useEffect(() => {
+    if (token) {
+      fetchMyOrders()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.items || [];
+          const act = list.filter((o) =>
+            ['PENDING', 'ACCEPTED', 'PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT'].includes(
+              o.status?.toUpperCase()
+            )
+          );
+          setActiveCount(act.length);
+        })
+        .catch(() => {});
     }
-    if (!next) resetVendorState();
-    toggleVendorMode();
-  };
+  }, [token]);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    const doSignOut = async () => {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      resetVendorState();
+      await signOut();
+      navigation.navigate('Home');
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+        if (window.confirm('Are you sure you want to sign out of your account?')) {
+          await doSignOut();
+        }
+      } else {
+        await doSignOut();
+      }
+      return;
+    }
+
     Alert.alert(
       'Sign Out',
-      'Are you sure you want to sign out of your Sitabuldi account?',
+      'Are you sure you want to sign out of your account?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => {
-            if (Platform.OS !== 'web') {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-            resetVendorState();
-            signOut();
-            navigation.navigate('Home');
-          },
+          onPress: doSignOut,
         },
       ]
     );
@@ -169,7 +190,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <Text style={styles.userName}>
-            {user?.displayName || 'Ananya Sharma'}
+            {profile?.name || user?.displayName || (token ? 'Nagpur Fashion Patron' : 'Guest Shopper')}
           </Text>
 
           <View style={styles.userMetaRow}>
@@ -179,11 +200,38 @@ export default function ProfileScreen({ navigation }) {
                 size={13}
                 color={colors.accentGold}
               />
-              <Text style={styles.userMetaText}>Sitabuldi, Nagpur</Text>
+              <Text style={styles.userMetaText}>
+                {profile?.savedAddresses?.[0]?.city || 'Sitabuldi, Nagpur'}
+              </Text>
             </View>
             <Text style={styles.userMetaDivider}>•</Text>
-            <Text style={styles.userMetaText}>Size S (Custom Tailor)</Text>
+            <Text style={styles.userMetaText}>
+              {profile?.phone || (token ? user?.email : 'Express Doorstep Fitting')}
+            </Text>
           </View>
+
+          {/* If Guest, show quick sign-in banner */}
+          {!token && (
+            <PressableScale
+              onPress={() => navigation.navigate('Auth')}
+              style={{
+                marginTop: 12,
+                backgroundColor: colors.accentCrimson,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: radii.md,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <MaterialIcons name="login" size={16} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
+                Sign In to Save Addresses & Orders
+              </Text>
+            </PressableScale>
+          )}
 
           {/* 3 Action Tiles */}
           <View style={styles.tilesRow}>
@@ -200,7 +248,9 @@ export default function ProfileScreen({ navigation }) {
                 color={colors.accentCrimson}
               />
               <Text style={styles.tileLabel}>Orders</Text>
-              <Text style={styles.tileValue}>2 Active</Text>
+              <Text style={styles.tileValue}>
+                {activeCount > 0 ? `${activeCount} Active` : '0 Active'}
+              </Text>
             </PressableScale>
 
             {/* Addresses Tile */}
@@ -216,15 +266,21 @@ export default function ProfileScreen({ navigation }) {
                 color={colors.accentGold}
               />
               <Text style={styles.tileLabel}>Addresses</Text>
-              <Text style={styles.tileValue}>Civil Lines</Text>
+              <Text style={styles.tileValue}>
+                {profile?.savedAddresses?.length ? 'Saved' : 'Add New'}
+              </Text>
             </PressableScale>
 
             {/* Wishlist Tile */}
             <PressableScale
               onPress={() =>
                 Alert.alert(
-                  'Wishlist',
-                  '6 curated pieces saved from Studio Anamika & Maheshwari Handlooms.'
+                  'Saved Garments',
+                  'Your curated wardrobe pieces will appear here. Add garments to your bag to enjoy doorstep fitting.',
+                  [
+                    { text: 'Explore Storefront', onPress: () => navigation.navigate('Home') },
+                    { text: 'Close', style: 'cancel' },
+                  ]
                 )
               }
               style={styles.tileBtn}
@@ -237,43 +293,11 @@ export default function ProfileScreen({ navigation }) {
                 color={colors.accentCrimson}
               />
               <Text style={styles.tileLabel}>Wishlist</Text>
-              <Text style={styles.tileValue}>6 Pieces</Text>
+              <Text style={styles.tileValue}>Curated</Text>
             </PressableScale>
           </View>
         </View>
 
-        {/* Boutique & Atelier Partner Mode */}
-        <View style={styles.partnerCard}>
-          <View style={styles.partnerIconWrap}>
-            <MaterialIcons
-              name="storefront"
-              size={22}
-              color={colors.accentGold}
-            />
-          </View>
-
-          <View style={styles.partnerInfoCol}>
-            <View style={styles.partnerTitleRow}>
-              <Text style={styles.partnerTitle}>Boutique & Atelier Mode</Text>
-              <View style={styles.partnerBadge}>
-                <Text style={styles.partnerBadgeText}>PARTNER</Text>
-              </View>
-            </View>
-            <Text style={styles.partnerSubtitle}>
-              Switch to artisan inventory & rapid dispatch pickups
-            </Text>
-          </View>
-
-          <Switch
-            value={isVendor}
-            onValueChange={handleToggleVendor}
-            trackColor={{
-              false: 'rgba(0,0,0,0.1)',
-              true: colors.accentCrimson,
-            }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
 
         {/* Concierge & Preferences Section */}
         <View style={styles.glassCard}>
@@ -373,18 +397,38 @@ export default function ProfileScreen({ navigation }) {
           </PressableScale>
         </View>
 
-        {/* Sign Out Button */}
-        <PressableScale
-          onPress={handleSignOut}
-          style={styles.signOutBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-        >
-          <MaterialIcons name="logout" size={17} color={colors.accentCrimson} />
-          <Text style={styles.signOutText}>
-            Sign Out of Sitabuldi Account
-          </Text>
-        </PressableScale>
+        {/* Sign Out / Sign In Action Button */}
+        {token ? (
+          <PressableScale
+            onPress={handleSignOut}
+            style={styles.signOutBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
+            <MaterialIcons name="logout" size={17} color={colors.accentCrimson} />
+            <Text style={styles.signOutText}>
+              Sign Out of Account
+            </Text>
+          </PressableScale>
+        ) : (
+          <PressableScale
+            onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
+            style={[
+              styles.signOutBtn,
+              {
+                borderColor: 'rgba(217, 119, 6, 0.4)',
+                backgroundColor: 'rgba(217, 119, 6, 0.08)',
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in or register"
+          >
+            <MaterialIcons name="login" size={17} color={colors.accentGold} />
+            <Text style={[styles.signOutText, { color: colors.accentGold }]}>
+              Sign In / Register Account
+            </Text>
+          </PressableScale>
+        )}
 
         {/* Footer Edition Stamp */}
         <View style={styles.footerSection}>
@@ -583,60 +627,6 @@ const styles = StyleSheet.create({
     color: colors.textObsidian,
     fontSize: 11.5,
     fontWeight: '700',
-  },
-  partnerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.52)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.78)',
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-      },
-    }),
-  },
-  partnerIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  partnerInfoCol: {
-    flex: 1,
-  },
-  partnerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  partnerTitle: {
-    color: colors.textObsidian,
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  partnerBadge: {
-    backgroundColor: 'rgba(18, 18, 20, 0.06)',
-    paddingVertical: 1,
-    paddingHorizontal: 5,
-    borderRadius: 9999,
-  },
-  partnerBadgeText: {
-    color: colors.textSlate,
-    fontSize: 8.5,
-    fontWeight: '700',
-  },
-  partnerSubtitle: {
-    color: colors.textSlate,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 2,
   },
   glassCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.52)',

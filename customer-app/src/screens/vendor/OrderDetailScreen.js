@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,10 +17,9 @@ import * as Haptics from 'expo-haptics';
 import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
 import PressableScale from '../../components/PressableScale';
 import { fetchOrder } from '../../api/vendorApi';
-import { formatINR } from '../../data/mockStores';
+import { formatCurrency as formatINR, shortOrderId } from '../../utils/format';
 import { colors, radii, spacing } from '../../theme/colors';
-import useVendorStore, { selectOrderById } from '../../store/useVendorStore';
-import { shortOrderId } from '../../utils/format';
+import { useVendorStore, selectOrderById } from '../../store/useVendorStore';
 
 /**
  * VendorOrderDetailScreen — Fulfillment Sheet (Frosted Glass & Ambient Blobs)
@@ -42,10 +41,10 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
   const storeOrder = useVendorStore(selectOrderById(orderId));
   const pendingOrderId = useVendorStore((state) => state.pendingOrderId);
   const acceptOrder = useVendorStore((state) => state.acceptOrder);
+  const advanceStatus = useVendorStore((state) => state.advanceStatus);
   const markOrderReady = useVendorStore((state) => state.markOrderReady);
 
   const [fetched, setFetched] = useState(null);
-  const [packedStage, setPackedStage] = useState(false);
 
   const order = storeOrder ?? fetched;
   const busy = pendingOrderId === orderId;
@@ -63,56 +62,113 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
     };
   }, [orderId, storeOrder, fetched]);
 
-  const displayOrder = order || {
-    _id: orderId || 'mock-kp-8902',
-    orderId: 'KP-8902',
-    status: packedStage ? 'dispatched' : 'accepted',
-    customerName: 'Ananya Deshmukh',
-    customerPhone: '+91 98230 44102',
-    customerAddress:
-      'Bungalow 4, Palm Road, Near High Court, Civil Lines, Nagpur · 440001',
-    distanceKm: 2.8,
-    items: [
-      {
-        name: 'Handwoven Chanderi Angrakha',
-        size: 'S',
-        price: 4800,
-        colorway: 'Ivory Silk',
-      },
-    ],
-    total: 4800,
-    placedAt: '14:02 IST · Dharampeth Atelier Hub',
-  };
+  const currentStatus = (order?.status || 'PENDING').toUpperCase();
 
-  const handleAdvance = useCallback(async () => {
+  const advanceLabel =
+    currentStatus === 'PENDING'
+      ? '✓ Sweekar Karein (Accept)'
+      : currentStatus === 'ACCEPTED'
+      ? '📦 Pack Ho Gaya (Mark Packed)'
+      : currentStatus === 'PACKED'
+      ? '🛵 Porter Bulayein (Dispatch)'
+      : currentStatus === 'READY_FOR_PICKUP'
+      ? '🤝 Rider Ko Diya (Handover)'
+      : currentStatus === 'IN_TRANSIT'
+      ? '✓ Delivered (Mil Gaya)'
+      : currentStatus === 'DELIVERED'
+      ? '✓ Order Complete'
+      : 'Order Cancelled';
+
+  const isFinal = ['DELIVERED', 'CANCELLED'].includes(currentStatus);
+  const isAcceptedOrBeyond = ['ACCEPTED', 'PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(currentStatus);
+  const isPackedOrBeyond = ['PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(currentStatus);
+  const isReadyOrBeyond = ['READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(currentStatus);
+  const isDelivered = currentStatus === 'DELIVERED';
+
+  const displayOrder = order
+    ? {
+        _id: order._id,
+        orderId: String(order._id).slice(-6).toUpperCase(),
+        status: currentStatus,
+        customerName:
+          order.customer?.name ||
+          order.guestContact?.name ||
+          order.deliveryAddress?.receiverName ||
+          'Nagpur Patron',
+        customerPhone:
+          order.customer?.phone ||
+          order.guestContact?.phone ||
+          order.deliveryAddress?.receiverPhone ||
+          '+91 712 254 9900',
+        customerAddress: `${order.deliveryAddress?.line1 || ''}, ${order.deliveryAddress?.line2 || ''}, Nagpur`,
+        distanceKm: 2.4,
+        items: order.items || [],
+        total: order.totalPrice || 0,
+        placedAt: order.createdAt
+          ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : 'Recent',
+        porter: order.porter,
+      }
+    : null;
+
+  const handleAdvance = async () => {
+    if (!order?._id) return;
+
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    if (!packedStage) {
-      setPackedStage(true);
-      if (acceptOrder) {
-        try {
-          await acceptOrder(orderId);
-        } catch (_e) {
-          // ignore
-        }
+
+    try {
+      if (currentStatus === 'PENDING') {
+        const updated = await acceptOrder(order._id);
+        if (updated) setFetched(updated);
+        Alert.alert('Order Sweekar Ho Gaya', 'Order accept ho gaya hai. Kripya kapde pack karein.');
+      } else if (currentStatus === 'ACCEPTED') {
+        const updated = await advanceStatus(order._id, 'PACKED');
+        if (updated) setFetched(updated);
+        Alert.alert('Kapda Pack Ho Gaya', 'Kapda pack ho gaya hai. Ab Porter rider bulane ke liye yahan dabayein.');
+      } else if (currentStatus === 'PACKED') {
+        const res = await markOrderReady(order._id);
+        if (res?.order) setFetched(res.order);
+        Alert.alert('Porter Rider Bulaya Gaya', 'Porter rider aapki dukan par parcel lene ke liye nikal chuka hai.');
+      } else if (currentStatus === 'READY_FOR_PICKUP') {
+        const updated = await advanceStatus(order._id, 'IN_TRANSIT');
+        if (updated) setFetched(updated);
+        Alert.alert('Rider Ko Diya Gaya', 'Order doorstep trial ke liye nikal chuka hai.');
+      } else if (currentStatus === 'IN_TRANSIT') {
+        const updated = await advanceStatus(order._id, 'DELIVERED');
+        if (updated) setFetched(updated);
+        Alert.alert('Order Complete', 'Order grahak tak pahunch gaya hai.');
+        navigation.goBack();
       }
-      Alert.alert(
-        'Order Packed',
-        'Porter driver Rameshwar T. has been alerted for atelier pickup. ETA: 6m.'
-      );
-    } else {
-      if (markOrderReady) {
-        try {
-          await markOrderReady(orderId);
-        } catch (_e) {
-          // ignore
-        }
-      }
-      Alert.alert('Dispatched', 'Handed over to Porter rider. Live tracking active.');
-      navigation.goBack();
+    } catch (err) {
+      Alert.alert('Action Failed', err.message || 'Order update nahi ho saka.');
     }
-  }, [packedStage, acceptOrder, markOrderReady, orderId, navigation]);
+  };
+
+  const handleDeclineOrder = () => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updated = await advanceStatus(order._id, 'CANCELLED', 'Cancelled by atelier');
+              if (updated) setFetched(updated);
+              Alert.alert('Order Cancelled', 'The customer has been notified.');
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Could not cancel order.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.root}>
@@ -183,7 +239,13 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
                 color={colors.accentCrimson}
               />
               <Text style={styles.priorityBadgeText}>
-                {packedStage ? 'Porter En Route' : 'Awaiting Packing'}
+                {isPackedOrBeyond
+                  ? isReadyOrBeyond
+                    ? 'Porter En Route'
+                    : 'Ready for Pickup'
+                  : isAcceptedOrBeyond
+                  ? 'Packing in Progress'
+                  : 'New Order'}
               </Text>
             </View>
             <Text style={styles.priorityTag}>Priority 60-Min Trial</Text>
@@ -209,52 +271,52 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           <View style={styles.stepItem}>
             <View
               style={
-                packedStage ? styles.stepCircleDone : styles.stepCircleActive
+                isPackedOrBeyond ? styles.stepCircleDone : isAcceptedOrBeyond ? styles.stepCircleActive : styles.stepCirclePending
               }
             >
               <MaterialIcons
                 name="inventory-2"
                 size={12}
-                color={packedStage ? '#FFFFFF' : colors.accentCrimson}
+                color={isPackedOrBeyond ? '#FFFFFF' : isAcceptedOrBeyond ? colors.accentCrimson : colors.textAsh}
               />
             </View>
             <Text
-              style={packedStage ? styles.stepLabel : styles.stepLabelActive}
+              style={isAcceptedOrBeyond ? styles.stepLabelActive : styles.stepLabel}
             >
               Packing
             </Text>
           </View>
 
           <View
-            style={packedStage ? styles.stepLineDone : styles.stepLinePending}
+            style={isPackedOrBeyond ? styles.stepLineDone : styles.stepLinePending}
           />
 
           <View style={styles.stepItem}>
             <View
               style={
-                packedStage ? styles.stepCircleActive : styles.stepCirclePending
+                isReadyOrBeyond ? styles.stepCircleDone : isPackedOrBeyond ? styles.stepCircleActive : styles.stepCirclePending
               }
             >
               <MaterialIcons
                 name="two-wheeler"
                 size={12}
-                color={packedStage ? colors.accentCrimson : colors.textAsh}
+                color={isReadyOrBeyond ? '#FFFFFF' : isPackedOrBeyond ? colors.accentCrimson : colors.textAsh}
               />
             </View>
-            <Text style={styles.stepLabel}>Porter</Text>
+            <Text style={isPackedOrBeyond ? styles.stepLabelActive : styles.stepLabel}>Porter</Text>
           </View>
 
-          <View style={styles.stepLinePending} />
+          <View style={isReadyOrBeyond ? styles.stepLineDone : styles.stepLinePending} />
 
           <View style={styles.stepItem}>
-            <View style={styles.stepCirclePending}>
+            <View style={isDelivered ? styles.stepCircleDone : styles.stepCirclePending}>
               <MaterialIcons
                 name="cottage"
                 size={12}
-                color={colors.textAsh}
+                color={isDelivered ? '#FFFFFF' : colors.textAsh}
               />
             </View>
-            <Text style={styles.stepLabel}>Delivered</Text>
+            <Text style={isDelivered ? styles.stepLabelActive : styles.stepLabel}>Delivered</Text>
           </View>
         </View>
 
@@ -380,10 +442,32 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
             </Text>
           </View>
 
+          {currentStatus === 'PENDING' && (
+            <PressableScale
+              onPress={handleDeclineOrder}
+              disabled={busy}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: radii.md,
+                backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(211, 47, 47, 0.3)',
+                marginRight: 8,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Decline Order"
+            >
+              <Text style={{ color: '#D32F2F', fontWeight: '800', fontSize: 13 }}>✕ Cancel Karein</Text>
+            </PressableScale>
+          )}
+
           <PressableScale
             onPress={handleAdvance}
-            disabled={busy}
-            style={styles.advanceBtn}
+            disabled={busy || isFinal}
+            style={[styles.advanceBtn, isFinal && { opacity: 0.5 }]}
             accessibilityRole="button"
             accessibilityLabel="Advance Order"
           >
@@ -391,16 +475,14 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Text style={styles.advanceLabel}>
-                  {packedStage
-                    ? 'Hand Over to Porter'
-                    : 'Mark Packed · Request Porter'}
-                </Text>
-                <MaterialIcons
-                  name="arrow-forward"
-                  size={16}
-                  color="#FFFFFF"
-                />
+                <Text style={styles.advanceLabel}>{advanceLabel}</Text>
+                {!isFinal && (
+                  <MaterialIcons
+                    name="arrow-forward"
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                )}
               </>
             )}
           </PressableScale>

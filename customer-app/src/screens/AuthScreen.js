@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import useAuthStore from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
 import { colors, radii, spacing } from '../theme/colors';
 

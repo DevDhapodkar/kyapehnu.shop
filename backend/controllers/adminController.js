@@ -97,9 +97,9 @@ export const listPendingProducts = async (req, res) => {
   }
 };
 
-/** PATCH /api/admin/products/:id/review  { decision: 'APPROVE'|'REJECT', reason? } */
+/** PATCH /api/admin/products/:id/review  { decision: 'APPROVE'|'REJECT', reason?, mrp? } */
 export const reviewProduct = async (req, res) => {
-  const { decision, reason } = req.body ?? {};
+  const { decision, reason, mrp } = req.body ?? {};
 
   let nextStatus;
   try {
@@ -119,8 +119,16 @@ export const reviewProduct = async (req, res) => {
     product.status = nextStatus;
     product.qc = { reviewedBy: req.admin._id, reviewedAt: new Date(), reason: reason || undefined };
     // Assign a human SKU on first approval only.
-    if (nextStatus === PRODUCT_STATUS.APPROVED && !product.sku) {
-      product.sku = generateSku(product.category);
+    if (nextStatus === PRODUCT_STATUS.APPROVED) {
+      if (!product.sku) {
+        product.sku = generateSku(product.category);
+      }
+      // Official printed MRP decided by admin on approval
+      if (mrp !== undefined && Number(mrp) > 0) {
+        product.mrp = Number(mrp);
+      } else if (!product.mrp) {
+        product.mrp = product.price;
+      }
     }
     await product.save();
 

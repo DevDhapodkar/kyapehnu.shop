@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Platform,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -15,7 +17,10 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
+import { fetchMyOrders, cancelMyOrder } from '../api/vendorApi';
+import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -24,7 +29,7 @@ import { colors, radii, spacing } from '../theme/colors';
  * Implements Stitch Screen 96713c4a6fac48ebb5c6f2f2c6eb6de9:
  * - Animated drifting ambient background blobs
  * - Top header with brand concierge wordmark & location
- * - Tab switcher: Active Orders vs Past Archive (2)
+ * - Tab switcher: Active Orders vs Past Archive
  * - Rich active order card with live route corridor info & direct "Track Live" button
  * - Past order archive cards with reorder, receipt, and rating actions
  * - Doorstep Tailor Fitting concierge consultation banner
@@ -32,62 +37,128 @@ import { colors, radii, spacing } from '../theme/colors';
  */
 export default function MyOrdersScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [selectedTab, setSelectedTab] = useState('active'); // 'active' | 'archive'
+  const token = useAuthStore((state) => state.token);
+  const addToCart = useCartStore((state) => state.addToCart);
 
-  const activeOrder = {
-    orderId: 'KP-8902',
-    atelierName: 'Studio Anamika',
-    locality: 'Dharampeth',
-    itemName: 'Handwoven Chanderi Angrakha',
-    size: 'S',
-    colorway: 'Ivory Silk',
-    price: 4800,
-    etaMinutes: 18,
-    corridor: 'Near Law College, West High Court Rd',
-    status: 'In Transit',
+  const [selectedTab, setSelectedTab] = useState('active'); // 'active' | 'archive'
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(Boolean(token));
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+
+  const loadOrders = useCallback(async () => {
+    if (!token) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await fetchMyOrders();
+      const list = Array.isArray(data) ? data : data?.items || [];
+      setOrders(list);
+    } catch (_err) {
+      // transient or offline error
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+
+    fetchMyOrders()
+      .then((data) => {
+        if (active) {
+          const list = Array.isArray(data) ? data : data?.items || [];
+          setOrders(list);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadOrders();
   };
 
-  const pastOrders = [
-    {
-      orderId: 'KP-6410',
-      atelierName: 'Boutique 9',
-      locality: 'Sadar',
-      date: 'Yesterday',
-      itemName: 'Sculpted Linen Co-ord',
-      size: 'M',
-      price: 2890,
-      outcome: 'Kept',
-    },
-    {
-      orderId: 'KP-5198',
-      atelierName: 'Maheshwari Handlooms',
-      locality: 'Gandhibagh',
-      date: '4 days ago',
-      itemName: 'Tussar Silk Kurta',
-      size: 'L',
-      price: 3450,
-      outcome: 'Kept',
-    },
-  ];
+  const activeOrders = orders.filter((o) =>
+    ['PENDING', 'ACCEPTED', 'PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT'].includes(
+      o.status?.toUpperCase()
+    )
+  );
 
-  const handleTrackLive = () => {
+  const pastOrders = orders.filter((o) =>
+    ['DELIVERED', 'CANCELLED'].includes(o.status?.toUpperCase())
+  );
+
+  const handleTrackLive = (ord) => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     navigation.navigate('LiveTracking', {
-      order: {
-        orderId: activeOrder.orderId,
-        etaMinutes: activeOrder.etaMinutes,
-        total: activeOrder.price,
-        items: [
-          {
-            name: activeOrder.itemName,
-            price: activeOrder.price,
-            storeName: activeOrder.atelierName,
-          },
-        ],
-      },
+      orderId: ord._id || ord.id,
+      order: ord,
     });
+  };
+
+  const handleCancelOrder = (orderId) => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoadingId(orderId);
+            try {
+              await cancelMyOrder(orderId);
+              await loadOrders();
+              Alert.alert('Order Cancelled', 'Your order was cancelled.');
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Could not cancel order.');
+            } finally {
+              setActionLoadingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReorder = (item, vendor) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    addToCart(
+      {
+        id: item.product?._id || item.product || item.id,
+        productId: item.product?._id || item.product || item.id,
+        name: item.name,
+        price: item.price,
+        image: item.product?.images?.[0] || item.image,
+        storeId: vendor?._id || vendor,
+        storeName: vendor?.shopName || 'Boutique',
+        storeArea: vendor?.address?.area || 'Nagpur',
+        sizes: [item.size || 'Free'],
+      },
+      item.size || 'Free',
+      item.quantity || 1
+    );
+    navigation.navigate('Cart');
   };
 
   const handleTailorChat = () => {
@@ -152,6 +223,13 @@ export default function MyOrdersScreen({ navigation }) {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accentCrimson}
+          />
+        }
       >
         {/* Screen Header */}
         <View style={styles.titleSection}>
@@ -159,7 +237,9 @@ export default function MyOrdersScreen({ navigation }) {
           <View style={styles.titleRow}>
             <Text style={styles.title}>Orders</Text>
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>3 items</Text>
+              <Text style={styles.countText}>
+                {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+              </Text>
             </View>
           </View>
         </View>
@@ -176,7 +256,7 @@ export default function MyOrdersScreen({ navigation }) {
                 selectedTab === 'active' && styles.tabTextActive,
               ]}
             >
-              Active Orders
+              Active Orders ({activeOrders.length})
             </Text>
           </PressableScale>
 
@@ -190,168 +270,266 @@ export default function MyOrdersScreen({ navigation }) {
                 selectedTab === 'archive' && styles.tabTextActive,
               ]}
             >
-              Past Archive (2)
+              Past Archive ({pastOrders.length})
             </Text>
           </PressableScale>
         </View>
 
-        {selectedTab === 'active' ? (
-          /* Active Order Card */
-          <View style={styles.activeCard}>
-            <View style={styles.activeCardHeader}>
-              <View>
-                <View style={styles.atelierTagRow}>
-                  <Text style={styles.atelierName}>
-                    {activeOrder.atelierName}
-                  </Text>
-                  <MaterialIcons
-                    name="verified"
-                    size={14}
-                    color={colors.accentGold}
-                  />
-                </View>
-                <Text style={styles.orderIdSub}>
-                  {activeOrder.locality} · Order #{activeOrder.orderId}
-                </Text>
-              </View>
-
-              <View style={styles.inTransitBadge}>
-                <View style={styles.transitDot} />
-                <Text style={styles.inTransitText}>In Transit</Text>
-              </View>
-            </View>
-
-            <Text style={styles.garmentTitle}>{activeOrder.itemName}</Text>
-
-            <View style={styles.garmentMetaRow}>
-              <Text style={styles.garmentSize}>
-                Size {activeOrder.size} · {activeOrder.colorway}
-              </Text>
-              <Text style={styles.garmentPrice}>
-                {formatINR(activeOrder.price)}
-              </Text>
-            </View>
-
-            {/* Rider Corridor Tracking Banner */}
-            <View style={styles.corridorBanner}>
-              <MaterialIcons
-                name="two-wheeler"
-                size={18}
-                color={colors.accentCrimson}
-              />
-              <View style={styles.corridorTextCol}>
-                <Text style={styles.corridorTitle}>
-                  Rider en route · {activeOrder.etaMinutes}m ETA
-                </Text>
-                <Text style={styles.corridorSub}>{activeOrder.corridor}</Text>
-              </View>
-            </View>
-
-            {/* Quick Status Tags */}
-            <View style={styles.tagsRow}>
-              <View style={styles.statusTag}>
-                <Text style={styles.statusTagText}>Dispatched</Text>
-              </View>
-              <View style={styles.statusTag}>
-                <Text style={styles.statusTagText}>On Bike</Text>
-              </View>
-              <View style={styles.statusTag}>
-                <Text style={styles.statusTagText}>Try & Buy</Text>
-              </View>
-            </View>
-
-            {/* Track Live CTA */}
+        {loading ? (
+          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={colors.accentGold} />
+          </View>
+        ) : !token ? (
+          <View style={[styles.activeCard, { alignItems: 'center', paddingVertical: 32 }]}>
+            <MaterialIcons name="lock-outline" size={36} color={colors.accentGold} />
+            <Text style={[styles.garmentTitle, { marginTop: 12, textAlign: 'center' }]}>
+              Sign in to view orders
+            </Text>
+            <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16 }]}>
+              Your live fitting timelines and order archive will appear here.
+            </Text>
             <PressableScale
-              onPress={handleTrackLive}
-              style={styles.trackLiveBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Track Live"
+              onPress={() => navigation.navigate('Auth')}
+              style={[styles.trackLiveBtn, { alignSelf: 'center', paddingHorizontal: 24 }]}
             >
-              <MaterialIcons
-                name="navigation"
-                size={17}
-                color="#FFFFFF"
-              />
-              <Text style={styles.trackLiveLabel}>Track Live</Text>
+              <Text style={styles.trackLiveLabel}>Sign In</Text>
             </PressableScale>
           </View>
-        ) : null}
+        ) : selectedTab === 'active' ? (
+          activeOrders.length === 0 ? (
+            <View style={[styles.activeCard, { alignItems: 'center', paddingVertical: 32 }]}>
+              <MaterialIcons name="shopping-bag" size={36} color={colors.accentGold} />
+              <Text style={[styles.garmentTitle, { marginTop: 12 }]}>No active orders</Text>
+              <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16 }]}>
+                Browse Sitabuldi and Dharampeth boutiques with rapid doorstep fitting.
+              </Text>
+              <PressableScale
+                onPress={() => navigation.navigate('Home')}
+                style={[styles.trackLiveBtn, { alignSelf: 'center', paddingHorizontal: 20 }]}
+              >
+                <Text style={styles.trackLiveLabel}>Browse Boutiques</Text>
+              </PressableScale>
+            </View>
+          ) : (
+            activeOrders.map((ord) => {
+              const vendor = ord.vendor || {};
+              const firstItem = ord.items?.[0] || {};
+              const isCancellable = ['PENDING', 'ACCEPTED'].includes(ord.status?.toUpperCase());
 
-        {/* Past Archive List */}
-        <View style={styles.archiveSection}>
-          <Text style={styles.archiveSectionTitle}>Past Archive</Text>
+              return (
+                <View key={ord._id || ord.id} style={styles.activeCard}>
+                  <View style={styles.activeCardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.atelierTagRow}>
+                        <Text style={styles.atelierName}>
+                          {vendor.shopName || 'Nagpur Atelier'}
+                        </Text>
+                        <MaterialIcons
+                          name="verified"
+                          size={14}
+                          color={colors.accentGold}
+                        />
+                      </View>
+                      <Text style={styles.orderIdSub}>
+                        {vendor.address?.area || 'Nagpur'} · Order #{String(ord._id || ord.id).slice(-6).toUpperCase()}
+                      </Text>
+                    </View>
 
-          <View style={styles.archiveList}>
-            {pastOrders.map((ord) => (
-              <View key={ord.orderId} style={styles.archiveCard}>
-                <View style={styles.archiveHeaderRow}>
-                  <View>
-                    <Text style={styles.archiveAtelier}>
-                      {ord.atelierName} · {ord.locality}
+                    <View style={styles.inTransitBadge}>
+                      <View style={styles.transitDot} />
+                      <Text style={styles.inTransitText}>
+                        {ord.status === 'IN_TRANSIT'
+                          ? 'In Transit'
+                          : ord.status === 'READY_FOR_PICKUP'
+                          ? 'Ready'
+                          : ord.status === 'PACKED'
+                          ? 'Packed'
+                          : ord.status === 'ACCEPTED'
+                          ? 'Preparing'
+                          : 'Placed'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.garmentTitle}>
+                    {firstItem.name || 'Boutique Garment'}
+                    {ord.items?.length > 1 ? ` +${ord.items.length - 1} more` : ''}
+                  </Text>
+
+                  <View style={styles.garmentMetaRow}>
+                    <Text style={styles.garmentSize}>
+                      Size {firstItem.size || 'Free'} · {ord.items?.length || 1} {ord.items?.length === 1 ? 'item' : 'items'}
                     </Text>
-                    <Text style={styles.archiveDate}>
-                      #{ord.orderId} · {ord.date}
+                    <Text style={styles.garmentPrice}>
+                      {formatINR(ord.totalPrice || firstItem.price || 0)}
                     </Text>
                   </View>
 
-                  <View style={styles.keptBadge}>
+                  {/* Rider Corridor Banner */}
+                  <View style={styles.corridorBanner}>
                     <MaterialIcons
-                      name="check-circle"
-                      size={13}
-                      color={colors.accentGoldDeep}
+                      name="two-wheeler"
+                      size={18}
+                      color={colors.accentCrimson}
                     />
-                    <Text style={styles.keptText}>{ord.outcome}</Text>
+                    <View style={styles.corridorTextCol}>
+                      <Text style={styles.corridorTitle}>
+                        {ord.status === 'IN_TRANSIT'
+                          ? 'Porter rider en route'
+                          : ord.status === 'READY_FOR_PICKUP'
+                          ? 'Driver arriving at boutique'
+                          : 'Preparing in atelier'}
+                      </Text>
+                      <Text style={styles.corridorSub}>
+                        {ord.deliveryAddress?.line1 || 'Sitabuldi corridor'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Actions Row */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                    <PressableScale
+                      onPress={() => handleTrackLive(ord)}
+                      style={[styles.trackLiveBtn, { flex: 1, marginTop: 0 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Track Live"
+                    >
+                      <MaterialIcons name="navigation" size={17} color="#FFFFFF" />
+                      <Text style={styles.trackLiveLabel}>Track Live</Text>
+                    </PressableScale>
+
+                    {isCancellable && (
+                      <PressableScale
+                        onPress={() => handleCancelOrder(ord._id || ord.id)}
+                        disabled={actionLoadingId === (ord._id || ord.id)}
+                        style={{
+                          paddingHorizontal: 16,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          borderRadius: radii.md,
+                          backgroundColor: 'rgba(211, 47, 47, 0.08)',
+                          borderWidth: 1,
+                          borderColor: 'rgba(211, 47, 47, 0.25)',
+                        }}
+                      >
+                        {actionLoadingId === (ord._id || ord.id) ? (
+                          <ActivityIndicator size="small" color="#D32F2F" />
+                        ) : (
+                          <Text style={{ color: '#D32F2F', fontWeight: '700', fontSize: 13 }}>
+                            Cancel
+                          </Text>
+                        )}
+                      </PressableScale>
+                    )}
                   </View>
                 </View>
+              );
+            })
+          )
+        ) : (
+          /* Past Archive Section */
+          <View style={styles.archiveSection}>
+            <Text style={styles.archiveSectionTitle}>Past Archive</Text>
 
-                <View style={styles.archiveGarmentRow}>
-                  <Text style={styles.archiveGarmentName}>{ord.itemName}</Text>
-                  <Text style={styles.archivePrice}>
-                    {formatINR(ord.price)}
+            <View style={styles.archiveList}>
+              {pastOrders.length === 0 ? (
+                <View style={[styles.archiveCard, { alignItems: 'center', paddingVertical: 24 }]}>
+                  <Text style={[styles.archiveAtelier, { textAlign: 'center' }]}>
+                    No completed or cancelled orders yet.
                   </Text>
                 </View>
+              ) : (
+                pastOrders.map((ord) => {
+                  const vendor = ord.vendor || {};
+                  const firstItem = ord.items?.[0] || {};
+                  const isDelivered = ord.status === 'DELIVERED';
 
-                <View style={styles.archiveActionsRow}>
-                  <PressableScale
-                    onPress={() =>
-                      Alert.alert(
-                        'Reorder',
-                        `Requesting ${ord.itemName} from ${ord.atelierName}...`
-                      )
-                    }
-                    style={styles.reorderBtn}
-                  >
-                    <MaterialIcons
-                      name="receipt-long"
-                      size={14}
-                      color={colors.textObsidian}
-                    />
-                    <Text style={styles.reorderBtnText}>
-                      Receipt & Reorder
-                    </Text>
-                  </PressableScale>
+                  return (
+                    <View key={ord._id || ord.id} style={styles.archiveCard}>
+                      <View style={styles.archiveHeaderRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.archiveAtelier}>
+                            {vendor.shopName || 'Nagpur Boutique'} · {vendor.address?.area || 'Nagpur'}
+                          </Text>
+                          <Text style={styles.archiveDate}>
+                            #{String(ord._id || ord.id).slice(-6).toUpperCase()} ·{' '}
+                            {ord.createdAt ? new Date(ord.createdAt).toLocaleDateString() : 'Recent'}
+                          </Text>
+                        </View>
 
-                  <PressableScale
-                    onPress={() =>
-                      Alert.alert(
-                        'Rate Atelier',
-                        `Leave a review for ${ord.atelierName}.`
-                      )
-                    }
-                    style={styles.rateBtn}
-                  >
-                    <MaterialIcons
-                      name="star"
-                      size={14}
-                      color={colors.accentGold}
-                    />
-                    <Text style={styles.rateBtnText}>Rate Atelier</Text>
-                  </PressableScale>
-                </View>
-              </View>
-            ))}
+                        <View
+                          style={[
+                            styles.keptBadge,
+                            !isDelivered && {
+                              backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                              borderColor: 'rgba(211, 47, 47, 0.3)',
+                            },
+                          ]}
+                        >
+                          <MaterialIcons
+                            name={isDelivered ? 'check-circle' : 'cancel'}
+                            size={13}
+                            color={isDelivered ? colors.accentGoldDeep : '#D32F2F'}
+                          />
+                          <Text
+                            style={[
+                              styles.keptText,
+                              !isDelivered && { color: '#D32F2F' },
+                            ]}
+                          >
+                            {isDelivered ? 'Delivered' : 'Cancelled'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.archiveGarmentRow}>
+                        <Text style={styles.archiveGarmentName} numberOfLines={1}>
+                          {firstItem.name || 'Boutique Item'}
+                          {ord.items?.length > 1 ? ` (+${ord.items.length - 1})` : ''}
+                        </Text>
+                        <Text style={styles.archivePrice}>
+                          {formatINR(ord.totalPrice || firstItem.price || 0)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.archiveActionsRow}>
+                        <PressableScale
+                          onPress={() => handleReorder(firstItem, vendor)}
+                          style={styles.reorderBtn}
+                        >
+                          <MaterialIcons
+                            name="receipt-long"
+                            size={14}
+                            color={colors.textObsidian}
+                          />
+                          <Text style={styles.reorderBtnText}>Reorder to Bag</Text>
+                        </PressableScale>
+
+                        <PressableScale
+                          onPress={() =>
+                            Alert.alert(
+                              'Feedback & Review',
+                              `Thank you for rating ${vendor.shopName || 'the atelier'}! Your review supports Nagpur artisans.`,
+                              [{ text: 'OK' }]
+                            )
+                          }
+                          style={styles.rateBtn}
+                        >
+                          <MaterialIcons
+                            name="star"
+                            size={14}
+                            color={colors.accentGold}
+                          />
+                          <Text style={styles.rateBtnText}>Rate Atelier</Text>
+                        </PressableScale>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Doorstep Tailor Fitting Banner */}
         <View style={styles.tailorBanner}>

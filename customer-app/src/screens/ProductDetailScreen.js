@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import {
   Alert,
   Dimensions,
+  Linking,
   Platform,
   Pressable,
   Share,
@@ -24,7 +25,8 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { formatINR } from '../data/mockStores';
+import { normalizeColor } from '../constants/colorPalette';
+import { formatCurrency as formatINR } from '../utils/format';
 import { useCartStore } from '../store/useCartStore';
 import { colors, radii, spacing } from '../theme/colors';
 
@@ -48,8 +50,9 @@ const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
  * - Floating glass top navigation bar (Back, Wordmark, Wishlist, Share)
  * - Multi-angle view capsule switcher (Front, Drape, Weave, Back)
  * - Atelier & garment title card with tabular pricing & discount
+ * - Interactive Colorway palette selector with visual swatches
  * - Frosted glass size selector & size guide modal
- * - Couture specifications grid (Fabric, Cut, Care, Set)
+ * - Couture & craft specifications grid (Fabric, Pattern, Fit, Occasion, Care, Set)
  * - Atelier concierge card with Call & Video Consultation
  * - Sticky bottom frosted glass action bar with live Add to Bag
  * - Zero Emojis (MaterialIcons throughout)
@@ -79,10 +82,41 @@ export default function ProductDetailScreen({ route, navigation }) {
     description:
       'Spun mulberry chanderi with hand-embroidered antique dabka edging, crafted by master artisans in Nagpur.',
     image: require('../../assets/images/spotlight-angrakha.jpg'),
+    colors: [
+      { name: 'Obsidian Black', hex: '#121215' },
+      { name: 'Heritage Gold', hex: '#D97706' },
+      { name: 'Peacock Teal', hex: '#0F766E' },
+    ],
+    material: 'Pure Mulberry Chanderi Silk',
+    pattern: 'Antique Dabka Hand Embroidered',
+    fit: 'Flared Angrakha Fit',
+    occasion: 'Festive & Evening Soirée',
+    sleeve: 'Full Sleeves with Zari Border',
+    neck: 'Angrakha Overlap V-Neck',
+    careInstructions: 'Dry Clean Only',
+    netQuantity: 1,
+    countryOfOrigin: 'India',
+    sku: 'SA-ANG-01',
   };
 
   const item = product || fallbackProduct;
   const sizes = item.sizes?.length ? item.sizes : DEFAULT_SIZES;
+
+  const rawColors =
+    Array.isArray(item.colors) && item.colors.length > 0
+      ? item.colors
+      : item.colorway
+      ? item.colorway.split(',').map((s) => s.trim())
+      : [
+          { name: 'Obsidian Black', hex: '#121215' },
+          { name: 'Heritage Gold', hex: '#D97706' },
+        ];
+
+  const normalizedColors = rawColors.map(normalizeColor);
+
+  const [selectedColor, setSelectedColor] = useState(
+    normalizedColors[0] || { name: 'Standard', hex: '#121215' }
+  );
 
   const discountPercent = item.mrp
     ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
@@ -139,7 +173,7 @@ export default function ProductDetailScreen({ route, navigation }) {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    addToCart(item, selectedSize);
+    addToCart(item, selectedSize, selectedColor);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 2600);
   };
@@ -281,7 +315,87 @@ export default function ProductDetailScreen({ route, navigation }) {
             ) : null}
           </View>
 
-          {/* Card 2: Size Selector */}
+          {/* Card 2: Colorway Palette */}
+          {normalizedColors.length > 0 ? (
+            <View style={styles.glassCard}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardHeaderTitle}>Colorway</Text>
+                <View style={styles.selectedColorBadge}>
+                  <View
+                    style={[
+                      styles.selectedColorDot,
+                      { backgroundColor: selectedColor.hex },
+                    ]}
+                  />
+                  <Text style={styles.selectedColorName}>
+                    {selectedColor.name}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.colorsRow}>
+                {normalizedColors.map((col) => {
+                  const isSelected =
+                    selectedColor.name.toLowerCase() === col.name.toLowerCase();
+                  return (
+                    <PressableScale
+                      key={col.name}
+                      onPress={() => {
+                        if (Platform.OS !== 'web') {
+                          Haptics.selectionAsync();
+                        }
+                        setSelectedColor(col);
+                      }}
+                      style={[
+                        styles.colorSwatchWrap,
+                        isSelected && styles.colorSwatchWrapSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select color ${col.name}`}
+                    >
+                      <View
+                        style={[
+                          styles.colorSwatchCircle,
+                          {
+                            backgroundColor: col.hex,
+                            borderColor:
+                              col.hex.toLowerCase() === '#ffffff' ||
+                              col.hex.toLowerCase() === '#f9f6f0'
+                                ? 'rgba(0,0,0,0.2)'
+                                : col.hex,
+                          },
+                        ]}
+                      >
+                        {isSelected ? (
+                          <MaterialIcons
+                            name="check"
+                            size={12}
+                            color={
+                              col.hex.toLowerCase() === '#ffffff' ||
+                              col.hex.toLowerCase() === '#f9f6f0'
+                                ? '#121215'
+                                : '#FFFFFF'
+                            }
+                          />
+                        ) : null}
+                      </View>
+                      <Text
+                        style={[
+                          styles.colorSwatchName,
+                          isSelected && styles.colorSwatchNameSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {col.name}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Card 3: Size Selector */}
           <View style={styles.glassCard}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardHeaderTitle}>Size</Text>
@@ -326,9 +440,9 @@ export default function ProductDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Card 3: Specifications Grid */}
+          {/* Card 4: Couture & Craft Specifications Grid */}
           <View style={styles.glassCard}>
-            <Text style={styles.cardHeaderTitle}>Couture Details</Text>
+            <Text style={styles.cardHeaderTitle}>Couture & Craft Details</Text>
             <View style={styles.specsGrid}>
               <View style={styles.specItem}>
                 <MaterialIcons
@@ -336,9 +450,9 @@ export default function ProductDetailScreen({ route, navigation }) {
                   size={16}
                   color={colors.accentGold}
                 />
-                <View>
+                <View style={styles.specTextCol}>
                   <Text style={styles.specLabel}>Fabric</Text>
-                  <Text style={styles.specValue}>Chanderi Silk</Text>
+                  <Text style={styles.specValue}>{item.material || 'Pure Silk / Cotton'}</Text>
                 </View>
               </View>
 
@@ -348,51 +462,129 @@ export default function ProductDetailScreen({ route, navigation }) {
                   size={16}
                   color={colors.accentGold}
                 />
-                <View>
-                  <Text style={styles.specLabel}>Cut</Text>
-                  <Text style={styles.specValue}>Flared Angrakha</Text>
+                <View style={styles.specTextCol}>
+                  <Text style={styles.specLabel}>Cut / Silhouette</Text>
+                  <Text style={styles.specValue}>{item.subCategory || item.category || 'Atelier Collection'}</Text>
                 </View>
               </View>
 
+              {item.pattern ? (
+                <View style={styles.specItem}>
+                  <MaterialIcons
+                    name="auto-awesome"
+                    size={16}
+                    color={colors.accentGold}
+                  />
+                  <View style={styles.specTextCol}>
+                    <Text style={styles.specLabel}>Pattern / Craft</Text>
+                    <Text style={styles.specValue}>{item.pattern}</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {item.fit ? (
+                <View style={styles.specItem}>
+                  <MaterialIcons
+                    name="accessibility-new"
+                    size={16}
+                    color={colors.accentGold}
+                  />
+                  <View style={styles.specTextCol}>
+                    <Text style={styles.specLabel}>Fit</Text>
+                    <Text style={styles.specValue}>{item.fit}</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {item.occasion ? (
+                <View style={styles.specItem}>
+                  <MaterialIcons
+                    name="celebration"
+                    size={16}
+                    color={colors.accentGold}
+                  />
+                  <View style={styles.specTextCol}>
+                    <Text style={styles.specLabel}>Occasion</Text>
+                    <Text style={styles.specValue}>{item.occasion}</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {item.sleeve || item.neck ? (
+                <View style={styles.specItem}>
+                  <MaterialIcons
+                    name="dry-cleaning"
+                    size={16}
+                    color={colors.accentGold}
+                  />
+                  <View style={styles.specTextCol}>
+                    <Text style={styles.specLabel}>Style Details</Text>
+                    <Text style={styles.specValue}>
+                      {[item.sleeve, item.neck].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
               <View style={styles.specItem}>
                 <MaterialIcons
-                  name="dry-cleaning"
+                  name="local-laundry-service"
                   size={16}
                   color={colors.accentGold}
                 />
-                <View>
+                <View style={styles.specTextCol}>
                   <Text style={styles.specLabel}>Care</Text>
-                  <Text style={styles.specValue}>Dry Clean Only</Text>
+                  <Text style={styles.specValue}>{item.careInstructions || item.care || 'Dry Clean Only'}</Text>
                 </View>
               </View>
 
               <View style={styles.specItem}>
                 <MaterialIcons
-                  name="checkroom"
+                  name="verified"
                   size={16}
                   color={colors.accentGold}
                 />
-                <View>
-                  <Text style={styles.specLabel}>Includes</Text>
-                  <Text style={styles.specValue}>3-Piece Set</Text>
+                <View style={styles.specTextCol}>
+                  <Text style={styles.specLabel}>Declaration</Text>
+                  <Text style={styles.specValue}>
+                    {item.netQuantity || 1} Unit · {item.countryOfOrigin || 'India'}
+                  </Text>
                 </View>
               </View>
+
+              {item.sku ? (
+                <View style={styles.specItem}>
+                  <MaterialIcons
+                    name="qr-code"
+                    size={16}
+                    color={colors.accentGold}
+                  />
+                  <View style={styles.specTextCol}>
+                    <Text style={styles.specLabel}>Atelier SKU</Text>
+                    <Text style={styles.specValue}>{item.sku}</Text>
+                  </View>
+                </View>
+              ) : null}
             </View>
           </View>
 
-          {/* Card 4: Atelier Concierge */}
+          {/* Card 5: Atelier Concierge */}
           <View style={styles.glassCard}>
             <View style={styles.atelierRow}>
               <View style={styles.atelierInfo}>
-                <Text style={styles.atelierName}>{item.storeName}</Text>
+                <Text style={styles.atelierName}>{item.storeName || 'Nagpur Atelier'}</Text>
                 <Text style={styles.atelierDetails}>
-                  {item.storeArea || 'Dharampeth'} · {item.distanceKm || 1.4} km · ★ {item.rating || 4.9}
+                  {item.storeArea || 'Nagpur'} · {item.distanceKm || 1.4} km · ★ {item.rating || 4.9}
                 </Text>
               </View>
 
               <View style={styles.atelierActions}>
                 <PressableScale
-                  onPress={() => Alert.alert('Concierge', `Calling ${item.storeName} atelier...`)}
+                  onPress={() => {
+                    Linking.openURL('tel:+917122549900').catch(() => {
+                      Alert.alert('Atelier Concierge', 'Call +91 712 254 9900 for fitting & alteration assistance.');
+                    });
+                  }}
                   style={styles.atelierActionBtn}
                   accessibilityRole="button"
                   accessibilityLabel="Call atelier"
@@ -405,18 +597,20 @@ export default function ProductDetailScreen({ route, navigation }) {
                 </PressableScale>
 
                 <PressableScale
-                  onPress={() =>
-                    Alert.alert(
-                      'Video Consultation',
-                      `Connecting with stylist at ${item.storeName}...`
-                    )
-                  }
+                  onPress={() => {
+                    const text = encodeURIComponent(
+                      `Hi Kya Pehnu Concierge, I need styling consultation for ${item.name} (${item.storeName || 'Atelier'}).`
+                    );
+                    Linking.openURL(`https://wa.me/917122549900?text=${text}`).catch(() => {
+                      Alert.alert('Stylist Consultation', 'Stylist WhatsApp hotline available at +91 712 254 9900.');
+                    });
+                  }}
                   style={styles.atelierActionBtn}
                   accessibilityRole="button"
-                  accessibilityLabel="Video consultation"
+                  accessibilityLabel="WhatsApp video styling"
                 >
                   <MaterialIcons
-                    name="videocam"
+                    name="video-camera-front"
                     size={17}
                     color={colors.textObsidian}
                   />
@@ -439,7 +633,9 @@ export default function ProductDetailScreen({ route, navigation }) {
               size={17}
               color={colors.accentGold}
             />
-            <Text style={styles.toastText}>Added to Bag (Size {selectedSize})</Text>
+            <Text style={styles.toastText}>
+              Added to Bag ({selectedColor.name} · {selectedSize})
+            </Text>
           </View>
         </View>
       ) : null}
@@ -453,7 +649,9 @@ export default function ProductDetailScreen({ route, navigation }) {
       >
         <View style={styles.bottomBar}>
           <View style={styles.priceCol}>
-            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalLabel}>
+              {selectedColor.name.toUpperCase()} · SIZE {selectedSize}
+            </Text>
             <Text style={styles.totalPrice}>{formatINR(item.price)}</Text>
           </View>
 
@@ -685,6 +883,73 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
+  selectedColorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  selectedColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  selectedColorName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textObsidian,
+  },
+  colorsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.xs,
+  },
+  colorSwatchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+  },
+  colorSwatchWrapSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: colors.accentCrimson,
+    borderWidth: 1.5,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  colorSwatchCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorSwatchName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSlate,
+  },
+  colorSwatchNameSelected: {
+    color: colors.textObsidian,
+    fontWeight: '700',
+  },
   guideBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -745,6 +1010,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  specTextCol: {
+    flex: 1,
   },
   specLabel: {
     color: colors.textAsh,

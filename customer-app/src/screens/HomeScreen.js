@@ -6,6 +6,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -31,11 +32,11 @@ import StorefrontAmbientProductCard from '../components/StorefrontAmbientProduct
 import StorefrontAmbientSpotlightCard from '../components/StorefrontAmbientSpotlightCard';
 import StorefrontAmbientTabBar from '../components/StorefrontAmbientTabBar';
 import useDeliveryLocation from '../hooks/useDeliveryLocation';
-import useStorefrontStore from '../store/useStorefrontStore';
+import { useStorefrontStore } from '../store/useStorefrontStore';
 import { selectCartCount, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { EASE_OUT, duration } from '../theme/motion';
-import { colors, spacing } from '../theme/colors';
+import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -85,7 +86,7 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [guestExplore, setGuestExplore] = useState(false);
+  const [guestExplore, setGuestExplore] = useState(true);
 
   const { areaLabel, status } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
@@ -124,6 +125,7 @@ export default function HomeScreen({ navigation }) {
           cartCount={cartCount}
           onQuickAdd={(product) => addToCart(product)}
           onNavigateOrders={() => (isLoggedIn ? navigation.navigate('MyOrders') : openAuth('signin'))}
+          onViewStory={() => setGuestExplore(false)}
         />
       </View>
     );
@@ -156,6 +158,26 @@ function MarketingScrollytelling({ insets, onJoin, onLogin, onExploreGuest }) {
 
   return (
     <>
+      {/* Top Floating Pill to Skip Straight into Storefront */}
+      <View
+        style={[
+          styles.skipToStorefrontWrap,
+          { top: insets.top + 8 },
+        ]}
+      >
+        <PressableScale
+          onPress={onExploreGuest}
+          style={styles.skipToStorefrontBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Enter Storefront"
+        >
+          <Text style={styles.skipToStorefrontText}>
+            Storefront
+          </Text>
+          <MaterialIcons name="arrow-forward" size={14} color="#FFFFFF" />
+        </PressableScale>
+      </View>
+
       {/* Pre-rendered drone-shot frames sit behind everything and never
           intercept touches. */}
       <ScrollytellingSequence scrollY={scrollY} scrollRange={SCROLL_RANGE} />
@@ -221,6 +243,7 @@ function Storefront({
   cartCount,
   onQuickAdd,
   onNavigateOrders,
+  onViewStory,
 }) {
   const products = useStorefrontStore((state) => state.products);
   const loading = useStorefrontStore((state) => state.loading);
@@ -229,16 +252,53 @@ function Storefront({
   const load = useStorefrontStore((state) => state.load);
 
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedBoutique, setSelectedBoutique] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('explore');
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const handleSelectBoutique = (boutique) => {
+    setSelectedBoutique((prev) => (prev === boutique.name ? null : boutique.name));
+  };
+
   const filteredProducts = useMemo(() => {
-    if (selectedCategory === 'all') return products;
+    let list = products;
+    if (selectedBoutique) {
+      list = list.filter((p) => {
+        const brand = (p.brand || '').toLowerCase();
+        const store = (p.storeName || '').toLowerCase();
+        const needle = selectedBoutique.toLowerCase();
+        return brand.includes(needle) || store.includes(needle);
+      });
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((p) => {
+        const pName = (p.name || '').toLowerCase();
+        const pBrand = (p.brand || '').toLowerCase();
+        const pStore = (p.storeName || '').toLowerCase();
+        const pMat = (p.material || '').toLowerCase();
+        const pDesc = (p.description || '').toLowerCase();
+        const pCat = (p.category || '').toLowerCase();
+        return (
+          pName.includes(q) ||
+          pBrand.includes(q) ||
+          pStore.includes(q) ||
+          pMat.includes(q) ||
+          pDesc.includes(q) ||
+          pCat.includes(q)
+        );
+      });
+    }
+
+    if (selectedCategory === 'all') return list;
     const cat = selectedCategory.toLowerCase();
-    return products.filter((p) => {
+    return list.filter((p) => {
       const pCat = (p.category || '').toLowerCase();
       const pName = (p.name || '').toLowerCase();
       if (cat === 'silks') {
@@ -276,7 +336,7 @@ function Storefront({
       }
       return true;
     });
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, selectedBoutique, searchQuery]);
 
   const spotlightProduct = products[0] || null;
 
@@ -286,6 +346,11 @@ function Storefront({
       onOpenBag?.();
     } else if (tabId === 'orders') {
       onNavigateOrders?.();
+    } else if (tabId === 'search') {
+      setIsSearchOpen(true);
+    } else if (tabId === 'explore') {
+      setIsSearchOpen(false);
+      setSearchQuery('');
     }
   };
 
@@ -301,6 +366,7 @@ function Storefront({
         insets={insets}
         areaLabel={areaLabel}
         onSelectLocation={onSelectLocation}
+        onOpenSearch={() => setIsSearchOpen((prev) => !prev)}
         onOpenProfile={onOpenProfile}
         onOpenBag={onOpenBag}
         cartCount={cartCount}
@@ -330,9 +396,48 @@ function Storefront({
           <View style={styles.bannerEyebrowRow}>
             <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
             <Text style={styles.bannerEyebrow}>NAGPUR EXPRESS</Text>
+            {onViewStory ? (
+              <PressableScale onPress={onViewStory} style={styles.storyPill}>
+                <Text style={styles.storyPillText}>3D Story</Text>
+                <MaterialIcons name="auto-awesome" size={11} color={colors.accentGold} />
+              </PressableScale>
+            ) : null}
           </View>
           <Text style={styles.bannerTitle}>In stock, near you</Text>
         </Animated.View>
+
+        {/* Real-time Frosted Glass Search Bar */}
+        {(isSearchOpen || activeTab === 'search' || searchQuery.length > 0) && (
+          <View style={styles.searchBarWrap}>
+            <View style={styles.searchBar}>
+              <MaterialIcons name="search" size={18} color={colors.accentGold} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search silhouettes, silks, boutiques in Nagpur..."
+                placeholderTextColor={colors.textAsh}
+                style={styles.searchInput}
+                autoFocus={isSearchOpen}
+                returnKeyType="search"
+              />
+              {searchQuery ? (
+                <PressableScale onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <MaterialIcons name="close" size={17} color={colors.textAsh} />
+                </PressableScale>
+              ) : null}
+            </View>
+            {searchQuery ? (
+              <View style={styles.searchNoticeRow}>
+                <Text style={styles.searchNoticeText}>
+                  {filteredProducts.length} {filteredProducts.length === 1 ? 'piece' : 'pieces'} found
+                </Text>
+                <PressableScale onPress={() => setSearchQuery('')}>
+                  <Text style={styles.resetSearchText}>Clear</Text>
+                </PressableScale>
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {/* Frosted Glass Filter Pill Rails */}
         <StorefrontAmbientFilterPills
@@ -340,64 +445,99 @@ function Storefront({
           onSelectCategory={setSelectedCategory}
         />
 
-        {/* Hero Spotlight Garment Card: Heavy Frosted Glass & Reduced Text */}
-        <StorefrontAmbientSpotlightCard
-          product={spotlightProduct}
-          onPress={onOpenProduct}
-          onBagNow={onQuickAdd}
-        />
-
-        {/* Horizontal Scroll Rail: Express Ateliers (Under 45 Minutes) */}
-        <View style={styles.railSection}>
-          <View style={styles.railHeaderRow}>
-            <Text style={styles.railTitle}>Under 45 Minutes</Text>
+        {/* Search empty state if query has no matches */}
+        {searchQuery && filteredProducts.length === 0 ? (
+          <View style={styles.emptySearchCard}>
+            <MaterialIcons name="search-off" size={36} color={colors.accentGold} />
+            <Text style={styles.emptySearchTitle}>No Pieces Found</Text>
+            <Text style={styles.emptySearchSubtitle}>
+              {`No garments match "${searchQuery}" in this radius.`}
+            </Text>
             <PressableScale
-              onPress={() => setSelectedCategory('all')}
-              style={styles.viewAllBtn}
+              onPress={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+                setSelectedBoutique(null);
+              }}
+              style={styles.resetBtn}
             >
-              <Text style={styles.viewAllText}>View All</Text>
-              <MaterialIcons
-                name="chevron-right"
-                size={16}
-                color={colors.accentCrimson}
-              />
+              <Text style={styles.resetBtnText}>Clear Search & Filters</Text>
             </PressableScale>
           </View>
-
-          {loading && !products.length ? (
-            <ActivityIndicator
-              color={colors.accentCrimson}
-              style={styles.loader}
-            />
-          ) : isEmpty ? (
-            <Text style={styles.emptyText}>
-              {error
-                ? `Could not load catalogue: ${error}`
-                : 'No listings currently available in this radius.'}
-            </Text>
-          ) : (
-            <Animated.View entering={FEED_LIST_ENTER}>
-              <FlatList
-                data={filteredProducts.length > 0 ? filteredProducts : products}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <StorefrontAmbientProductCard
-                    product={item}
-                    onPress={() => onOpenProduct(item)}
-                    onQuickAdd={onQuickAdd}
-                  />
-                )}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.railList}
-                initialNumToRender={5}
+        ) : (
+          <>
+            {/* Hero Spotlight Garment Card: Hidden while actively searching */}
+            {!searchQuery && spotlightProduct ? (
+              <StorefrontAmbientSpotlightCard
+                product={spotlightProduct}
+                onPress={onOpenProduct}
+                onBagNow={onQuickAdd}
               />
-            </Animated.View>
-          )}
-        </View>
+            ) : null}
+
+            {/* Horizontal Scroll Rail: Express Ateliers (Under 45 Minutes) */}
+            <View style={styles.railSection}>
+              <View style={styles.railHeaderRow}>
+                <Text style={styles.railTitle}>
+                  {searchQuery ? 'Matching Pieces' : 'Under 45 Minutes'}
+                </Text>
+                <PressableScale
+                  onPress={() => {
+                    setSelectedCategory('all');
+                    setSearchQuery('');
+                  }}
+                  style={styles.viewAllBtn}
+                >
+                  <Text style={styles.viewAllText}>
+                    {searchQuery ? 'Reset' : 'View All'}
+                  </Text>
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={16}
+                    color={colors.accentCrimson}
+                  />
+                </PressableScale>
+              </View>
+
+              {loading && !products.length ? (
+                <ActivityIndicator
+                  color={colors.accentCrimson}
+                  style={styles.loader}
+                />
+              ) : isEmpty ? (
+                <Text style={styles.emptyText}>
+                  {error
+                    ? `Could not load catalogue: ${error}`
+                    : 'No listings currently available in this radius.'}
+                </Text>
+              ) : (
+                <Animated.View entering={FEED_LIST_ENTER}>
+                  <FlatList
+                    data={filteredProducts}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <StorefrontAmbientProductCard
+                        product={item}
+                        onPress={() => onOpenProduct(item)}
+                        onQuickAdd={onQuickAdd}
+                      />
+                    )}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.railList}
+                    initialNumToRender={5}
+                  />
+                </Animated.View>
+              )}
+            </View>
+          </>
+        )}
 
         {/* Curating Boutiques Section (Decluttered Frosted Glass) */}
-        <StorefrontAmbientBoutiquesList onSelectBoutique={onOpenProduct} />
+        <StorefrontAmbientBoutiquesList
+          onSelectBoutique={handleSelectBoutique}
+          selectedBoutiqueId={selectedBoutique}
+        />
       </Animated.ScrollView>
 
       {/* 3. Frosted Glass Floating Tab Bar */}
@@ -530,5 +670,119 @@ const styles = StyleSheet.create({
   },
   ctaSection: {
     justifyContent: 'center',
+  },
+  skipToStorefrontWrap: {
+    position: 'absolute',
+    right: spacing.md,
+    zIndex: 999,
+  },
+  skipToStorefrontBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  skipToStorefrontText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  storyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  storyPillText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: colors.accentGoldDeep,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  searchBarWrap: {
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    height: 42,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textObsidian,
+    paddingVertical: 0,
+  },
+  searchNoticeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    marginTop: 6,
+  },
+  searchNoticeText: {
+    fontSize: 11.5,
+    color: colors.textSlate,
+    fontWeight: '500',
+  },
+  resetSearchText: {
+    fontSize: 11,
+    color: colors.accentCrimson,
+    fontWeight: '600',
+  },
+  emptySearchCard: {
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptySearchTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  emptySearchSubtitle: {
+    fontSize: 12.5,
+    color: colors.textSlate,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  resetBtn: {
+    marginTop: spacing.xs,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radii.full,
+    backgroundColor: colors.accentCrimson,
+  },
+  resetBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

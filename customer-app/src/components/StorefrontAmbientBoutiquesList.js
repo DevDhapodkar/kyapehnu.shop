@@ -1,60 +1,68 @@
+import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import PressableScale from './PressableScale';
+import { fetchNearbyVendors } from '../api/vendorApi';
 import { colors, radii, spacing } from '../theme/colors';
 
-const BOUTIQUES = [
-  {
-    id: 'b-anamika',
-    name: 'Studio Anamika',
-    locality: 'West High Court Rd, Dharampeth',
-    distanceKm: 1.4,
-    piecesCount: 42,
-    dispatchTime: '~28 min cycle',
-    indicatorColor: colors.accentCrimson,
-    image: require('../../assets/images/boutique-anamika.jpg'),
-  },
-  {
-    id: 'b-maheshwari',
-    name: 'Maheshwari Handlooms',
-    locality: 'Cloth Market, Gandhibagh',
-    distanceKm: 2.1,
-    piecesCount: 64,
-    dispatchTime: '~32 min cycle',
-    indicatorColor: colors.accentGold,
-    image: require('../../assets/images/boutique-maheshwari.jpg'),
-  },
-  {
-    id: 'b-kalaniketan',
-    name: 'Kala Niketan',
-    locality: 'Main Road, Sitabuldi',
-    distanceKm: 0.6,
-    piecesCount: 19,
-    dispatchTime: '~15 min cycle',
-    indicatorColor: colors.accentCrimson,
-    image: require('../../assets/images/boutique-kalaniketan.jpg'),
-  },
+const CURATED_IMAGES = [
+  require('../../assets/images/boutique-anamika.jpg'),
+  require('../../assets/images/boutique-maheshwari.jpg'),
+  require('../../assets/images/boutique-kalaniketan.jpg'),
 ];
 
-export default function StorefrontAmbientBoutiquesList({ onSelectBoutique }) {
+export default function StorefrontAmbientBoutiquesList({ onSelectBoutique, selectedBoutiqueId }) {
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchNearbyVendors(21.1458, 79.0882)
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setVendors(
+            data.map((v, idx) => ({
+              id: v._id || `v-${idx}`,
+              name: v.shopName,
+              locality: v.address ? `${v.address.area || ''}, ${v.address.city || 'Nagpur'}` : 'Nagpur',
+              distanceKm: v.distanceKm ? Number(v.distanceKm).toFixed(1) : (1.2 + idx * 0.7).toFixed(1),
+              piecesCount: v.productCount || 18,
+              dispatchTime: '~25 min cycle',
+              indicatorColor: idx % 2 === 0 ? colors.accentCrimson : colors.accentGold,
+              image: CURATED_IMAGES[idx % CURATED_IMAGES.length],
+            }))
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const displayList = vendors;
+
+  if (!loading && displayList.length === 0) {
+    return null;
+  }
+
   return (
     <View style={styles.container}>
       {/* Section Header */}
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Nagpur Boutiques</Text>
-        <Text style={styles.statusOnline}>8 Online</Text>
+        <Text style={styles.statusOnline}>{displayList.length} Partner Ateliers</Text>
       </View>
 
       {/* Boutique Cards List */}
       <View style={styles.list}>
-        {BOUTIQUES.map((boutique) => (
-          <PressableScale
-            key={boutique.id}
-            onPress={() => onSelectBoutique?.(boutique)}
-            style={styles.card}
-            accessibilityRole="button"
-            accessibilityLabel={`${boutique.name}, ${boutique.locality}`}
-          >
+        {displayList.map((boutique) => {
+          const isSelected = selectedBoutiqueId === boutique.id || selectedBoutiqueId === boutique.name;
+          return (
+            <PressableScale
+              key={boutique.id}
+              onPress={() => onSelectBoutique?.(boutique)}
+              style={[styles.card, isSelected && { borderColor: colors.accentCrimson, borderWidth: 1.5 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${boutique.name}, ${boutique.locality}`}
+            >
             {/* Boutique Thumbnail */}
             <View style={styles.thumbWrap}>
               <Image
@@ -98,8 +106,9 @@ export default function StorefrontAmbientBoutiquesList({ onSelectBoutique }) {
                 </Text>
               </View>
             </View>
-          </PressableScale>
-        ))}
+            </PressableScale>
+          );
+        })}
       </View>
     </View>
   );

@@ -13,27 +13,40 @@ const PLACEHOLDER_IMAGE = 'https://picsum.photos/seed/kyapehnu/900/1200';
  */
 export const toUiProduct = (p) => {
   const coords = p.vendor?.location?.coordinates;
+  const rawColors = p.colors || [];
+  const colorway = rawColors
+    .map((c) => (typeof c === 'object' && c?.name ? c.name : String(c)))
+    .join(', ');
+
   return {
     id: p._id,
     name: p.name,
     category: p.category,
+    subCategory: p.subCategory || '',
     price: p.discountPrice ?? p.price,
-    mrp: p.discountPrice ? p.price : undefined,
+    mrp: p.mrp || (p.discountPrice ? p.price : undefined),
     currency: 'INR',
-    sizes: (p.sizes || []).map((s) => s.size),
+    sizes: (p.sizes || []).map((s) => (typeof s === 'object' ? s.size : s)),
+    sizesWithStock: p.sizes || [],
     image: p.images?.[0] || PLACEHOLDER_IMAGE,
     images: p.images || [],
     description: p.description || '',
-    colorway: (p.colors && p.colors.join(', ')) || '',
+    colors: rawColors,
+    colorway,
     // Retail attributes for the product detail page.
-    brand: p.brand || '',
+    brand: p.brand || p.vendor?.shopName || '',
     material: p.material || '',
     pattern: p.pattern || '',
     fit: p.fit || '',
+    sleeve: p.sleeve || '',
+    neck: p.neck || '',
     occasion: p.occasion || '',
     careInstructions: p.careInstructions || '',
-    netQuantity: p.netQuantity,
-    countryOfOrigin: p.countryOfOrigin || '',
+    care: p.careInstructions || '',
+    netQuantity: p.netQuantity || 1,
+    countryOfOrigin: p.countryOfOrigin || 'India',
+    returnPolicy: p.returnPolicy || '7-day return',
+    highlights: p.highlights || [],
     sku: p.sku || '',
     // Vendor denormalised onto the line so the cart can build a per-shop order.
     storeId: p.vendor?._id,
