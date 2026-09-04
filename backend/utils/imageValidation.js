@@ -1,18 +1,32 @@
 // Pure, dependency-free helpers for the product image pipeline. Kept side-effect
 // free so they can be unit-tested without a network or the Cloudinary SDK.
 
-// 8 MB per photo — matches the media-pipeline cap in docs/02-INTEGRATIONS.md.
+// 8 MB per photo, 50 MB for short fabric showcase videos.
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+export const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 
-// A WhatsApp/vendor listing carries 1–5 photos (docs/02-INTEGRATIONS.md, A1).
+// A WhatsApp/vendor listing carries 1–5 media assets (photos or short clips).
 export const MAX_IMAGES_PER_REQUEST = 5;
 
-const ALLOWED_MIME_TYPES = new Set([
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/heic',
   'image/heif',
+]);
+
+const ALLOWED_VIDEO_MIME_TYPES = new Set([
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/3gpp',
+  'video/x-matroska',
+]);
+
+const ALLOWED_MIME_TYPES = new Set([
+  ...ALLOWED_IMAGE_MIME_TYPES,
+  ...ALLOWED_VIDEO_MIME_TYPES,
 ]);
 
 /**
@@ -21,6 +35,13 @@ const ALLOWED_MIME_TYPES = new Set([
  */
 export const isAllowedMime = (mime) =>
   typeof mime === 'string' && ALLOWED_MIME_TYPES.has(mime.toLowerCase());
+
+/**
+ * @param {unknown} mime
+ * @returns {boolean}
+ */
+export const isVideoMime = (mime) =>
+  typeof mime === 'string' && ALLOWED_VIDEO_MIME_TYPES.has(mime.toLowerCase());
 
 /**
  * Namespace uploads per vendor so a shop's catalog is easy to browse and purge.

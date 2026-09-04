@@ -1,755 +1,804 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  ScrollView,
+  StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
-
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-import GlassButton from '../../components/GlassButton';
-import GlassCard from '../../components/GlassCard';
+import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
 import PressableScale from '../../components/PressableScale';
+import AddGarmentModal from '../../components/vendor/AddGarmentModal';
+import VendorBottomNav from '../../components/vendor/VendorBottomNav';
+import { normalizeColor } from '../../constants/colorPalette';
+import { formatCurrency as formatINR } from '../../utils/format';
 import { colors, radii, spacing } from '../../theme/colors';
-import useVendorStore from '../../store/useVendorStore';
-import { uploadProductImages } from '../../api/vendorApi';
-import { selection, notifySuccess, notifyError } from '../../utils/haptics';
-import { formatCurrency } from '../../utils/format';
-
-const CATEGORIES = ['MEN', 'WOMEN', 'KIDS', 'UNISEX'];
-const MAX_IMAGES = 5;
-
-const EMPTY_DRAFT = {
-  name: '',
-  brand: '',
-  category: 'WOMEN',
-  subCategory: '',
-  price: '', // selling price
-  mrp: '', // printed MRP (strike-through)
-  sizes: '', // "S:3, M:5, L:2"  (size:stock)
-  colors: '', // "Black, Ivory"
-  material: '',
-  pattern: '',
-  fit: '',
-  occasion: '',
-  careInstructions: '',
-  countryOfOrigin: 'India',
-  netQuantity: '1',
-  description: '',
-  images: [], // [{ url, thumbnails }] returned from the upload endpoint
-};
-
-/** Parse "S:3, M:5, L" into [{ size:'S', stock:3 }, ...] (default stock 1). */
-const parseSizes = (raw) =>
-  raw
-    .split(',')
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk) => {
-      const [size, stock] = chunk.split(':').map((s) => s.trim());
-      const n = Number(stock);
-      return { size, stock: Number.isFinite(n) && n >= 0 ? n : 1 };
-    });
-
-/** Split a comma list into trimmed, non-empty values. */
-const parseList = (raw) =>
-  raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-// How a listing's moderation status reads to the vendor, and its tint.
-const REVIEW_STATUS = {
-  PENDING_QC: { label: 'IN REVIEW', tone: 'pending' },
-  APPROVED: { label: 'LIVE', tone: 'live' },
-  REJECTED: { label: 'REJECTED', tone: 'rejected' },
-  ARCHIVED: { label: 'ARCHIVED', tone: 'muted' },
-  DRAFT: { label: 'DRAFT', tone: 'muted' },
-};
+import { useVendorStore } from '../../store/useVendorStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 /**
- * Catalog manager: flip a listing in or out of stock, and add a new one.
- *
- * Availability is the primary job — it's the control a shop reaches for a
- * dozen times a day — so it lives on every row as a switch with no
- * confirmation step. The add form stays collapsed behind a toggle so it never
- * competes with the list for the first screenful.
+ * CatalogManagerScreen — Senior-Friendly Stock & Inventory Management
+ * Designed specifically for 50-60 year old Indian shopkeeper uncles:
+ * - High contrast, large fonts & touch targets (50px+)
+ * - Unmistakable "+ NAYA KAPDA JODEIN" Hero button & Floating Action Button
+ * - Prominent "DUKAAN MEIN HAI" / "STOCK KHATAM" one-touch toggle button
+ * - Clean bilingual wording
+ * - Seamless Cloudinary-backed Add Garment modal
  */
-export default function CatalogManagerScreen() {
+export default function CatalogManagerScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const products = useVendorStore((state) => state.products);
   const loading = useVendorStore((state) => state.catalogLoading);
-  const error = useVendorStore((state) => state.catalogError);
-  const pendingProductId = useVendorStore((state) => state.pendingProductId);
   const loadCatalog = useVendorStore((state) => state.loadCatalog);
   const toggleAvailability = useVendorStore((state) => state.toggleAvailability);
   const addProduct = useVendorStore((state) => state.addProduct);
+  const vendorProfile = useAuthStore((state) => state.vendorProfile);
 
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [draft, setDraft] = useState(EMPTY_DRAFT);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [modalVisible, setModalVisible] = useState(Boolean(route?.params?.openAddModal));
 
   useEffect(() => {
-    loadCatalog();
+    if (loadCatalog) loadCatalog();
   }, [loadCatalog]);
 
-  const onPickImages = useCallback(async () => {
-    const remaining = MAX_IMAGES - draft.images.length;
-    if (remaining <= 0) return Alert.alert('Enough photos', `Up to ${MAX_IMAGES} images per listing.`);
+  const categories = [
+    { id: 'ALL', label: 'Sabhi (All)' },
+    { id: 'WOMEN', label: 'Women' },
+    { id: 'MEN', label: 'Men' },
+    { id: 'KIDS', label: 'Kids' },
+    { id: 'UNISEX', label: 'Unisex' },
+  ];
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      return Alert.alert('Permission needed', 'Allow photo access to add product images.');
+  const handleToggleItemStock = async (itemId, currentAvailability) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: remaining,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.length) return;
-
-    setUploading(true);
     try {
-      const { images } = await uploadProductImages(result.assets);
-      setDraft((d) => ({ ...d, images: [...d.images, ...images] }));
+      await toggleAvailability(itemId, !currentAvailability);
     } catch (err) {
-      Alert.alert('Upload failed', err.message);
-    } finally {
-      setUploading(false);
+      Alert.alert('Stock Update Failed', err.message || 'Stock update nahi ho saka.');
     }
-  }, [draft.images.length]);
+  };
 
-  const removeImage = useCallback((publicId) => {
-    setDraft((d) => ({ ...d, images: d.images.filter((img) => img.publicId !== publicId) }));
-  }, []);
-
-  const onToggle = useCallback(
-    async (product, next) => {
-      // In/out of stock is flipped a dozen times a day — a selection detent is
-      // the right weight, and it fires on the intent, before the round trip.
-      selection();
-      try {
-        await toggleAvailability(product._id, next);
-      } catch (err) {
-        notifyError();
-        Alert.alert('Could not update', err.message);
-      }
-    },
-    [toggleAvailability]
-  );
-
-  const onSubmit = useCallback(async () => {
-    const price = Number(draft.price);
-    const mrp = draft.mrp ? Number(draft.mrp) : undefined;
-    const netQuantity = Number(draft.netQuantity) || 1;
-
-    if (!draft.name.trim()) return Alert.alert('Name required', 'Give the listing a name.');
-    if (!Number.isFinite(price) || price <= 0) {
-      return Alert.alert('Price required', 'Enter the selling price in whole rupees.');
-    }
-    if (mrp !== undefined && (!Number.isFinite(mrp) || mrp < price)) {
-      return Alert.alert('Check MRP', 'MRP should be a number at least equal to the selling price.');
-    }
-
-    const sizes = parseSizes(draft.sizes);
-
-    setSaving(true);
+  const handleAddGarmentSubmit = async (payload) => {
     try {
-      await addProduct({
-        name: draft.name.trim(),
-        brand: draft.brand.trim() || undefined,
-        category: draft.category,
-        subCategory: draft.subCategory.trim() || undefined,
-        price,
-        mrp,
-        sizes: sizes.length ? sizes : [{ size: 'FREE', stock: 1 }],
-        colors: parseList(draft.colors),
-        material: draft.material.trim() || undefined,
-        pattern: draft.pattern.trim() || undefined,
-        fit: draft.fit.trim() || undefined,
-        occasion: draft.occasion.trim() || undefined,
-        careInstructions: draft.careInstructions.trim() || undefined,
-        countryOfOrigin: draft.countryOfOrigin.trim() || 'India',
-        netQuantity,
-        description: draft.description.trim() || undefined,
-        images: draft.images.map((img) => img.url),
-        isAvailable: true,
-      });
-
-      notifySuccess();
-      setDraft(EMPTY_DRAFT);
-      setComposerOpen(false);
-    } catch (err) {
-      notifyError();
-      Alert.alert('Could not add listing', err.message);
-    } finally {
-      setSaving(false);
-    }
-  }, [addProduct, draft]);
-
-  const renderItem = useCallback(
-    ({ item }) => {
-      const inStock = item.isAvailable;
-      const review = REVIEW_STATUS[item.status] ?? null;
-
-      return (
-        <GlassCard compact style={styles.row}>
-          <View style={styles.rowBody}>
-            <View style={styles.rowText}>
-              <Text style={styles.productName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.productMeta}>
-                {item.category} · {formatCurrency(item.price)}
-                {item.sizes?.length ? ` · ${item.sizes.map((s) => s.size).join(' / ')}` : ''}
-              </Text>
-              <View style={styles.badgeRow}>
-                {review ? (
-                  <Text style={[styles.reviewBadge, styles[`review_${review.tone}`]]}>
-                    {review.label}
-                  </Text>
-                ) : null}
-                <Text style={[styles.stockLabel, !inStock && styles.stockLabelOff]}>
-                  {inStock ? 'IN STOCK' : 'OUT OF STOCK'}
-                </Text>
-              </View>
-              {item.status === 'REJECTED' && item.qc?.reason ? (
-                <Text style={styles.rejectReason}>{item.qc.reason}</Text>
-              ) : null}
-            </View>
-
-            {pendingProductId === item._id ? (
-              <ActivityIndicator color={colors.platinum} style={styles.rowSpinner} />
-            ) : (
-              <Switch
-                value={inStock}
-                onValueChange={(next) => onToggle(item, next)}
-                accessibilityLabel={`${item.name} availability`}
-                trackColor={{ false: colors.graphite, true: colors.crimson }}
-                thumbColor={colors.ivory}
-                ios_backgroundColor={colors.graphite}
-              />
-            )}
-          </View>
-        </GlassCard>
+      await addProduct(payload);
+      Alert.alert(
+        '✓ Kapda Jod Diya Gaya',
+        `"${payload.name}" dukan catalog mein jod diya gaya hai!`
       );
-    },
-    [onToggle, pendingProductId]
-  );
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const filteredItems = products.filter((it) => {
+    const matchesCat =
+      selectedCategory === 'ALL' ||
+      it.category?.toUpperCase() === selectedCategory;
+    const matchesSearch =
+      !searchQuery.trim() ||
+      it.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      it.subCategory?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  const inStockCount = products.filter((p) => p.isAvailable).length;
+  const outOfStockCount = products.filter((p) => !p.isAvailable).length;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" />
+
+      {/* 1. Animated Drifting Background Blobs */}
+      <AmbientBackgroundBlobs />
+
+      {/* 2. Top Header Bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+        <View style={styles.topBarInner}>
+          <PressableScale
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Peeche jayein"
+          >
+            <MaterialIcons name="arrow-back-ios-new" size={18} color={colors.textObsidian} />
+          </PressableScale>
+
+          <View style={styles.topBarTitleCol}>
+            <Text style={styles.shopName} numberOfLines={1}>
+              {vendorProfile?.shopName || 'Nagpur Boutique'}
+            </Text>
+            <Text style={styles.screenSubtitle}>👗 Mera Stock & Inventory</Text>
+          </View>
+
+          <PressableScale
+            onPress={() => setModalVisible(true)}
+            style={styles.headerAddBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Naya kapda jodein"
+          >
+            <MaterialIcons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.headerAddBtnText}>+ Naya</Text>
+          </PressableScale>
+        </View>
+      </View>
+
+      {/* 3. Main Product List */}
       <FlatList
-        data={products}
+        data={filteredItems}
         keyExtractor={(item) => item._id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 68,
+            paddingBottom: insets.bottom + 95,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={loading}
             onRefresh={loadCatalog}
-            tintColor={colors.platinum}
-            colors={[colors.platinum]}
-            progressBackgroundColor={colors.charcoal}
+            tintColor={colors.accentCrimson}
           />
         }
         ListHeaderComponent={
-          <View>
-            {error ? (
-              <GlassCard strong compact style={styles.banner}>
-                <Text style={styles.bannerTitle}>Catalog out of sync</Text>
-                <Text style={styles.bannerBody}>{error}</Text>
-              </GlassCard>
-            ) : null}
-
+          <View style={styles.headerContainer}>
+            {/* Senior-Friendly Hero Button: + NAYA KAPDA JODEIN */}
             <PressableScale
-              onPress={() => setComposerOpen((open) => !open)}
-              haptic="light"
-              accessibilityLabel={composerOpen ? 'Close new listing form' : 'New listing'}
-              style={styles.composerToggle}
+              onPress={() => setModalVisible(true)}
+              style={styles.addPieceHeroCard}
+              accessibilityRole="button"
+              accessibilityLabel="Naya Kapda Jodein"
             >
-              <Text style={styles.composerToggleText}>
-                {composerOpen ? '— CLOSE' : '+ NEW LISTING'}
-              </Text>
+              <View style={styles.addPieceHeroIconWrap}>
+                <MaterialIcons name="add-a-photo" size={28} color="#FFFFFF" />
+              </View>
+              <View style={styles.addPieceHeroTextCol}>
+                <Text style={styles.addPieceHeroTitle}>+ NAYA KAPDA / SAREE JODEIN</Text>
+                <Text style={styles.addPieceHeroSubtitle}>
+                  Photo kheenchein aur dukan par chadhayein
+                </Text>
+              </View>
+              <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
             </PressableScale>
 
-            {composerOpen ? (
-              <GlassCard strong compact style={styles.composer}>
-                <Field
-                  label="NAME"
-                  value={draft.name}
-                  onChangeText={(name) => setDraft((d) => ({ ...d, name }))}
-                  placeholder="Charcoal linen shirt"
-                />
-
-                <Field
-                  label="BRAND"
-                  value={draft.brand}
-                  onChangeText={(brand) => setDraft((d) => ({ ...d, brand }))}
-                  placeholder="e.g. Raymond, or your shop label"
-                />
-
-                <Text style={styles.fieldLabel}>CATEGORY</Text>
-                <View style={styles.categoryRow}>
-                  {CATEGORIES.map((category) => {
-                    const active = draft.category === category;
-                    return (
-                      <PressableScale
-                        key={category}
-                        haptic={false}
-                        onPress={() => {
-                          if (draft.category === category) return;
-                          selection();
-                          setDraft((d) => ({ ...d, category }));
-                        }}
-                        accessibilityRole="radio"
-                        accessibilityLabel={category}
-                        accessibilityState={{ selected: active }}
-                        style={[styles.categoryChip, active && styles.categoryChipActive]}
-                      >
-                        <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
-                          {category}
-                        </Text>
-                      </PressableScale>
-                    );
-                  })}
+            {/* Quick Stock Summary Ticker */}
+            <View style={styles.tickerRow}>
+              <View style={styles.tickerBadge}>
+                <MaterialIcons name="checkroom" size={18} color={colors.accentCrimson} />
+                <Text style={styles.tickerText}>Total: {products.length} Piece</Text>
+              </View>
+              <View style={[styles.tickerBadge, { borderColor: '#15803D', backgroundColor: '#F0FDF4' }]}>
+                <MaterialIcons name="check-circle" size={18} color="#15803D" />
+                <Text style={[styles.tickerText, { color: '#15803D' }]}>{inStockCount} Dukan Mein Hai</Text>
+              </View>
+              {outOfStockCount > 0 && (
+                <View style={[styles.tickerBadge, { borderColor: '#B91C1C', backgroundColor: '#FEF2F2' }]}>
+                  <MaterialIcons name="pause-circle-filled" size={18} color="#B91C1C" />
+                  <Text style={[styles.tickerText, { color: '#B91C1C' }]}>{outOfStockCount} Khatam</Text>
                 </View>
+              )}
+            </View>
 
-                <Field
-                  label="TYPE"
-                  value={draft.subCategory}
-                  onChangeText={(subCategory) => setDraft((d) => ({ ...d, subCategory }))}
-                  placeholder="Shirt, Kurta, Dress, Trousers…"
-                />
+            {/* Search Input */}
+            <View style={styles.searchBar}>
+              <MaterialIcons name="search" size={22} color={colors.textSlate} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Kapda, saree ya fabric dhoondhein..."
+                placeholderTextColor={colors.textAsh}
+                style={styles.searchInput}
+              />
+              {searchQuery ? (
+                <PressableScale onPress={() => setSearchQuery('')}>
+                  <MaterialIcons name="close" size={20} color={colors.textAsh} />
+                </PressableScale>
+              ) : null}
+            </View>
 
-                <View style={styles.twoCol}>
-                  <Field
-                    label="SELLING PRICE (₹)"
-                    value={draft.price}
-                    onChangeText={(price) => setDraft((d) => ({ ...d, price }))}
-                    placeholder="2400"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="MRP (₹)"
-                    value={draft.mrp}
-                    onChangeText={(mrp) => setDraft((d) => ({ ...d, mrp }))}
-                    placeholder="3200"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <Field
-                  label="SIZES & STOCK"
-                  value={draft.sizes}
-                  onChangeText={(sizes) => setDraft((d) => ({ ...d, sizes }))}
-                  placeholder="S:3, M:5, L:2"
-                  autoCapitalize="characters"
-                />
-                <Text style={styles.hint}>Format size:stock — e.g. S:3, M:5. No number = 1 in stock.</Text>
-
-                <Field
-                  label="COLOURS"
-                  value={draft.colors}
-                  onChangeText={(colors) => setDraft((d) => ({ ...d, colors }))}
-                  placeholder="Black, Ivory"
-                />
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="FABRIC / MATERIAL"
-                    value={draft.material}
-                    onChangeText={(material) => setDraft((d) => ({ ...d, material }))}
-                    placeholder="100% Cotton"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="PATTERN"
-                    value={draft.pattern}
-                    onChangeText={(pattern) => setDraft((d) => ({ ...d, pattern }))}
-                    placeholder="Solid, Printed…"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="FIT"
-                    value={draft.fit}
-                    onChangeText={(fit) => setDraft((d) => ({ ...d, fit }))}
-                    placeholder="Regular, Slim…"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="OCCASION"
-                    value={draft.occasion}
-                    onChangeText={(occasion) => setDraft((d) => ({ ...d, occasion }))}
-                    placeholder="Casual, Formal…"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <View style={styles.twoCol}>
-                  <Field
-                    label="NET QTY (units)"
-                    value={draft.netQuantity}
-                    onChangeText={(netQuantity) => setDraft((d) => ({ ...d, netQuantity }))}
-                    placeholder="1"
-                    keyboardType="number-pad"
-                    containerStyle={styles.colField}
-                  />
-                  <Field
-                    label="COUNTRY OF ORIGIN"
-                    value={draft.countryOfOrigin}
-                    onChangeText={(countryOfOrigin) => setDraft((d) => ({ ...d, countryOfOrigin }))}
-                    placeholder="India"
-                    containerStyle={styles.colField}
-                  />
-                </View>
-
-                <Field
-                  label="CARE INSTRUCTIONS"
-                  value={draft.careInstructions}
-                  onChangeText={(careInstructions) => setDraft((d) => ({ ...d, careInstructions }))}
-                  placeholder="Machine wash cold, do not bleach"
-                />
-
-                <Field
-                  label="DESCRIPTION"
-                  value={draft.description}
-                  onChangeText={(description) => setDraft((d) => ({ ...d, description }))}
-                  placeholder="Optional"
-                  multiline
-                />
-
-                <Text style={styles.fieldLabel}>PHOTOS ({draft.images.length}/{MAX_IMAGES})</Text>
-                <View style={styles.thumbRow}>
-                  {draft.images.map((img) => (
-                    <PressableScale
-                      key={img.publicId}
-                      onPress={() => removeImage(img.publicId)}
-                      haptic="medium"
-                      accessibilityLabel="Remove photo"
-                      style={styles.thumbWrap}
+            {/* Category Filter Rail */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryPillsRow}
+            >
+              {categories.map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <PressableScale
+                    key={cat.id}
+                    onPress={() => setSelectedCategory(cat.id)}
+                    style={[
+                      styles.catPill,
+                      isSelected ? styles.catPillActive : styles.catPillInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.catPillText,
+                        isSelected && styles.catPillTextActive,
+                      ]}
                     >
-                      <Image
-                        source={{ uri: img.thumbnails?.thumb || img.url }}
-                        style={styles.thumb}
-                        contentFit="cover"
-                      />
-                      <View style={styles.thumbRemove}>
-                        <Text style={styles.thumbRemoveText}>×</Text>
-                      </View>
-                    </PressableScale>
-                  ))}
+                      {cat.label}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </ScrollView>
 
-                  {draft.images.length < MAX_IMAGES ? (
-                    <PressableScale
-                      onPress={onPickImages}
-                      haptic="light"
-                      accessibilityLabel="Add photos"
-                      style={styles.addThumb}
-                    >
-                      {uploading ? (
-                        <ActivityIndicator color={colors.platinum} />
-                      ) : (
-                        <Text style={styles.addThumbText}>＋</Text>
-                      )}
-                    </PressableScale>
-                  ) : null}
-                </View>
-
-                <Text style={styles.qcNote}>
-                  New listings go live after a quick quality check.
-                </Text>
-
-                <GlassButton
-                  label="Add Listing"
-                  onPress={onSubmit}
-                  loading={saving}
-                  disabled={uploading}
-                  style={styles.submit}
-                />
-              </GlassCard>
-            ) : null}
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Dukan Ka Stock</Text>
+              <Text style={styles.sectionCountText}>
+                {filteredItems.length} Piece Dikha Rahe Hain
+              </Text>
+            </View>
           </View>
         }
         ListEmptyComponent={
-          loading ? null : (
-            <GlassCard style={styles.empty}>
-              <Text style={styles.emptyTitle}>No listings yet</Text>
-              <Text style={styles.emptyBody}>
-                Add your first product and it appears in the customer flow straight away.
+          loading ? (
+            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.accentCrimson} size="large" />
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <MaterialIcons name="checkroom" size={54} color={colors.accentGold} />
+              <Text style={styles.emptyTitle}>Koi Kapda Nahi Mila</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery || selectedCategory !== 'ALL'
+                  ? 'Search ya filter badal kar dekhein.'
+                  : 'Upar diye gaye "+ NAYA KAPDA JODEIN" button se apni dukan ke kapde jodein.'}
               </Text>
-            </GlassCard>
+              <PressableScale
+                onPress={() => setModalVisible(true)}
+                style={styles.emptyAddBtn}
+              >
+                <MaterialIcons name="add" size={20} color="#FFFFFF" />
+                <Text style={styles.emptyAddBtnText}>+ Pehla Kapda Jodein</Text>
+              </PressableScale>
+            </View>
           )
         }
-      />
-    </KeyboardAvoidingView>
-  );
-}
+        renderItem={({ item }) => {
+          const isAvailable = Boolean(item.isAvailable ?? item.inStock);
+          const totalUnits = Array.isArray(item.sizes)
+            ? item.sizes.reduce(
+                (sum, s) => sum + (typeof s === 'object' ? s.stock || 0 : 5),
+                0
+              )
+            : 0;
+          const thumbnail = item.images?.[0];
 
-/** Labelled text input, so the composer's fields stay identical. */
-function Field({ label, style, containerStyle, multiline, ...inputProps }) {
-  return (
-    <View style={[styles.field, containerStyle]}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...inputProps}
-        multiline={multiline}
-        placeholderTextColor={colors.slate}
-        style={[styles.input, multiline && styles.inputMultiline, style]}
+          return (
+            <View style={styles.garmentCard}>
+              {/* Main Product Info Row */}
+              <View style={styles.cardTopRow}>
+                {/* Thumbnail */}
+                {thumbnail ? (
+                  <Image source={{ uri: thumbnail }} style={styles.garmentThumbnail} contentFit="cover" />
+                ) : (
+                  <View style={styles.garmentThumbnailFallback}>
+                    <MaterialIcons name="checkroom" size={28} color={colors.accentGold} />
+                  </View>
+                )}
+
+                <View style={styles.garmentInfoCol}>
+                  <Text style={styles.garmentName} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.sellingPriceText}>{formatINR(item.price)}</Text>
+                    <Text style={styles.stockBadgeText}>· {totalUnits} Piece</Text>
+                  </View>
+
+                  {item.material || item.subCategory ? (
+                    <Text style={styles.materialSubtitle} numberOfLines={1}>
+                      {[item.material, item.subCategory].filter(Boolean).join(' · ')}
+                    </Text>
+                  ) : null}
+
+                  {/* Size chips */}
+                  {Array.isArray(item.sizes) && item.sizes.length > 0 && (
+                    <View style={styles.sizesRow}>
+                      {item.sizes.slice(0, 5).map((sz, idx) => {
+                        const label = typeof sz === 'object' ? `${sz.size} (${sz.stock})` : String(sz);
+                        return (
+                          <View key={idx} style={styles.sizePill}>
+                            <Text style={styles.sizePillText}>{label}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Color dots */}
+                  {Array.isArray(item.colors) && item.colors.length > 0 && (
+                    <View style={styles.colorDotsRow}>
+                      {item.colors.slice(0, 5).map((col, cIdx) => {
+                        const norm = normalizeColor(col);
+                        return (
+                          <View
+                            key={cIdx}
+                            style={[styles.colorDot, { backgroundColor: norm.hex }]}
+                          />
+                        );
+                      })}
+                      {item.colors.length > 5 ? (
+                        <Text style={styles.moreColorsText}>+{item.colors.length - 5}</Text>
+                      ) : null}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* One-Touch Big Stock Toggle Banner (Designed for Uncles) */}
+              <PressableScale
+                onPress={() => handleToggleItemStock(item._id, isAvailable)}
+                style={[
+                  styles.stockBannerBtn,
+                  isAvailable ? styles.stockBannerAvailable : styles.stockBannerOutOfStock,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Stock badlein"
+              >
+                <MaterialIcons
+                  name={isAvailable ? 'check-circle' : 'pause-circle-filled'}
+                  size={24}
+                  color={isAvailable ? '#15803D' : '#B91C1C'}
+                />
+                <View style={styles.stockBannerTextCol}>
+                  <Text
+                    style={[
+                      styles.stockBannerTitle,
+                      isAvailable ? styles.stockTitleAvailable : styles.stockTitleOutOfStock,
+                    ]}
+                  >
+                    {isAvailable ? '✓ DUKAAN MEIN HAI (In Stock)' : '✕ STOCK KHATAM (Out of Stock)'}
+                  </Text>
+                  <Text style={styles.stockBannerSub}>
+                    {isAvailable
+                      ? 'Grahak ise order kar sakte hain. Tap karein band karne ke liye.'
+                      : 'Grahak ise nahi dekh sakte. Dukan mein aane par tap karein.'}
+                  </Text>
+                </View>
+              </PressableScale>
+            </View>
+          );
+        }}
+      />
+
+      {/* Floating Action Button (+ Naya Kapda) */}
+      <PressableScale
+        onPress={() => setModalVisible(true)}
+        style={[styles.floatingAddBtn, { bottom: insets.bottom + 70 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Naya Kapda Jodein"
+      >
+        <MaterialIcons name="add" size={26} color="#FFFFFF" />
+        <Text style={styles.floatingAddBtnText}>+ NAYA KAPDA</Text>
+      </PressableScale>
+
+      {/* Unified Bottom Navigation */}
+      <VendorBottomNav activeTab="stock" navigation={navigation} />
+
+      {/* Add Garment Modal */}
+      <AddGarmentModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleAddGarmentSubmit}
+        shopName={vendorProfile?.shopName || 'Nagpur Boutique'}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: '#F4EFE7',
   },
-  list: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-    flexGrow: 1,
-  },
-  banner: {
-    marginBottom: spacing.sm,
-  },
-  bannerTitle: {
-    color: colors.ivory,
-    fontSize: 14,
-  },
-  bannerBody: {
-    color: colors.ash,
-    fontSize: 12,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  composerToggle: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 9,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    marginBottom: spacing.sm,
-  },
-  composerToggleText: {
-    color: colors.platinum,
-    fontSize: 10,
-    letterSpacing: 1.6,
-  },
-  composer: {
-    marginBottom: spacing.md,
-  },
-  field: {
-    marginBottom: spacing.sm,
-  },
-  fieldLabel: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: 6,
-  },
-  input: {
-    color: colors.ivory,
-    fontSize: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 11,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.obsidianDeep,
-  },
-  inputMultiline: {
-    minHeight: 74,
-    textAlignVertical: 'top',
-  },
-  twoCol: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  colField: {
-    flex: 1,
-  },
-  hint: {
-    color: colors.slate,
-    fontSize: 10,
-    lineHeight: 14,
-    marginTop: -6,
-    marginBottom: spacing.sm,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  categoryChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.charcoalLight,
-    borderColor: colors.graphite,
-  },
-  categoryText: {
-    color: colors.ash,
-    fontSize: 10,
-    letterSpacing: 1.4,
-  },
-  categoryTextActive: {
-    color: colors.ivory,
-    fontWeight: '600',
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  thumbWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.sm,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-  },
-  thumb: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbRemove: {
+  topBar: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.glassFillStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    paddingHorizontal: spacing.md,
   },
-  thumbRemoveText: {
-    color: colors.ivory,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  addThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.glassFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addThumbText: {
-    color: colors.platinum,
-    fontSize: 24,
-    fontWeight: '300',
-  },
-  qcNote: {
-    color: colors.slate,
-    fontSize: 11,
-    lineHeight: 16,
-    marginBottom: spacing.sm,
-  },
-  submit: {
-    marginTop: spacing.xs,
-  },
-  row: {
-    marginBottom: spacing.sm,
-  },
-  rowBody: {
+  topBarInner: {
+    height: 54,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    paddingHorizontal: spacing.sm + 2,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  rowText: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarTitleCol: {
+    alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 8,
   },
-  rowSpinner: {
-    width: 51, // matches the Switch footprint so rows don't jump mid-toggle
+  shopName: {
+    color: colors.textObsidian,
+    fontSize: 14,
+    fontWeight: '800',
   },
-  productName: {
-    color: colors.ivory,
-    fontSize: 15,
-  },
-  productMeta: {
-    color: colors.ash,
+  screenSubtitle: {
+    color: colors.accentCrimson,
     fontSize: 11,
-    letterSpacing: 0.6,
-    marginTop: 4,
+    fontWeight: '700',
+    marginTop: 1,
   },
-  badgeRow: {
+  headerAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 8,
+    gap: 4,
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: radii.full,
   },
-  reviewBadge: {
-    fontSize: 9,
-    letterSpacing: 1.4,
+  headerAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+  },
+  headerContainer: {
+    gap: 12,
+    marginBottom: spacing.xs,
+  },
+  addPieceHeroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: radii.xl,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  addPieceHeroIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  addPieceHeroTextCol: {
+    flex: 1,
+  },
+  addPieceHeroTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  addPieceHeroSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  tickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tickerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radii.full,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  tickerText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: colors.textObsidian,
+  },
+  searchBar: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.textObsidian,
+    fontSize: 14.5,
+    fontWeight: '600',
+  },
+  categoryPillsRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  catPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+  },
+  catPillActive: {
+    backgroundColor: colors.textObsidian,
+  },
+  catPillInactive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  catPillText: {
+    color: colors.textSlate,
+    fontSize: 12.5,
     fontWeight: '700',
   },
-  review_pending: { color: colors.gold },
-  review_live: { color: '#3fb27f' },
-  review_rejected: { color: colors.crimsonBright },
-  review_muted: { color: colors.slate },
-  stockLabel: {
-    color: colors.platinum,
-    fontSize: 9,
-    letterSpacing: 1.8,
+  catPillTextActive: {
+    color: '#FFFFFF',
   },
-  stockLabelOff: {
-    color: colors.slate,
-  },
-  rejectReason: {
-    color: colors.ash,
-    fontSize: 11,
-    lineHeight: 15,
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
     marginTop: 4,
   },
-  empty: {
-    marginTop: spacing.md,
+  sectionTitle: {
+    color: colors.textObsidian,
+    fontSize: 18,
+    fontWeight: '800',
   },
-  emptyTitle: {
-    color: colors.ivory,
+  sectionCountText: {
+    color: colors.textSlate,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  garmentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+    marginBottom: spacing.xs,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    gap: 12,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  garmentThumbnail: {
+    width: 85,
+    height: 95,
+    borderRadius: radii.md,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  garmentThumbnailFallback: {
+    width: 85,
+    height: 95,
+    borderRadius: radii.md,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  garmentInfoCol: {
+    flex: 1,
+    gap: 4,
+  },
+  garmentName: {
+    color: colors.textObsidian,
     fontSize: 16,
-    fontWeight: '300',
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sellingPriceText: {
+    color: colors.accentCrimson,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  stockBadgeText: {
+    color: colors.textSlate,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  materialSubtitle: {
+    fontSize: 12,
+    color: colors.textAsh,
+    fontWeight: '600',
+  },
+  sizesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  sizePill: {
+    backgroundColor: '#F1F3F5',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+  },
+  sizePillText: {
+    color: colors.textObsidian,
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  colorDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  colorDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  moreColorsText: {
+    fontSize: 11,
+    color: colors.textAsh,
+    fontWeight: '700',
+  },
+  stockBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: radii.lg,
+    borderWidth: 2,
+  },
+  stockBannerAvailable: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#15803D',
+  },
+  stockBannerOutOfStock: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#B91C1C',
+  },
+  stockBannerTextCol: {
+    flex: 1,
+  },
+  stockBannerTitle: {
+    fontSize: 14.5,
+    fontWeight: '900',
+  },
+  stockTitleAvailable: {
+    color: '#15803D',
+  },
+  stockTitleOutOfStock: {
+    color: '#B91C1C',
+  },
+  stockBannerSub: {
+    fontSize: 11.5,
+    color: colors.textSlate,
+    marginTop: 1,
+  },
+  floatingAddBtn: {
+    position: 'absolute',
+    right: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 9999,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 90,
+  },
+  floatingAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
     letterSpacing: 0.5,
   },
-  emptyBody: {
-    color: colors.ash,
-    fontSize: 13,
-    lineHeight: 20,
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 32,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    marginTop: 12,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textObsidian,
     marginTop: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13.5,
+    color: colors.textSlate,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  emptyAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: radii.full,
+    marginTop: 8,
+  },
+  emptyAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

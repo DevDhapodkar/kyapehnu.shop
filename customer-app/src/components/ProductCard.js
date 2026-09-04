@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
-import { formatINR } from '../data/mockStores';
+import { formatCurrency as formatINR } from '../utils/format';
 import { colors, radii, spacing } from '../theme/colors';
 
 export const PRODUCT_CARD_WIDTH = 210;
@@ -10,11 +12,38 @@ export const PRODUCT_CARD_WIDTH = 210;
 /**
  * ProductCard
  *
- * The horizontal-feed tile on Home. The image fills the top two-thirds and the
- * frosted footer sits on top of its lower edge, so the photo reads as the card
- * surface and the glass reads as a pane laid over it.
+ * Implements Stitch's Apple Glass horizontal rail card:
+ * - 3:4 aspect ratio garment photography
+ * - Glass schedule badge ("⏱ 32 min") & wishlist button
+ * - Floating locality banner ("Gandhibagh · 2.1 km")
+ * - Clean white bottom pane with store provenance, bold tabular price, and quick-add "+"
  */
-export default function ProductCard({ product, onPress }) {
+export default function ProductCard({ product, onPress, onQuickAdd }) {
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  const handleToggleWishlist = (e) => {
+    e?.stopPropagation?.();
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    setIsWishlisted((prev) => !prev);
+  };
+
+  const handleQuickAdd = (e) => {
+    e?.stopPropagation?.();
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    onQuickAdd?.(product);
+  };
+
+  // Estimate delivery minutes based on distance (approx 15 + distance * 8)
+  const deliveryMins =
+    product.deliveryMinutes ||
+    (typeof product.distanceKm === 'number'
+      ? Math.round(15 + product.distanceKm * 7)
+      : 25);
+
   return (
     <PressableScale
       onPress={onPress}
@@ -22,33 +51,72 @@ export default function ProductCard({ product, onPress }) {
       accessibilityLabel={`${product.name}, ${formatINR(product.price)}`}
       style={styles.card}
     >
-      <Image
-        source={{ uri: product.image }}
-        style={styles.image}
-        contentFit="cover"
-        transition={220}
-      />
+      {/* Media Box */}
+      <View style={styles.imageWrap}>
+        <Image
+          source={{ uri: product.image }}
+          style={styles.image}
+          contentFit="cover"
+          transition={250}
+        />
 
-      {/* Frosted footer: the only place a card shows price and provenance. */}
-      <View style={styles.footer}>
-        <View pointerEvents="none" style={styles.footerFill} />
-        <View pointerEvents="none" style={styles.footerHighlight} />
-
-        <Text style={styles.category}>{product.category.toUpperCase()}</Text>
-        <Text style={styles.name} numberOfLines={1}>
-          {product.name}
-        </Text>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.price}>{formatINR(product.price)}</Text>
-          {typeof product.distanceKm === 'number' ? (
-            <Text style={styles.distance}>{product.distanceKm} km</Text>
-          ) : null}
+        {/* Top-left Glass Schedule Pill */}
+        <View style={styles.schedulePill}>
+          <Text style={styles.scheduleIcon}>⏱</Text>
+          <Text style={styles.scheduleText}>{deliveryMins} min</Text>
         </View>
 
-        <Text style={styles.store} numberOfLines={1}>
-          {product.storeName}
-        </Text>
+        {/* Top-right Wishlist Button */}
+        <Pressable
+          onPress={handleToggleWishlist}
+          hitSlop={6}
+          style={styles.favBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Wishlist item"
+        >
+          <Text style={[styles.favIcon, isWishlisted && styles.favActive]}>
+            {isWishlisted ? '♥' : '♡'}
+          </Text>
+        </Pressable>
+
+        {/* Floating Locality Banner */}
+        {product.storeName ? (
+          <View style={styles.localityBanner}>
+            <Text style={styles.localityText} numberOfLines={1}>
+              {product.storeName}
+              {typeof product.distanceKm === 'number'
+                ? ` · ${product.distanceKm} km`
+                : ''}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Info Pane */}
+      <View style={styles.infoPane}>
+        <View>
+          <Text style={styles.category} numberOfLines={1}>
+            {product.category?.toUpperCase() || 'COUTURE'}
+          </Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {product.name}
+          </Text>
+        </View>
+
+        <View style={styles.footerRow}>
+          <Text style={styles.price}>{formatINR(product.price)}</Text>
+
+          {onQuickAdd ? (
+            <PressableScale
+              onPress={handleQuickAdd}
+              style={styles.addBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Quick add to bag"
+            >
+              <Text style={styles.addIcon}>+</Text>
+            </PressableScale>
+          ) : null}
+        </View>
       </View>
     </PressableScale>
   );
@@ -57,71 +125,131 @@ export default function ProductCard({ product, onPress }) {
 const styles = StyleSheet.create({
   card: {
     width: PRODUCT_CARD_WIDTH,
-    borderRadius: radii.lg,
+    borderRadius: 22,
     overflow: 'hidden',
-    backgroundColor: colors.charcoal,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(18, 18, 20, 0.05)',
     marginRight: spacing.sm,
-    shadowColor: colors.glassShadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    elevation: 10,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  imageWrap: {
+    position: 'relative',
+    width: '100%',
+    aspectRatio: 3 / 4,
+    backgroundColor: colors.groundSubtle,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
-    height: 240,
-    backgroundColor: colors.charcoalLight,
+    height: '100%',
   },
-  footer: {
-    position: 'relative',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  footerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  footerHighlight: {
+  schedulePill: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+  },
+  scheduleIcon: {
+    fontSize: 10,
+  },
+  scheduleText: {
+    color: colors.textObsidian,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  favBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favIcon: {
+    fontSize: 13,
+    color: colors.textObsidian,
+  },
+  favActive: {
+    color: colors.accentCrimson,
+  },
+  localityBanner: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(18, 18, 22, 0.72)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radii.sm,
+  },
+  localityText: {
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  infoPane: {
+    padding: spacing.sm + 2,
+    backgroundColor: '#FFFFFF',
+    gap: spacing.xs,
   },
   category: {
-    color: colors.ash,
+    color: colors.textAsh,
     fontSize: 9,
-    letterSpacing: 1.8,
-    marginBottom: 5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginBottom: 2,
   },
   name: {
-    color: colors.ivory,
-    fontSize: 15,
-    fontWeight: '400',
-    letterSpacing: -0.2,
+    color: colors.textObsidian,
+    fontSize: 14.5,
+    fontWeight: '600',
+    lineHeight: 18,
   },
-  metaRow: {
+  footerRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 2,
   },
   price: {
-    color: colors.ivory,
+    color: colors.textObsidian,
     fontSize: 15,
+    fontWeight: '700',
+  },
+  addBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.groundSubtle,
+    borderWidth: 1,
+    borderColor: 'rgba(18, 18, 20, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addIcon: {
+    color: colors.textObsidian,
+    fontSize: 16,
     fontWeight: '600',
-  },
-  distance: {
-    color: colors.gold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-  },
-  store: {
-    color: colors.slate,
-    fontSize: 11,
-    marginTop: 3,
+    marginTop: -1,
   },
 });

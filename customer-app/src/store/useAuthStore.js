@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 
-import { setAuthToken } from '../api/vendorApi';
-import { syncUserProfile, fetchUserProfile, registerUserPushToken } from '../api/vendorApi';
+import {
+  setAuthToken,
+  syncUserProfile,
+  fetchUserProfile,
+  fetchVendorProfile,
+  registerUserPushToken,
+} from '../api/vendorApi';
 import { registerForPush } from '../services/notifications';
 import {
   signInEmail,
@@ -101,6 +106,16 @@ export const useAuthStore = create((set, get) => ({
         }
       }
 
+      // Check if this account is a registered vendor
+      try {
+        const vendor = await fetchVendorProfile();
+        if (vendor && (vendor._id || vendor.shopName)) {
+          set({ role: ROLES.VENDOR, vendorProfile: vendor });
+        }
+      } catch {
+        // Customer account
+      }
+
       // Register this device for order-status push notifications (best-effort).
       registerForPush()
         .then((pushToken) => pushToken && registerUserPushToken(pushToken).catch(() => {}))
@@ -119,6 +134,17 @@ export const useAuthStore = create((set, get) => ({
     const token = await cred.user.getIdToken();
     setAuthToken(token);
     set({ user: cred.user, token });
+
+    try {
+      const vendor = await fetchVendorProfile();
+      if (vendor && (vendor._id || vendor.shopName)) {
+        set({ role: ROLES.VENDOR, vendorProfile: vendor });
+      } else {
+        set({ role: ROLES.CUSTOMER });
+      }
+    } catch {
+      set({ role: ROLES.CUSTOMER });
+    }
   },
 
   /**
@@ -193,20 +219,22 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  setRole: (role) => set({ role }),
+  setRole: (role) => {
+    // If account is a registered vendor, lock strictly to vendor mode: no shopping allowed.
+    if (get().vendorProfile && role === ROLES.CUSTOMER) {
+      console.warn('Vendor accounts are restricted to Vendor Mode only. Shopping is not permitted.');
+      return;
+    }
+    set({ role });
+  },
 
-  /**
-   * Testing affordance behind the Profile screen: flips the whole app between
-   * the two flows without a real vendor login. Deliberately a store action
-   * rather than screen-local state so the navigator remount is driven by the
-   * same field a real sign-in would set.
-   */
-  toggleVendorMode: () =>
-    set((state) => ({
-      role: state.role === ROLES.VENDOR ? ROLES.CUSTOMER : ROLES.VENDOR,
-    })),
-
-  setVendorProfile: (vendorProfile) => set({ vendorProfile }),
+  setVendorProfile: (vendorProfile) => {
+    if (vendorProfile && (vendorProfile._id || vendorProfile.shopName)) {
+      set({ vendorProfile, role: ROLES.VENDOR });
+    } else {
+      set({ vendorProfile });
+    }
+  },
 }));
 
 /* Selectors — importable so components subscribe to the narrowest slice. */

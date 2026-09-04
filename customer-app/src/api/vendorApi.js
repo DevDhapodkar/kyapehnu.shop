@@ -19,15 +19,15 @@ const extra = Constants.expoConfig?.extra ?? {};
  * On a physical device set `extra.apiBaseUrl` in app.json to the LAN IP.
  */
 const resolveBaseUrl = () => {
-  // The backend listens on 5001 (5000 is taken by macOS AirPlay Receiver), so
-  // the local-dev fallback has to match or every call 403s against AirTunes.
-  const configured = extra.apiBaseUrl || 'http://localhost:5001';
-
-  if (Platform.OS === 'android') {
-    return configured.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const host = window.location.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return `http://${host}:5001`;
+    }
+    return 'http://localhost:5001';
   }
 
-  return configured;
+  return extra.apiBaseUrl || 'https://kyapehnu-backend.onrender.com';
 };
 
 export const API_BASE_URL = resolveBaseUrl();
@@ -39,6 +39,7 @@ export const API_BASE_URL = resolveBaseUrl();
 // the dyno to wake and retry idempotent reads/upserts below.
 const REQUEST_TIMEOUT_MS = 45000;
 
+// eslint-disable-next-line import/no-named-as-default-member
 const client = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: REQUEST_TIMEOUT_MS,
@@ -153,6 +154,18 @@ export const fetchStorefront = (params) =>
 export const placeOrder = (payload) =>
   request(() => client.post('/orders', payload), 'Failed to place order');
 
+/** POST /api/orders/guest — guest COD order from checkout (no auth required). */
+export const createGuestOrder = (payload) =>
+  request(() => client.post('/orders/guest', payload), 'Failed to place guest order');
+
+/** GET /api/orders/track — public order tracking for guest orders. */
+export const trackGuestOrder = (orderId, phone) =>
+  request(() => client.get('/orders/track', { params: { orderId, phone } }), 'Failed to track order');
+
+/** GET /api/vendors/nearby — nearby boutiques discovery. */
+export const fetchNearbyVendors = (params) =>
+  request(() => client.get('/vendors/nearby', { params }), 'Failed to load nearby boutiques', { retries: 2 });
+
 /** GET /api/orders/mine — the signed-in customer's orders, newest first. */
 export const fetchMyOrders = () =>
   request(() => client.get('/orders/mine'), 'Failed to load your orders', { retries: 2 });
@@ -181,26 +194,53 @@ export const registerVendorPushToken = (token) =>
 /* --------------------------------------------------------------- uploads -- */
 
 /**
- * POST /api/uploads/images — multipart upload of picked images. Accepts the
+ * POST /api/uploads/images — multipart upload of picked images & videos. Accepts the
  * asset objects expo-image-picker returns and resolves to
- * `{ images: [{ url, publicId, thumbnails }] }`.
- * @param {{ uri: string, fileName?: string, mimeType?: string }[]} assets
+ * `{ images: [{ url, publicId, resourceType, thumbnails }] }`.
+ * @param {{ uri: string, fileName?: string, mimeType?: string, type?: string, file?: any }[]} assets
  */
-export const uploadProductImages = (assets) => {
+export const uploadProductImages = async (assets) => {
   const form = new FormData();
-  assets.forEach((asset, index) => {
-    form.append('images', {
-      uri: asset.uri,
-      name: asset.fileName || `image_${index}.jpg`,
-      type: asset.mimeType || 'image/jpeg',
-    });
-  });
+
+  for (let index = 0; index < assets.length; index++) {
+    const asset = assets[index];
+    const isVideo =
+      asset.type === 'video' ||
+      asset.mimeType?.startsWith('video/') ||
+      asset.uri?.endsWith('.mp4') ||
+      asset.uri?.endsWith('.mov');
+    const ext = isVideo ? 'mp4' : 'jpg';
+    const fallbackName = `media_${Date.now()}_${index}.${ext}`;
+    const name = asset.fileName || fallbackName;
+    const type = asset.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg');
+
+    if (Platform.OS === 'web') {
+      if (asset.file) {
+        form.append('images', asset.file, name);
+      } else {
+        try {
+          const res = await fetch(asset.uri);
+          const blob = await res.blob();
+          form.append('images', blob, name);
+        } catch {
+          form.append('images', { uri: asset.uri, name, type });
+        }
+      }
+    } else {
+      form.append('images', {
+        uri: asset.uri,
+        name,
+        type,
+      });
+    }
+  }
+
   return request(
     () =>
       client.post('/uploads/images', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }),
-    'Failed to upload images'
+    'Failed to upload media'
   );
 };
 

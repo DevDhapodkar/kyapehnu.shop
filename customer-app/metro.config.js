@@ -22,11 +22,24 @@ config.resolver.assetExts.push('glb', 'gltf', 'bin', 'hdr');
 // and takes the whole Metro config down with it. Resolve the package's own
 // CommonJS entry — which is allowed — and step sideways to its ESM sibling.
 const THREE_ENTRY = path.join(path.dirname(require.resolve('three')), 'three.module.js');
+
+// `react-native-maps` is native-only: its Fabric specs call `codegenNativeComponent`,
+// which react-native-web does not provide, so importing it throws at module load and
+// crashes the entire web bundle. Swap it for a placeholder shim on web only so the app
+// stays testable in a browser; native builds keep the real package.
+const MAPS_WEB_SHIM = path.join(__dirname, 'src/shims/react-native-maps.web.js');
 const defaultResolveRequest = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'three') {
     return { type: 'sourceFile', filePath: THREE_ENTRY };
+  }
+
+  if (
+    platform === 'web' &&
+    (moduleName === 'react-native-maps' || moduleName.startsWith('react-native-maps/'))
+  ) {
+    return { type: 'sourceFile', filePath: MAPS_WEB_SHIM };
   }
 
   const resolve = defaultResolveRequest ?? context.resolveRequest;

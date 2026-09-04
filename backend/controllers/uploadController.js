@@ -1,47 +1,89 @@
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
 import cloudinary, { isCloudinaryConfigured } from '../config/cloudinary.js';
 import { uploadImages, runMiddleware } from '../middleware/upload.js';
-import { buildProductFolder, buildThumbnails } from '../utils/imageValidation.js';
+import { buildProductFolder, buildThumbnails, isVideoMime } from '../utils/imageValidation.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_UPLOADS_DIR = path.join(__dirname, '../public/uploads');
+
+// Ensure public uploads directory exists for disk fallback
+if (!fs.existsSync(LOCAL_UPLOADS_DIR)) {
+  fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+}
 
 /**
- * Stream one in-memory file buffer to Cloudinary.
- * @param {Buffer} buffer
+ * Stream one in-memory file buffer to Cloudinary (image or video).
+ * @param {import('express').Multer.File} file
  * @param {string} folder
  * @returns {Promise<import('cloudinary').UploadApiResponse>}
  */
-const uploadBuffer = (buffer, folder) =>
+const uploadBufferToCloudinary = (file, folder) =>
   new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: 'image',
-        format: 'webp',
-        // Cap the stored master; c_limit never upscales small phone photos.
-        transformation: [{ width: 1200, height: 1600, crop: 'limit' }],
-      },
-      (error, result) => (error ? reject(error) : resolve(result))
+    const isVideo = isVideoMime(file.mimetype);
+    const options = {
+      folder,
+      resource_type: isVideo ? 'video' : 'image',
+    };
+
+    if (!isVideo) {
+      options.format = 'webp';
+      // Cap the stored master; c_limit never upscales small phone photos.
+      options.transformation = [{ width: 1200, height: 1600, crop: 'limit' }];
+    }
+
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) =>
+      error ? reject(error) : resolve(result)
     );
-    stream.end(buffer);
+    stream.end(file.buffer);
   });
+
+/**
+ * Fallback to local storage when Cloudinary credentials are not present.
+ * @param {import('express').Multer.File} file
+ * @param {import('express').Request} req
+ * @returns {Promise<object>}
+ */
+const saveFileLocally = async (file, req) => {
+  const ext = path.extname(file.originalname) || (isVideoMime(file.mimetype) ? '.mp4' : '.jpg');
+  const filename = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
+  const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+
+  await fs.promises.writeFile(filePath, file.buffer);
+
+  const protocol = req.protocol || 'http';
+  const host = req.get('host') || 'localhost:5001';
+  const fileUrl = `${protocol}://${host}/uploads/${filename}`;
+
+  return {
+    secure_url: fileUrl,
+    public_id: `local/${filename}`,
+    width: 800,
+    height: 800,
+    bytes: file.size,
+    resource_type: isVideoMime(file.mimetype) ? 'video' : 'image',
+  };
+};
 
 const toImagePayload = (result) => ({
   url: result.secure_url,
   publicId: result.public_id,
-  width: result.width,
-  height: result.height,
-  bytes: result.bytes,
+  width: result.width || 0,
+  height: result.height || 0,
+  bytes: result.bytes || 0,
+  resourceType: result.resource_type || 'image',
   thumbnails: buildThumbnails(result.secure_url),
 });
 
 /**
  * POST /api/uploads/images  (vendor auth, multipart field: `images`, 1–5 files)
- * Returns the stored master URL + publicId + delivery variants for each image.
+ * Returns the stored master URL + publicId + delivery variants for each image/video.
  * The vendor app then puts `url` values into the product's `images` array.
  */
 export const uploadProductImages = async (req, res) => {
-  if (!isCloudinaryConfigured) {
-    return res.status(503).json({ message: 'Image uploads are not configured on this server' });
-  }
-
   try {
     await runMiddleware(req, res, uploadImages);
   } catch (err) {
@@ -50,15 +92,26 @@ export const uploadProductImages = async (req, res) => {
   }
 
   if (!req.files?.length) {
-    return res.status(400).json({ message: 'No images provided (multipart field name: images)' });
+    return res.status(400).json({ message: 'No media files provided (multipart field name: images)' });
   }
 
   try {
-    const folder = buildProductFolder(req.vendor._id.toString());
-    const results = await Promise.all(req.files.map((file) => uploadBuffer(file.buffer, folder)));
+    let results;
+    if (isCloudinaryConfigured) {
+      const vendorId = req.vendor?._id ? req.vendor._id.toString() : 'guest';
+      const folder = buildProductFolder(vendorId);
+      results = await Promise.all(
+        req.files.map((file) => uploadBufferToCloudinary(file, folder))
+      );
+    } else {
+      results = await Promise.all(
+        req.files.map((file) => saveFileLocally(file, req))
+      );
+    }
+
     res.status(201).json({ images: results.map(toImagePayload) });
   } catch (error) {
-    res.status(502).json({ message: 'Image upload to Cloudinary failed', error: error.message });
+    res.status(502).json({ message: 'Media upload failed', error: error.message });
   }
 };
 
@@ -67,13 +120,26 @@ export const uploadProductImages = async (req, res) => {
  * Removes a stored asset — call this when a vendor drops an image from a listing.
  */
 export const deleteProductImage = async (req, res) => {
-  if (!isCloudinaryConfigured) {
-    return res.status(503).json({ message: 'Image uploads are not configured on this server' });
-  }
-
   const { publicId } = req.body ?? {};
   if (!publicId || typeof publicId !== 'string') {
     return res.status(400).json({ message: 'publicId is required' });
+  }
+
+  if (publicId.startsWith('local/')) {
+    try {
+      const filename = publicId.replace('local/', '');
+      const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+      }
+      return res.json({ deleted: true, publicId, result: 'ok' });
+    } catch (_err) {
+      return res.json({ deleted: true, publicId, result: 'not found' });
+    }
+  }
+
+  if (!isCloudinaryConfigured) {
+    return res.json({ deleted: true, publicId, result: 'ok' });
   }
 
   try {

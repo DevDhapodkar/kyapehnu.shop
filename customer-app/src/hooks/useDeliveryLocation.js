@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 
-import { NAGPUR_CENTER } from '../data/mockStores';
+const NAGPUR_CENTER = { latitude: 21.1458, longitude: 79.0882 };
 
 /**
  * useDeliveryLocation

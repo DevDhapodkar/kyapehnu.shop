@@ -1,267 +1,510 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-import GlassButton from '../components/GlassButton';
+import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { NAGPUR_CENTER, formatINR, mockStores } from '../data/mockStores';
-import { obsidianMapStyle } from '../theme/mapStyle';
+import { formatCurrency as formatINR } from '../utils/format';
+import { fetchOrder, trackGuestOrder, cancelMyOrder } from '../api/vendorApi';
+import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
 
-/** Delivery address stand-in — the Wathoda belt near Symbiosis Institute of Technology. */
-const DESTINATION = {
-  latitude: 21.0972,
-  longitude: 79.147,
-  label: 'Wathoda Ring Road, Nagpur',
-};
-
-/** How often the mock Porter driver advances one step along the route. */
-const TICK_MS = 1200;
-/** Steps interpolated between each pair of waypoints. */
-const STEPS_PER_LEG = 14;
-
 /**
- * Builds a dense coordinate list from a handful of waypoints so the driver
- * marker glides instead of jumping. Real coordinates will arrive over the
- * Firebase channel described in ARCHITECTURE.md; the shape stays identical.
+ * LiveTrackingScreen — Rider in Motion (Frosted Glass & Ambient Blobs)
+ *
+ * Implements Stitch Screen 5375e4130ff5444f8524b25b4cd203ee:
+ * - Animated drifting ambient background blobs
+ * - Subtle optical glass pinned header with location selector
+ * - Animated route radar card: Studio Anamika -> Rider in Motion -> Civil Lines
+ * - Live ETA pill with status
+ * - Step progression: Confirmed -> Picked Up -> On the Way
+ * - Rider profile card with Porter partner details
+ * - Order summary chip with garment details
+ * - Help & Return to Storefront CTAs
+ * - Zero Emojis (MaterialIcons throughout)
  */
-function buildRoute(from, to) {
-  // Two intermediate waypoints, nudged off the straight line, so the path bends
-  // the way a road would rather than reading as a ruler.
-  const waypoints = [
-    from,
-    {
-      latitude: from.latitude + (to.latitude - from.latitude) * 0.35 - 0.006,
-      longitude: from.longitude + (to.longitude - from.longitude) * 0.35 + 0.004,
-    },
-    {
-      latitude: from.latitude + (to.latitude - from.latitude) * 0.7 + 0.005,
-      longitude: from.longitude + (to.longitude - from.longitude) * 0.7 + 0.002,
-    },
-    to,
-  ];
-
-  const path = [];
-  for (let i = 0; i < waypoints.length - 1; i += 1) {
-    const a = waypoints[i];
-    const b = waypoints[i + 1];
-    for (let step = 0; step < STEPS_PER_LEG; step += 1) {
-      const t = step / STEPS_PER_LEG;
-      path.push({
-        latitude: a.latitude + (b.latitude - a.latitude) * t,
-        longitude: a.longitude + (b.longitude - a.longitude) * t,
-      });
-    }
-  }
-  path.push(waypoints[waypoints.length - 1]);
-  return path;
-}
-
-function stageFor(progress) {
-  if (progress < 0.05) return { label: 'Picked up', detail: 'Rider has collected your order.' };
-  if (progress < 0.55) return { label: 'On the way', detail: 'Moving through Nagpur traffic.' };
-  if (progress < 0.95) return { label: 'Almost there', detail: 'Two turns from your street.' };
-  return { label: 'Arriving now', detail: 'Rider is at your door.' };
-}
-
 export default function LiveTrackingScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef(null);
+  const { order, orderId: paramOrderId, phone } = route.params || {};
 
-  const order = route.params?.order ?? null;
+  const token = useAuthStore((state) => state.token);
+  const orderId = paramOrderId || order?.id || order?._id || 'KP-8902';
 
-  // Destination: the pin the buyer dropped on the address screen (carried on the
-  // order), falling back to the demo address so the screen still works without
-  // going through checkout.
-  const destination = useMemo(() => {
-    const dropped = order?.destination;
-    if (dropped?.latitude != null && dropped?.longitude != null) {
-      return { ...dropped, label: dropped.label || DESTINATION.label };
-    }
-    return DESTINATION;
-  }, [order]);
+  const [liveOrder, setLiveOrder] = useState(order || null);
+  const [etaMinutes] = useState(order?.etaMinutes || 22);
+  const [cancelling, setCancelling] = useState(false);
 
-  // Pickup point: the store the first line item came from, falling back to the
-  // Sitabuldi shop so the screen is demoable without going through checkout.
-  const pickup = useMemo(() => {
-    const fromOrder = order?.items?.[0]?.storeCoordinates;
-    if (fromOrder) {
-      return { ...fromOrder, label: order.items[0].storeName };
-    }
-    const fallback = mockStores[1];
-    return { ...fallback.coordinates, label: fallback.name };
-  }, [order]);
-
-  const routeCoords = useMemo(() => buildRoute(pickup, destination), [pickup, destination]);
-
-  const [index, setIndex] = useState(0);
-  const driver = routeCoords[Math.min(index, routeCoords.length - 1)];
-  const progress = routeCoords.length > 1 ? index / (routeCoords.length - 1) : 1;
-  const stage = stageFor(progress);
-  const minutesLeft = Math.max(1, Math.round((1 - progress) * 34));
-
-  // The progress rail glides between ticks instead of jumping in 14-step
-  // increments: each new position eases in over exactly one tick with linear
-  // timing, so the fill reads as continuous constant motion (a driver moving)
-  // rather than a stuttering bar.
-  const fill = useSharedValue(0);
   useEffect(() => {
-    fill.set(
-      withTiming(progress, {
-        duration: TICK_MS,
-        easing: Easing.linear,
-        reduceMotion: ReduceMotion.System,
-      }),
+    const idToFetch = orderId || liveOrder?._id || liveOrder?.id;
+    if (!idToFetch || String(idToFetch).startsWith('mock-')) return;
+    let active = true;
+
+    const poll = async () => {
+      try {
+        let data;
+        if (token) {
+          data = await fetchOrder(idToFetch);
+        } else if (phone) {
+          data = await trackGuestOrder(idToFetch, phone);
+        }
+        if (active && data) {
+          setLiveOrder(data);
+        }
+      } catch (_err) {
+        // transient network
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 8000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [orderId, liveOrder?._id, liveOrder?.id, token, phone]);
+
+  // Status mapping
+  const rawStatus = (liveOrder?.status || order?.status || 'PENDING').toUpperCase();
+
+  const isConfirmed = ['PENDING', 'ACCEPTED', 'PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isPickedUp = ['PACKED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isOnTheWay = ['IN_TRANSIT', 'DELIVERED'].includes(rawStatus);
+  const isDelivered = rawStatus === 'DELIVERED';
+  const isCancelled = rawStatus === 'CANCELLED';
+  const isCancellable = ['PENDING', 'ACCEPTED'].includes(rawStatus);
+
+  const displayTitle = isCancelled
+    ? 'Order Cancelled'
+    : isDelivered
+    ? 'Garments Delivered'
+    : isOnTheWay
+    ? 'Rider in Motion'
+    : isPickedUp
+    ? 'Driver Assigned'
+    : rawStatus === 'ACCEPTED'
+    ? 'Boutique Preparing'
+    : 'Order Confirmed';
+
+  const storeName = liveOrder?.vendor?.shopName || order?.items?.[0]?.storeName || 'Nagpur Boutique';
+  const storeArea = liveOrder?.vendor?.area || liveOrder?.vendor?.address?.area || order?.items?.[0]?.storeArea || 'Dharampeth';
+  const dropAddress = liveOrder?.deliveryAddress?.line1 || order?.deliveryAddress?.line1 || 'Nagpur';
+  const dropArea = liveOrder?.deliveryAddress?.line2 || liveOrder?.deliveryAddress?.area || 'Civil Lines';
+  const items = liveOrder?.items?.length ? liveOrder.items : order?.items?.length ? order.items : [];
+
+  const porterDriver = liveOrder?.porter?.driverName
+    ? {
+        name: liveOrder.porter.driverName,
+        vehicle: 'Porter Logistics Partner',
+        phone: liveOrder.porter.driverPhone || '+91 712 254 9900',
+        rating: '4.9',
+      }
+    : null;
+
+  const handleCall = (contactPhone) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    Linking.openURL(`tel:${contactPhone}`).catch(() => {
+      Alert.alert('Concierge', `Calling ${contactPhone}...`);
+    });
+  };
+
+  const handleWhatsApp = (contactPhone, name) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    const clean = String(contactPhone).replace(/[^0-9]/g, '');
+    Linking.openURL(
+      `https://wa.me/${clean}?text=Hi%20${name || ''},%20regarding%20my%20Kya%20Pehnu%20order%20${orderId}`
+    ).catch(() => {
+      Alert.alert('WhatsApp Concierge', 'Opening WhatsApp concierge chat...');
+    });
+  };
+
+  const handleCancelOrder = () => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? The atelier will be notified immediately.',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await cancelMyOrder(orderId);
+              setLiveOrder((prev) => ({ ...prev, status: 'CANCELLED' }));
+              Alert.alert('Order Cancelled', 'Your order has been cancelled.');
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Could not cancel order.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
     );
-  }, [progress, fill]);
-  const railFillStyle = useAnimatedStyle(() => ({ width: `${fill.get() * 100}%` }));
+  };
 
-  // Mock telemetry: advance one step per tick and stop at the destination.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((current) =>
-        current >= routeCoords.length - 1 ? current : current + 1,
-      );
-    }, TICK_MS);
-    return () => clearInterval(timer);
-  }, [routeCoords.length]);
-
-  // Keep the driver in frame without fighting the user's own panning: only
-  // recentre every few steps.
-  useEffect(() => {
-    if (!mapRef.current || index % 6 !== 0) return;
-    mapRef.current.animateCamera({ center: driver }, { duration: 900 });
-  }, [index, driver]);
-
-  const initialRegion = {
-    latitude: (pickup.latitude + destination.latitude) / 2 || NAGPUR_CENTER.latitude,
-    longitude: (pickup.longitude + destination.longitude) / 2 || NAGPUR_CENTER.longitude,
-    latitudeDelta: Math.abs(pickup.latitude - destination.latitude) * 2.6 + 0.05,
-    longitudeDelta: Math.abs(pickup.longitude - destination.longitude) * 2.6 + 0.05,
+  const handleNeedHelp = () => {
+    Alert.alert(
+      'Nagpur Concierge Care',
+      'Doorstep fitting coordinator available at +91 712 254 9900.\nMaster tailor on standby for alterations.',
+      [
+        { text: 'Call Hotline', onPress: () => Linking.openURL('tel:+917122549900').catch(() => {}) },
+        { text: 'Close', style: 'cancel' },
+      ]
+    );
   };
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        // Apple Maps on iOS honours userInterfaceStyle; Google on Android takes
-        // the custom JSON style instead.
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        customMapStyle={obsidianMapStyle}
-        userInterfaceStyle="dark"
-        initialRegion={initialRegion}
-        showsPointsOfInterest={false}
-        showsTraffic={false}
-        toolbarEnabled={false}
+      {/* 1. Animated Drifting Background Blobs */}
+      <AmbientBackgroundBlobs />
+
+      {/* 2. Floating Top Header */}
+      <View
+        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        pointerEvents="box-none"
       >
-        <Polyline
-          coordinates={routeCoords}
-          strokeColor={colors.crimsonBright}
-          strokeWidth={3}
-          lineDashPattern={[6, 8]}
-        />
+        <View style={styles.topBarInner} pointerEvents="auto">
+          <PressableScale
+            onPress={() => navigation.navigate('Home')}
+            style={styles.topBarBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go to Storefront"
+          >
+            <MaterialIcons
+              name="arrow-back-ios-new"
+              size={17}
+              color={colors.textObsidian}
+            />
+          </PressableScale>
 
-        {/* Destination */}
-        <Marker coordinate={destination} title="Delivery address" description={destination.label}>
-          <View style={styles.destMarker}>
-            <View style={styles.destCore} />
+          <View style={styles.locationPill}>
+            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
+            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
+            <MaterialIcons
+              name="expand-more"
+              size={15}
+              color={colors.textAsh}
+            />
           </View>
-        </Marker>
 
-        {/* Porter rider */}
-        <Marker
-          coordinate={driver}
-          title="Porter rider"
-          description={`${stage.label} · ${minutesLeft} min away`}
-          anchor={{ x: 0.5, y: 0.5 }}
-          flat
-        >
-          <View style={styles.driverMarker}>
-            <View style={styles.driverHalo} />
-            <View style={styles.driverCore} />
-          </View>
-        </Marker>
-      </MapView>
-
-      {/* Floating header. */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-        <View pointerEvents="none" style={styles.headerFill} />
-        <PressableScale
-          onPress={() => navigation.navigate('Home')}
-          haptic={false}
-          accessibilityLabel="Back to shopping"
-          style={styles.circleButton}
-        >
-          <Text style={styles.circleGlyph}>←</Text>
-        </PressableScale>
-        <View style={styles.headerText}>
-          <Text style={styles.headerEyebrow}>LIVE TRACKING</Text>
-          <Text style={styles.headerTitle}>
-            {order ? `Order ${order.id.slice(-6).toUpperCase()}` : 'Demo delivery'}
-          </Text>
+          <PressableScale
+            onPress={handleNeedHelp}
+            style={styles.topBarBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Help"
+          >
+            <MaterialIcons
+              name="support-agent"
+              size={18}
+              color={colors.textObsidian}
+            />
+          </PressableScale>
         </View>
       </View>
 
-      {/* Status sheet. */}
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-        <View pointerEvents="none" style={styles.sheetFill} />
-        <View pointerEvents="none" style={styles.sheetHighlight} />
-
-        <View style={styles.statusRow}>
-          <View style={styles.statusLeft}>
-            <Text style={styles.statusLabel}>{stage.label.toUpperCase()}</Text>
-            <Text style={styles.statusDetail}>{stage.detail}</Text>
+      {/* 3. Main Tracking Content */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 68,
+            paddingBottom: insets.bottom + 100,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Animated Route & Radar Map Card */}
+        <View style={styles.radarCard}>
+          {/* Radar background circles */}
+          <View style={styles.radarBackground}>
+            <View style={styles.radarCircle1} />
+            <View style={styles.radarCircle2} />
           </View>
-          <View style={styles.etaBlock}>
-            <Text style={styles.etaValue}>{minutesLeft}</Text>
-            <Text style={styles.etaUnit}>MIN</Text>
+
+          {/* Route nodes */}
+          <View style={styles.routeRow}>
+            {/* Atelier Node */}
+            <View style={styles.routeNode}>
+              <View style={styles.atelierPin}>
+                <MaterialIcons
+                  name="local-mall"
+                  size={14}
+                  color={colors.accentGoldDeep}
+                />
+              </View>
+              <Text style={styles.nodeTitle} numberOfLines={1}>{storeName}</Text>
+              <Text style={styles.nodeSub} numberOfLines={1}>{storeArea}</Text>
+            </View>
+
+            {/* Connecting line with moving rider */}
+            <View style={styles.routeTrack}>
+              <View style={styles.trackLine} />
+              <View style={[styles.riderMarker, isOnTheWay && { backgroundColor: colors.accentCrimson }]}>
+                <MaterialIcons name="two-wheeler" size={16} color="#FFFFFF" />
+              </View>
+            </View>
+
+            {/* Destination Node */}
+            <View style={styles.routeNode}>
+              <View style={styles.homePin}>
+                <MaterialIcons
+                  name="home"
+                  size={15}
+                  color={colors.accentCrimson}
+                />
+              </View>
+              <Text style={styles.nodeTitle} numberOfLines={1}>{dropAddress}</Text>
+              <Text style={styles.nodeSub} numberOfLines={1}>{dropArea}</Text>
+            </View>
+          </View>
+
+          {/* Floating ETA Banner */}
+          <View style={styles.etaBar}>
+            <View style={styles.etaPill}>
+              <MaterialIcons name="bolt" size={14} color={colors.accentGold} />
+              <Text style={styles.etaText}>
+                {isCancelled
+                  ? 'Order Cancelled'
+                  : isDelivered
+                  ? 'Delivered · Fitting Complete'
+                  : `${etaMinutes}m ETA · ${displayTitle}`}
+              </Text>
+            </View>
+            <View style={styles.distancePill}>
+              <Text style={styles.distanceText}>
+                {isDelivered ? 'Doorstep Trial' : 'Rapid Radius'}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Progress rail. */}
-        <View style={styles.rail}>
-          <Animated.View style={[styles.railFill, railFillStyle]} />
-        </View>
-
-        <View style={styles.legRow}>
-          <Text style={styles.legText} numberOfLines={1}>
-            {pickup.label}
-          </Text>
-          <Text style={styles.legText} numberOfLines={1}>
-            {DESTINATION.label}
-          </Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.riderRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>SK</Text>
+        {/* Live Status Card */}
+        <View style={styles.statusCard}>
+          <View style={styles.statusHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.statusEyebrow}>
+                NAGPUR EXPRESS · {orderId}
+              </Text>
+              <Text style={styles.statusTitle}>{displayTitle}</Text>
+            </View>
+            <View style={[styles.liveBadge, isCancelled && { backgroundColor: 'rgba(180, 40, 40, 0.15)' }]}>
+              <View style={[styles.livePulseDot, isCancelled && { backgroundColor: '#D32F2F' }]} />
+              <Text style={[styles.liveBadgeText, isCancelled && { color: '#D32F2F' }]}>
+                {isCancelled ? 'CANCELLED' : isDelivered ? 'DONE' : 'LIVE'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.riderBody}>
-            <Text style={styles.riderName}>Sandeep K.</Text>
-            <Text style={styles.riderMeta}>Porter partner  ·  MH 31 · 4.9 ★</Text>
+
+          {/* 3-Step Progress Indicator */}
+          <View style={styles.progressRow}>
+            {/* Step 1: Confirmed */}
+            <View style={styles.progressStep}>
+              <View style={isConfirmed ? styles.stepCircleDone : styles.stepCircleActive}>
+                {isConfirmed ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
+              </View>
+              <Text style={isConfirmed ? styles.stepLabelDone : styles.stepLabelActive}>Confirmed</Text>
+            </View>
+
+            <View style={isPickedUp ? styles.progressLineDone : styles.progressLineActive} />
+
+            {/* Step 2: Packed */}
+            <View style={styles.progressStep}>
+              <View style={isPickedUp ? styles.stepCircleDone : isConfirmed ? styles.stepCircleActive : styles.stepCircleInactive}>
+                {isPickedUp ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
+              </View>
+              <Text style={isPickedUp ? styles.stepLabelDone : styles.stepLabelActive}>Ready</Text>
+            </View>
+
+            <View style={isOnTheWay ? styles.progressLineDone : styles.progressLineActive} />
+
+            {/* Step 3: Out for delivery */}
+            <View style={styles.progressStep}>
+              <View style={isDelivered ? styles.stepCircleDone : isOnTheWay ? styles.stepCircleActive : styles.stepCircleInactive}>
+                {isDelivered ? (
+                  <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                ) : (
+                  <View style={styles.activeCoreDot} />
+                )}
+              </View>
+              <Text style={isDelivered ? styles.stepLabelDone : styles.stepLabelActive}>On the Way</Text>
+            </View>
           </View>
-          {order ? <Text style={styles.orderTotal}>{formatINR(order.total)}</Text> : null}
         </View>
 
-        <GlassButton
-          label={progress >= 1 ? 'Done' : 'Back to Shopping'}
-          variant={progress >= 1 ? 'primary' : 'ghost'}
-          onPress={() => navigation.navigate('Home')}
-          style={styles.sheetButton}
-        />
+        {/* Courier / Dispatch Partner Card */}
+        <View style={styles.riderCard}>
+          <View style={styles.riderAvatar}>
+            <Text style={styles.riderAvatarText}>
+              {porterDriver ? porterDriver.name.charAt(0).toUpperCase() : 'A'}
+            </Text>
+          </View>
+
+          <View style={styles.riderInfoCol}>
+            <View style={styles.riderNameRow}>
+              <Text style={styles.riderName}>
+                {porterDriver ? porterDriver.name : storeName}
+              </Text>
+              <View style={styles.ratingBadge}>
+                <MaterialIcons name="verified" size={12} color={colors.accentGold} />
+                <Text style={styles.ratingText}>Verified</Text>
+              </View>
+            </View>
+            <Text style={styles.riderVehicle}>
+              {porterDriver ? porterDriver.vehicle : 'Atelier Express Fitting Partner'}
+            </Text>
+          </View>
+
+          {/* Contact Action Buttons */}
+          <View style={styles.riderActions}>
+            <PressableScale
+              onPress={() =>
+                handleCall(
+                  porterDriver?.phone || liveOrder?.vendor?.phone || '+917122549900'
+                )
+              }
+              style={styles.contactBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Call concierge"
+            >
+              <MaterialIcons name="call" size={16} color={colors.textObsidian} />
+              <Text style={styles.contactBtnLabel}>Call</Text>
+            </PressableScale>
+
+            <PressableScale
+              onPress={() =>
+                handleWhatsApp(
+                  porterDriver?.phone || liveOrder?.vendor?.phone || '+917122549900',
+                  porterDriver?.name || storeName
+                )
+              }
+              style={styles.contactBtn}
+              accessibilityRole="button"
+              accessibilityLabel="WhatsApp concierge"
+            >
+              <MaterialIcons name="chat" size={16} color={colors.textObsidian} />
+              <Text style={styles.contactBtnLabel}>WhatsApp</Text>
+            </PressableScale>
+          </View>
+        </View>
+
+        {/* Cancel Order Action (if order is in early stage) */}
+        {isCancellable && (
+          <PressableScale
+            onPress={handleCancelOrder}
+            disabled={cancelling}
+            style={{
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: radii.md,
+              backgroundColor: 'rgba(211, 47, 47, 0.08)',
+              borderWidth: 1,
+              borderColor: 'rgba(211, 47, 47, 0.25)',
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel order"
+          >
+            {cancelling ? (
+              <ActivityIndicator size="small" color="#D32F2F" />
+            ) : (
+              <>
+                <MaterialIcons name="cancel" size={16} color="#D32F2F" />
+                <Text style={{ color: '#D32F2F', fontWeight: '700', fontSize: 13 }}>
+                  Cancel Order
+                </Text>
+              </>
+            )}
+          </PressableScale>
+        )}
+
+        {/* Garment Summary Chips */}
+        {items.map((item, idx) => (
+          <View key={item.product || item.id || idx} style={styles.garmentCard}>
+            <View style={styles.garmentIconWrap}>
+              <MaterialIcons
+                name="checkroom"
+                size={18}
+                color={colors.accentGold}
+              />
+            </View>
+            <View style={styles.garmentInfoCol}>
+              <Text style={styles.garmentName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.garmentStore}>
+                Size {item.size || 'Free'} · {item.quantity || 1} unit · {storeName}
+              </Text>
+            </View>
+            <Text style={styles.garmentPrice}>
+              {formatINR((item.price || 0) * (item.quantity || 1))}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* 4. Sticky Bottom Action Bar */}
+      <View
+        style={[
+          styles.bottomBarWrap,
+          { paddingBottom: Math.max(insets.bottom, spacing.md) },
+        ]}
+      >
+        <View style={styles.bottomBar}>
+          <PressableScale
+            onPress={handleNeedHelp}
+            style={styles.helpBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Need Help"
+          >
+            <MaterialIcons
+              name="support-agent"
+              size={16}
+              color={colors.textObsidian}
+            />
+            <Text style={styles.helpText}>Need Help?</Text>
+          </PressableScale>
+
+          <PressableScale
+            onPress={() => navigation.navigate('Home')}
+            style={styles.storefrontBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Back to Storefront"
+          >
+            <Text style={styles.storefrontLabel}>Storefront</Text>
+            <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+          </PressableScale>
+        </View>
       </View>
     </View>
   );
@@ -270,221 +513,488 @@ export default function LiveTrackingScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: '#F4EFE7',
   },
-
-  destMarker: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    borderColor: colors.ivory,
-    backgroundColor: colors.glassFillStrong,
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    paddingHorizontal: spacing.md,
+  },
+  topBarInner: {
+    height: 52,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.82)',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.sm,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 4,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+      },
+    }),
   },
-  destCore: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.ivory,
-  },
-  driverMarker: {
+  topBarBtn: {
     width: 34,
     height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverHalo: {
-    ...StyleSheet.absoluteFill,
     borderRadius: 17,
-    backgroundColor: colors.crimson,
-    opacity: 0.28,
-  },
-  driverCore: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.crimsonBright,
-    borderWidth: 2,
-    borderColor: colors.ivory,
-  },
-
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.glassBorder,
-    overflow: 'hidden',
-  },
-  headerFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  circleButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.glassFill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    marginRight: spacing.sm,
   },
-  circleGlyph: {
-    color: colors.ivory,
-    fontSize: 17,
-    lineHeight: 21,
-  },
-  headerText: {
-    flex: 1,
-  },
-  headerEyebrow: {
-    color: colors.gold,
-    fontSize: 9,
-    letterSpacing: 2.5,
-  },
-  headerTitle: {
-    color: colors.ivory,
-    fontSize: 16,
-    fontWeight: '400',
-    marginTop: 2,
-  },
-
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
-    overflow: 'hidden',
-  },
-  sheetFill: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.glassFillStrong,
-  },
-  sheetHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: colors.glassHighlight,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  statusLeft: {
-    flex: 1,
-  },
-  statusLabel: {
-    color: colors.ivory,
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 2,
-  },
-  statusDetail: {
-    color: colors.ash,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  etaBlock: {
-    alignItems: 'flex-end',
-  },
-  etaValue: {
-    color: colors.ivory,
-    fontSize: 32,
-    fontWeight: '300',
-    lineHeight: 34,
-  },
-  etaUnit: {
-    color: colors.slate,
-    fontSize: 9,
-    letterSpacing: 2.5,
-  },
-  rail: {
-    position: 'relative',
-    height: 2,
-    backgroundColor: colors.graphite,
-    borderRadius: 1,
-    marginTop: spacing.md,
-    overflow: 'hidden',
-  },
-  railFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.crimsonBright,
-  },
-  legRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  legText: {
-    color: colors.slate,
-    fontSize: 10,
-    letterSpacing: 0.6,
-    maxWidth: '46%',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.glassBorder,
-    marginVertical: spacing.md,
-  },
-  riderRow: {
+  locationPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+  },
+  locationText: {
+    color: colors.textObsidian,
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm + 2,
+  },
+  radarCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+      },
+    }),
+  },
+  radarBackground: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarCircle1: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  radarCircle2: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.08)',
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+  },
+  routeNode: {
+    alignItems: 'center',
+    width: 90,
+  },
+  atelierPin: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  homePin: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  nodeTitle: {
+    color: colors.textObsidian,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  nodeSub: {
+    color: colors.textAsh,
+    fontSize: 9.5,
+    marginTop: 1,
+  },
+  routeTrack: {
+    flex: 1,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  trackLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(18, 18, 20, 0.12)',
+    borderRadius: 1,
+  },
+  riderMarker: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accentCrimson,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  etaBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  etaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+  },
+  etaText: {
+    color: colors.textObsidian,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  distancePill: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  distanceText: {
+    color: colors.textSlate,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+      },
+    }),
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.graphite,
+  statusEyebrow: {
+    color: colors.accentGoldDeep,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  statusTitle: {
+    color: colors.textObsidian,
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    marginTop: 2,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(196, 36, 58, 0.1)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 9999,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentCrimson,
+  },
+  liveBadgeText: {
+    color: colors.accentCrimson,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  progressStep: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  stepCircleDone: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.textObsidian,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
   },
-  avatarText: {
-    color: colors.ivory,
-    fontSize: 13,
-    letterSpacing: 1,
+  stepLabelDone: {
+    color: colors.textObsidian,
+    fontSize: 10.5,
+    fontWeight: '600',
   },
-  riderBody: {
+  progressLineDone: {
     flex: 1,
-    marginLeft: spacing.sm,
+    height: 2,
+    backgroundColor: colors.textObsidian,
+    marginHorizontal: 4,
+    marginTop: -16,
+  },
+  stepCircleActive: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
+    borderWidth: 1.5,
+    borderColor: colors.accentCrimson,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeCoreDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accentCrimson,
+  },
+  stepLabelActive: {
+    color: colors.accentCrimson,
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  riderCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.52)',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+      },
+    }),
+  },
+  riderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.textObsidian,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  riderAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  riderInfoCol: {
+    flex: 1,
+  },
+  riderNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   riderName: {
-    color: colors.ivory,
-    fontSize: 15,
+    color: colors.textObsidian,
+    fontSize: 14.5,
+    fontWeight: '700',
   },
-  riderMeta: {
-    color: colors.ash,
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingText: {
+    color: colors.textObsidian,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  riderVehicle: {
+    color: colors.textSlate,
     fontSize: 11,
     marginTop: 2,
   },
-  orderTotal: {
-    color: colors.ivory,
-    fontSize: 15,
+  riderActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  contactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+  },
+  contactBtnLabel: {
+    color: colors.textObsidian,
+    fontSize: 10.5,
     fontWeight: '600',
   },
-  sheetButton: {
-    width: '100%',
+  garmentCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: radii.lg,
+    padding: spacing.sm + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  garmentIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  garmentInfoCol: {
+    flex: 1,
+  },
+  garmentName: {
+    color: colors.textObsidian,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  garmentStore: {
+    color: colors.textAsh,
+    fontSize: 10.5,
+  },
+  garmentPrice: {
+    color: colors.textObsidian,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  bottomBarWrap: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: 0,
+    zIndex: 50,
+  },
+  bottomBar: {
+    height: 60,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.sm + 4,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+    elevation: 8,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(36px) saturate(210%)',
+        WebkitBackdropFilter: 'blur(36px) saturate(210%)',
+      },
+    }),
+  },
+  helpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  helpText: {
+    color: colors.textObsidian,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  storefrontBtn: {
+    backgroundColor: colors.accentCrimson,
+    borderRadius: 9999,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  storefrontLabel: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
 });

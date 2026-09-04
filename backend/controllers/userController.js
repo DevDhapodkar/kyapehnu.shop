@@ -4,10 +4,12 @@ import User from '../models/User.js';
 const syncProfile = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
+    const userEmail = email || req.firebaseUser?.email || '';
+    const userName = name || req.firebaseUser?.name || 'Nagpur Patron';
 
     const user = await User.findOneAndUpdate(
       { firebaseUid: req.firebaseUser.uid },
-      { firebaseUid: req.firebaseUser.uid, name, email, phone },
+      { firebaseUid: req.firebaseUser.uid, name: userName, email: userEmail, phone },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 

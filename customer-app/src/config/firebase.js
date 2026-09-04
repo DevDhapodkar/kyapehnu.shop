@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, initializeAuth } from 'firebase/auth';
 import * as fbAuth from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -15,7 +16,8 @@ const firebaseConfig = Constants.expoConfig?.extra?.firebase ?? {};
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-const { getAuth, initializeAuth, getReactNativePersistence } = fbAuth;
+// eslint-disable-next-line import/namespace
+const getReactNativePersistence = fbAuth['getReactNativePersistence'];
 
 let app = null;
 let auth = null;

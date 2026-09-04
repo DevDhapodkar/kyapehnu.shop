@@ -34,7 +34,7 @@ const productSchema = new mongoose.Schema(
     discountPrice: { type: Number }, // legacy — prefer mrp/price
 
     sizes: [sizeSchema],
-    colors: [{ type: String }],
+    colors: [mongoose.Schema.Types.Mixed],
     images: [{ type: String }],
     isAvailable: { type: Boolean, default: true },
 

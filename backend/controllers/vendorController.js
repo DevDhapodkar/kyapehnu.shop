@@ -4,17 +4,45 @@ const syncProfile = async (req, res) => {
   try {
     const { shopName, ownerName, phone, whatsappNumber, email, address, location, operatingHours } = req.body;
 
+    const userEmail =
+      email ||
+      req.firebaseUser?.email ||
+      `${(shopName || 'vendor').toLowerCase().replace(/[^a-z0-9]/g, '')}@kyapehnu.local`;
+
+    const formattedAddress =
+      address && address.line1
+        ? address
+        : {
+            line1: req.body.line1 || 'West High Court Road',
+            area: req.body.area || 'Dharampeth',
+            city: req.body.city || 'Nagpur',
+            pincode: req.body.pincode || '440001',
+          };
+
+    const formattedLocation =
+      location && Array.isArray(location.coordinates) && location.coordinates.length === 2
+        ? location
+        : {
+            type: 'Point',
+            coordinates: [79.0882, 21.1458],
+          };
+
     const vendor = await Vendor.findOneAndUpdate(
-      { firebaseUid: req.firebaseUser.uid },
+      {
+        $or: [
+          { firebaseUid: req.firebaseUser.uid },
+          ...(userEmail ? [{ email: userEmail.toLowerCase() }] : []),
+        ],
+      },
       {
         firebaseUid: req.firebaseUser.uid,
-        shopName,
-        ownerName,
-        phone,
-        whatsappNumber,
-        email,
-        address,
-        location,
+        shopName: shopName || 'Nagpur Atelier',
+        ownerName: ownerName || 'Atelier Designer',
+        phone: phone || '+91 712 254 9900',
+        whatsappNumber: whatsappNumber || phone,
+        email: userEmail,
+        address: formattedAddress,
+        location: formattedLocation,
         operatingHours,
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -33,18 +61,29 @@ const getProfile = async (req, res) => {
 // Nearby vendors for the customer app's discovery feed.
 const listNearby = async (req, res) => {
   try {
-    const { lng, lat, maxDistanceMeters = 5000 } = req.query;
+    const { lng, lat, maxDistanceMeters = 50000 } = req.query;
 
-    const vendors = await Vendor.find({
-      isActive: true,
-      approvalStatus: 'APPROVED',
-      location: {
-        $near: {
-          $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
-          $maxDistance: parseInt(maxDistanceMeters, 10),
+    const parsedLng = parseFloat(lng);
+    const parsedLat = parseFloat(lat);
+    const coordinates =
+      !isNaN(parsedLng) && !isNaN(parsedLat)
+        ? [parsedLng, parsedLat]
+        : [79.0882, 21.1458];
+
+    let vendors = [];
+    try {
+      vendors = await Vendor.find({
+        isActive: true,
+        location: {
+          $near: {
+            $geometry: { type: 'Point', coordinates },
+            $maxDistance: parseInt(maxDistanceMeters, 10) || 50000,
+          },
         },
-      },
-    });
+      });
+    } catch (_geoErr) {
+      vendors = await Vendor.find({ isActive: true }).limit(20);
+    }
 
     res.json(vendors);
   } catch (error) {
