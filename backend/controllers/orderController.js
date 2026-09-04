@@ -81,7 +81,8 @@ const normalizeAddress = (address) => ({
 
 const createOrder = async (req, res) => {
   try {
-    const { vendor: vendorId, items, totalPrice, deliveryAddress, paymentMethod } = req.body;
+    const vendorId = req.body.vendor || req.body.vendorId;
+    const { items, totalPrice, deliveryAddress, paymentMethod } = req.body;
 
     if (paymentMethod && paymentMethod !== 'COD') {
       return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
@@ -92,12 +93,16 @@ const createOrder = async (req, res) => {
 
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress);
+    const finalTotalPrice =
+      typeof totalPrice === 'number' && !isNaN(totalPrice)
+        ? totalPrice
+        : normalizedItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
     const order = await Order.create({
       customer: req.user._id,
       vendor: vendorId,
       items: normalizedItems,
-      totalPrice,
+      totalPrice: finalTotalPrice,
       deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',
@@ -124,7 +129,8 @@ const createOrder = async (req, res) => {
  */
 const createGuestOrder = async (req, res) => {
   try {
-    const { vendor: vendorId, items, totalPrice, deliveryAddress, contact, paymentMethod } = req.body;
+    const vendorId = req.body.vendor || req.body.vendorId;
+    const { items, totalPrice, deliveryAddress, contact, paymentMethod } = req.body;
 
     if (paymentMethod && paymentMethod !== 'COD') {
       return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
@@ -144,13 +150,17 @@ const createGuestOrder = async (req, res) => {
 
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress);
+    const finalTotalPrice =
+      typeof totalPrice === 'number' && !isNaN(totalPrice)
+        ? totalPrice
+        : normalizedItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
     const order = await Order.create({
       guestContact: { name: contact.name, phone: contact.phone },
       channel: 'WEB',
       vendor: vendorId,
       items: normalizedItems,
-      totalPrice,
+      totalPrice: finalTotalPrice,
       deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',
