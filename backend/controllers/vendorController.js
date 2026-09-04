@@ -27,26 +27,37 @@ const syncProfile = async (req, res) => {
             coordinates: [79.0882, 21.1458],
           };
 
-    const vendor = await Vendor.findOneAndUpdate(
-      {
-        $or: [
-          { firebaseUid: req.firebaseUser.uid },
-          ...(userEmail ? [{ email: userEmail.toLowerCase() }] : []),
-        ],
-      },
-      {
+    let vendor = await Vendor.findOne({
+      $or: [
+        { firebaseUid: req.firebaseUser.uid },
+        ...(userEmail ? [{ email: userEmail.toLowerCase() }] : []),
+      ],
+    });
+
+    if (vendor) {
+      vendor.firebaseUid = req.firebaseUser.uid;
+      if (shopName) vendor.shopName = shopName;
+      if (ownerName) vendor.ownerName = ownerName;
+      if (phone) vendor.phone = phone;
+      if (whatsappNumber || phone) vendor.whatsappNumber = whatsappNumber || phone;
+      if (userEmail) vendor.email = userEmail;
+      if (formattedAddress) vendor.address = formattedAddress;
+      if (formattedLocation) vendor.location = formattedLocation;
+      if (operatingHours) vendor.operatingHours = operatingHours;
+      await vendor.save();
+    } else {
+      vendor = await Vendor.create({
         firebaseUid: req.firebaseUser.uid,
         shopName: shopName || 'Nagpur Atelier',
         ownerName: ownerName || 'Atelier Designer',
         phone: phone || '+91 712 254 9900',
-        whatsappNumber: whatsappNumber || phone,
+        whatsappNumber: whatsappNumber || phone || '+91 712 254 9900',
         email: userEmail,
         address: formattedAddress,
         location: formattedLocation,
         operatingHours,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+      });
+    }
 
     res.json(vendor);
   } catch (error) {

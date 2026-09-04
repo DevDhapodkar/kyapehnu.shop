@@ -14,6 +14,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import whatsappRoutes from './routes/whatsappRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import updateRoutes from './routes/updateRoutes.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/updates', updateRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

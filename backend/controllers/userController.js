@@ -4,14 +4,30 @@ import User from '../models/User.js';
 const syncProfile = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
-    const userEmail = email || req.firebaseUser?.email || '';
+    const userEmail = (email || req.firebaseUser?.email || '').toLowerCase().trim();
     const userName = name || req.firebaseUser?.name || 'Nagpur Patron';
 
-    const user = await User.findOneAndUpdate(
-      { firebaseUid: req.firebaseUser.uid },
-      { firebaseUid: req.firebaseUser.uid, name: userName, email: userEmail, phone },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    let user = await User.findOne({
+      $or: [
+        { firebaseUid: req.firebaseUser.uid },
+        ...(userEmail ? [{ email: userEmail }] : []),
+      ],
+    });
+
+    if (user) {
+      user.firebaseUid = req.firebaseUser.uid;
+      if (userName) user.name = userName;
+      if (userEmail) user.email = userEmail;
+      if (phone) user.phone = phone;
+      await user.save();
+    } else {
+      user = await User.create({
+        firebaseUid: req.firebaseUser.uid,
+        name: userName,
+        email: userEmail || `user_${Date.now()}@kyapehnu.local`,
+        phone: phone || '+91 99999 99999',
+      });
+    }
 
     res.json(user);
   } catch (error) {

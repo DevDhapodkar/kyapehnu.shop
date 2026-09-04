@@ -30,6 +30,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.2",
     "expo-system-ui": "~57.0.2",
+    "expo-updates": "~57.0.21",
     "expo-web-browser": "~57.0.2",
     "firebase": "^11.10.0",
     "react": "19.2.3",
@@ -70,7 +71,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "models:optimize": "node ./scripts/optimize-models.mjs",
-    "render:scrollytelling": "node ./scripts/render-scrollytelling/render.mjs 220 1080 2340"
+    "render:scrollytelling": "node ./scripts/render-scrollytelling/render.mjs 220 1080 2340",
+    "update:publish": "node ./scripts/publish-update.mjs"
   },
   "private": true
 }
