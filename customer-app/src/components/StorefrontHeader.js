@@ -2,13 +2,14 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import CartBadge from './CartBadge';
+import BrandLogo from './BrandLogo';
 import { colors, spacing } from '../theme/colors';
 
 /**
  * StorefrontHeader
  *
  * Apple Glass minimal top navigation bar:
- * - Brand wordmark: "KYA PEHNU?" + gold accent dot
+ * - Official Stitch Brand Logo & Atelier Squircle Emblem
  * - Center/Right: Location pill ("Sitabuldi, Nagpur")
  * - Profile button & Bag indicator with live item count badge
  */
@@ -29,12 +30,8 @@ export default function StorefrontHeader({
       pointerEvents="box-none"
     >
       <View style={styles.headerBar}>
-        {/* Brand Wordmark */}
-        <View style={styles.brandGroup}>
-          <Text style={styles.brandPrimary}>KYA</Text>
-          <Text style={styles.brandAccent}> PEHNU?</Text>
-          <View style={styles.goldDot} />
-        </View>
+        {/* Brand Wordmark from Stitch */}
+        <BrandLogo size="sm" showEmblem={true} />
 
         {/* Center: Location Pill */}
         <PressableScale

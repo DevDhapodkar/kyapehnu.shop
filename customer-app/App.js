@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, View, Platform, useWindowDimensions } from 'react-native';
@@ -8,11 +8,13 @@ import AppNavigator from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/useAuthStore';
 import { colors } from './src/theme/colors';
 import IosInstallPrompt from './src/components/IosInstallPrompt';
+import SplashScreenView from './src/components/SplashScreenView';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' && width > 768;
+  const [showSplash, setShowSplash] = useState(true);
 
   // expo-splash-screen's automatic hide does not fire on this setup, so the
   // launch screen stays over the app forever. Hiding it once the root has
@@ -44,6 +46,9 @@ export default function App() {
           <SafeAreaProvider initialMetrics={desktopMetrics}>
             <AppNavigator />
             <IosInstallPrompt />
+            {showSplash ? (
+              <SplashScreenView onFinish={() => setShowSplash(false)} />
+            ) : null}
           </SafeAreaProvider>
         </GestureHandlerRootView>
       </View>

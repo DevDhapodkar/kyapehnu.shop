@@ -51,6 +51,17 @@ const manifest = {
   description: 'Hyper-local 60-minute fashion delivery in Nagpur.',
   icons: [
     {
+      src: '/app/apple-touch-icon.png',
+      sizes: '512x512',
+      type: 'image/png',
+      purpose: 'any maskable'
+    },
+    {
+      src: '/app/favicon.png',
+      sizes: '64x64',
+      type: 'image/png'
+    },
+    {
       src: '/app/favicon.ico',
       sizes: '64x64 32x32 24x24 16x16',
       type: 'image/x-icon'
@@ -65,10 +76,14 @@ const manifest = {
 
 fs.writeFileSync(path.join(distWebDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
 
-// Copy apple-touch-icon
+// Copy apple-touch-icon and favicon
 const iconSource = path.join(projectRoot, 'assets/images/icon.png');
 if (fs.existsSync(iconSource)) {
   fs.copyFileSync(iconSource, path.join(distWebDir, 'apple-touch-icon.png'));
+}
+const faviconSource = path.join(projectRoot, 'assets/images/favicon.png');
+if (fs.existsSync(faviconSource)) {
+  fs.copyFileSync(faviconSource, path.join(distWebDir, 'favicon.png'));
 }
 
 console.log(`📦 [3/4] Syncing web app to website destination: ${targetDir}...`);

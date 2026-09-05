@@ -2,6 +2,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import CartBadge from './CartBadge';
+import BrandLogo from './BrandLogo';
 import { colors, spacing } from '../theme/colors';
 
 /**
@@ -10,7 +11,7 @@ import { colors, spacing } from '../theme/colors';
  * Implements Stitch's Floating Capsule Navigation Bar (Ambient Blobs variant):
  * - Floating glass pill capsule suspended below status bar
  * - Frosted blur background refracts glowing ambient orbs behind it
- * - Brand Wordmark: "KYA PEHNU? •"
+ * - Official Stitch Brand Logo & Atelier Squircle Emblem
  * - Location selector: near_me Sitabuldi, Nagpur expand_more (Zero Emojis)
  * - Profile and Bag triggers with live badge
  */
@@ -32,12 +33,8 @@ export default function StorefrontAmbientHeader({
       pointerEvents="box-none"
     >
       <View style={styles.pillBar} pointerEvents="auto">
-        {/* Brand Wordmark */}
-        <View style={styles.brandGroup}>
-          <Text style={styles.brandPrimary}>KYA</Text>
-          <Text style={styles.brandAccent}> PEHNU?</Text>
-          <View style={styles.goldDot} />
-        </View>
+        {/* Brand Logo & Emblem from Stitch */}
+        <BrandLogo size="sm" showEmblem={true} />
 
         {/* Center: Location Pill */}
         <PressableScale

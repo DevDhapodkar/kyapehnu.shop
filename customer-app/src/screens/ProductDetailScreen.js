@@ -23,6 +23,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
+import BrandLogo from '../components/BrandLogo';
+
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
 import { normalizeColor } from '../constants/colorPalette';
@@ -204,10 +206,7 @@ export default function ProductDetailScreen({ route, navigation }) {
             />
           </PressableScale>
 
-          <View style={styles.brandCenter}>
-            <Text style={styles.brandPrimary}>KYA</Text>
-            <Text style={styles.brandAccent}> PEHNU?</Text>
-          </View>
+          <BrandLogo size="sm" showEmblem={true} />
 
           <View style={styles.topBarRight}>
             <PressableScale
