@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import {
@@ -115,6 +116,8 @@ export default function CartScreen({ navigation }) {
             />
           </PressableScale>
 
+          <BrandLogo size="sm" showEmblem={true} />
+
           <PressableScale
             onPress={() => navigation.navigate('Address')}
             style={styles.locationPill}
@@ -123,14 +126,7 @@ export default function CartScreen({ navigation }) {
           >
             <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
             <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
-            <MaterialIcons
-              name="expand-more"
-              size={15}
-              color={colors.textAsh}
-            />
           </PressableScale>
-
-          <View style={{ width: 34 }} />
         </View>
       </View>
 

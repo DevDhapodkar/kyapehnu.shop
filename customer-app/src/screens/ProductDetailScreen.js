@@ -567,9 +567,20 @@ export default function ProductDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Card 5: Atelier Concierge */}
+          {/* Card 5: Atelier Quick Badge (Call button removed per Stitch spec) */}
           <View style={styles.glassCard}>
             <View style={styles.atelierRow}>
+              <View style={styles.atelierThumbWrap}>
+                <Image
+                  source={{
+                    uri:
+                      item.storeImage ||
+                      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&q=80',
+                  }}
+                  style={styles.atelierThumb}
+                  contentFit="cover"
+                />
+              </View>
               <View style={styles.atelierInfo}>
                 <Text style={styles.atelierName}>{item.storeName || 'Nagpur Atelier'}</Text>
                 <Text style={styles.atelierDetails}>
@@ -578,23 +589,6 @@ export default function ProductDetailScreen({ route, navigation }) {
               </View>
 
               <View style={styles.atelierActions}>
-                <PressableScale
-                  onPress={() => {
-                    Linking.openURL('tel:+917122549900').catch(() => {
-                      Alert.alert('Atelier Concierge', 'Call +91 712 254 9900 for fitting & alteration assistance.');
-                    });
-                  }}
-                  style={styles.atelierActionBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Call atelier"
-                >
-                  <MaterialIcons
-                    name="call"
-                    size={16}
-                    color={colors.textObsidian}
-                  />
-                </PressableScale>
-
                 <PressableScale
                   onPress={() => {
                     const text = encodeURIComponent(
@@ -1032,6 +1026,24 @@ const styles = StyleSheet.create({
   },
   atelierInfo: {
     flex: 1,
+  },
+  atelierThumbWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  atelierThumb: {
+    width: '100%',
+    height: '100%',
   },
   atelierName: {
     color: colors.textObsidian,

@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { getCurrentCoordinates, reverseGeocodeLocation } from '../utils/geolocation';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
 import { useAuthStore, ROLES } from '../store/useAuthStore';
@@ -186,10 +187,7 @@ export default function VendorRegisterScreen({ navigation }) {
             />
           </PressableScale>
 
-          <View style={styles.topBarTitleCol}>
-            <Text style={styles.topBarEyebrow}>Nagpur Atelier Partner</Text>
-            <Text style={styles.topBarTitle}>Register Your Boutique</Text>
-          </View>
+          <BrandLogo size="sm" showEmblem={true} />
 
           <View style={{ width: 34 }} />
         </View>

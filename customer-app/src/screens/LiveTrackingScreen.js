@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import { fetchOrder, trackGuestOrder, cancelMyOrder } from '../api/vendorApi';
@@ -196,15 +197,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
             />
           </PressableScale>
 
-          <View style={styles.locationPill}>
-            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
-            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
-            <MaterialIcons
-              name="expand-more"
-              size={15}
-              color={colors.textAsh}
-            />
-          </View>
+          <BrandLogo size="sm" showEmblem={true} />
 
           <PressableScale
             onPress={handleNeedHelp}

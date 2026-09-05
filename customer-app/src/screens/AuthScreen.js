@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { useAuthStore } from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
@@ -157,9 +158,15 @@ export default function AuthScreen({ navigation, route }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header Card */}
+          {/* Header Card with Stitch Official Identity */}
           <View style={styles.headerSection}>
-            <Text style={styles.eyebrow}>KYA PEHNU? · PROXIMITY COUTURE</Text>
+            <View style={styles.brandContainer}>
+              <BrandLogo size="lg" showEmblem={true} />
+            </View>
+            <View style={styles.eyebrowBadge}>
+              <View style={styles.crimsonDot} />
+              <Text style={styles.eyebrow}>KYA PEHNU? · PROXIMITY COUTURE</Text>
+            </View>
             <Text style={styles.title}>
               {isRegister ? 'Create Account' : 'Welcome back'}
             </Text>
@@ -418,6 +425,21 @@ const styles = StyleSheet.create({
   headerSection: {
     paddingHorizontal: 4,
     marginTop: spacing.xs,
+  },
+  brandContainer: {
+    marginBottom: 10,
+  },
+  eyebrowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  crimsonDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentCrimson,
   },
   eyebrow: {
     color: colors.accentGoldDeep,

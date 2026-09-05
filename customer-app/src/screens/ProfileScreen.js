@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVendorStore } from '../store/useVendorStore';
@@ -134,17 +135,12 @@ export default function ProfileScreen({ navigation }) {
             />
           </PressableScale>
 
+          <BrandLogo size="sm" showEmblem={true} />
+
           <View style={styles.locationPill}>
             <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
             <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
-            <MaterialIcons
-              name="expand-more"
-              size={15}
-              color={colors.textAsh}
-            />
           </View>
-
-          <View style={{ width: 34 }} />
         </View>
       </View>
 
@@ -432,6 +428,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Footer Edition Stamp */}
         <View style={styles.footerSection}>
+          <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 8 }} />
           <Text style={styles.footerEdition}>
             Kya Pehnu? v2.5 · Nagpur Atelier Edition
           </Text>
