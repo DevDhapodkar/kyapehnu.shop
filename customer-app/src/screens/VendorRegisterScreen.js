@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+import { getCurrentCoordinates, reverseGeocodeLocation } from '../utils/geolocation';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
@@ -67,22 +67,26 @@ export default function VendorRegisterScreen({ navigation }) {
       if (Platform.OS !== 'web') {
         Haptics.selectionAsync();
       }
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Location Permission',
-          'Allow location access so nearby shoppers in Nagpur can find your atelier.'
-        );
-        return;
+      const pos = await getCurrentCoordinates();
+      setCoords([pos.longitude, pos.latitude]);
+
+      const geo = await reverseGeocodeLocation(pos);
+      if (geo?.formattedAddress && !address.trim()) {
+        setAddress(geo.formattedAddress);
       }
-      const loc = await Location.getCurrentPositionAsync({});
-      setCoords([loc.coords.longitude, loc.coords.latitude]);
+
       Alert.alert(
         'GPS Pin Updated',
-        `Coordinates captured: [${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}]`
+        `Location captured: ${geo?.areaLabel || 'Nagpur'} [${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}]`
       );
-    } catch (_e) {
-      // ignore
+    } catch (err) {
+      const isDenied = err?.message?.includes('denied') || err?.code === 1;
+      Alert.alert(
+        'Location Access',
+        isDenied
+          ? 'Allow location access so nearby shoppers in Nagpur can find your atelier.'
+          : 'Could not acquire accurate GPS coordinates.'
+      );
     } finally {
       setLocating(false);
     }

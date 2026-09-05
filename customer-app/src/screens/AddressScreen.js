@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,8 +14,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+
+import {
+  checkHasLocationPermission,
+  getCurrentCoordinates,
+  getDistanceKm,
+  reverseGeocodeLocation,
+} from '../utils/geolocation';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
@@ -91,34 +97,57 @@ export default function AddressScreen({ navigation }) {
     }
   };
 
-  const handleUseCurrentLocation = async () => {
+  useEffect(() => {
+    // If user previously granted location permission (e.g. on storefront mount),
+    // seamlessly auto-detect their exact address without blocking or prompting.
+    (async () => {
+      try {
+        const hasPermission = await checkHasLocationPermission();
+        if (hasPermission) {
+          handleUseCurrentLocation(true);
+        }
+      } catch {
+        // silent
+      }
+    })();
+  }, []);
+
+  const handleUseCurrentLocation = async (silent = false) => {
     try {
       setIsLocating(true);
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && !silent) {
         Haptics.selectionAsync();
       }
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Location Permission',
-          'Please allow location access to auto-detect your Nagpur address.'
-        );
-        setIsLocating(false);
-        return;
+
+      const position = await getCurrentCoordinates();
+      setCoords([position.longitude, position.latitude]);
+
+      const geo = await reverseGeocodeLocation(position);
+      if (geo?.formattedAddress) {
+        setDetectedArea(geo.formattedAddress);
       }
-      const loc = await Location.getCurrentPositionAsync({});
-      setCoords([loc.coords.longitude, loc.coords.latitude]);
-      const [geo] = await Location.reverseGeocodeAsync({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      });
-      if (geo) {
-        const areaStr = [geo.district || geo.subregion, geo.city, geo.postalCode]
-          .filter(Boolean)
-          .join(', ');
-        setDetectedArea(areaStr || 'Sitabuldi, Nagpur (440012)');
+
+      // Pre-fill street/area if empty or still set to default dummy value
+      if (geo?.areaName && (!streetArea || streetArea === 'VCA Stadium Rd, Civil Lines')) {
+        setStreetArea(geo.road ? `${geo.road}, ${geo.areaName}` : `${geo.areaName}, Nagpur`);
       }
-    } catch (_e) {
+    } catch (err) {
+      if (!silent) {
+        const isDenied =
+          err?.message?.includes('denied') ||
+          err?.code === 1; // GeolocationPositionError.PERMISSION_DENIED
+        if (isDenied) {
+          Alert.alert(
+            'Location Permission',
+            'Please allow location access in your browser or device settings to auto-detect your Nagpur address.'
+          );
+        } else {
+          Alert.alert(
+            'Location Error',
+            'Could not acquire accurate GPS coordinates. Please check your connection or enter address manually.'
+          );
+        }
+      }
       setDetectedArea('Sitabuldi, Nagpur (440012)');
     } finally {
       setIsLocating(false);
@@ -211,6 +240,8 @@ export default function AddressScreen({ navigation }) {
     }
   };
 
+  const atelierDist = getDistanceKm(coords[1], coords[0], 21.1504, 79.1022);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
@@ -296,22 +327,26 @@ export default function AddressScreen({ navigation }) {
                   {detectedArea}
                 </Text>
                 <Text style={styles.distanceBadgeText}>
-                  Gandhibagh Atelier · 2.1 km away
+                  {`Gandhibagh Atelier · ${atelierDist < 0.5 ? '< 500m' : `${atelierDist.toFixed(1)} km`} away`}
                 </Text>
               </View>
             </View>
 
             <PressableScale
-              onPress={handleUseCurrentLocation}
+              onPress={() => handleUseCurrentLocation(false)}
               style={styles.locateBtn}
               accessibilityRole="button"
               accessibilityLabel="Use current location"
             >
-              <MaterialIcons
-                name="my-location"
-                size={16}
-                color={isLocating ? colors.accentCrimson : colors.textObsidian}
-              />
+              {isLocating ? (
+                <ActivityIndicator size="small" color={colors.accentGold} />
+              ) : (
+                <MaterialIcons
+                  name="my-location"
+                  size={16}
+                  color={colors.textObsidian}
+                />
+              )}
             </PressableScale>
           </View>
 

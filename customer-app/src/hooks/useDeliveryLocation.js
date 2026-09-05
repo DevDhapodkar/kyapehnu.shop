@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as Location from 'expo-location';
-
-const NAGPUR_CENTER = { latitude: 21.1458, longitude: 79.0882 };
+import {
+  NAGPUR_CENTER,
+  getCurrentCoordinates,
+  reverseGeocodeLocation,
+} from '../utils/geolocation';
 
 /**
  * useDeliveryLocation
  *
- * Asks for foreground location on mount, resolves coordinates, then reverse
- * geocodes them into a neighbourhood name for the "Delivering to" header.
+ * Asks for foreground location on mount, resolves high-accuracy coordinates
+ * via device GPS / browser geolocation, then reverse geocodes them into an
+ * accurate neighbourhood name (e.g. "Dharampeth, Nagpur") for the "Delivering to" header.
  *
- * Every failure path (denied permission, no fix, geocode unavailable on the
- * platform) degrades to Nagpur city centre rather than blocking the feed — the
- * catalogue is hyper-local to one city, so a fallback is always meaningful.
+ * Every failure path (denied permission, no fix, timeout) gracefully degrades
+ * to Nagpur city centre rather than blocking the feed — the catalogue is
+ * hyper-local to Nagpur, so a fallback is always meaningful.
  *
  * Returns:
  *  - coords:  { latitude, longitude }
@@ -29,42 +32,25 @@ export default function useDeliveryLocation() {
     setAreaLabel('Locating…');
 
     try {
-      const { status: permission } = await Location.requestForegroundPermissionsAsync();
-
-      if (permission !== 'granted') {
-        setStatus('denied');
-        setCoords(NAGPUR_CENTER);
-        setAreaLabel('Nagpur');
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
+      const position = await getCurrentCoordinates();
       const next = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude: position.latitude,
+        longitude: position.longitude,
       };
       setCoords(next);
       setStatus('granted');
 
-      // Reverse geocoding is best-effort: it needs network on Android and can
-      // legitimately return an empty array, so the label falls back on its own.
       try {
-        const [place] = await Location.reverseGeocodeAsync(next);
-        const area =
-          place?.district ||
-          place?.subregion ||
-          place?.name ||
-          place?.city ||
-          'Nagpur';
-        setAreaLabel(area);
+        const geo = await reverseGeocodeLocation(next);
+        setAreaLabel(geo?.areaLabel || 'Nagpur');
       } catch {
         setAreaLabel('Nagpur');
       }
-    } catch {
-      setStatus('error');
+    } catch (err) {
+      const isDenied =
+        err?.message?.includes('denied') ||
+        err?.code === 1; // GeolocationPositionError.PERMISSION_DENIED
+      setStatus(isDenied ? 'denied' : 'error');
       setCoords(NAGPUR_CENTER);
       setAreaLabel('Nagpur');
     }
