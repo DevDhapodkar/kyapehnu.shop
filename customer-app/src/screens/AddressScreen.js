@@ -17,13 +17,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  checkHasLocationPermission,
-  getCurrentCoordinates,
   getDistanceKm,
-  reverseGeocodeLocation,
+  isWithinNagpur,
+  NAGPUR_CENTER,
 } from '../utils/geolocation';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import InteractiveMapPinPicker from '../components/InteractiveMapPinPicker';
 import PressableScale from '../components/PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import {
@@ -33,30 +33,24 @@ import {
 } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { placeCartOrders, placeGuestCartOrders } from '../services/checkout';
-import { saveUserAddress } from '../api/vendorApi';
+import { saveUserAddress, deleteUserAddress, fetchUserProfile } from '../api/vendorApi';
 import { colors, radii, spacing } from '../theme/colors';
 
 const ADDRESS_TYPES = [
-  { id: 'home', label: 'Home', icon: 'home' },
-  { id: 'work', label: 'Work', icon: 'apartment' },
-  { id: 'studio', label: 'Studio', icon: 'dry-cleaning' },
-  { id: 'other', label: 'Other', icon: 'more-horiz' },
+  { id: 'HOME', label: 'Home', icon: 'home' },
+  { id: 'WORK', label: 'Work', icon: 'apartment' },
+  { id: 'STUDIO', label: 'Studio', icon: 'dry-cleaning' },
+  { id: 'OTHER', label: 'Other', icon: 'more-horiz' },
 ];
 
 /**
- * AddressScreen — Express Fitting Checkout (Frosted Glass & Ambient Blobs)
+ * AddressScreen — Production Express Fitting Checkout
  *
- * Implements Stitch Screen e6512c6056f541ad8516f9bcf76e8589:
- * - Animated drifting ambient background blobs
- * - Ultra-glass top navigation bar (Back, Title, Share)
- * - 3-step checkout pill stepper: Bag -> Address -> Confirm
- * - GPS location quick-pin banner with "my_location" trigger
- * - Address type tag selector (Home, Work, Studio, Other)
- * - Saved address card with default checkmark
- * - Delivery particulars form (Flat/Room, Landmark, Receiver, Phone)
- * - Nagpur 15-min doorstep fitting trust guarantee badge
- * - Sticky bottom glass order CTA: "Place Order · Cash on Delivery"
- * - Zero Emojis (MaterialIcons throughout)
+ * Implements Stitch Screen e6512c6056f541ad8516f9bcf76e8589 with ZERO dummy data:
+ * - New customers start with ZERO invented addresses.
+ * - Returning customers see only genuine addresses saved to their MongoDB account.
+ * - Interactive Free Map Pinning (OpenStreetMap & Leaflet) with live pin and Nominatim geocoding.
+ * - Strict validation preventing order placement without confirmed delivery coordinates & phone.
  */
 export default function AddressScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -69,134 +63,234 @@ export default function AddressScreen({ navigation }) {
   const token = useAuthStore((state) => state.token);
   const isLoggedIn = Boolean(token);
 
-  const [addressType, setAddressType] = useState('home');
-  const [flatNo, setFlatNo] = useState(
-    profile?.savedAddresses?.[0]?.line1 || 'Flat 402, Palm Grove'
+  // Address state
+  const savedAddresses = profile?.savedAddresses || [];
+  const [selectedAddressId, setSelectedAddressId] = useState(
+    savedAddresses.length > 0 ? savedAddresses[0]._id : null
   );
-  const [streetArea, setStreetArea] = useState(
-    profile?.savedAddresses?.[0]?.line2 || 'VCA Stadium Rd, Civil Lines'
-  );
+  const [showAddForm, setShowAddForm] = useState(savedAddresses.length === 0);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+
+  // New address form fields (all start clean — no dummy text)
+  const [addressType, setAddressType] = useState('HOME');
+  const [flatNo, setFlatNo] = useState('');
+  const [streetArea, setStreetArea] = useState('');
+  const [detectedArea, setDetectedArea] = useState('');
+  const [pincode, setPincode] = useState('');
   const [receiverName, setReceiverName] = useState(
-    profile?.name || user?.displayName || 'Ananya Sharma'
+    profile?.name || user?.displayName || ''
   );
-  const [phone, setPhone] = useState(profile?.phone || '+91 98230 44102');
-  const [isLocating, setIsLocating] = useState(false);
-  const [detectedArea, setDetectedArea] = useState('Civil Lines, Nagpur (440001)');
-  const [coords, setCoords] = useState([79.0882, 21.1458]);
+  const [phone, setPhone] = useState(profile?.phone || '');
+  const [coords, setCoords] = useState(null); // [lng, lat]
+
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const total = subtotal > 0 ? subtotal : 0;
 
+  // Selected address object (from saved or newly entered)
+  const activeSavedAddress = savedAddresses.find(
+    (a) => String(a._id) === String(selectedAddressId)
+  );
+
   const handleShare = async () => {
     try {
       await Share.share({
-        message: 'Kya Pehnu? - Nagpur Express 15-Minute Fitting Checkout',
+        message: 'Kya Pehnu? - Nagpur Express 15-Minute Doorstep Fitting',
       });
     } catch {
       // ignore
     }
   };
 
-  useEffect(() => {
-    // If user previously granted location permission (e.g. on storefront mount),
-    // seamlessly auto-detect their exact address without blocking or prompting.
-    (async () => {
-      try {
-        const hasPermission = await checkHasLocationPermission();
-        if (hasPermission) {
-          handleUseCurrentLocation(true);
-        }
-      } catch {
-        // silent
-      }
-    })();
-  }, []);
-
-  const handleUseCurrentLocation = async (silent = false) => {
-    try {
-      setIsLocating(true);
-      if (Platform.OS !== 'web' && !silent) {
-        Haptics.selectionAsync();
-      }
-
-      const position = await getCurrentCoordinates();
-      setCoords([position.longitude, position.latitude]);
-
-      const geo = await reverseGeocodeLocation(position);
-      if (geo?.formattedAddress) {
-        setDetectedArea(geo.formattedAddress);
-      }
-
-      // Pre-fill street/area if empty or still set to default dummy value
-      if (geo?.areaName && (!streetArea || streetArea === 'VCA Stadium Rd, Civil Lines')) {
-        setStreetArea(geo.road ? `${geo.road}, ${geo.areaName}` : `${geo.areaName}, Nagpur`);
-      }
-    } catch (err) {
-      if (!silent) {
-        const isDenied =
-          err?.message?.includes('denied') ||
-          err?.code === 1; // GeolocationPositionError.PERMISSION_DENIED
-        if (isDenied) {
-          Alert.alert(
-            'Location Permission',
-            'Please allow location access in your browser or device settings to auto-detect your Nagpur address.'
-          );
-        } else {
-          Alert.alert(
-            'Location Error',
-            'Could not acquire accurate GPS coordinates. Please check your connection or enter address manually.'
-          );
-        }
-      }
-      setDetectedArea('Sitabuldi, Nagpur (440012)');
-    } finally {
-      setIsLocating(false);
+  // When map pin confirmed
+  const handleConfirmMapLocation = (locationData) => {
+    setCoords(locationData.coordinates);
+    setDetectedArea(locationData.formattedAddress || locationData.areaName);
+    setPincode(locationData.pincode || '440001');
+    if (!streetArea && locationData.road) {
+      setStreetArea(`${locationData.road}, ${locationData.areaName}`);
+    } else if (!streetArea) {
+      setStreetArea(locationData.areaName);
     }
   };
 
-  const handlePlaceOrder = async () => {
-    if (cartItems.length === 0) {
-      Alert.alert(
-        'Empty Bag',
-        'Your shopping bag is empty. Please add garments before checking out.',
-        [{ text: 'Browse Storefront', onPress: () => navigation.navigate('Home') }]
-      );
+  // Delete saved address
+  const handleDeleteAddress = async (addressId) => {
+    Alert.alert(
+      'Remove Address',
+      'Are you sure you want to remove this saved delivery address?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingId(addressId);
+            try {
+              await deleteUserAddress(addressId);
+              // Refresh profile
+              const updated = await fetchUserProfile();
+              useAuthStore.setState({ profile: updated });
+              if (selectedAddressId === addressId) {
+                const remaining = updated?.savedAddresses || [];
+                setSelectedAddressId(remaining.length > 0 ? remaining[0]._id : null);
+                if (remaining.length === 0) setShowAddForm(true);
+              }
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Failed to remove address.');
+            } finally {
+              setIsDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Save new address
+  const handleSaveNewAddress = async () => {
+    if (!flatNo.trim()) {
+      Alert.alert('Missing Field', 'Please enter your flat, house, or studio number.');
       return;
     }
-
+    if (!streetArea.trim()) {
+      Alert.alert('Missing Field', 'Please enter your street, locality, or landmark.');
+      return;
+    }
     if (!receiverName.trim() || !phone.trim()) {
-      Alert.alert('Missing Contact Details', 'Please provide receiver name and contact phone number.');
+      Alert.alert('Missing Contact', 'Please enter receiver name and mobile number.');
       return;
     }
-
-    if (!flatNo.trim() || !streetArea.trim()) {
-      Alert.alert('Missing Address', 'Please enter your flat/house number and street/area.');
-      return;
-    }
-
     const cleanPhone = phone.replace(/[^0-9+]/g, '');
-    const rawDigits = cleanPhone.replace(/[^0-9]/g, '');
-    if (rawDigits.length < 10) {
-      Alert.alert('Invalid Phone', 'Please enter a valid 10-digit mobile number for order and delivery updates.');
+    if (cleanPhone.replace(/[^0-9]/g, '').length < 10) {
+      Alert.alert('Invalid Phone', 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!coords) {
+      Alert.alert(
+        'Map Pin Required',
+        'Please tap "Pin on Map" to confirm the exact doorstep delivery location.'
+      );
+      setIsMapOpen(true);
       return;
     }
 
-    const pinMatch = (detectedArea + ' ' + streetArea).match(/\b(44\d{4})\b/);
-    const pincode = pinMatch ? pinMatch[1] : '440001';
-
-    const deliveryAddress = {
-      label: addressType.toUpperCase(),
+    const payload = {
+      label: addressType,
       line1: `${flatNo.trim()}, ${streetArea.trim()}`,
-      line2: detectedArea,
+      line2: detectedArea || 'Nagpur',
       city: 'Nagpur',
-      pincode,
+      pincode: pincode || '440001',
       receiverName: receiverName.trim(),
       receiverPhone: cleanPhone,
       location: {
         type: 'Point',
-        coordinates: coords || [79.0882, 21.1458],
+        coordinates: coords,
       },
     };
+
+    setIsSavingAddress(true);
+    try {
+      if (isLoggedIn) {
+        await saveUserAddress(payload);
+        const updated = await fetchUserProfile();
+        useAuthStore.setState({ profile: updated });
+        const newAddr = updated?.savedAddresses?.[updated.savedAddresses.length - 1];
+        if (newAddr) {
+          setSelectedAddressId(newAddr._id);
+        }
+      }
+      setShowAddForm(false);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      Alert.alert('Save Failed', err.message || 'Could not save address.');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  // Place Order
+  const handlePlaceOrder = async () => {
+    if (cartItems.length === 0) {
+      Alert.alert(
+        'Empty Bag',
+        'Your bag is empty. Please select garments before checkout.',
+        [{ text: 'Browse Ateliers', onPress: () => navigation.navigate('Home') }]
+      );
+      return;
+    }
+
+    let finalAddress = null;
+
+    if (activeSavedAddress) {
+      finalAddress = {
+        label: activeSavedAddress.label || 'HOME',
+        line1: activeSavedAddress.line1,
+        line2: activeSavedAddress.line2 || 'Nagpur',
+        city: activeSavedAddress.city || 'Nagpur',
+        pincode: activeSavedAddress.pincode || '440001',
+        receiverName:
+          activeSavedAddress.receiverName ||
+          profile?.name ||
+          user?.displayName ||
+          'Nagpur Patron',
+        receiverPhone:
+          activeSavedAddress.receiverPhone || profile?.phone || '+91 99999 99999',
+        location: activeSavedAddress.location || {
+          type: 'Point',
+          coordinates: [NAGPUR_CENTER.longitude, NAGPUR_CENTER.latitude],
+        },
+      };
+    } else {
+      // Must have valid form fields
+      if (!flatNo.trim() || !streetArea.trim()) {
+        Alert.alert(
+          'Delivery Address Required',
+          'Please fill out your delivery address particulars or select a saved address.'
+        );
+        setShowAddForm(true);
+        return;
+      }
+      if (!receiverName.trim() || !phone.trim()) {
+        Alert.alert(
+          'Contact Required',
+          'Please provide a receiver name and 10-digit mobile number.'
+        );
+        setShowAddForm(true);
+        return;
+      }
+      const cleanPhone = phone.replace(/[^0-9+]/g, '');
+      if (cleanPhone.replace(/[^0-9]/g, '').length < 10) {
+        Alert.alert('Invalid Mobile', 'Please enter a valid 10-digit mobile number.');
+        return;
+      }
+      if (!coords) {
+        Alert.alert(
+          'Location Pin Required',
+          'Please tap "Pin on Map" so our delivery rider can navigate to your door.'
+        );
+        setIsMapOpen(true);
+        return;
+      }
+
+      finalAddress = {
+        label: addressType,
+        line1: `${flatNo.trim()}, ${streetArea.trim()}`,
+        line2: detectedArea || 'Nagpur',
+        city: 'Nagpur',
+        pincode: pincode || '440001',
+        receiverName: receiverName.trim(),
+        receiverPhone: cleanPhone,
+        location: {
+          type: 'Point',
+          coordinates: coords,
+        },
+      };
+    }
 
     setIsPlacingOrder(true);
 
@@ -205,15 +299,17 @@ export default function AddressScreen({ navigation }) {
       if (isLoggedIn) {
         placedOrders = await placeCartOrders({
           items: cartItems,
-          deliveryAddress,
+          deliveryAddress: finalAddress,
           deliveryFee: 0,
         });
-        saveUserAddress(deliveryAddress).catch(() => {});
       } else {
         placedOrders = await placeGuestCartOrders({
           items: cartItems,
-          deliveryAddress,
-          contact: { name: receiverName.trim(), phone: cleanPhone },
+          deliveryAddress: finalAddress,
+          contact: {
+            name: finalAddress.receiverName,
+            phone: finalAddress.receiverPhone,
+          },
           deliveryFee: 0,
         });
       }
@@ -228,19 +324,22 @@ export default function AddressScreen({ navigation }) {
       navigation.navigate('LiveTracking', {
         orderId: primaryOrder.id || primaryOrder._id,
         order: primaryOrder,
-        phone: cleanPhone,
+        phone: finalAddress.receiverPhone,
       });
     } catch (err) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      Alert.alert('Checkout Failed', err.message || 'Could not place order. Please try again.');
+      Alert.alert(
+        'Checkout Note',
+        err.message || 'Could not place order. Please try again.'
+      );
     } finally {
       setIsPlacingOrder(false);
     }
   };
 
-  const atelierDist = getDistanceKm(coords[1], coords[0], 21.1504, 79.1022);
+  const hasConfirmedAddress = Boolean(activeSavedAddress || (flatNo && streetArea && coords));
 
   return (
     <View style={styles.root}>
@@ -314,216 +413,349 @@ export default function AddressScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Location Quick-Pin Card */}
-          <View style={styles.locationCard}>
-            <View style={styles.locationLeft}>
-              <MaterialIcons
-                name="location-on"
-                size={22}
-                color={colors.accentGold}
-              />
-              <View style={styles.locationTextCol}>
-                <Text style={styles.detectedAreaText} numberOfLines={1}>
-                  {detectedArea}
-                </Text>
-                <Text style={styles.distanceBadgeText}>
-                  {`Gandhibagh Atelier · ${atelierDist < 0.5 ? '< 500m' : `${atelierDist.toFixed(1)} km`} away`}
-                </Text>
-              </View>
-            </View>
-
-            <PressableScale
-              onPress={() => handleUseCurrentLocation(false)}
-              style={styles.locateBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Use current location"
-            >
-              {isLocating ? (
-                <ActivityIndicator size="small" color={colors.accentGold} />
-              ) : (
-                <MaterialIcons
-                  name="my-location"
-                  size={16}
-                  color={colors.textObsidian}
-                />
-              )}
-            </PressableScale>
-          </View>
-
-          {/* Address Type Selector */}
-          <View style={styles.typeSelectorRow}>
-            {ADDRESS_TYPES.map((type) => {
-              const isSelected = addressType === type.id;
-              return (
+          {/* Section: Saved Addresses for Returning Customer */}
+          {savedAddresses.length > 0 && (
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Saved Addresses</Text>
                 <PressableScale
-                  key={type.id}
-                  onPress={() => setAddressType(type.id)}
-                  style={[
-                    styles.typePill,
-                    isSelected ? styles.typePillSelected : styles.typePillGlass,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={type.label}
+                  onPress={() => setShowAddForm((prev) => !prev)}
+                  style={styles.toggleFormBtn}
                 >
                   <MaterialIcons
-                    name={type.icon}
+                    name={showAddForm ? 'remove' : 'add'}
                     size={15}
-                    color={isSelected ? '#FFFFFF' : colors.textObsidian}
+                    color={colors.accentCrimson}
                   />
-                  <Text
-                    style={[
-                      styles.typeLabel,
-                      isSelected && styles.typeLabelSelected,
-                    ]}
-                  >
-                    {type.label}
+                  <Text style={styles.toggleFormText}>
+                    {showAddForm ? 'Hide Form' : 'Add New'}
                   </Text>
                 </PressableScale>
-              );
-            })}
-          </View>
+              </View>
 
-          {/* Saved Address Card */}
-          <View style={styles.savedAddressCard}>
-            <View style={styles.savedHeaderRow}>
-              <View style={styles.savedTitleGroup}>
-                <View style={styles.savedCheckCircle}>
-                  <MaterialIcons name="check" size={13} color="#FFFFFF" />
+              {savedAddresses.map((addr) => {
+                const isSelected = String(addr._id) === String(selectedAddressId);
+                const isDeleting = isDeletingId === addr._id;
+
+                return (
+                  <PressableScale
+                    key={addr._id}
+                    onPress={() => {
+                      setSelectedAddressId(addr._id);
+                      setShowAddForm(false);
+                    }}
+                    style={[
+                      styles.savedAddressCard,
+                      isSelected && styles.savedAddressCardSelected,
+                    ]}
+                  >
+                    <View style={styles.savedHeaderRow}>
+                      <View style={styles.savedTitleGroup}>
+                        <View
+                          style={[
+                            styles.savedRadioCircle,
+                            isSelected && styles.savedRadioCircleActive,
+                          ]}
+                        >
+                          {isSelected && (
+                            <MaterialIcons name="check" size={12} color="#FFFFFF" />
+                          )}
+                        </View>
+                        <Text style={styles.savedTitle}>
+                          {addr.label || 'Delivery Address'}
+                        </Text>
+                      </View>
+
+                      <PressableScale
+                        onPress={() => handleDeleteAddress(addr._id)}
+                        hitSlop={8}
+                        style={styles.deleteAddrBtn}
+                      >
+                        {isDeleting ? (
+                          <ActivityIndicator size="small" color={colors.accentCrimson} />
+                        ) : (
+                          <MaterialIcons
+                            name="delete-outline"
+                            size={18}
+                            color={colors.textAsh}
+                          />
+                        )}
+                      </PressableScale>
+                    </View>
+
+                    <Text style={styles.savedAddressBody}>{addr.line1}</Text>
+                    {addr.line2 ? (
+                      <Text style={styles.savedAddressSub}>{addr.line2}</Text>
+                    ) : null}
+                    <Text style={styles.savedAddressState}>
+                      Nagpur, Maharashtra · {addr.pincode || '440001'}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Section: New Address Form (Rendered if customer has no addresses or toggles Add New) */}
+          {(showAddForm || savedAddresses.length === 0) && (
+            <View style={styles.glassCard}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>
+                  {savedAddresses.length > 0 ? 'New Delivery Address' : 'Delivery Address'}
+                </Text>
+                <View style={styles.requiredBadge}>
+                  <Text style={styles.requiredBadgeText}>REQUIRED</Text>
                 </View>
-                <Text style={styles.savedTitle}>{flatNo}</Text>
               </View>
-              <View style={styles.defaultBadge}>
-                <Text style={styles.defaultBadgeText}>DEFAULT</Text>
+
+              {/* Free Interactive Map Pin Banner */}
+              <PressableScale
+                onPress={() => setIsMapOpen(true)}
+                style={[
+                  styles.mapPinBanner,
+                  coords ? styles.mapPinBannerConfirmed : styles.mapPinBannerPending,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Pin delivery location on map"
+              >
+                <View style={styles.mapBannerLeft}>
+                  <View
+                    style={[
+                      styles.mapIconCircle,
+                      coords ? styles.mapIconCircleConfirmed : styles.mapIconCirclePending,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={coords ? 'location-on' : 'add-location-alt'}
+                      size={20}
+                      color={coords ? colors.accentCrimson : colors.accentGold}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mapBannerTitle}>
+                      {coords ? 'Drop Location Pinned' : 'Pin Exact Doorstep on Map'}
+                    </Text>
+                    <Text style={styles.mapBannerSub} numberOfLines={1}>
+                      {detectedArea ||
+                        (coords
+                          ? `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`
+                          : 'Tap to open interactive OpenStreetMap')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.pinActionChip}>
+                  <Text style={styles.pinActionChipText}>
+                    {coords ? 'Change' : 'Pin Map'}
+                  </Text>
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={16}
+                    color={colors.accentCrimson}
+                  />
+                </View>
+              </PressableScale>
+
+              {/* Address Type Selector */}
+              <View style={styles.typeSelectorRow}>
+                {ADDRESS_TYPES.map((type) => {
+                  const isSelected = addressType === type.id;
+                  return (
+                    <PressableScale
+                      key={type.id}
+                      onPress={() => setAddressType(type.id)}
+                      style={[
+                        styles.typePill,
+                        isSelected ? styles.typePillSelected : styles.typePillGlass,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={type.label}
+                    >
+                      <MaterialIcons
+                        name={type.icon}
+                        size={15}
+                        color={isSelected ? '#FFFFFF' : colors.textObsidian}
+                      />
+                      <Text
+                        style={[
+                          styles.typeLabel,
+                          isSelected && styles.typeLabelSelected,
+                        ]}
+                      >
+                        {type.label}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
               </View>
+
+              {/* Flat / Studio No */}
+              <View style={styles.inputWrap}>
+                <MaterialIcons
+                  name="meeting-room"
+                  size={18}
+                  color={colors.accentGold}
+                />
+                <TextInput
+                  value={flatNo}
+                  onChangeText={setFlatNo}
+                  placeholder="Flat / House / Studio No. *"
+                  placeholderTextColor={colors.textAsh}
+                  style={styles.inputField}
+                />
+              </View>
+
+              {/* Landmark / Street */}
+              <View style={styles.inputWrap}>
+                <MaterialIcons
+                  name="location-city"
+                  size={18}
+                  color={colors.accentGold}
+                />
+                <TextInput
+                  value={streetArea}
+                  onChangeText={setStreetArea}
+                  placeholder="Landmark / Street / Area *"
+                  placeholderTextColor={colors.textAsh}
+                  style={styles.inputField}
+                />
+              </View>
+
+              {/* Pincode */}
+              <View style={styles.inputWrap}>
+                <MaterialIcons
+                  name="markunread-mailbox"
+                  size={18}
+                  color={colors.accentGold}
+                />
+                <TextInput
+                  value={pincode}
+                  onChangeText={setPincode}
+                  placeholder="Nagpur Postal Pincode (e.g. 440010)"
+                  placeholderTextColor={colors.textAsh}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  style={styles.inputField}
+                />
+              </View>
+
+              {/* Receiver Name */}
+              <View style={styles.inputWrap}>
+                <MaterialIcons
+                  name="person"
+                  size={18}
+                  color={colors.accentGold}
+                />
+                <TextInput
+                  value={receiverName}
+                  onChangeText={setReceiverName}
+                  placeholder="Receiver Name *"
+                  placeholderTextColor={colors.textAsh}
+                  style={styles.inputField}
+                />
+              </View>
+
+              {/* Receiver Phone */}
+              <View style={styles.inputWrap}>
+                <MaterialIcons
+                  name="phone"
+                  size={18}
+                  color={colors.accentGold}
+                />
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="10-Digit Delivery Mobile Number *"
+                  placeholderTextColor={colors.textAsh}
+                  keyboardType="phone-pad"
+                  maxLength={13}
+                  style={styles.inputField}
+                />
+              </View>
+
+              {/* Save Address Button */}
+              {isLoggedIn && (
+                <PressableScale
+                  onPress={handleSaveNewAddress}
+                  style={styles.saveAddressBtn}
+                  accessibilityRole="button"
+                >
+                  {isSavingAddress ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="bookmark-border" size={16} color="#FFFFFF" />
+                      <Text style={styles.saveAddressText}>Save to Address Book</Text>
+                    </>
+                  )}
+                </PressableScale>
+              )}
             </View>
+          )}
 
-            <Text style={styles.savedAddressBody}>{streetArea}</Text>
-            <Text style={styles.savedAddressState}>
-              Nagpur, Maharashtra · 440001
-            </Text>
-          </View>
-
-          {/* Delivery Particulars Form */}
-          <View style={styles.glassCard}>
-            <Text style={styles.cardTitle}>Delivery Particulars</Text>
-
-            {/* Flat / Studio */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="meeting-room"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={flatNo}
-                onChangeText={setFlatNo}
-                placeholder="Flat / House / Studio No."
-                placeholderTextColor={colors.textAsh}
-                style={styles.inputField}
-              />
+          {/* Doorstep Fitting Guarantee Card */}
+          <View style={styles.trustCard}>
+            <View style={styles.trustIconCircle}>
+              <MaterialIcons name="verified-user" size={18} color={colors.accentGold} />
             </View>
-
-            {/* Landmark / Area */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="location-city"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={streetArea}
-                onChangeText={setStreetArea}
-                placeholder="Landmark / Area / Street"
-                placeholderTextColor={colors.textAsh}
-                style={styles.inputField}
-              />
-            </View>
-
-            {/* Receiver Name */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="person"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={receiverName}
-                onChangeText={setReceiverName}
-                placeholder="Receiver Name"
-                placeholderTextColor={colors.textAsh}
-                style={styles.inputField}
-              />
-            </View>
-
-            {/* Phone */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="call"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Phone (for fitting concierge)"
-                placeholderTextColor={colors.textAsh}
-                keyboardType="phone-pad"
-                style={styles.inputField}
-              />
-            </View>
-          </View>
-
-          {/* Doorstep Trial Guarantee Badge */}
-          <View style={styles.guaranteeCard}>
-            <MaterialIcons
-              name="verified-user"
-              size={24}
-              color={colors.accentCrimson}
-            />
-            <View style={styles.guaranteeTextCol}>
-              <Text style={styles.guaranteeTitle}>
-                Nagpur Express Fitting · 15-Min Doorstep Trial
-              </Text>
-              <Text style={styles.guaranteeSubtitle}>
-                Try your garment in the comfort of your home before paying.
-                Concierge will wait and assist with fit.
+            <View style={{ flex: 1 }}>
+              <Text style={styles.trustTitle}>Nagpur Doorstep Fitting Guarantee</Text>
+              <Text style={styles.trustBody}>
+                Try garments on before paying. 15-minute wait time per order. Full doorstep return with zero questions asked.
               </Text>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 4. Sticky Bottom Action Bar */}
+      {/* 4. Sticky Bottom Checkout Bar */}
       <View
         style={[
-          styles.bottomBarWrap,
-          { paddingBottom: Math.max(insets.bottom, spacing.md) },
+          styles.bottomBar,
+          { paddingBottom: Math.max(insets.bottom, 16) },
         ]}
       >
-        <View style={styles.bottomBar}>
-          <View style={styles.priceCol}>
-            <Text style={styles.priceValue}>{formatINR(total)}</Text>
-            <Text style={styles.priceSubtitle}>Pay after doorstep trial</Text>
-          </View>
-
-          <PressableScale
-            onPress={handlePlaceOrder}
-            style={[styles.placeOrderBtn, isPlacingOrder && { opacity: 0.7 }]}
-            disabled={isPlacingOrder}
-            accessibilityRole="button"
-            accessibilityLabel="Place Order"
-          >
-            {isPlacingOrder ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Text style={styles.placeOrderLabel}>Place Order · COD</Text>
-                <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
-              </>
-            )}
-          </PressableScale>
+        <View style={styles.orderSummaryCol}>
+          <Text style={styles.orderSummaryEyebrow}>ORDER TOTAL</Text>
+          <Text style={styles.orderSummaryPrice}>{formatINR(total)}</Text>
         </View>
+
+        <PressableScale
+          onPress={handlePlaceOrder}
+          disabled={isPlacingOrder}
+          style={[
+            styles.placeOrderBtn,
+            !hasConfirmedAddress && styles.placeOrderBtnDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Place Order"
+        >
+          {isPlacingOrder ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <MaterialIcons
+                name={hasConfirmedAddress ? 'shopping-bag' : 'add-location'}
+                size={18}
+                color="#FFFFFF"
+              />
+              <Text style={styles.placeOrderLabel}>
+                {hasConfirmedAddress
+                  ? 'Place Order · COD'
+                  : 'Set Address to Continue'}
+              </Text>
+            </>
+          )}
+        </PressableScale>
       </View>
+
+      {/* 5. Interactive Map Pin Modal */}
+      <InteractiveMapPinPicker
+        visible={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        onConfirmLocation={handleConfirmMapLocation}
+        initialCoordinates={coords || [NAGPUR_CENTER.longitude, NAGPUR_CENTER.latitude]}
+      />
     </View>
   );
 }
@@ -531,370 +763,446 @@ export default function AddressScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F4EFE7',
+    backgroundColor: '#FAF9F5',
   },
   topBar: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 50,
-    paddingHorizontal: spacing.md,
+    zIndex: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   topBarInner: {
-    height: 52,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.82)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(28px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
       },
     }),
   },
   topBarBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   headerTitle: {
+    fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }),
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.textObsidian,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.2,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm + 2,
+    paddingHorizontal: 20,
   },
   stepsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginVertical: 14,
     gap: 8,
-    paddingVertical: spacing.xs,
   },
   stepDone: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    paddingVertical: 4,
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 9999,
   },
   stepDoneText: {
-    color: colors.textObsidian,
     fontSize: 11,
     fontWeight: '600',
+    color: colors.textObsidian,
   },
   stepConnector: {
     width: 16,
     height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    backgroundColor: colors.textAsh,
   },
   stepActive: {
-    backgroundColor: colors.textObsidian,
-    paddingVertical: 4,
+    backgroundColor: colors.accentCrimson,
     paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 9999,
   },
   stepActiveText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   stepInactive: {
-    paddingVertical: 4,
+    backgroundColor: 'rgba(18, 18, 20, 0.05)',
     paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
   },
   stepInactiveText: {
-    color: colors.textAsh,
     fontSize: 11,
-    fontWeight: '600',
+    color: colors.textAsh,
   },
-  locationCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.52)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
+  sectionWrap: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  toggleFormBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  toggleFormText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.accentCrimson,
+  },
+  savedAddressCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.78)',
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
       },
     }),
   },
-  locationLeft: {
+  savedAddressCardSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: colors.accentCrimson,
+    borderWidth: 1.5,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+  },
+  savedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  locationTextCol: {
-    flex: 1,
+  savedTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  detectedAreaText: {
-    color: colors.textObsidian,
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  distanceBadgeText: {
-    color: colors.accentGoldDeep,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  locateBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+  savedRadioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.textAsh,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  savedRadioCircleActive: {
+    backgroundColor: colors.accentCrimson,
+    borderColor: colors.accentCrimson,
+  },
+  savedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  deleteAddrBtn: {
+    padding: 4,
+  },
+  savedAddressBody: {
+    fontSize: 13,
+    color: colors.textSlate,
+    marginLeft: 28,
+  },
+  savedAddressSub: {
+    fontSize: 12,
+    color: colors.textAsh,
+    marginLeft: 28,
+    marginTop: 2,
+  },
+  savedAddressState: {
+    fontSize: 11,
+    color: colors.textAsh,
+    marginLeft: 28,
+    marginTop: 4,
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: 16,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+      },
+    }),
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  requiredBadge: {
+    backgroundColor: 'rgba(196, 36, 58, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  requiredBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.accentCrimson,
+    letterSpacing: 0.5,
+  },
+  mapPinBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+  },
+  mapPinBannerPending: {
+    backgroundColor: '#FEF3C7',
+    borderColor: 'rgba(217, 119, 6, 0.3)',
+  },
+  mapPinBannerConfirmed: {
+    backgroundColor: 'rgba(196, 36, 58, 0.06)',
+    borderColor: 'rgba(196, 36, 58, 0.25)',
+  },
+  mapBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  mapIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapIconCirclePending: {
+    backgroundColor: '#FDE68A',
+  },
+  mapIconCircleConfirmed: {
+    backgroundColor: 'rgba(196, 36, 58, 0.12)',
+  },
+  mapBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textObsidian,
+  },
+  mapBannerSub: {
+    fontSize: 11,
+    color: colors.textSlate,
+    marginTop: 2,
+  },
+  pinActionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
+  },
+  pinActionChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accentCrimson,
+  },
   typeSelectorRow: {
     flexDirection: 'row',
-    gap: spacing.xs + 2,
+    gap: 8,
+    marginBottom: 12,
   },
   typePill: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    height: 38,
-    borderRadius: radii.md,
+    gap: 5,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  typePillGlass: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderColor: 'rgba(18, 18, 20, 0.08)',
   },
   typePillSelected: {
     backgroundColor: colors.textObsidian,
-  },
-  typePillGlass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.50)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
+    borderColor: colors.textObsidian,
   },
   typeLabel: {
+    fontSize: 12,
+    fontWeight: '500',
     color: colors.textObsidian,
-    fontSize: 11,
-    fontWeight: '600',
   },
   typeLabelSelected: {
     color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  savedAddressCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.accentCrimson,
-    shadowColor: colors.accentCrimson,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 3,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-      },
-    }),
-  },
-  savedHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  savedTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  savedCheckCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.accentCrimson,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  savedTitle: {
-    color: colors.textObsidian,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  defaultBadge: {
-    backgroundColor: 'rgba(18, 18, 20, 0.05)',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 9999,
-  },
-  defaultBadgeText: {
-    color: colors.textSlate,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  savedAddressBody: {
-    color: colors.textSlate,
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  savedAddressState: {
-    color: colors.textAsh,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.52)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.78)',
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-      },
-    }),
-  },
-  cardTitle: {
-    color: colors.textObsidian,
-    fontSize: 12.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
     height: 44,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderColor: 'rgba(18, 18, 20, 0.08)',
+    gap: 8,
   },
   inputField: {
     flex: 1,
+    fontSize: 13,
     color: colors.textObsidian,
-    fontSize: 12.5,
-    fontWeight: '500',
   },
-  guaranteeCard: {
-    backgroundColor: 'rgba(244, 63, 94, 0.06)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
+  saveAddressBtn: {
+    backgroundColor: colors.textObsidian,
+    height: 42,
+    borderRadius: 21,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  saveAddressText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  trustCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.18)',
+    borderColor: 'rgba(18, 18, 20, 0.05)',
   },
-  guaranteeTextCol: {
-    flex: 1,
+  trustIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(179, 138, 43, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  guaranteeTitle: {
-    color: colors.accentCrimson,
-    fontSize: 12,
-    fontWeight: '700',
+  trustTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textObsidian,
   },
-  guaranteeSubtitle: {
-    color: colors.textSlate,
+  trustBody: {
     fontSize: 11,
-    lineHeight: 15,
+    color: colors.textAsh,
+    lineHeight: 16,
     marginTop: 2,
   },
-  bottomBarWrap: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: 0,
-    zIndex: 50,
-  },
   bottomBar: {
-    height: 64,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-    elevation: 8,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.9)',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(36px) saturate(210%)',
-        WebkitBackdropFilter: 'blur(36px) saturate(210%)',
+        backdropFilter: 'blur(32px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(180%)',
       },
     }),
   },
-  priceCol: {
-    gap: 1,
+  orderSummaryCol: {
+    gap: 2,
   },
-  priceValue: {
+  orderSummaryEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textAsh,
+    letterSpacing: 0.5,
+  },
+  orderSummaryPrice: {
+    fontSize: 19,
+    fontWeight: '700',
     color: colors.textObsidian,
-    fontSize: 17.5,
-    fontWeight: '700',
-  },
-  priceSubtitle: {
-    color: colors.accentGoldDeep,
-    fontSize: 9.5,
-    fontWeight: '700',
   },
   placeOrderBtn: {
     backgroundColor: colors.accentCrimson,
-    borderRadius: 9999,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
+    height: 48,
+    borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: colors.accentCrimson,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+  },
+  placeOrderBtnDisabled: {
+    backgroundColor: colors.textSlate,
+    shadowOpacity: 0,
   },
   placeOrderLabel: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -47,6 +47,7 @@ export default function CartScreen({ navigation }) {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+  const profile = useAuthStore((state) => state.profile);
 
   const total = subtotal; // Express delivery is free in rapid radius
   const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -75,17 +76,6 @@ export default function CartScreen({ navigation }) {
   const handleProceedToCheckout = () => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    if (!isLoggedIn) {
-      Alert.alert(
-        'Quick Sign In',
-        'Sign in or continue as guest to complete your delivery.',
-        [
-          { text: 'Guest Checkout', onPress: () => navigation.navigate('Address') },
-          { text: 'Sign In', onPress: () => navigation.navigate('Auth') },
-        ]
-      );
-      return;
     }
     navigation.navigate('Address');
   };
@@ -290,13 +280,15 @@ export default function CartScreen({ navigation }) {
                 <MaterialIcons
                   name="location-on"
                   size={20}
-                  color={colors.accentGold}
+                  color={profile?.savedAddresses?.length ? colors.accentGold : colors.accentCrimson}
                 />
               </View>
               <View style={styles.addressInfoCol}>
                 <Text style={styles.addressLabel}>DELIVERY ADDRESS</Text>
                 <Text style={styles.addressText} numberOfLines={1}>
-                  Civil Lines, Nagpur · Palm Grove 402
+                  {profile?.savedAddresses?.length
+                    ? `${profile.savedAddresses[0].line1}, ${profile.savedAddresses[0].city || 'Nagpur'}`
+                    : 'No address set · Tap to set doorstep'}
                 </Text>
               </View>
               <MaterialIcons

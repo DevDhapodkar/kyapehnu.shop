@@ -86,7 +86,7 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [guestExplore, setGuestExplore] = useState(true);
+  const [guestExplore, setGuestExplore] = useState(false);
 
   const { areaLabel, status } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
@@ -158,26 +158,6 @@ function MarketingScrollytelling({ insets, onJoin, onLogin, onExploreGuest }) {
 
   return (
     <>
-      {/* Top Floating Pill to Skip Straight into Storefront */}
-      <View
-        style={[
-          styles.skipToStorefrontWrap,
-          { top: insets.top + 8 },
-        ]}
-      >
-        <PressableScale
-          onPress={onExploreGuest}
-          style={styles.skipToStorefrontBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Enter Storefront"
-        >
-          <Text style={styles.skipToStorefrontText}>
-            Storefront
-          </Text>
-          <MaterialIcons name="arrow-forward" size={14} color="#FFFFFF" />
-        </PressableScale>
-      </View>
-
       {/* Pre-rendered drone-shot frames sit behind everything and never
           intercept touches. */}
       <ScrollytellingSequence scrollY={scrollY} scrollRange={SCROLL_RANGE} />
@@ -224,6 +204,27 @@ function MarketingScrollytelling({ insets, onJoin, onLogin, onExploreGuest }) {
             body={section.body}
           />
         ))}
+      </View>
+
+      {/* Top Floating Pill to Skip Straight into Storefront */}
+      <View
+        style={[
+          styles.skipToStorefrontWrap,
+          { top: insets.top + 8 },
+        ]}
+        pointerEvents="box-none"
+      >
+        <PressableScale
+          onPress={onExploreGuest}
+          style={styles.skipToStorefrontBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Enter Storefront"
+        >
+          <Text style={styles.skipToStorefrontText}>
+            Storefront
+          </Text>
+          <MaterialIcons name="arrow-forward" size={14} color="#FFFFFF" />
+        </PressableScale>
       </View>
     </>
   );
@@ -439,6 +440,7 @@ function Storefront({
         areaLabel={areaLabel}
         onSelectLocation={onSelectLocation}
         onOpenProfile={onOpenProfile}
+        onViewStory={onViewStory}
       />
 
       {/* 2. Scrollable Commerce Feed */}

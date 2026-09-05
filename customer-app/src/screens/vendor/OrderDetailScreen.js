@@ -252,7 +252,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.orderNumber}>
-            Order #{displayOrder.orderId || 'KP-8902'}
+            Order #{displayOrder.orderId || displayOrder._id || displayOrder.id || 'Active'}
           </Text>
           <Text style={styles.placedTimestamp}>{displayOrder.placedAt}</Text>
         </View>

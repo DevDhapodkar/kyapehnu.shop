@@ -21,6 +21,7 @@ export default function StorefrontAmbientHeader({
   areaLabel = 'Sitabuldi, Nagpur',
   onSelectLocation,
   onOpenProfile,
+  onViewStory,
 }) {
   return (
     <View
@@ -32,7 +33,12 @@ export default function StorefrontAmbientHeader({
     >
       <View style={styles.pillBar} pointerEvents="auto">
         {/* Left: Brand Identity from Stitch */}
-        <View style={styles.brandGroup}>
+        <PressableScale
+          onPress={onViewStory}
+          style={styles.brandGroup}
+          accessibilityRole="button"
+          accessibilityLabel="View Atelier Story"
+        >
           <Image
             source={require('../../assets/images/icon.png')}
             style={styles.emblemImage}
@@ -42,7 +48,7 @@ export default function StorefrontAmbientHeader({
             <Text style={styles.brandTitle}>Kya Pehnu?</Text>
             <Text style={styles.brandSubtitle}>ATELIER</Text>
           </View>
-        </View>
+        </PressableScale>
 
         {/* Center: Location Pill */}
         <PressableScale

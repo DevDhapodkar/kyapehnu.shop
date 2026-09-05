@@ -49,6 +49,19 @@ const addAddress = async (req, res) => {
   }
 };
 
+const deleteAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    req.user.savedAddresses = req.user.savedAddresses.filter(
+      (a) => String(a._id) !== String(addressId)
+    );
+    await req.user.save();
+    res.json(req.user);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete address', error: error.message });
+  }
+};
+
 const updateLocation = async (req, res) => {
   try {
     const { lng, lat } = req.body;
@@ -75,4 +88,4 @@ const savePushToken = async (req, res) => {
   }
 };
 
-export { syncProfile, getProfile, addAddress, updateLocation, savePushToken };
+export { syncProfile, getProfile, addAddress, deleteAddress, updateLocation, savePushToken };

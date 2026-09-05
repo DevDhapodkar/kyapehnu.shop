@@ -11,6 +11,7 @@ import { registerForPush } from '../services/notifications';
 import {
   signInEmail,
   registerEmail,
+  resetPassword,
   signOutFirebase,
   subscribeIdToken,
   isFirebaseConfigured,
@@ -195,6 +196,10 @@ export const useAuthStore = create((set, get) => ({
       set({ pendingProfile: { name, email, phone } });
       return { profileSynced: false, profile: null };
     }
+  },
+
+  sendPasswordReset: async (email) => {
+    return resetPassword(email);
   },
 
   /** Legacy explicit sign-in used before Firebase auth landed / for tests. */

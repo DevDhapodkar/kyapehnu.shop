@@ -4,6 +4,7 @@ import {
   updateProfile,
   signOut as fbSignOut,
   onIdTokenChanged,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 
 import { auth, isFirebaseConfigured } from '../config/firebase';
@@ -29,6 +30,9 @@ export const registerEmail = async (email, password, displayName) => {
   if (displayName) await updateProfile(cred.user, { displayName });
   return cred;
 };
+
+export const resetPassword = (email) =>
+  sendPasswordResetEmail(ensureAuth(), email.trim());
 
 export const signOutFirebase = () => (auth ? fbSignOut(auth) : Promise.resolve());
 

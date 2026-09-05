@@ -147,6 +147,10 @@ export const fetchUserProfile = () =>
 export const saveUserAddress = (address) =>
   request(() => client.post('/users/me/addresses', address), 'Failed to save address');
 
+/** DELETE /api/users/me/addresses/:addressId — remove a saved delivery address. */
+export const deleteUserAddress = (addressId) =>
+  request(() => client.delete(`/users/me/addresses/${addressId}`), 'Failed to delete address');
+
 /** POST /api/vendors/sync — register or update the shop for the signed-in uid. */
 export const registerVendor = (payload) =>
   request(() => client.post('/vendors/sync', payload), 'Failed to register shop');

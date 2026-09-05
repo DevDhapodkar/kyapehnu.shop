@@ -42,6 +42,7 @@ export default function AuthScreen({ navigation, route }) {
 
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
   const registerWithEmail = useAuthStore((state) => state.registerWithEmail);
+  const sendPasswordReset = useAuthStore((state) => state.sendPasswordReset);
 
   const [form, setForm] = useState({
     name: '',
@@ -50,6 +51,7 @@ export default function AuthScreen({ navigation, route }) {
     password: '',
   });
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const setField = (key) => (value) =>
@@ -57,6 +59,7 @@ export default function AuthScreen({ navigation, route }) {
 
   const handleSubmit = async () => {
     setError(null);
+    setSuccessMessage(null);
     if (isRegister && !form.name.trim()) return setError('Enter your name.');
     if (isRegister && !form.phone.trim()) return setError('Enter your phone number.');
     if (!form.email.trim()) return setError('Enter your email.');
@@ -93,11 +96,19 @@ export default function AuthScreen({ navigation, route }) {
     }
   };
 
-  const handleSocialAuth = (provider) => {
-    Alert.alert(
-      `${provider} Sign In`,
-      `Logging in with ${provider}... Seamless authentication verified.`
-    );
+  const handleForgotPassword = async () => {
+    if (!form.email.trim()) {
+      setError('Enter your email address above to receive a password reset link.');
+      return;
+    }
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await sendPasswordReset(form.email.trim());
+      setSuccessMessage(`Password reset link sent to ${form.email.trim()}. Check your inbox.`);
+    } catch (err) {
+      setError(friendlyAuthError(err));
+    }
   };
 
   const handleExploreAsGuest = () => {
@@ -178,7 +189,11 @@ export default function AuthScreen({ navigation, route }) {
           {/* Mode Switcher Tabs */}
           <View style={styles.tabsRow}>
             <PressableScale
-              onPress={() => setMode('signin')}
+              onPress={() => {
+                setMode('signin');
+                setError(null);
+                setSuccessMessage(null);
+              }}
               style={[styles.tab, !isRegister && styles.tabActive]}
             >
               <Text
@@ -189,7 +204,11 @@ export default function AuthScreen({ navigation, route }) {
             </PressableScale>
 
             <PressableScale
-              onPress={() => setMode('register')}
+              onPress={() => {
+                setMode('register');
+                setError(null);
+                setSuccessMessage(null);
+              }}
               style={[styles.tab, isRegister && styles.tabActive]}
             >
               <Text
@@ -199,6 +218,18 @@ export default function AuthScreen({ navigation, route }) {
               </Text>
             </PressableScale>
           </View>
+
+          {/* Success Banner */}
+          {successMessage ? (
+            <View style={styles.successCard}>
+              <MaterialIcons
+                name="check-circle-outline"
+                size={16}
+                color={colors.accentEmerald}
+              />
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          ) : null}
 
           {/* Error Banner */}
           {error ? (
@@ -284,12 +315,7 @@ export default function AuthScreen({ navigation, route }) {
               />
               {!isRegister ? (
                 <PressableScale
-                  onPress={() =>
-                    Alert.alert(
-                      'Password Reset',
-                      'Enter your email above to receive a secure reset link.'
-                    )
-                  }
+                  onPress={handleForgotPassword}
                   style={styles.forgotBtn}
                 >
                   <Text style={styles.forgotText}>Forgot?</Text>
@@ -297,19 +323,21 @@ export default function AuthScreen({ navigation, route }) {
               ) : null}
             </View>
 
-            {/* Continue Button */}
+            {/* Submit Button */}
             <PressableScale
               onPress={handleSubmit}
               disabled={busy}
               style={styles.submitBtn}
               accessibilityRole="button"
-              accessibilityLabel="Continue"
+              accessibilityLabel={isRegister ? 'Create Account' : 'Sign In'}
             >
               {busy ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Text style={styles.submitLabel}>Continue</Text>
+                  <Text style={styles.submitLabel}>
+                    {isRegister ? 'Create Account' : 'Sign In'}
+                  </Text>
                   <MaterialIcons
                     name="arrow-forward"
                     size={17}
@@ -320,36 +348,22 @@ export default function AuthScreen({ navigation, route }) {
             </PressableScale>
           </View>
 
-          {/* Social OAuth Options */}
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>or continue with</Text>
-            <View style={styles.orLine} />
-          </View>
-
-          <View style={styles.socialRow}>
-            <PressableScale
-              onPress={() => handleSocialAuth('Apple')}
-              style={styles.socialBtn}
-            >
-              <Text style={styles.socialBtnText}>Apple</Text>
-            </PressableScale>
-
-            <PressableScale
-              onPress={() => handleSocialAuth('Google')}
-              style={styles.socialBtn}
-            >
-              <Text style={styles.socialBtnText}>Google</Text>
-            </PressableScale>
-          </View>
-
-          {/* Vendor Registration Link */}
+          {/* Vendor Registration Card */}
           <PressableScale
             onPress={() => navigation.navigate('VendorRegister')}
-            style={styles.vendorLink}
+            style={styles.vendorCard}
           >
-            <Text style={styles.vendorLinkPre}>Own a boutique?</Text>
-            <Text style={styles.vendorLinkCta}>Register shop →</Text>
+            <View style={styles.vendorIconWrap}>
+              <MaterialIcons
+                name="storefront"
+                size={20}
+                color={colors.accentGoldDeep}
+              />
+            </View>
+            <View style={styles.vendorTextWrap}>
+              <Text style={styles.vendorLinkPre}>Are you a Nagpur boutique or artisan?</Text>
+              <Text style={styles.vendorLinkCta}>Register shop for 60-min delivery →</Text>
+            </View>
           </PressableScale>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -503,6 +517,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  successCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  successText: {
+    color: colors.accentEmerald,
+    fontSize: 11.5,
+    fontWeight: '600',
+    flex: 1,
+  },
   glassCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.52)',
     borderRadius: radii.xl,
@@ -569,56 +599,45 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.6,
   },
-  orRow: {
+  vendorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 2,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  orText: {
-    color: colors.textAsh,
-    fontSize: 10.5,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  socialBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: radii.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    gap: 12,
+    padding: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+    marginTop: spacing.xs,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      },
+    }),
+  },
+  vendorIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
   },
-  socialBtnText: {
-    color: colors.textObsidian,
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  vendorLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: spacing.md,
+  vendorTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   vendorLinkPre: {
     color: colors.textAsh,
-    fontSize: 12,
+    fontSize: 11.5,
+    fontWeight: '500',
   },
   vendorLinkCta: {
     color: colors.accentGoldDeep,
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
   },
 });

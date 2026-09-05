@@ -41,10 +41,10 @@ export default function LiveTrackingScreen({ route, navigation }) {
   const { order, orderId: paramOrderId, phone } = route.params || {};
 
   const token = useAuthStore((state) => state.token);
-  const orderId = paramOrderId || order?.id || order?._id || 'KP-8902';
+  const orderId = paramOrderId || order?.orderId || order?._id || order?.id || null;
 
   const [liveOrder, setLiveOrder] = useState(order || null);
-  const [etaMinutes] = useState(order?.etaMinutes || 22);
+  const [etaMinutes] = useState(order?.etaMinutes || 25);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
@@ -170,6 +170,58 @@ export default function LiveTrackingScreen({ route, navigation }) {
       ]
     );
   };
+
+  if (!orderId && !liveOrder) {
+    return (
+      <View style={styles.root}>
+        <StatusBar barStyle="dark-content" />
+        <AmbientBackgroundBlobs />
+        <View
+          style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.topBarInner} pointerEvents="auto">
+            <PressableScale
+              onPress={() => navigation.navigate('Home')}
+              style={styles.topBarBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Go to Storefront"
+            >
+              <MaterialIcons
+                name="arrow-back-ios-new"
+                size={17}
+                color={colors.textObsidian}
+              />
+            </PressableScale>
+            <BrandLogo size="sm" showEmblem={true} />
+            <View style={{ width: 34 }} />
+          </View>
+        </View>
+        <View style={styles.emptyCenter}>
+          <View style={styles.emptyIconWrap}>
+            <MaterialIcons
+              name="two-wheeler"
+              size={40}
+              color={colors.accentGoldDeep}
+            />
+          </View>
+          <Text style={styles.emptyTitle}>No Active Delivery</Text>
+          <Text style={styles.emptySubtitle}>
+            You do not currently have an order in transit.
+          </Text>
+          <PressableScale
+            onPress={() => navigation.navigate('Home')}
+            style={styles.emptyBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Explore Storefront"
+          >
+            <Text style={styles.emptyBtnText}>Explore Storefront</Text>
+            <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+          </PressableScale>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -989,5 +1041,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.6,
+  },
+  emptyCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  emptyTitle: {
+    color: colors.textObsidian,
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: colors.textAsh,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyBtn: {
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: radii.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.sm,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
