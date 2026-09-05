@@ -19,15 +19,27 @@ const extra = Constants.expoConfig?.extra ?? {};
  * On a physical device set `extra.apiBaseUrl` in app.json to the LAN IP.
  */
 const resolveBaseUrl = () => {
+  const configured = extra.apiBaseUrl || 'https://kyapehnu-backend.onrender.com';
+
   if (typeof window !== 'undefined' && window.location?.hostname) {
     const host = window.location.hostname;
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return `http://${host}:5001`;
+    // On any production domain (kyapehnu.shop, vercel.app) or HTTPS page,
+    // always use the production HTTPS API.
+    if (
+      window.location.protocol === 'https:' ||
+      host.includes('kyapehnu.shop') ||
+      host.includes('vercel.app')
+    ) {
+      return configured;
     }
-    return 'http://localhost:5001';
+
+    // Local development only (http://localhost or 127.0.0.1)
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return configured;
+    }
   }
 
-  return extra.apiBaseUrl || 'https://kyapehnu-backend.onrender.com';
+  return configured;
 };
 
 export const API_BASE_URL = resolveBaseUrl();
