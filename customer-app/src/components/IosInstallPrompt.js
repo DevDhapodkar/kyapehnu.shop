@@ -69,7 +69,7 @@ export default function IosInstallPrompt() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 86,
     left: 16,
     right: 16,
     zIndex: 99999,

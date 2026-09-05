@@ -300,38 +300,57 @@ function Storefront({
     const cat = selectedCategory.toLowerCase();
     return list.filter((p) => {
       const pCat = (p.category || '').toLowerCase();
+      const pSub = (p.subCategory || '').toLowerCase();
       const pName = (p.name || '').toLowerCase();
+      const pGender = (p.gender || '').toLowerCase();
+      const pMat = (p.material || '').toLowerCase();
+
+      if (cat === 'women') {
+        return pGender === 'women' || pCat.includes('women') || pName.includes('angrakha') || pName.includes('co-ord');
+      }
+      if (cat === 'men') {
+        return pGender === 'men' || pCat.includes('men') || pName.includes('kurta') || pName.includes('waistcoat');
+      }
+      if (cat === 'tops') {
+        return pSub.includes('top') || pName.includes('co-ord') || pName.includes('angrakha');
+      }
+      if (cat === 'shirts') {
+        return pSub.includes('shirt') || pName.includes('waistcoat') || pName.includes('kurta');
+      }
+      if (cat === 'drapes') {
+        return pSub.includes('drape') || pName.includes('angrakha') || pCat.includes('silk');
+      }
       if (cat === 'silks') {
         return (
           pCat.includes('silk') ||
-          pCat.includes('sari') ||
-          pCat.includes('kurta') ||
+          pMat.includes('silk') ||
           pName.includes('silk') ||
-          pName.includes('angrakha')
+          pName.includes('angrakha') ||
+          pName.includes('kurta') ||
+          pName.includes('waistcoat')
         );
       }
       if (cat === 'evening') {
         return (
           pCat.includes('evening') ||
-          pCat.includes('dress') ||
-          pName.includes('dress') ||
-          pName.includes('gown')
+          pName.includes('angrakha') ||
+          pName.includes('waistcoat')
         );
       }
       if (cat === 'linen') {
         return (
           pCat.includes('linen') ||
-          pCat.includes('co-ord') ||
+          pMat.includes('linen') ||
           pName.includes('linen') ||
-          pName.includes('coord')
+          pName.includes('co-ord')
         );
       }
       if (cat === 'festive') {
         return (
           pCat.includes('festive') ||
-          pCat.includes('lehenga') ||
-          pName.includes('festive') ||
-          pName.includes('zardozi')
+          pMat.includes('zardozi') ||
+          pName.includes('angrakha') ||
+          pName.includes('kurta')
         );
       }
       return true;
@@ -339,6 +358,13 @@ function Storefront({
   }, [products, selectedCategory, selectedBoutique, searchQuery]);
 
   const spotlightProduct = products[0] || null;
+
+  const railProducts = useMemo(() => {
+    if (!searchQuery && selectedCategory === 'all') {
+      return filteredProducts.filter((p) => p.id !== spotlightProduct?.id);
+    }
+    return filteredProducts;
+  }, [filteredProducts, searchQuery, selectedCategory, spotlightProduct]);
 
   const handleTabSelect = (tabId) => {
     setActiveTab(tabId);
@@ -366,10 +392,7 @@ function Storefront({
         insets={insets}
         areaLabel={areaLabel}
         onSelectLocation={onSelectLocation}
-        onOpenSearch={() => setIsSearchOpen((prev) => !prev)}
         onOpenProfile={onOpenProfile}
-        onOpenBag={onOpenBag}
-        cartCount={cartCount}
       />
 
       {/* 2. Scrollable Commerce Feed */}
@@ -378,7 +401,7 @@ function Storefront({
         contentContainerStyle={[
           styles.storefrontContent,
           {
-            paddingTop: insets.top + 68,
+            paddingTop: insets.top + 70,
             paddingBottom: insets.bottom + 96,
           },
         ]}
@@ -391,17 +414,11 @@ function Storefront({
           />
         }
       >
-        {/* Streamlined Apple-Style Header Banner (Decluttered) */}
+        {/* Streamlined Apple-Style Header Banner (Decluttered, Matching Stitch) */}
         <Animated.View style={styles.heroBanner} entering={FEED_HEADER_ENTER}>
           <View style={styles.bannerEyebrowRow}>
-            <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
+            <MaterialIcons name="bolt" size={14} color={colors.accentGold} />
             <Text style={styles.bannerEyebrow}>NAGPUR EXPRESS</Text>
-            {onViewStory ? (
-              <PressableScale onPress={onViewStory} style={styles.storyPill}>
-                <Text style={styles.storyPillText}>3D Story</Text>
-                <MaterialIcons name="auto-awesome" size={11} color={colors.accentGold} />
-              </PressableScale>
-            ) : null}
           </View>
           <Text style={styles.bannerTitle}>In stock, near you</Text>
         </Animated.View>
@@ -513,7 +530,7 @@ function Storefront({
               ) : (
                 <Animated.View entering={FEED_LIST_ENTER}>
                   <FlatList
-                    data={filteredProducts}
+                    data={railProducts}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                       <StorefrontAmbientProductCard
@@ -567,33 +584,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   heroBanner: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs + 2,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   bannerEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     marginBottom: 4,
   },
   bannerEyebrowIcon: {
     color: colors.accentGold,
-    fontSize: 12,
+    fontSize: 14,
   },
   bannerEyebrow: {
-    color: colors.accentGoldDeep,
+    color: colors.accentGold,
     fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 1.8,
+    fontWeight: '600',
+    letterSpacing: 2.2,
     textTransform: 'uppercase',
   },
   bannerTitle: {
     color: colors.textObsidian,
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: '400',
     letterSpacing: -0.4,
-    lineHeight: 36,
+    lineHeight: 38,
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', 'Playfair Display', Georgia, serif",
+    }),
     marginBottom: 4,
   },
   bannerSubtitle: {
@@ -602,11 +624,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   railSection: {
-    marginTop: spacing.xl,
+    marginTop: 28,
   },
   railHeaderRow: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    paddingHorizontal: 20,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
@@ -621,20 +643,25 @@ const styles = StyleSheet.create({
   },
   railTitle: {
     color: colors.textObsidian,
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '600',
     letterSpacing: -0.2,
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', Georgia, serif",
+    }),
   },
   viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
   },
   viewAllText: {
     color: colors.accentCrimson,
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 1.0,
     textTransform: 'uppercase',
   },
   viewAllArrow: {

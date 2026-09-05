@@ -20,7 +20,6 @@ export const AMBIENT_CARD_WIDTH = 200;
  * - Glass favorite heart toggle (MaterialIcons)
  * - Bottom glass pill locality banner ("Gandhibagh · 2.1 km")
  * - Compact horizontal footer: Name & Price on left, glass-pill "add" on right
- * - Zero Emojis
  */
 export default function StorefrontAmbientProductCard({
   product,
@@ -51,6 +50,12 @@ export default function StorefrontAmbientProductCard({
       ? Math.round(15 + product.distanceKm * 7)
       : 25);
 
+  const localityText = product.locality || product.storeArea || 'Nagpur';
+  const distanceText =
+    typeof product.distanceKm === 'number'
+      ? `${product.distanceKm} km`
+      : '1.2 km';
+
   return (
     <PressableScale
       onPress={onPress}
@@ -58,7 +63,7 @@ export default function StorefrontAmbientProductCard({
       accessibilityLabel={`${product.name}, ${formatINR(product.price)}`}
       style={styles.card}
     >
-      {/* Media Box */}
+      {/* Media Box (3:4 Aspect Ratio) */}
       <View style={styles.imageWrap}>
         <Image
           source={{ uri: product.image }}
@@ -83,22 +88,17 @@ export default function StorefrontAmbientProductCard({
         >
           <MaterialIcons
             name={isWishlisted ? 'favorite' : 'favorite-border'}
-            size={14}
+            size={13}
             color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
           />
         </Pressable>
 
-        {/* Floating Locality Banner */}
-        {product.storeName ? (
-          <View style={styles.localityBanner}>
-            <Text style={styles.localityText} numberOfLines={1}>
-              {product.storeName}
-              {typeof product.distanceKm === 'number'
-                ? ` · ${product.distanceKm} km`
-                : ''}
-            </Text>
-          </View>
-        ) : null}
+        {/* Bottom Glass Locality Pill */}
+        <View style={styles.localityBanner}>
+          <Text style={styles.localityText} numberOfLines={1}>
+            {localityText} · {distanceText}
+          </Text>
+        </View>
       </View>
 
       {/* Info Row */}
@@ -117,7 +117,7 @@ export default function StorefrontAmbientProductCard({
             accessibilityRole="button"
             accessibilityLabel="Quick add to bag"
           >
-            <MaterialIcons name="add" size={17} color={colors.textObsidian} />
+            <MaterialIcons name="add" size={15} color={colors.textObsidian} />
           </PressableScale>
         ) : null}
       </View>
@@ -128,12 +128,12 @@ export default function StorefrontAmbientProductCard({
 const styles = StyleSheet.create({
   card: {
     width: AMBIENT_CARD_WIDTH,
-    borderRadius: radii.lg,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.50)',
+    backgroundColor: 'rgba(255, 255, 255, 0.48)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-    marginRight: spacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.72)',
+    marginRight: 12,
     shadowColor: '#121215',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
@@ -141,8 +141,10 @@ const styles = StyleSheet.create({
     elevation: 3,
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(28px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        backdropFilter: 'blur(32px) saturate(210%) brightness(105%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(210%) brightness(105%)',
+        boxShadow:
+          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.85), 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 1px 3px 0 rgba(0, 0, 0, 0.03)',
       },
     }),
   },
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     aspectRatio: 3 / 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     overflow: 'hidden',
   },
   image: {
@@ -161,43 +163,47 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    paddingVertical: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 9999,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(255, 255, 255, 0.80)',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        boxShadow:
+          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 8px 20px -4px rgba(0, 0, 0, 0.06)',
       },
     }),
   },
   scheduleText: {
     color: colors.textObsidian,
-    fontSize: 9.5,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
   },
   favBtn: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(255, 255, 255, 0.80)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        boxShadow:
+          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 8px 20px -4px rgba(0, 0, 0, 0.06)',
       },
     }),
   },
@@ -206,32 +212,34 @@ const styles = StyleSheet.create({
     bottom: 8,
     left: 8,
     right: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     paddingVertical: 3,
-    paddingHorizontal: 7,
-    borderRadius: radii.sm,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(255, 255, 255, 0.80)',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        boxShadow:
+          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 8px 20px -4px rgba(0, 0, 0, 0.06)',
       },
     }),
   },
   localityText: {
     color: colors.textObsidian,
     fontSize: 9,
-    fontWeight: '600',
+    fontWeight: '500',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   infoRow: {
-    padding: spacing.sm + 1,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.xs,
+    gap: 4,
   },
   infoLeft: {
     flex: 1,
@@ -239,29 +247,36 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.textObsidian,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 20,
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', Georgia, serif",
+    }),
   },
   price: {
     color: colors.textObsidian,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 1,
   },
   addBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(255, 255, 255, 0.80)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(28px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+        boxShadow:
+          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 8px 20px -4px rgba(0, 0, 0, 0.06)',
       },
     }),
   },

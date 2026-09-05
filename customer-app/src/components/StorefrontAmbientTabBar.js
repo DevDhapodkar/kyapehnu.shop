@@ -1,7 +1,6 @@
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
-import CartBadge from './CartBadge';
 import { colors, spacing } from '../theme/colors';
 
 /**
@@ -11,18 +10,18 @@ import { colors, spacing } from '../theme/colors';
  * - Floating rounded pill bar with heavy frosted backdrop blur
  * - Refracts ambient gradient orbs underneath
  * - MaterialIcons: storefront, search, shopping_bag, receipt_long
- * - Zero Emojis
+ * - Active tab highlighted in Royal Crimson (#C4243A)
  */
 export default function StorefrontAmbientTabBar({
   insets,
   activeTab = 'explore',
-  cartCount = 0,
+  cartCount = 2,
   onSelectTab,
 }) {
   const tabs = [
     { id: 'explore', label: 'Explore', iconName: 'storefront' },
     { id: 'search', label: 'Search', iconName: 'search' },
-    { id: 'bag', label: 'Bag', iconName: 'shopping-bag', badge: cartCount },
+    { id: 'bag', label: 'Bag', iconName: 'shopping-bag', badge: cartCount ?? 2 },
     { id: 'orders', label: 'Orders', iconName: 'receipt-long' },
   ];
 
@@ -30,7 +29,7 @@ export default function StorefrontAmbientTabBar({
     <View
       style={[
         styles.container,
-        { paddingBottom: Math.max(insets.bottom, spacing.md) },
+        { paddingBottom: Math.max(insets.bottom + 8, 20) },
       ]}
       pointerEvents="box-none"
     >
@@ -50,11 +49,13 @@ export default function StorefrontAmbientTabBar({
               <View style={styles.iconWrap}>
                 <MaterialIcons
                   name={tab.iconName}
-                  size={22}
+                  size={21}
                   color={isActive ? colors.accentCrimson : colors.textAsh}
                 />
                 {tab.badge > 0 ? (
-                  <CartBadge count={tab.badge} style={styles.badge} />
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{tab.badge}</Text>
+                  </View>
                 ) : null}
               </View>
               <Text
@@ -76,24 +77,25 @@ export default function StorefrontAmbientTabBar({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+    left: 0,
+    right: 0,
     bottom: 0,
     zIndex: 50,
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   navBar: {
     width: '100%',
     maxWidth: 380,
-    height: 60,
+    height: 58,
     borderRadius: 9999,
     backgroundColor: 'rgba(255, 255, 255, 0.58)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.82)',
+    borderColor: 'rgba(255, 255, 255, 0.80)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 12,
     shadowColor: '#121215',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.1,
@@ -113,6 +115,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
+    minHeight: 44,
   },
   iconWrap: {
     position: 'relative',
@@ -121,20 +124,33 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -5,
-    right: -10,
+    top: -4,
+    right: -8,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    backgroundColor: colors.accentCrimson,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   tabLabel: {
     fontSize: 9,
-    fontWeight: '700',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginTop: 2,
   },
   labelActive: {
     color: colors.accentCrimson,
+    fontWeight: '700',
   },
   labelInactive: {
     color: colors.textAsh,
+    fontWeight: '500',
   },
 });

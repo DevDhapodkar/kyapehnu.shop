@@ -16,6 +16,7 @@ export const getCuratedProducts = () => {
         subCategory: p.category || 'Silks & Handlooms',
         price: p.price,
         mrp: p.mrp,
+        originalPrice: p.mrp,
         currency: 'INR',
         sizes: p.sizes || ['S', 'M', 'L'],
         sizesWithStock: (p.sizes || ['S', 'M', 'L']).map((s) => ({ size: s, stock: 10 })),
@@ -41,9 +42,12 @@ export const getCuratedProducts = () => {
         storeId: store.id,
         storeName: store.name,
         storeArea: store.area,
+        locality: store.area,
         storeCoordinates: store.coordinates,
         distanceKm: store.distanceKm,
-        etaMinutes: store.etaMinutes,
+        etaMinutes: p.deliveryMinutes || store.etaMinutes,
+        deliveryMinutes: p.deliveryMinutes || store.etaMinutes,
+        gender: p.gender || 'Unisex',
       });
     }
   }

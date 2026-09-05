@@ -42,9 +42,9 @@ export default function useDeliveryLocation() {
 
       try {
         const geo = await reverseGeocodeLocation(next);
-        setAreaLabel(geo?.areaLabel || 'Nagpur');
+        setAreaLabel(geo?.areaLabel || 'Sitabuldi, Nagpur');
       } catch {
-        setAreaLabel('Nagpur');
+        setAreaLabel('Sitabuldi, Nagpur');
       }
     } catch (err) {
       const isDenied =
@@ -52,7 +52,7 @@ export default function useDeliveryLocation() {
         err?.code === 1; // GeolocationPositionError.PERMISSION_DENIED
       setStatus(isDenied ? 'denied' : 'error');
       setCoords(NAGPUR_CENTER);
-      setAreaLabel('Nagpur');
+      setAreaLabel('Sitabuldi, Nagpur');
     }
   }, []);
 

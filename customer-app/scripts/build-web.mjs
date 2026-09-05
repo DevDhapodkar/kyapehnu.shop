@@ -23,17 +23,20 @@ const indexPath = path.join(distWebDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
 
-  // Inject PWA meta tags and apple touch icon into <head>
-  const pwaTags = `
+  // Inject PWA meta tags, Google Fonts, and apple touch icon into <head>
+  const headInject = `
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Kya Pehnu?" />
-    <meta name="theme-color" content="#050506" />
+    <meta name="theme-color" content="#F4EFE7" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
     <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />
     <link rel="manifest" href="/app/manifest.json" />
   `;
 
-  html = html.replace('</head>', `${pwaTags}\n  </head>`);
+  html = html.replace('</head>', `${headInject}\n  </head>`);
   
   // Set dark background on body for desktop ambient
   html = html.replace(
