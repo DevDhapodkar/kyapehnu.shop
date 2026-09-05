@@ -30,7 +30,14 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Kya Pehnu? — New Outfit Under 60 Minutes",
+      "shortName": "Kya Pehnu",
+      "lang": "en",
+      "themeColor": "#050506",
+      "backgroundColor": "#050506",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "updates": {
       "enabled": true,
@@ -61,7 +68,8 @@
       ]
     ],
     "experiments": {
-      "reactCompiler": true
+      "reactCompiler": true,
+      "baseUrl": "/app"
     },
     "backgroundColor": "#050506",
     "extra": {

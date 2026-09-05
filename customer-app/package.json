@@ -72,7 +72,8 @@
     "lint": "expo lint",
     "models:optimize": "node ./scripts/optimize-models.mjs",
     "render:scrollytelling": "node ./scripts/render-scrollytelling/render.mjs 220 1080 2340",
-    "update:publish": "node ./scripts/publish-update.mjs"
+    "update:publish": "node ./scripts/publish-update.mjs",
+    "build:web": "node ./scripts/build-web.mjs"
   },
   "private": true
 }
