@@ -66,7 +66,11 @@ export default function StorefrontAmbientProductCard({
       {/* Media Box (3:4 Aspect Ratio) */}
       <View style={styles.imageWrap}>
         <Image
-          source={{ uri: product.image }}
+          source={
+            typeof product.image === 'string'
+              ? { uri: product.image }
+              : product.image
+          }
           style={styles.image}
           contentFit="cover"
           transition={250}

@@ -70,13 +70,36 @@ export const toUiProduct = (p) => {
     .map((c) => (typeof c === 'object' && c?.name ? c.name : String(c)))
     .join(', ');
 
+  const price = p.discountPrice ?? p.price;
+  const mrp = p.mrp || (p.discountPrice ? p.price : undefined);
+  const distanceKm =
+    typeof p.vendor?.distanceKm === 'number'
+      ? p.vendor.distanceKm
+      : typeof p.distanceKm === 'number'
+      ? p.distanceKm
+      : 1.4;
+  const deliveryMinutes =
+    p.deliveryMinutes ||
+    p.vendor?.etaMinutes ||
+    (typeof distanceKm === 'number' ? Math.round(15 + distanceKm * 7) : 25);
+
+  const rawGender =
+    p.gender ||
+    (p.category === 'WOMEN'
+      ? 'Women'
+      : p.category === 'MEN'
+      ? 'Men'
+      : 'Unisex');
+
   return {
     id: p._id,
     name: p.name,
-    category: p.category,
+    category: p.category || 'Apparel',
     subCategory: p.subCategory || '',
-    price: p.discountPrice ?? p.price,
-    mrp: p.mrp || (p.discountPrice ? p.price : undefined),
+    gender: rawGender,
+    price,
+    mrp,
+    originalPrice: mrp,
     currency: 'INR',
     sizes: (p.sizes || []).map((s) => (typeof s === 'object' ? s.size : s)),
     sizesWithStock: p.sizes || [],
@@ -86,7 +109,7 @@ export const toUiProduct = (p) => {
     colors: rawColors,
     colorway,
     // Retail attributes for the product detail page.
-    brand: p.brand || p.vendor?.shopName || '',
+    brand: p.brand || p.vendor?.shopName || 'Nagpur Boutique',
     material: p.material || '',
     pattern: p.pattern || '',
     fit: p.fit || '',
@@ -102,13 +125,15 @@ export const toUiProduct = (p) => {
     sku: p.sku || '',
     // Vendor denormalised onto the line so the cart can build a per-shop order.
     storeId: p.vendor?._id,
-    storeName: p.vendor?.shopName || 'Local shop',
-    storeArea: p.vendor?.area || '',
+    storeName: p.vendor?.shopName || p.brand || 'Local shop',
+    storeArea: p.vendor?.address?.area || p.vendor?.area || 'Nagpur',
+    locality: p.vendor?.address?.area || p.vendor?.area || 'Nagpur',
     storeCoordinates: Array.isArray(coords)
       ? { latitude: coords[1], longitude: coords[0] }
       : null,
-    distanceKm: undefined, // unknown without a geo calc against the buyer
-    etaMinutes: undefined,
+    distanceKm,
+    deliveryMinutes,
+    etaMinutes: deliveryMinutes,
   };
 };
 

@@ -306,35 +306,75 @@ function Storefront({
       const pMat = (p.material || '').toLowerCase();
 
       if (cat === 'women') {
-        return pGender === 'women' || pCat.includes('women') || pName.includes('angrakha') || pName.includes('co-ord');
+        return (
+          pGender === 'women' ||
+          pCat.includes('women') ||
+          pSub.includes('women') ||
+          pName.includes('angrakha') ||
+          pName.includes('co-ord') ||
+          pName.includes('saree') ||
+          pName.includes('anarkali') ||
+          pName.includes('dress') ||
+          pName.includes('slip')
+        );
       }
       if (cat === 'men') {
-        return pGender === 'men' || pCat.includes('men') || pName.includes('kurta') || pName.includes('waistcoat');
+        return (
+          pGender === 'men' ||
+          pCat.includes('men') ||
+          pSub.includes('men') ||
+          pName.includes('kurta') ||
+          pName.includes('waistcoat') ||
+          pName.includes('shirt')
+        );
       }
       if (cat === 'tops') {
-        return pSub.includes('top') || pName.includes('co-ord') || pName.includes('angrakha');
+        return (
+          pSub.includes('top') ||
+          pSub.includes('tee') ||
+          pName.includes('tee') ||
+          pName.includes('co-ord') ||
+          pName.includes('angrakha') ||
+          pCat.includes('top')
+        );
       }
       if (cat === 'shirts') {
-        return pSub.includes('shirt') || pName.includes('waistcoat') || pName.includes('kurta');
+        return (
+          pSub.includes('shirt') ||
+          pName.includes('shirt') ||
+          pName.includes('waistcoat') ||
+          pName.includes('overshirt') ||
+          pCat.includes('shirt')
+        );
       }
       if (cat === 'drapes') {
-        return pSub.includes('drape') || pName.includes('angrakha') || pCat.includes('silk');
+        return (
+          pSub.includes('drape') ||
+          pSub.includes('saree') ||
+          pName.includes('saree') ||
+          pName.includes('angrakha') ||
+          pCat.includes('silk')
+        );
       }
       if (cat === 'silks') {
         return (
           pCat.includes('silk') ||
           pMat.includes('silk') ||
           pName.includes('silk') ||
+          pSub.includes('silk') ||
           pName.includes('angrakha') ||
           pName.includes('kurta') ||
-          pName.includes('waistcoat')
+          pName.includes('waistcoat') ||
+          pName.includes('saree')
         );
       }
       if (cat === 'evening') {
         return (
           pCat.includes('evening') ||
           pName.includes('angrakha') ||
-          pName.includes('waistcoat')
+          pName.includes('waistcoat') ||
+          pName.includes('slip') ||
+          pName.includes('shirt')
         );
       }
       if (cat === 'linen') {
@@ -342,6 +382,7 @@ function Storefront({
           pCat.includes('linen') ||
           pMat.includes('linen') ||
           pName.includes('linen') ||
+          pSub.includes('linen') ||
           pName.includes('co-ord')
         );
       }
@@ -349,6 +390,11 @@ function Storefront({
         return (
           pCat.includes('festive') ||
           pMat.includes('zardozi') ||
+          pMat.includes('zari') ||
+          pName.includes('anarkali') ||
+          pName.includes('saree') ||
+          pName.includes('waistcoat') ||
+          pName.includes('festive') ||
           pName.includes('angrakha') ||
           pName.includes('kurta')
         );

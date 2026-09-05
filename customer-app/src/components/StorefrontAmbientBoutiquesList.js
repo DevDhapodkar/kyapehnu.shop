@@ -2,50 +2,111 @@ import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import PressableScale from './PressableScale';
+import { fetchNearbyVendors } from '../api/vendorApi';
+import { mockStores } from '../data/mockStores';
 import { colors, radii, spacing } from '../theme/colors';
 
-const STITCH_BOUTIQUES = [
-  {
-    id: 'str_studio_anamika',
-    name: 'Studio Anamika',
-    locality: 'Dharampeth',
-    distanceKm: '1.4',
-    dispatchTime: '28m dispatch',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBe8eWajVei1XnSWz0Pd5vU5uud5RV0gA_2mLkMnknAWvR7Lq5vaaMNzW-SnbpeyzvKLqGc9ZEl6HonR0iX3rUNI44tl1pjhlteTo1P1Sm0Wos-i_gyQvYqyb2guPn24rlwltIgm5DLbWlNlyX6Nisa5hgyFUVLYN6-kWeAgW-TgSs5Ar0L5wmkBhqdTUEDF5w0Mh2iqRuYd9wA9UD7kKztRdzkgFHVh0ALAq7d1dd2Tl9hC4jzzqW2QQ',
-  },
-  {
-    id: 'str_maheshwari_handlooms',
-    name: 'Maheshwari Handlooms',
-    locality: 'Gandhibagh',
-    distanceKm: '2.1',
-    dispatchTime: '32m dispatch',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuB6-FQR-8cuwJinxs6ur4OsdhqAz9UJhmjX8Hnegq0mHVfrhrX1H2woNzSsDSmluh0HcGBPSWwq40Duif5rKd8f0SU1oI2l0xNAJIoAOF9SuckXB4AQTUqaiTnrE5IPD16iE9FvN85FBzHjrizMhbwYi4pH_6Q4UFDyqh5fjE92iRB_qbw-SDU9E6AQr4NGFTDqS6fiw6J_PoNvJCAwdhKoiLJHOmF7FtJu7wilhh8PnRAzGU9nS0l92w',
-  },
-  {
-    id: 'str_kala_niketan',
-    name: 'Kala Niketan',
-    locality: 'Sitabuldi',
-    distanceKm: '0.6',
-    dispatchTime: '15m dispatch',
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuByTVCA994DqwMs1gY0S7CBBrkhBAN816xuIaS9Li4qFjjOyC4d_0q8oYlk5oOqa_Dfe7TbjpuMdFwI7aZhTOoibf1sat34s9W1qEY5S-VvYsJpP6vyP9xjIcd4UTWlVs26nTWDOFpJAG-u-Y7yvFmi0TQikkZhSaHy32y80Fc51Fdf0Jvwi_7kweFMwGoudr5bAuKUSFi-ugsXw93eA4uHIopkSDuKD_qlECXwzpu216BF2ay9njqD1Q',
-  },
+const BOUTIQUE_FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=600&q=80',
+  'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=600&q=80',
 ];
 
+/**
+ * StorefrontAmbientBoutiquesList
+ *
+ * Implements Stitch's Curating Boutiques Section with Live Backend Data:
+ * - Fetches live nearby vendors from Express /api/vendors/nearby
+ * - Gracefully falls back to mockStores catalogue if backend is cold-starting or empty
+ * - Stitch UI styling: glass-card container, 56x56 thumbnail, serif title, gold distance, dispatch chip
+ */
 export default function StorefrontAmbientBoutiquesList({
   onSelectBoutique,
   selectedBoutiqueId,
 }) {
-  const displayList = STITCH_BOUTIQUES;
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Fetch live nearby boutiques from backend
+    fetchNearbyVendors({ lat: 21.1458, lng: 79.0882 })
+      .then((data) => {
+        if (!isMounted) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setVendors(
+            data.map((v, idx) => ({
+              id: v._id || `v-${idx}`,
+              name: v.shopName,
+              locality: v.address?.area || v.area || 'Nagpur',
+              distanceKm: v.distanceKm
+                ? Number(v.distanceKm).toFixed(1)
+                : (1.2 + idx * 0.7).toFixed(1),
+              dispatchTime: `${15 + idx * 7}m dispatch`,
+              image:
+                v.images?.[0] ||
+                v.image ||
+                BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
+            }))
+          );
+        } else {
+          // Fallback to mockStores when API has no active vendors
+          setVendors(
+            mockStores.slice(0, 4).map((s, idx) => ({
+              id: s.id,
+              name: s.name,
+              locality: s.area || 'Nagpur',
+              distanceKm: s.distanceKm
+                ? Number(s.distanceKm).toFixed(1)
+                : (1.2 + idx * 0.7).toFixed(1),
+              dispatchTime: `${s.etaMinutes || 25}m dispatch`,
+              image: s.image || BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
+            }))
+          );
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('[StorefrontAmbientBoutiquesList] Live vendor note:', err.message);
+        // Fallback to mockStores
+        setVendors(
+          mockStores.slice(0, 4).map((s, idx) => ({
+            id: s.id,
+            name: s.name,
+            locality: s.area || 'Nagpur',
+            distanceKm: s.distanceKm
+              ? Number(s.distanceKm).toFixed(1)
+              : (1.2 + idx * 0.7).toFixed(1),
+            dispatchTime: `${s.etaMinutes || 25}m dispatch`,
+            image: s.image || BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
+          }))
+        );
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const displayList = vendors;
+
+  if (!loading && displayList.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
       {/* Section Header */}
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Nagpur Boutiques</Text>
-        <Text style={styles.statusOnline}>8 Online</Text>
+        <Text style={styles.statusOnline}>
+          {displayList.length > 0 ? `${displayList.length} Online` : 'Nearby'}
+        </Text>
       </View>
 
       {/* Boutique Cards List */}
@@ -54,6 +115,12 @@ export default function StorefrontAmbientBoutiquesList({
           const isSelected =
             selectedBoutiqueId === boutique.id ||
             selectedBoutiqueId === boutique.name;
+
+          const imageSource =
+            typeof boutique.image === 'string'
+              ? { uri: boutique.image }
+              : boutique.image;
+
           return (
             <PressableScale
               key={boutique.id}
@@ -71,7 +138,7 @@ export default function StorefrontAmbientBoutiquesList({
               {/* Boutique Thumbnail (56x56) */}
               <View style={styles.thumbWrap}>
                 <Image
-                  source={{ uri: boutique.image }}
+                  source={imageSource}
                   style={styles.thumbImage}
                   contentFit="cover"
                   transition={200}
