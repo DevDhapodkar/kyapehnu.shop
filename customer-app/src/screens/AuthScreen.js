@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, ROLES } from '../store/useAuthStore';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import { friendlyAuthError } from '../services/auth';
 import { colors, radii, spacing } from '../theme/colors';
@@ -92,10 +92,22 @@ export default function AuthScreen({ navigation, route }) {
           password: form.password,
         });
       }
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Home');
+      const currentRole = useAuthStore.getState().role;
+      if (currentRole === ROLES.VENDOR) {
+        // Switching to Vendor Mode automatically remounts the root navigator
+        // at VendorOrders. Do not dispatch navigation from this unmounting CustomerFlow.
+        return;
+      }
+      try {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Home');
+        }
+      } catch {
+        try {
+          navigation.navigate('Home');
+        } catch {}
       }
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -114,10 +126,20 @@ export default function AuthScreen({ navigation, route }) {
     try {
       if (signInWithGoogle) {
         await signInWithGoogle();
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigation.navigate('Home');
+        const currentRole = useAuthStore.getState().role;
+        if (currentRole === ROLES.VENDOR) {
+          return;
+        }
+        try {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Home');
+          }
+        } catch {
+          try {
+            navigation.navigate('Home');
+          } catch {}
         }
       }
     } catch (err) {

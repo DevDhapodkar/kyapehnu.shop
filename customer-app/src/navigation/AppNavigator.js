@@ -155,6 +155,12 @@ function VendorFlow() {
         component={VendorProfileScreen}
         options={{ headerShown: false }}
       />
+      {/* Route alias so any residual navigation.navigate('Home') lands safely on the vendor desk */}
+      <VendorStack.Screen
+        name="Home"
+        component={VendorOrderListScreen}
+        options={{ headerShown: false }}
+      />
     </VendorStack.Navigator>
   );
 }

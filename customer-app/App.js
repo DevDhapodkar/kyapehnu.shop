@@ -9,6 +9,7 @@ import useAuthStore from './src/store/useAuthStore';
 import { colors } from './src/theme/colors';
 import IosInstallPrompt from './src/components/IosInstallPrompt';
 import SplashScreenView from './src/components/SplashScreenView';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -66,7 +67,9 @@ export default function App() {
       <View style={[styles.appContainer, isDesktop && styles.desktopFrame]}>
         <GestureHandlerRootView style={styles.appContainer}>
           <SafeAreaProvider initialMetrics={desktopMetrics}>
-            <AppNavigator />
+            <ErrorBoundary>
+              <AppNavigator />
+            </ErrorBoundary>
             <IosInstallPrompt />
             {showSplash ? (
               <SplashScreenView onFinish={() => setShowSplash(false)} />

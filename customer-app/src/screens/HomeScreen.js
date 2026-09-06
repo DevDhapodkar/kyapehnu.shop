@@ -594,11 +594,28 @@ function Storefront({
                   style={styles.loader}
                 />
               ) : isEmpty ? (
-                <Text style={styles.emptyText}>
-                  {error
-                    ? `Could not load catalogue: ${error}`
-                    : 'No listings currently available in this radius.'}
-                </Text>
+                <View style={styles.emptyCatalogueCard}>
+                  <View style={styles.emptyCatalogueIconCircle}>
+                    <MaterialIcons name="storefront" size={26} color={colors.accentCrimson} />
+                  </View>
+                  <Text style={styles.emptyCatalogueTitle}>
+                    {error ? 'Catalogue Connection' : 'Nagpur Collections Updating'}
+                  </Text>
+                  <Text style={styles.emptyCatalogueDesc}>
+                    {error
+                      ? `Atelier feed connection note: ${error}. Tap below to reconnect.`
+                      : 'Sitabuldi & Dharampeth boutiques are cataloguing their daily handloom arrivals. Check back shortly or tap to refresh.'}
+                  </Text>
+                  <PressableScale
+                    onPress={load}
+                    style={styles.emptyCatalogueBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Refresh Nagpur Catalogue"
+                  >
+                    <MaterialIcons name="refresh" size={15} color="#FFFFFF" />
+                    <Text style={styles.emptyCatalogueBtnText}>Refresh Catalogue</Text>
+                  </PressableScale>
+                </View>
               ) : (
                 <Animated.View entering={FEED_LIST_ENTER}>
                   <FlatList
@@ -753,6 +770,72 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingHorizontal: spacing.md,
     marginVertical: spacing.md,
+  },
+  emptyCatalogueCard: {
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+    alignItems: 'center',
+    gap: spacing.xs,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      },
+    }),
+  },
+  emptyCatalogueIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(196, 36, 58, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(196, 36, 58, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyCatalogueTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textObsidian,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+    fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }),
+  },
+  emptyCatalogueDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 290,
+    marginBottom: 8,
+  },
+  emptyCatalogueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radii.full,
+    backgroundColor: colors.accentCrimson,
+    shadowColor: colors.accentCrimson,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+  },
+  emptyCatalogueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   scroll: {
     flex: 1,

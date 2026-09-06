@@ -12,12 +12,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * those keys are filled in, `isFirebaseConfigured` is false and the auth
  * screens surface a clear "not configured yet" message instead of crashing.
  */
+import { Platform } from 'react-native';
+
 const firebaseConfig = Constants.expoConfig?.extra?.firebase ?? {};
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
-
-// eslint-disable-next-line import/namespace
-const getReactNativePersistence = fbAuth['getReactNativePersistence'];
 
 let app = null;
 let auth = null;
@@ -25,18 +24,27 @@ let auth = null;
 if (isFirebaseConfigured) {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-  // Persist the session across restarts via AsyncStorage. The persistence
-  // helper's export name has moved between firebase versions, so probe for it
-  // and fall back to in-memory auth rather than hard-failing the bundle.
-  if (typeof getReactNativePersistence === 'function') {
+  if (Platform.OS === 'web') {
     try {
-      auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+      const webPersistence = fbAuth.browserLocalPersistence || fbAuth.indexedDBLocalPersistence;
+      auth = initializeAuth(app, {
+        persistence: webPersistence ? [webPersistence] : undefined,
+      });
     } catch {
-      // initializeAuth throws if auth was already initialised (Fast Refresh).
       auth = getAuth(app);
     }
   } else {
-    auth = getAuth(app);
+    // eslint-disable-next-line import/namespace
+    const getReactNativePersistence = fbAuth['getReactNativePersistence'];
+    if (typeof getReactNativePersistence === 'function') {
+      try {
+        auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+      } catch {
+        auth = getAuth(app);
+      }
+    } else {
+      auth = getAuth(app);
+    }
   }
 }
 
