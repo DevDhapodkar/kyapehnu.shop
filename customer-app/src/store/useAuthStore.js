@@ -11,6 +11,7 @@ import { registerForPush } from '../services/notifications';
 import {
   signInEmail,
   registerEmail,
+  signInGoogle,
   resetPassword,
   signOutFirebase,
   subscribeIdToken,
@@ -195,6 +196,35 @@ export const useAuthStore = create((set, get) => ({
       // retry until it lands.
       set({ pendingProfile: { name, email, phone } });
       return { profileSynced: false, profile: null };
+    }
+  },
+
+  signInWithGoogle: async () => {
+    const cred = await signInGoogle();
+    const token = await cred.user.getIdToken();
+    setAuthToken(token);
+    set({ user: cred.user, token });
+
+    try {
+      const vendor = await fetchVendorProfile();
+      if (vendor && (vendor._id || vendor.shopName)) {
+        set({ role: ROLES.VENDOR, vendorProfile: vendor });
+      } else {
+        set({ role: ROLES.CUSTOMER });
+      }
+    } catch {
+      set({ role: ROLES.CUSTOMER });
+    }
+
+    try {
+      const profile = await syncUserProfile({
+        name: cred.user.displayName || 'Patron',
+        email: cred.user.email,
+        phone: cred.user.phoneNumber || '',
+      });
+      set({ profile, pendingProfile: null });
+    } catch {
+      // Non-fatal
     }
   },
 

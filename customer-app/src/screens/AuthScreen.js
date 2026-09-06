@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,27 +13,32 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
-import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { useAuthStore } from '../store/useAuthStore';
+import { useStorefrontStore } from '../store/useStorefrontStore';
 import { friendlyAuthError } from '../services/auth';
 import { colors, radii, spacing } from '../theme/colors';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 /**
- * AuthScreen — Sign In & Auth (Frosted Glass & Ambient Blobs)
+ * AuthScreen — Sign In & Auth (Apple Glass Redesign)
  *
- * Implements Stitch Screen 10cb534fd02541f4b4842c0de9068f40:
- * - Animated drifting ambient background blobs
- * - Top bar with close button & "Explore as Guest"
- * - Mode toggle: Sign In vs Register
- * - Clean frosted input cards for credentials
- * - Social login buttons: Apple & Google
- * - Direct artisan / vendor registration shortcut
- * - Zero Emojis (MaterialIcons throughout)
+ * Implements Stitch Screen 71d1f6dd753845798a9b5a0f4212caf2:
+ * - Glowing drifting ambient background blobs
+ * - Top bar with circular frosted back button & "Explore as Guest" pill
+ * - Brand introduction with Stitch official emblem and proximity couture eyebrow
+ * - Main frosted glass card (backdrop blur, white porcelain hairline border)
+ * - Segmented switcher: Sign In vs Register
+ * - Inputs with uppercase labels, icons, and password reveal toggle
+ * - Primary gradient action: "Continue to Nagpur Ateliers" / "Create Atelier Account"
+ * - Divider with "or" badge
+ * - Social Auth options: Apple & Google with live web integration
+ * - Boutique onboarding gateway & verified encryption trust capsule
  */
 export default function AuthScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -42,6 +48,7 @@ export default function AuthScreen({ navigation, route }) {
 
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
   const registerWithEmail = useAuthStore((state) => state.registerWithEmail);
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const sendPasswordReset = useAuthStore((state) => state.sendPasswordReset);
 
   const [form, setForm] = useState({
@@ -50,6 +57,7 @@ export default function AuthScreen({ navigation, route }) {
     email: '',
     password: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -62,7 +70,7 @@ export default function AuthScreen({ navigation, route }) {
     setSuccessMessage(null);
     if (isRegister && !form.name.trim()) return setError('Enter your name.');
     if (isRegister && !form.phone.trim()) return setError('Enter your phone number.');
-    if (!form.email.trim()) return setError('Enter your email.');
+    if (!form.email.trim()) return setError('Enter your email address.');
     if (!form.password) return setError('Enter a password.');
 
     if (Platform.OS !== 'web') {
@@ -96,9 +104,41 @@ export default function AuthScreen({ navigation, route }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setSuccessMessage(null);
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    setBusy(true);
+    try {
+      if (signInWithGoogle) {
+        await signInWithGoogle();
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Home');
+        }
+      }
+    } catch (err) {
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setError(friendlyAuthError(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAppleSignIn = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    setError('Apple Sign-In is configured for native iOS builds. Use email or Google for instant web access.');
+  };
+
   const handleForgotPassword = async () => {
     if (!form.email.trim()) {
-      setError('Enter your email address above to receive a password reset link.');
+      setError('Enter your email address in the field below to receive a password reset link.');
       return;
     }
     setError(null);
@@ -112,261 +152,313 @@ export default function AuthScreen({ navigation, route }) {
   };
 
   const handleExploreAsGuest = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Home');
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
     }
+    useStorefrontStore.getState().setGuestExplore(true);
+    navigation.navigate('Home');
   };
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
 
-      {/* 1. Animated Drifting Background Blobs */}
+      {/* 1. Ambient Drifting Glowing Orbs */}
       <AmbientBackgroundBlobs />
 
-      {/* 2. Floating Top Bar */}
-      <View
-        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.topBarInner} pointerEvents="auto">
-          <PressableScale
-            onPress={() => navigation.goBack()}
-            style={styles.closeBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
+      <View style={styles.outerContainer}>
+        <View style={styles.frameContainer}>
+          {/* 2. Top Navigation Bar */}
+          <View
+            style={[
+              styles.topBar,
+              { paddingTop: Math.max(insets.top + 6, 16) },
+            ]}
           >
-            <MaterialIcons name="close" size={18} color={colors.textObsidian} />
-          </PressableScale>
+            {/* Back Circular Button */}
+            <PressableScale
+              onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'))}
+              style={styles.backCircleBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <MaterialIcons name="chevron-left" size={24} color="#131316" />
+            </PressableScale>
 
-          <PressableScale
-            onPress={handleExploreAsGuest}
-            style={styles.guestBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Explore as Guest"
+            {/* Guest Pass Pill */}
+            <PressableScale
+              onPress={handleExploreAsGuest}
+              style={styles.guestPill}
+              accessibilityRole="button"
+              accessibilityLabel="Explore as Guest"
+            >
+              <Text style={styles.guestPillText}>Explore as Guest</Text>
+              <MaterialIcons name="chevron-right" size={16} color="#131316" />
+            </PressableScale>
+          </View>
+
+          {/* 3. Main Scrollable Form */}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-            <Text style={styles.guestBtnText}>Explore as Guest</Text>
-          </PressableScale>
+            <ScrollView
+              contentContainerStyle={[
+                styles.scrollContent,
+                {
+                  paddingBottom: Math.max(insets.bottom + 24, 32),
+                },
+              ]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Header / Brand Intro */}
+              <View style={styles.headerSection}>
+                <View style={styles.brandBadgeRow}>
+                  <View style={styles.emblemBox}>
+                    <Image
+                      source={require('../../assets/images/stitch-emblem.png')}
+                      style={styles.emblemImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <View style={styles.eyebrowContainer}>
+                    <View style={styles.crimsonDot} />
+                    <Text style={styles.eyebrowText}>KYA PEHNU? · PROXIMITY COUTURE</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.headerTitle}>
+                  {isRegister ? 'Create Account' : 'Welcome back'}
+                </Text>
+                <Text style={styles.headerSubtitle}>
+                  Discover Nagpur’s handloom & couture ateliers.
+                </Text>
+              </View>
+
+              {/* Main Frosted Glass Form Card */}
+              <View style={styles.glassCard}>
+                {/* Segmented Tab: Sign In vs Register */}
+                <View style={styles.segmentedControl}>
+                  <PressableScale
+                    onPress={() => {
+                      setMode('signin');
+                      setError(null);
+                      setSuccessMessage(null);
+                    }}
+                    wrapperStyle={styles.segmentWrapper}
+                    style={[styles.segmentBtn, !isRegister && styles.segmentBtnActive]}
+                  >
+                    <Text style={[styles.segmentBtnText, !isRegister && styles.segmentBtnTextActive]}>
+                      Sign In
+                    </Text>
+                  </PressableScale>
+
+                  <PressableScale
+                    onPress={() => {
+                      setMode('register');
+                      setError(null);
+                      setSuccessMessage(null);
+                    }}
+                    wrapperStyle={styles.segmentWrapper}
+                    style={[styles.segmentBtn, isRegister && styles.segmentBtnActive]}
+                  >
+                    <Text style={[styles.segmentBtnText, isRegister && styles.segmentBtnTextActive]}>
+                      Register
+                    </Text>
+                  </PressableScale>
+                </View>
+
+                {/* Status Banners */}
+                {successMessage ? (
+                  <View style={styles.successBanner}>
+                    <MaterialIcons name="check-circle" size={16} color="#059669" />
+                    <Text style={styles.successBannerText}>{successMessage}</Text>
+                  </View>
+                ) : null}
+
+                {error ? (
+                  <View style={styles.errorBanner}>
+                    <MaterialIcons name="error-outline" size={16} color="#C4243A" />
+                    <Text style={styles.errorBannerText}>{error}</Text>
+                  </View>
+                ) : null}
+
+                {/* Input Fields */}
+                <View style={styles.fieldsContainer}>
+                  {isRegister ? (
+                    <>
+                      {/* Full Name */}
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>FULL NAME</Text>
+                        <View style={styles.inputContainer}>
+                          <MaterialIcons name="person-outline" size={18} color="#8A8891" />
+                          <TextInput
+                            value={form.name}
+                            onChangeText={setField('name')}
+                            placeholder="Enter your full name"
+                            placeholderTextColor="#A1A1AA"
+                            style={styles.textInput}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Phone Number */}
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
+                        <View style={styles.inputContainer}>
+                          <MaterialIcons name="call" size={17} color="#8A8891" />
+                          <TextInput
+                            value={form.phone}
+                            onChangeText={setField('phone')}
+                            placeholder="Enter 10-digit mobile number"
+                            placeholderTextColor="#A1A1AA"
+                            keyboardType="phone-pad"
+                            style={styles.textInput}
+                          />
+                        </View>
+                      </View>
+                    </>
+                  ) : null}
+
+                  {/* Email */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>
+                      {isRegister ? 'EMAIL ADDRESS' : 'EMAIL OR MOBILE'}
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <MaterialIcons name="mail-outline" size={18} color="#8A8891" />
+                      <TextInput
+                        value={form.email}
+                        onChangeText={setField('email')}
+                        placeholder="name@example.com"
+                        placeholderTextColor="#A1A1AA"
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        style={styles.textInput}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Password */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelWithActionRow}>
+                      <Text style={styles.inputLabel}>PASSWORD</Text>
+                      {!isRegister ? (
+                        <PressableScale onPress={handleForgotPassword}>
+                          <Text style={styles.forgotPasswordText}>Forgot?</Text>
+                        </PressableScale>
+                      ) : null}
+                    </View>
+                    <View style={styles.inputContainer}>
+                      <MaterialIcons name="lock-outline" size={18} color="#8A8891" />
+                      <TextInput
+                        value={form.password}
+                        onChangeText={setField('password')}
+                        placeholder={isRegister ? 'Create secure password' : 'Enter password'}
+                        placeholderTextColor="#A1A1AA"
+                        secureTextEntry={!showPassword}
+                        style={styles.textInput}
+                      />
+                      <PressableScale
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeToggleBtn}
+                      >
+                        <MaterialIcons
+                          name={showPassword ? 'visibility-off' : 'visibility'}
+                          size={18}
+                          color="#8A8891"
+                        />
+                      </PressableScale>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Primary Action Button */}
+                <PressableScale
+                  onPress={handleSubmit}
+                  disabled={busy}
+                  style={styles.primaryActionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRegister ? 'Create Atelier Account' : 'Continue to Nagpur Ateliers'}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.primaryActionText}>
+                        {isRegister ? 'Create Atelier Account' : 'Continue to Nagpur Ateliers'}
+                      </Text>
+                      <MaterialIcons name="arrow-forward" size={17} color="#FFFFFF" />
+                    </>
+                  )}
+                </PressableScale>
+
+                {/* Hairline Divider with "or" Capsule */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <View style={styles.dividerBadge}>
+                    <Text style={styles.dividerText}>or</Text>
+                  </View>
+                </View>
+
+                {/* Social Auth Options (Apple & Google) */}
+                <View style={styles.socialButtonsRow}>
+                  <PressableScale
+                    onPress={handleAppleSignIn}
+                    wrapperStyle={styles.socialWrapper}
+                    style={styles.socialBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in with Apple"
+                  >
+                    <FontAwesome name="apple" size={17} color="#131316" />
+                    <Text style={styles.socialBtnText}>Apple</Text>
+                  </PressableScale>
+
+                  <PressableScale
+                    onPress={handleGoogleSignIn}
+                    wrapperStyle={styles.socialWrapper}
+                    style={styles.socialBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in with Google"
+                  >
+                    <FontAwesome name="google" size={15} color="#EA4335" />
+                    <Text style={styles.socialBtnText}>Google</Text>
+                  </PressableScale>
+                </View>
+              </View>
+
+              {/* Bottom Vendor Gateway & Safety Guarantee */}
+              <View style={styles.bottomSection}>
+                {/* Boutique Onboarding Callout */}
+                <View style={styles.vendorCalloutRow}>
+                  <Text style={styles.vendorCalloutText}>Own a boutique in Nagpur?</Text>
+                  <PressableScale
+                    onPress={() => navigation.navigate('VendorRegister')}
+                    style={styles.vendorRegisterBtn}
+                    accessibilityRole="link"
+                    accessibilityLabel="Register Shop as Merchant"
+                  >
+                    <Text style={styles.vendorRegisterBtnText}>Register Shop</Text>
+                    <MaterialIcons name="arrow-forward" size={13} color="#C4243A" />
+                  </PressableScale>
+                </View>
+
+                {/* Trust Indicator Capsule */}
+                <View style={styles.trustCapsule}>
+                  <MaterialIcons name="verified" size={14} color="#059669" />
+                  <Text style={styles.trustCapsuleText}>
+                    End-to-End Encrypted & Hyperlocal Verification
+                  </Text>
+                </View>
+
+                {/* Home Indicator */}
+                <View style={styles.homeIndicator} />
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </View>
-
-      {/* 3. Main Scrollable Form */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: insets.top + 68,
-              paddingBottom: insets.bottom + spacing.xl,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Header Card with Stitch Official Identity */}
-          <View style={styles.headerSection}>
-            <View style={styles.brandContainer}>
-              <BrandLogo size="lg" showEmblem={true} />
-            </View>
-            <View style={styles.eyebrowBadge}>
-              <View style={styles.crimsonDot} />
-              <Text style={styles.eyebrow}>KYA PEHNU? · PROXIMITY COUTURE</Text>
-            </View>
-            <Text style={styles.title}>
-              {isRegister ? 'Create Account' : 'Welcome back'}
-            </Text>
-            <Text style={styles.subtitle}>
-              Discover Nagpur’s handloom & couture ateliers.
-            </Text>
-          </View>
-
-          {/* Mode Switcher Tabs */}
-          <View style={styles.tabsRow}>
-            <PressableScale
-              onPress={() => {
-                setMode('signin');
-                setError(null);
-                setSuccessMessage(null);
-              }}
-              style={[styles.tab, !isRegister && styles.tabActive]}
-            >
-              <Text
-                style={[styles.tabText, !isRegister && styles.tabTextActive]}
-              >
-                Sign In
-              </Text>
-            </PressableScale>
-
-            <PressableScale
-              onPress={() => {
-                setMode('register');
-                setError(null);
-                setSuccessMessage(null);
-              }}
-              style={[styles.tab, isRegister && styles.tabActive]}
-            >
-              <Text
-                style={[styles.tabText, isRegister && styles.tabTextActive]}
-              >
-                Register
-              </Text>
-            </PressableScale>
-          </View>
-
-          {/* Success Banner */}
-          {successMessage ? (
-            <View style={styles.successCard}>
-              <MaterialIcons
-                name="check-circle-outline"
-                size={16}
-                color={colors.accentEmerald}
-              />
-              <Text style={styles.successText}>{successMessage}</Text>
-            </View>
-          ) : null}
-
-          {/* Error Banner */}
-          {error ? (
-            <View style={styles.errorCard}>
-              <MaterialIcons
-                name="error-outline"
-                size={16}
-                color={colors.accentCrimson}
-              />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Form Fields Card */}
-          <View style={styles.glassCard}>
-            {isRegister ? (
-              <>
-                <View style={styles.inputWrap}>
-                  <MaterialIcons
-                    name="person"
-                    size={18}
-                    color={colors.accentGold}
-                  />
-                  <TextInput
-                    value={form.name}
-                    onChangeText={setField('name')}
-                    placeholder="Full Name"
-                    placeholderTextColor={colors.textAsh}
-                    style={styles.inputField}
-                  />
-                </View>
-
-                <View style={styles.inputWrap}>
-                  <MaterialIcons
-                    name="call"
-                    size={18}
-                    color={colors.accentGold}
-                  />
-                  <TextInput
-                    value={form.phone}
-                    onChangeText={setField('phone')}
-                    placeholder="Mobile Number"
-                    placeholderTextColor={colors.textAsh}
-                    keyboardType="phone-pad"
-                    style={styles.inputField}
-                  />
-                </View>
-              </>
-            ) : null}
-
-            {/* Email */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="mail-outline"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={form.email}
-                onChangeText={setField('email')}
-                placeholder="name@example.com"
-                placeholderTextColor={colors.textAsh}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.inputField}
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputWrap}>
-              <MaterialIcons
-                name="lock-outline"
-                size={18}
-                color={colors.accentGold}
-              />
-              <TextInput
-                value={form.password}
-                onChangeText={setField('password')}
-                placeholder="Password"
-                placeholderTextColor={colors.textAsh}
-                secureTextEntry
-                style={styles.inputField}
-              />
-              {!isRegister ? (
-                <PressableScale
-                  onPress={handleForgotPassword}
-                  style={styles.forgotBtn}
-                >
-                  <Text style={styles.forgotText}>Forgot?</Text>
-                </PressableScale>
-              ) : null}
-            </View>
-
-            {/* Submit Button */}
-            <PressableScale
-              onPress={handleSubmit}
-              disabled={busy}
-              style={styles.submitBtn}
-              accessibilityRole="button"
-              accessibilityLabel={isRegister ? 'Create Account' : 'Sign In'}
-            >
-              {busy ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.submitLabel}>
-                    {isRegister ? 'Create Account' : 'Sign In'}
-                  </Text>
-                  <MaterialIcons
-                    name="arrow-forward"
-                    size={17}
-                    color="#FFFFFF"
-                  />
-                </>
-              )}
-            </PressableScale>
-          </View>
-
-          {/* Vendor Registration Card */}
-          <PressableScale
-            onPress={() => navigation.navigate('VendorRegister')}
-            style={styles.vendorCard}
-          >
-            <View style={styles.vendorIconWrap}>
-              <MaterialIcons
-                name="storefront"
-                size={20}
-                color={colors.accentGoldDeep}
-              />
-            </View>
-            <View style={styles.vendorTextWrap}>
-              <Text style={styles.vendorLinkPre}>Are you a Nagpur boutique or artisan?</Text>
-              <Text style={styles.vendorLinkCta}>Register shop for 60-min delivery →</Text>
-            </View>
-          </PressableScale>
-        </ScrollView>
-      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -374,241 +466,359 @@ export default function AuthScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F4EFE7',
+    backgroundColor: '#FAF9F5',
   },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-    paddingHorizontal: spacing.md,
-  },
-  topBarInner: {
-    height: 52,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.82)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 4,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(28px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(28px) saturate(200%)',
-      },
-    }),
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+  outerContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  guestBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-  },
-  guestBtnText: {
-    color: colors.textObsidian,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  scroll: {
+  frameContainer: {
     flex: 1,
+    width: '100%',
+    maxWidth: 440,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  topBar: {
+    zIndex: 30,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+  },
+  backCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      },
+    }),
+  },
+  guestPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 9999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      },
+    }),
+  },
+  guestPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#131316',
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    flexGrow: 1,
+    justifyContent: 'space-between',
   },
   headerSection: {
     paddingHorizontal: 4,
-    marginTop: spacing.xs,
+    marginBottom: 16,
+    marginTop: 4,
   },
-  brandContainer: {
-    marginBottom: 10,
+  brandBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
-  eyebrowBadge: {
+  emblemBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    padding: 1,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  emblemImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  eyebrowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
   },
   crimsonDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.accentCrimson,
+    backgroundColor: '#C4243A',
   },
-  eyebrow: {
-    color: colors.accentGoldDeep,
-    fontSize: 9.5,
+  eyebrowText: {
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.4,
+    color: '#C8A24A',
+    letterSpacing: 1.8,
     textTransform: 'uppercase',
   },
-  title: {
-    color: colors.textObsidian,
-    fontSize: 28,
+  headerTitle: {
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', 'Cinzel', Georgia, serif",
+    }),
+    fontSize: 32,
     fontWeight: '400',
+    color: '#131316',
     letterSpacing: -0.4,
-    marginTop: 4,
   },
-  subtitle: {
-    color: colors.textSlate,
-    fontSize: 13,
-    marginTop: 4,
+  headerSubtitle: {
+    fontSize: 12.5,
+    fontWeight: '400',
+    color: '#5C5A63',
+    marginTop: 2,
     lineHeight: 18,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    borderRadius: 9999,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 9999,
-  },
-  tabActive: {
-    backgroundColor: colors.textObsidian,
-  },
-  tabText: {
-    color: colors.textSlate,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  errorCard: {
-    backgroundColor: 'rgba(244, 63, 94, 0.08)',
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.25)',
-  },
-  errorText: {
-    color: colors.accentCrimson,
-    fontSize: 11.5,
-    fontWeight: '600',
-    flex: 1,
-  },
-  successCard: {
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  successText: {
-    color: colors.accentEmerald,
-    fontSize: 11.5,
-    fontWeight: '600',
-    flex: 1,
-  },
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.52)',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    gap: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.62)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.78)',
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 3,
+    borderColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 34,
+    padding: 20,
+    gap: 16,
+    shadowColor: '#C4243A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.08,
+    shadowRadius: 36,
+    elevation: 8,
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(32px) saturate(210%)',
-        WebkitBackdropFilter: 'blur(32px) saturate(210%)',
+        backdropFilter: 'blur(38px) saturate(190%)',
+        WebkitBackdropFilter: 'blur(38px) saturate(190%)',
       },
     }),
   },
-  inputWrap: {
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+    borderRadius: 16,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+  },
+  segmentWrapper: {
+    flex: 1,
+  },
+  segmentBtn: {
+    width: '100%',
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+  },
+  segmentBtnActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  segmentBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#5C5A63',
+  },
+  segmentBtnTextActive: {
+    fontWeight: '700',
+    color: '#131316',
+  },
+  successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.60)',
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
-    height: 46,
+    gap: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  inputField: {
+  successBannerText: {
     flex: 1,
-    color: colors.textObsidian,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  forgotBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  forgotText: {
-    color: colors.accentGoldDeep,
-    fontSize: 11,
+    fontSize: 11.5,
+    color: '#047857',
     fontWeight: '600',
   },
-  submitBtn: {
-    backgroundColor: colors.accentCrimson,
-    borderRadius: radii.md,
-    height: 48,
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(196, 36, 58, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(196, 36, 58, 0.2)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: '#C4243A',
+    fontWeight: '600',
+  },
+  fieldsContainer: {
+    gap: 12,
+  },
+  inputGroup: {
+    gap: 5,
+  },
+  labelWithActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8A8891',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  forgotPasswordText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#C4243A',
+  },
+  inputContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      },
+    }),
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#131316',
+    padding: 0,
+  },
+  eyeToggleBtn: {
+    padding: 2,
+  },
+  primaryActionButton: {
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#C4243A',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: spacing.xs,
-    shadowColor: colors.accentCrimson,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#C4243A',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  submitLabel: {
+  primaryActionText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.6,
+    letterSpacing: 0.1,
   },
-  vendorCard: {
+  dividerRow: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  dividerLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  dividerBadge: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 9999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      },
+    }),
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8A8891',
+    textTransform: 'uppercase',
+  },
+  socialButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  socialWrapper: {
+    flex: 1,
+  },
+  socialBtn: {
+    width: '100%',
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-    marginTop: spacing.xs,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -616,28 +826,63 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  vendorIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(217, 119, 6, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.2)',
+  socialBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#131316',
   },
-  vendorTextWrap: {
-    flex: 1,
+  bottomSection: {
+    alignItems: 'center',
+    paddingTop: 16,
+    gap: 12,
+  },
+  vendorCalloutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  vendorCalloutText: {
+    fontSize: 12,
+    color: '#5C5A63',
+  },
+  vendorRegisterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 2,
   },
-  vendorLinkPre: {
-    color: colors.textAsh,
-    fontSize: 11.5,
-    fontWeight: '500',
-  },
-  vendorLinkCta: {
-    color: colors.accentGoldDeep,
-    fontSize: 12.5,
+  vendorRegisterBtnText: {
+    fontSize: 12,
     fontWeight: '700',
+    color: '#C4243A',
+  },
+  trustCapsule: {
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      },
+    }),
+  },
+  trustCapsuleText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#8A8891',
+  },
+  homeIndicator: {
+    width: 128,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(19, 19, 22, 0.18)',
+    alignSelf: 'center',
+    marginTop: 6,
   },
 });

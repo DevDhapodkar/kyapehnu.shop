@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
+import WelcomeScreen from './WelcomeScreen';
 import AuthCta from '../components/AuthCta';
 import PressableScale from '../components/PressableScale';
 import RevealText from '../components/RevealText';
@@ -86,7 +87,8 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [guestExplore, setGuestExplore] = useState(false);
+  const guestExplore = useStorefrontStore((state) => state.guestExplore);
+  const setGuestExplore = useStorefrontStore((state) => state.setGuestExplore);
 
   const { areaLabel, status } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
@@ -133,12 +135,13 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
-      <MarketingScrollytelling
-        insets={insets}
-        onJoin={() => openAuth('register')}
-        onLogin={() => openAuth('signin')}
+      <StatusBar barStyle="dark-content" />
+      <WelcomeScreen
+        navigation={navigation}
+        onGetStarted={() => openAuth('register')}
+        onSignIn={() => openAuth('signin')}
         onExploreGuest={() => setGuestExplore(true)}
+        onRegisterShop={() => navigation.navigate('VendorRegister')}
       />
     </View>
   );

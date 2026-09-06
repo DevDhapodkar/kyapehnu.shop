@@ -5,6 +5,8 @@ import {
   signOut as fbSignOut,
   onIdTokenChanged,
   sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 
 import { auth, isFirebaseConfigured } from '../config/firebase';
@@ -29,6 +31,12 @@ export const registerEmail = async (email, password, displayName) => {
   const cred = await createUserWithEmailAndPassword(ensureAuth(), email.trim(), password);
   if (displayName) await updateProfile(cred.user, { displayName });
   return cred;
+};
+
+export const signInGoogle = async () => {
+  const authInstance = ensureAuth();
+  const provider = new GoogleAuthProvider();
+  return signInWithPopup(authInstance, provider);
 };
 
 export const resetPassword = (email) =>

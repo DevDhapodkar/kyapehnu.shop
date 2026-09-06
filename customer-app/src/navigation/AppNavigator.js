@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import HomeScreen from '../screens/HomeScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import AddressScreen from '../screens/AddressScreen';
@@ -83,6 +84,7 @@ function CustomerFlow() {
   return (
     <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced)}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <CustomerStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}

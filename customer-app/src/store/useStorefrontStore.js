@@ -142,6 +142,8 @@ export const useStorefrontStore = create((set) => ({
   loading: false,
   error: null,
   loaded: true,
+  guestExplore: false,
+  setGuestExplore: (val) => set({ guestExplore: val }),
 
   load: async () => {
     set({ loading: true, error: null });
