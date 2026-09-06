@@ -268,7 +268,7 @@ export default function VendorOrderListScreen({ navigation }) {
               <View style={styles.cardTopRow}>
                 <View style={styles.orderBadgeRow}>
                   <Text style={styles.orderIdText}>
-                    Order #{shortOrderId(item.orderId || item._id)}
+                    Order {shortOrderId(item.orderId || item._id)}
                   </Text>
                   {isUrgent && (
                     <View style={styles.urgentBadge}>

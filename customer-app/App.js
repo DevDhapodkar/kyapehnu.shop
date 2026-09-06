@@ -51,6 +51,9 @@ export default function App() {
   // Wire the Firebase auth listener once, so a signed-in session rehydrates on
   // launch and refreshed ID tokens reach the API client automatically.
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.__AUTH_STORE__ = useAuthStore;
+    }
     const unsubscribe = initAuth();
     return () => unsubscribe?.();
   }, [initAuth]);

@@ -52,7 +52,7 @@ export default class ErrorBoundary extends React.Component {
               We encountered a temporary display glitch while preparing your atelier view. Tap below to refresh your couture connection.
             </Text>
 
-            {__DEV__ && this.state.error?.message ? (
+            {this.state.error?.message ? (
               <View style={styles.debugBox}>
                 <Text style={styles.debugText} numberOfLines={4}>
                   {this.state.error.message}

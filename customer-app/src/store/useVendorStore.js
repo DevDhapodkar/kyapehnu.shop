@@ -93,9 +93,9 @@ export const useVendorStore = create((set, get) => ({
     set({ ordersLoading: true, ordersError: null });
     try {
       const orders = await api.fetchVendorOrders();
-      set({ orders, ordersLoading: false });
+      set({ orders: Array.isArray(orders) ? orders : [], ordersLoading: false });
     } catch (error) {
-      set({ ordersError: error.message, ordersLoading: false });
+      set({ orders: [], ordersError: error.message, ordersLoading: false });
     }
   },
 
@@ -161,9 +161,9 @@ export const useVendorStore = create((set, get) => ({
     set({ catalogLoading: true, catalogError: null });
     try {
       const products = await api.fetchCatalog();
-      set({ products, catalogLoading: false });
+      set({ products: Array.isArray(products) ? products : [], catalogLoading: false });
     } catch (error) {
-      set({ catalogError: error.message, catalogLoading: false });
+      set({ products: [], catalogError: error.message, catalogLoading: false });
     }
   },
 
@@ -213,19 +213,33 @@ export const useVendorStore = create((set, get) => ({
 
 /* Selectors — importable so components subscribe to the narrowest slice. */
 
-export const selectVisibleOrders = (state) =>
-  state.statusFilter === 'ALL'
-    ? state.orders
-    : state.orders.filter((order) => order.status === state.statusFilter);
+export const selectVisibleOrders = (state) => {
+  const orders = Array.isArray(state?.orders) ? state.orders : [];
+  if (state?.statusFilter === 'ALL') return orders;
+  return orders.filter((order) => order?.status === state?.statusFilter);
+};
 
 /** Badge counts for the filter tabs. */
-export const selectStatusCounts = (state) =>
-  state.orders.reduce((counts, order) => {
-    counts[order.status] = (counts[order.status] ?? 0) + 1;
-    return counts;
-  }, {});
+export const selectStatusCounts = (state) => {
+  const orders = Array.isArray(state?.orders) ? state.orders : [];
+  const counts = {
+    PENDING: 0,
+    ACCEPTED: 0,
+    PACKED: 0,
+    READY_FOR_PICKUP: 0,
+    IN_TRANSIT: 0,
+    DELIVERED: 0,
+    CANCELLED: 0,
+  };
+  for (const order of orders) {
+    if (order && order.status) {
+      counts[order.status] = (counts[order.status] || 0) + 1;
+    }
+  }
+  return counts;
+};
 
 export const selectOrderById = (orderId) => (state) =>
-  state.orders.find((order) => order._id === orderId) ?? null;
+  (Array.isArray(state?.orders) ? state.orders : []).find((order) => order?._id === orderId) ?? null;
 
 export default useVendorStore;

@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import PressableScale from '../PressableScale';
 import { colors } from '../../theme/colors';
-import { useVendorStore, selectStatusCounts } from '../../store/useVendorStore';
+import { useVendorStore } from '../../store/useVendorStore';
 
 /**
  * Senior-Friendly Unified Bottom Navigation for Nagpur Boutique Shopkeepers (50-60 yr old uncles)
@@ -22,11 +22,12 @@ export default function VendorBottomNav({
   onPressAddPiece,
 }) {
   const insets = useSafeAreaInsets();
-  const counts = useVendorStore(selectStatusCounts);
-  const products = useVendorStore((state) => state.products);
-
-  const pendingCount = counts.PENDING || 0;
-  const stockCount = products.length;
+  const pendingCount = useVendorStore(
+    (state) => (Array.isArray(state?.orders) ? state.orders.filter((o) => o?.status === 'PENDING').length : 0)
+  );
+  const stockCount = useVendorStore(
+    (state) => (Array.isArray(state?.products) ? state.products.length : 0)
+  );
 
   const handleTabPress = (targetRoute) => {
     if (Platform.OS !== 'web') {
