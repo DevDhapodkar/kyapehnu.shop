@@ -76,8 +76,8 @@ export default function CatalogManagerScreen({ navigation, route }) {
     try {
       await addProduct(payload);
       Alert.alert(
-        '✓ Kapda Jod Diya Gaya',
-        `"${payload.name}" dukan catalog mein jod diya gaya hai!`
+        '✓ Garment Added Successfully',
+        `"${payload.name}" has been listed to your boutique catalog!`
       );
     } catch (err) {
       throw err;
@@ -128,10 +128,10 @@ export default function CatalogManagerScreen({ navigation, route }) {
             onPress={() => setModalVisible(true)}
             style={styles.headerAddBtn}
             accessibilityRole="button"
-            accessibilityLabel="Naya kapda jodein"
+            accessibilityLabel="Add New Garment"
           >
             <MaterialIcons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.headerAddBtnText}>+ Naya</Text>
+            <Text style={styles.headerAddBtnText}>+ Add Item</Text>
           </PressableScale>
         </View>
       </View>
@@ -157,20 +157,20 @@ export default function CatalogManagerScreen({ navigation, route }) {
         }
         ListHeaderComponent={
           <View style={styles.headerContainer}>
-            {/* Senior-Friendly Hero Button: + NAYA KAPDA JODEIN */}
+            {/* Senior-Friendly Hero Button: + ADD NEW GARMENT */}
             <PressableScale
               onPress={() => setModalVisible(true)}
               style={styles.addPieceHeroCard}
               accessibilityRole="button"
-              accessibilityLabel="Naya Kapda Jodein"
+              accessibilityLabel="Add New Garment"
             >
               <View style={styles.addPieceHeroIconWrap}>
                 <MaterialIcons name="add-a-photo" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.addPieceHeroTextCol}>
-                <Text style={styles.addPieceHeroTitle}>+ NAYA KAPDA / SAREE JODEIN</Text>
+                <Text style={styles.addPieceHeroTitle}>+ ADD NEW GARMENT / APPAREL</Text>
                 <Text style={styles.addPieceHeroSubtitle}>
-                  Photo kheenchein aur dukan par chadhayein
+                  List dresses, tops, denim, sarees & more
                 </Text>
               </View>
               <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
@@ -387,10 +387,10 @@ export default function CatalogManagerScreen({ navigation, route }) {
         onPress={() => setModalVisible(true)}
         style={[styles.floatingAddBtn, { bottom: insets.bottom + 70 }]}
         accessibilityRole="button"
-        accessibilityLabel="Naya Kapda Jodein"
+        accessibilityLabel="Add New Garment"
       >
         <MaterialIcons name="add" size={26} color="#FFFFFF" />
-        <Text style={styles.floatingAddBtnText}>+ NAYA KAPDA</Text>
+        <Text style={styles.floatingAddBtnText}>+ ADD GARMENT</Text>
       </PressableScale>
 
       {/* Unified Bottom Navigation */}

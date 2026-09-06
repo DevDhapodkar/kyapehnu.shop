@@ -263,6 +263,11 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  setToken: (token) => {
+    setAuthToken(token);
+    set({ token });
+  },
+
   setRole: (role) => {
     // If account is a registered vendor, lock strictly to vendor mode: no shopping allowed.
     if (get().vendorProfile && role === ROLES.CUSTOMER) {

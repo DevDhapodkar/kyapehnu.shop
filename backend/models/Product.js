@@ -23,6 +23,7 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: ['MEN', 'WOMEN', 'KIDS', 'UNISEX'],
+      uppercase: true,
       required: true,
     },
     subCategory: { type: String }, // Shirts, Dresses, Trousers...

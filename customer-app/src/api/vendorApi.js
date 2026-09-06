@@ -35,7 +35,7 @@ const resolveBaseUrl = () => {
 
     // Local development only (http://localhost or 127.0.0.1)
     if (host === 'localhost' || host === '127.0.0.1') {
-      return configured;
+      return 'http://localhost:5001';
     }
   }
 
@@ -83,7 +83,15 @@ client.interceptors.request.use((config) => {
 /** Collapses an axios failure into a single readable sentence. */
 const toError = (error, fallback) => {
   const data = error.response?.data;
-  const message = data?.message || data?.error || error.message || fallback;
+  let message;
+  if (data) {
+    if (data.error && data.message && data.error !== data.message) {
+      message = `${data.message}: ${data.error}`;
+    } else {
+      message = data.error || data.message;
+    }
+  }
+  if (!message) message = error.message || fallback;
   const wrapped = new Error(message);
   wrapped.status = error.response?.status;
   wrapped.data = data;

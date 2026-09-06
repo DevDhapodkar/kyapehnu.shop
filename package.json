@@ -4,11 +4,11 @@
   "private": true,
   "description": "Kya Pehnu? — hyper-local fashion delivery for Nagpur. Express backend + one unified Expo app serving both the customer and vendor flows.",
   "scripts": {
-    "dev": "concurrently -n backend,app -c magenta,cyan --kill-others-on-fail \"npm:dev:backend\" \"npm:dev:app\"",
-    "dev:backend": "npm --prefix backend run dev",
-    "dev:app": "npm --prefix customer-app run start",
-    "start:backend": "npm --prefix backend start",
-    "install:all": "npm install && npm --prefix backend install && npm --prefix customer-app install"
+    "dev": "concurrently -n backend,app -c magenta,cyan --kill-others-on-fail \"bun run dev:backend\" \"bun run dev:app\"",
+    "dev:backend": "bun --cwd backend run dev",
+    "dev:app": "bun --cwd customer-app run start",
+    "start:backend": "bun --cwd backend run start",
+    "install:all": "bun install && bun install --cwd backend && bun install --cwd customer-app"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

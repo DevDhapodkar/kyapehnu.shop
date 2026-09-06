@@ -23,15 +23,52 @@ const createProduct = async (req, res) => {
         ? PRODUCT_STATUS.APPROVED
         : PRODUCT_STATUS.PENDING_QC;
 
+    const body = stripProtected(req.body);
+
+    // Normalize category to uppercase enum value
+    if (body.category) {
+      body.category = String(body.category).trim().toUpperCase();
+    }
+
+    // Auto-generate unique SKU if not assigned
+    if (!body.sku) {
+      const catCode = (body.category || 'PRD').slice(0, 2).toUpperCase();
+      body.sku = `${catCode}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    // Default MRP if omitted: standard 25% markup
+    if (!body.mrp && body.price) {
+      body.mrp = Math.round(Number(body.price) * 1.25);
+    }
+
+    // Sanitize sizes array: require non-empty size string and non-negative stock
+    if (Array.isArray(body.sizes)) {
+      body.sizes = body.sizes
+        .filter((s) => s && s.size && typeof s.size === 'string' && s.size.trim())
+        .map((s) => ({
+          size: s.size.trim(),
+          stock: Math.max(0, parseInt(s.stock, 10) || 0),
+        }));
+    }
+
+    // Sanitize images array
+    if (Array.isArray(body.images)) {
+      body.images = body.images.filter((img) => img && typeof img === 'string' && img.trim());
+    }
+
     const product = await Product.create({
-      ...stripProtected(req.body),
+      ...body,
       vendor: req.vendor._id,
       source: PRODUCT_SOURCE.APP,
       status,
     });
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create product', error: error.message });
+    console.error('[createProduct error]:', error);
+    res.status(500).json({
+      message: error.message || 'Failed to create product',
+      error: error.message,
+    });
   }
 };
 

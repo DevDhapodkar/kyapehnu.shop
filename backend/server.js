@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,9 +15,6 @@ import whatsappRoutes from './routes/whatsappRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import updateRoutes from './routes/updateRoutes.js';
-
-dotenv.config();
-
 const app = express();
 
 app.use(cors());
