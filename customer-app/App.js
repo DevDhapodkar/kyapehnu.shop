@@ -42,7 +42,7 @@ export default function App() {
   return (
     <View style={[styles.root, isDesktop && styles.desktopOuter]}>
       <View style={[styles.appContainer, isDesktop && styles.desktopFrame]}>
-        <GestureHandlerRootView style={styles.root}>
+        <GestureHandlerRootView style={styles.appContainer}>
           <SafeAreaProvider initialMetrics={desktopMetrics}>
             <AppNavigator />
             <IosInstallPrompt />
@@ -59,10 +59,10 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: '#FAF9F5',
   },
   desktopOuter: {
-    backgroundColor: '#050506',
+    backgroundColor: '#F3EFE6',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#F4EFE7',
+    backgroundColor: '#FAF9F5',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     maxHeight: '100%',
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(245, 243, 239, 0.12)',
-    boxShadow: '0 0 50px rgba(0, 0, 0, 0.95)',
+    borderColor: 'rgba(217, 119, 6, 0.15)',
+    boxShadow: '0 20px 60px rgba(18, 18, 21, 0.08)',
   },
 });

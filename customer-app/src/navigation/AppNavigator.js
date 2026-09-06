@@ -1,4 +1,4 @@
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useReducedMotion } from 'react-native-reanimated';
 
@@ -35,17 +35,17 @@ const VendorStack = createNativeStackNavigator();
 /**
  * Navigation theme.
  *
- * React Navigation paints the screen container itself, so its background has to
- * match the obsidian base or a light flash shows during the push transition.
+ * React Navigation paints the screen container itself, so its background matches
+ * the Ivory Studio base (#FAF9F5) to eliminate any dark flash during screen transitions.
  */
 const navTheme = {
-  ...DarkTheme,
+  ...DefaultTheme,
   colors: {
-    ...DarkTheme.colors,
-    background: '#F4EFE7',
-    card: colors.obsidianDeep,
+    ...DefaultTheme.colors,
+    background: '#FAF9F5',
+    card: '#FAF9F5',
     text: colors.textObsidian,
-    border: colors.glassBorder,
+    border: 'rgba(217, 119, 6, 0.15)',
     primary: colors.accentCrimson,
     notification: colors.accentCrimson,
   },
@@ -56,7 +56,7 @@ const navTheme = {
  */
 const baseScreenOptions = {
   headerShown: false,
-  contentStyle: { backgroundColor: '#F4EFE7' },
+  contentStyle: { backgroundColor: '#FAF9F5' },
 };
 
 /**

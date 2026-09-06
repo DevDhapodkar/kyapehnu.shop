@@ -26,9 +26,9 @@ if (fs.existsSync(indexPath)) {
   // Inject PWA meta tags, Google Fonts, and apple touch icon into <head>
   const headInject = `
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Kya Pehnu?" />
-    <meta name="theme-color" content="#F4EFE7" />
+    <meta name="theme-color" content="#FAF9F5" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
@@ -38,11 +38,30 @@ if (fs.existsSync(indexPath)) {
 
   html = html.replace('</head>', `${headInject}\n  </head>`);
   
-  // Set dark background on body for desktop ambient
+  // Ensure warm ivory background on html and body
   html = html.replace(
     'body {',
-    'body {\n        background-color: #020203;'
+    'body {\n        background-color: #FAF9F5;'
   );
+  html = html.replace(
+    'html,',
+    'html {\n        background-color: #FAF9F5;\n      }\n      html,'
+  );
+
+  // Pre-hydration luxury splash to guarantee zero black flash before JS bundle executes
+  const preHydrationSplash = `
+    <div id="root">
+      <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#FAF9F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+          <div style="position:absolute;width:160px;height:160px;border-radius:80px;background:radial-gradient(circle, rgba(245,158,11,0.2) 0%, rgba(244,63,94,0.1) 60%, transparent 70%);filter:blur(20px);"></div>
+          <img src="/app/apple-touch-icon.png" alt="Kya Pehnu" style="width:104px;height:104px;border-radius:28px;box-shadow:0 12px 36px rgba(196,36,58,0.18);position:relative;z-index:2;" />
+        </div>
+        <div style="margin-top:28px;font-size:26px;font-weight:500;color:#18181B;letter-spacing:-0.5px;font-family:'EB Garamond',Georgia,serif;">Kya Pehnu?</div>
+        <div style="margin-top:6px;font-size:12px;color:#71717A;letter-spacing:0.2px;">Nagpur Hyperlocal Couture &bull; Under 60 Minutes</div>
+      </div>
+    </div>
+  `;
+  html = html.replace('<div id="root"></div>', preHydrationSplash.trim());
 
   fs.writeFileSync(indexPath, html, 'utf8');
 }
@@ -71,8 +90,8 @@ const manifest = {
     }
   ],
   start_url: '/app',
-  background_color: '#050506',
-  theme_color: '#050506',
+  background_color: '#FAF9F5',
+  theme_color: '#FAF9F5',
   display: 'standalone',
   orientation: 'portrait'
 };

@@ -622,11 +622,11 @@ function Storefront({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.obsidian,
+    backgroundColor: '#FAF9F5',
   },
   storefrontRoot: {
     flex: 1,
-    backgroundColor: '#F4EFE7',
+    backgroundColor: '#FAF9F5',
   },
   storefrontScroll: {
     flex: 1,

@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
-    backgroundColor: '#FAF6F0',
+    backgroundColor: '#FAF9F5',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 56,
