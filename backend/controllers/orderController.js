@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Order, { ORDER_STATUSES } from '../models/Order.js';
 import Vendor from '../models/Vendor.js';
 import Product from '../models/Product.js';
@@ -14,6 +15,28 @@ import {
 } from '../utils/orderStatus.js';
 
 const shortId = (id) => String(id).slice(-6).toUpperCase();
+
+const isValidId = (id) => mongoose.isValidObjectId(id);
+
+/**
+ * Validate that an order references real database ids before touching Mongoose.
+ * Curated/demo catalogue items carry slug ids (e.g. "prd_..."), which would
+ * otherwise throw a CastError deep in the driver and surface as a confusing 500.
+ * Returns an error message string, or null when the references are well-formed.
+ */
+const validateOrderReferences = (vendorId, items) => {
+  if (!vendorId || !isValidId(vendorId)) {
+    return 'This shop is not available for checkout yet. Please pick an item from a live boutique.';
+  }
+  const hasBadProduct = (items || []).some((it) => {
+    const productId = it?.product || it?.productId;
+    return !productId || !isValidId(productId);
+  });
+  if (hasBadProduct) {
+    return 'One or more items are no longer available — please refresh your bag and try again.';
+  }
+  return null;
+};
 
 /**
  * Best-effort stock adjustment across an order's lines. `sign` is -1 to reserve
@@ -88,6 +111,9 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
     }
 
+    const referenceError = validateOrderReferences(vendorId, items);
+    if (referenceError) return res.status(400).json({ message: referenceError });
+
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
@@ -144,6 +170,9 @@ const createGuestOrder = async (req, res) => {
     if (!deliveryAddress?.line1 || !deliveryAddress?.pincode) {
       return res.status(400).json({ message: 'A delivery address (street + pincode) is required' });
     }
+
+    const referenceError = validateOrderReferences(vendorId, items);
+    if (referenceError) return res.status(400).json({ message: referenceError });
 
     const vendor = await Vendor.findById(vendorId);
     if (!vendor) return res.status(404).json({ message: 'Shop not found' });

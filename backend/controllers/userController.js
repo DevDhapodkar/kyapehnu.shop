@@ -5,7 +5,12 @@ const syncProfile = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
     const userEmail = (email || req.firebaseUser?.email || '').toLowerCase().trim();
-    const userName = name || req.firebaseUser?.name || 'Nagpur Patron';
+    const firebaseName = req.firebaseUser?.name || '';
+    const emailLocal = userEmail.includes('@') ? userEmail.split('@')[0] : '';
+    const userName = (name || firebaseName || emailLocal || '').trim();
+    const cleanPhone = phone != null ? String(phone).trim() : '';
+    const phoneDigits = cleanPhone.replace(/\D/g, '');
+    const hasValidPhone = phoneDigits.length >= 10 && phoneDigits.slice(-10) !== '9999999999';
 
     let user = await User.findOne({
       $or: [
@@ -18,14 +23,25 @@ const syncProfile = async (req, res) => {
       user.firebaseUid = req.firebaseUser.uid;
       if (userName) user.name = userName;
       if (userEmail) user.email = userEmail;
-      if (phone) user.phone = phone;
+      if (hasValidPhone) user.phone = cleanPhone;
       await user.save();
     } else {
+      if (!userName) {
+        return res.status(400).json({ message: 'Name is required to create a profile.' });
+      }
+      if (!userEmail) {
+        return res.status(400).json({ message: 'Email is required to create a profile.' });
+      }
+      if (!hasValidPhone) {
+        return res.status(400).json({
+          message: 'A valid 10-digit mobile number is required. Placeholder numbers are not accepted.',
+        });
+      }
       user = await User.create({
         firebaseUid: req.firebaseUser.uid,
         name: userName,
-        email: userEmail || `user_${Date.now()}@kyapehnu.local`,
-        phone: phone || '+91 99999 99999',
+        email: userEmail,
+        phone: cleanPhone,
       });
     }
 

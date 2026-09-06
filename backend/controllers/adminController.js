@@ -175,8 +175,8 @@ export const reviewVendor = async (req, res) => {
 export const createVendorAsAdmin = async (req, res) => {
   try {
     const { shopName, ownerName, phone, whatsappNumber, email, area, line1, pincode, lng, lat } = req.body ?? {};
-    if (!shopName || !ownerName || !phone) {
-      return res.status(400).json({ message: 'shopName, ownerName and phone are required' });
+    if (!shopName || !ownerName || !phone || !/^\d{6}$/.test(String(pincode || ''))) {
+      return res.status(400).json({ message: 'shopName, ownerName, phone and 6-digit pincode are required' });
     }
     const vendor = await Vendor.create({
       firebaseUid: `admin_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -185,7 +185,7 @@ export const createVendorAsAdmin = async (req, res) => {
       phone,
       whatsappNumber: whatsappNumber || phone,
       email: email || `${shopName.toLowerCase().replace(/\s+/g, '')}@kyapehnu.local`,
-      address: { line1: line1 || 'Nagpur', area: area || 'Nagpur', city: 'Nagpur', pincode: pincode || '440001' },
+      address: { line1: line1 || area || 'Nagpur', area: area || '', city: 'Nagpur', pincode: String(pincode) },
       location: { type: 'Point', coordinates: [Number(lng) || 79.0882, Number(lat) || 21.1458] },
       approvalStatus: 'APPROVED',
       isActive: true,

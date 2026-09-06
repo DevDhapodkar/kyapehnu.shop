@@ -33,13 +33,13 @@ export default function SplashScreenView({ onFinish }) {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 6,
         tension: 40,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
 
@@ -49,12 +49,12 @@ export default function SplashScreenView({ onFinish }) {
         Animated.timing(auraAnim, {
           toValue: 0.85,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(auraAnim, {
           toValue: 0.4,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );
@@ -65,7 +65,7 @@ export default function SplashScreenView({ onFinish }) {
       Animated.timing(exitAnim, {
         toValue: 0,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start(() => {
         auraLoop.stop();
         onFinish?.();

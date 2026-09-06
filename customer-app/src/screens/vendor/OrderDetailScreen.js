@@ -94,14 +94,16 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
           order.customer?.name ||
           order.guestContact?.name ||
           order.deliveryAddress?.receiverName ||
-          'Nagpur Patron',
+          'Customer',
         customerPhone:
           order.customer?.phone ||
           order.guestContact?.phone ||
           order.deliveryAddress?.receiverPhone ||
-          '+91 712 254 9900',
-        customerAddress: `${order.deliveryAddress?.line1 || ''}, ${order.deliveryAddress?.line2 || ''}, Nagpur`,
-        distanceKm: 2.4,
+          '—',
+        customerAddress: [order.deliveryAddress?.line1, order.deliveryAddress?.line2]
+          .filter(Boolean)
+          .join(', ') || 'Address pending',
+        distanceKm: typeof order.distanceKm === 'number' ? order.distanceKm : null,
         items: order.items || [],
         total: order.totalPrice || 0,
         placedAt: order.createdAt
@@ -365,7 +367,9 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
                 {displayOrder.customerAddress}
               </Text>
               <Text style={styles.distanceText}>
-                {displayOrder.distanceKm} km away · 14m estimated bike corridor
+                {displayOrder.distanceKm != null
+                  ? `${displayOrder.distanceKm} km away`
+                  : 'Distance pending'}
               </Text>
             </View>
           </View>

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Image } from 'expo-image';
 import {
   Alert,
@@ -23,6 +22,7 @@ import {
   useCartStore,
 } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -33,21 +33,23 @@ import { colors, radii, spacing } from '../theme/colors';
  * - Floating glass header: Back button & location selector
  * - Bag items list with size pills, remove & add quantity steppers, item delete
  * - Delivery address card: "Civil Lines, Nagpur · Palm Grove 402"
- * - Payment method selection: Cash on Delivery vs UPI / Card
+ * - Payment: Cash on Delivery only (honest — UPI / card not wired yet)
  * - Tabular billing summary: Subtotal, Atelier Express Delivery (Free), Total
  * - Sticky bottom glass checkout action bar
  * - Zero Emojis (MaterialIcons throughout)
  */
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod' | 'upi'
 
   const cartItems = useCartStore(selectCartItems);
   const subtotal = useCartStore(selectCartTotal);
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const isLoggedIn = useAuthStore((state) => Boolean(state.token));
   const profile = useAuthStore((state) => state.profile);
+  const deliveryPillLabel = getDeliveryPillLabel({
+    savedAddresses: profile?.savedAddresses,
+  });
+  const needsAddress = deliveryPillLabel === SET_ADDRESS_LABEL;
 
   const total = subtotal; // Express delivery is free in rapid radius
   const totalItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -112,10 +114,19 @@ export default function CartScreen({ navigation }) {
             onPress={() => navigation.navigate('Address')}
             style={styles.locationPill}
             accessibilityRole="button"
-            accessibilityLabel="Delivery location"
+            accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
           >
-            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
-            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
+            <MaterialIcons
+              name={needsAddress ? 'add-location-alt' : 'near-me'}
+              size={13}
+              color={needsAddress ? colors.accentCrimson : colors.accentGold}
+            />
+            <Text
+              style={[styles.locationText, needsAddress && { color: colors.accentCrimson, textTransform: 'none' }]}
+              numberOfLines={1}
+            >
+              {deliveryPillLabel}
+            </Text>
           </PressableScale>
         </View>
       </View>
@@ -298,66 +309,24 @@ export default function CartScreen({ navigation }) {
               />
             </PressableScale>
 
-            {/* Payment Method Selector */}
+            {/* Payment — COD only (backend enum; UPI not wired) */}
             <View style={styles.glassCard}>
-              <Text style={styles.cardHeaderTitle}>Payment Preference</Text>
+              <Text style={styles.cardHeaderTitle}>Payment</Text>
               <View style={styles.paymentMethodsRow}>
-                <PressableScale
-                  onPress={() => setPaymentMethod('cod')}
-                  style={[
-                    styles.paymentOptionBtn,
-                    paymentMethod === 'cod'
-                      ? styles.paymentOptionActive
-                      : styles.paymentOptionInactive,
-                  ]}
-                >
+                <View style={[styles.paymentOptionBtn, styles.paymentOptionActive]}>
                   <MaterialIcons
                     name="check-circle"
                     size={17}
-                    color={
-                      paymentMethod === 'cod'
-                        ? colors.accentCrimson
-                        : colors.textAsh
-                    }
+                    color={colors.accentCrimson}
                   />
-                  <Text
-                    style={[
-                      styles.paymentOptionText,
-                      paymentMethod === 'cod' && styles.paymentTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.paymentOptionText, styles.paymentTextActive]}>
                     Cash on Delivery
                   </Text>
-                </PressableScale>
-
-                <PressableScale
-                  onPress={() => setPaymentMethod('upi')}
-                  style={[
-                    styles.paymentOptionBtn,
-                    paymentMethod === 'upi'
-                      ? styles.paymentOptionActive
-                      : styles.paymentOptionInactive,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="credit-card"
-                    size={17}
-                    color={
-                      paymentMethod === 'upi'
-                        ? colors.accentCrimson
-                        : colors.textAsh
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.paymentOptionText,
-                      paymentMethod === 'upi' && styles.paymentTextActive,
-                    ]}
-                  >
-                    UPI / Card
-                  </Text>
-                </PressableScale>
+                </View>
               </View>
+              <Text style={styles.paymentHint}>
+                Pay the rider when your fitting arrives. Online UPI / card checkout is not available yet.
+              </Text>
             </View>
 
             {/* Billing Summary Breakdown */}
@@ -801,6 +770,12 @@ const styles = StyleSheet.create({
   paymentTextActive: {
     color: colors.textObsidian,
     fontWeight: '700',
+  },
+  paymentHint: {
+    marginTop: 10,
+    color: colors.textAsh,
+    fontSize: 11,
+    lineHeight: 15,
   },
   billRows: {
     gap: 8,

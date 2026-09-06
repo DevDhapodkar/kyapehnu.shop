@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -49,10 +50,16 @@ export default function InteractiveMapPinPicker({
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState(null);
-  const [inZone, setInZone] = useState(true);
+  const [inZone, setInZone] = useState(false);
 
   const searchTimeoutRef = useRef(null);
   const iframeRef = useRef(null);
+
+  // Responsive map height: the sheet does not scroll, so on short handsets the
+  // map must shrink to keep the Confirm button on screen. Clamp between a
+  // usable floor and the original 320 ceiling.
+  const { height: windowHeight } = useWindowDimensions();
+  const mapHeight = Math.max(200, Math.min(320, Math.round(windowHeight * 0.4)));
 
   // Initialize and reverse geocode initial coords
   useEffect(() => {
@@ -71,12 +78,14 @@ export default function InteractiveMapPinPicker({
       setResolvedAddress(geo);
       setInZone(isWithinNagpur(lat, lng));
     } catch {
-      // Graceful fallback
+      // Do not invent Nagpur / 440001 — keep coords + zone only; user fills pincode
       setResolvedAddress({
-        areaName: 'Nagpur',
+        areaName: null,
         formattedAddress: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-        pincode: '440001',
+        pincode: null,
+        geocodeFailed: true,
       });
+      setInZone(isWithinNagpur(lat, lng));
     } finally {
       setIsGeocoding(false);
     }
@@ -178,8 +187,9 @@ export default function InteractiveMapPinPicker({
     }
   };
 
-  // Confirm and return location
+  // Confirm and return location — never invent city/pincode
   const handleConfirm = () => {
+    if (isGeocoding) return;
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -187,11 +197,14 @@ export default function InteractiveMapPinPicker({
       coordinates: [selectedCoords.longitude, selectedCoords.latitude],
       latitude: selectedCoords.latitude,
       longitude: selectedCoords.longitude,
-      formattedAddress: resolvedAddress?.formattedAddress || 'Nagpur, Maharashtra',
-      areaName: resolvedAddress?.areaName || 'Nagpur',
+      formattedAddress:
+        resolvedAddress?.formattedAddress ||
+        `${selectedCoords.latitude.toFixed(4)}, ${selectedCoords.longitude.toFixed(4)}`,
+      areaName: resolvedAddress?.areaName || '',
       road: resolvedAddress?.road || '',
-      pincode: resolvedAddress?.pincode || '440001',
+      pincode: resolvedAddress?.pincode || '',
       inZone,
+      geocodeFailed: Boolean(resolvedAddress?.geocodeFailed),
     });
     onClose?.();
   };
@@ -206,6 +219,17 @@ export default function InteractiveMapPinPicker({
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #F4EFE7; }
+    /* Fixed center pin: the map pans beneath it so the doorstep sits under the tip. */
+    #center-pin {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 1000;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      transition: transform 0.12s ease-out;
+    }
+    #center-pin.lifted { transform: translate(-50%, -115%); }
     .custom-pin {
       width: 32px;
       height: 32px;
@@ -214,7 +238,6 @@ export default function InteractiveMapPinPicker({
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       box-shadow: 0 8px 16px rgba(196, 36, 58, 0.45);
-      position: relative;
     }
     .custom-pin::after {
       content: '';
@@ -226,10 +249,26 @@ export default function InteractiveMapPinPicker({
       top: 8px;
       left: 8px;
     }
+    /* Ground shadow anchoring the pin tip while dragging. */
+    #pin-shadow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      z-index: 999;
+      pointer-events: none;
+      width: 12px;
+      height: 5px;
+      background: rgba(18, 18, 20, 0.28);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      filter: blur(1px);
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="pin-shadow"></div>
+  <div id="center-pin"><div class="custom-pin"></div></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     var map = L.map('map', { zoomControl: true, attributionControl: false }).setView([${selectedCoords.latitude}, ${selectedCoords.longitude}], 15);
@@ -237,32 +276,23 @@ export default function InteractiveMapPinPicker({
       maxZoom: 19
     }).addTo(map);
 
-    var pinIcon = L.divIcon({
-      className: 'pin-wrap',
-      html: '<div class="custom-pin"></div>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32]
+    var pinEl = document.getElementById('center-pin');
+
+    // Lift the pin while the map is in motion for a tactile "picking up" feel.
+    map.on('movestart', function() { pinEl.classList.add('lifted'); });
+
+    map.on('moveend', function() {
+      pinEl.classList.remove('lifted');
+      var c = map.getCenter();
+      window.parent.postMessage({ type: 'MAP_PIN_MOVED', lat: c.lat, lng: c.lng }, '*');
     });
 
-    var marker = L.marker([${selectedCoords.latitude}, ${selectedCoords.longitude}], {
-      draggable: true,
-      icon: pinIcon
-    }).addTo(map);
-
-    marker.on('dragend', function(e) {
-      var pos = marker.getLatLng();
-      window.parent.postMessage({ type: 'MAP_PIN_MOVED', lat: pos.lat, lng: pos.lng }, '*');
-    });
-
-    map.on('click', function(e) {
-      marker.setLatLng(e.latlng);
-      window.parent.postMessage({ type: 'MAP_PIN_MOVED', lat: e.latlng.lat, lng: e.latlng.lng }, '*');
-    });
+    // Tapping a spot pans it under the pin.
+    map.on('click', function(e) { map.panTo(e.latlng); });
 
     window.addEventListener('message', function(e) {
       if (e.data && e.data.type === 'CENTER_MAP') {
         map.flyTo([e.data.lat, e.data.lng], 16);
-        marker.setLatLng([e.data.lat, e.data.lng]);
       }
     });
   </script>
@@ -281,10 +311,15 @@ export default function InteractiveMapPinPicker({
             <View>
               <Text style={styles.headerTitle}>Pin Delivery Location</Text>
               <Text style={styles.headerSubtitle}>
-                Tap or drag marker to set exact drop-off doorstep
+                Move the map to place the pin on your exact doorstep
               </Text>
             </View>
-            <PressableScale onPress={onClose} style={styles.closeBtn}>
+            <PressableScale
+              onPress={onClose}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close location picker"
+            >
               <MaterialIcons name="close" size={20} color={colors.textObsidian} />
             </PressableScale>
           </View>
@@ -298,6 +333,8 @@ export default function InteractiveMapPinPicker({
               placeholder="Search locality, landmark or street in Nagpur..."
               placeholderTextColor={colors.textAsh}
               style={styles.searchInput}
+              accessibilityLabel="Search for a delivery locality in Nagpur"
+              returnKeyType="search"
             />
             {isSearching ? (
               <ActivityIndicator size="small" color={colors.accentGold} />
@@ -327,7 +364,7 @@ export default function InteractiveMapPinPicker({
           )}
 
           {/* Map View Container */}
-          <View style={styles.mapFrame}>
+          <View style={[styles.mapFrame, { height: mapHeight }]}>
             {Platform.OS === 'web' ? (
               <iframe
                 ref={iframeRef}
@@ -373,7 +410,10 @@ export default function InteractiveMapPinPicker({
                 <Text style={styles.resolvedAreaName}>
                   {isGeocoding
                     ? 'Pinpointing locality...'
-                    : resolvedAddress?.areaName || 'Nagpur'}
+                    : resolvedAddress?.areaName ||
+                      (resolvedAddress?.geocodeFailed
+                        ? 'Locality unresolved — enter pincode below'
+                        : 'Move the map to set your doorstep')}
                 </Text>
                 <Text style={styles.resolvedFullAddress} numberOfLines={2}>
                   {isGeocoding
@@ -396,12 +436,20 @@ export default function InteractiveMapPinPicker({
             {/* Confirm Button */}
             <PressableScale
               onPress={handleConfirm}
-              style={styles.confirmBtn}
+              disabled={isGeocoding}
+              style={[styles.confirmBtn, isGeocoding && styles.confirmBtnDisabled]}
               accessibilityRole="button"
+              accessibilityState={{ disabled: isGeocoding }}
               accessibilityLabel="Confirm Delivery Location"
             >
-              <MaterialIcons name="done" size={18} color="#FFFFFF" />
-              <Text style={styles.confirmBtnText}>Confirm This Location</Text>
+              {isGeocoding ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <MaterialIcons name="done" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.confirmBtnText}>
+                {isGeocoding ? 'Resolving Doorstep...' : 'Confirm This Location'}
+              </Text>
             </PressableScale>
           </View>
         </View>
@@ -506,7 +554,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapFrame: {
-    height: 320,
     marginTop: 12,
     marginHorizontal: 16,
     borderRadius: 16,
@@ -606,6 +653,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
     shadowRadius: 14,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.55,
   },
   confirmBtnText: {
     color: '#FFFFFF',

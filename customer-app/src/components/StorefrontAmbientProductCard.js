@@ -28,6 +28,8 @@ export default function StorefrontAmbientProductCard({
 }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
+  // Nested Pressables (wishlist / quick-add) already stop the press from
+  // reaching the card's onPress, so tapping them does not open the detail view.
   const handleToggleWishlist = (e) => {
     e?.stopPropagation?.();
     if (Platform.OS !== 'web') {
@@ -51,10 +53,11 @@ export default function StorefrontAmbientProductCard({
       : 25);
 
   const localityText = product.locality || product.storeArea || 'Nagpur';
+  // Only show a distance when it is real — never invent a "1.2 km" placeholder.
   const distanceText =
     typeof product.distanceKm === 'number'
       ? `${product.distanceKm} km`
-      : '1.2 km';
+      : null;
 
   return (
     <PressableScale
@@ -85,7 +88,7 @@ export default function StorefrontAmbientProductCard({
         {/* Top-right Wishlist Button */}
         <Pressable
           onPress={handleToggleWishlist}
-          hitSlop={6}
+          hitSlop={10}
           style={styles.favBtn}
           accessibilityRole="button"
           accessibilityLabel="Wishlist item"
@@ -100,7 +103,7 @@ export default function StorefrontAmbientProductCard({
         {/* Bottom Glass Locality Pill */}
         <View style={styles.localityBanner}>
           <Text style={styles.localityText} numberOfLines={1}>
-            {localityText} · {distanceText}
+            {distanceText ? `${localityText} · ${distanceText}` : localityText}
           </Text>
         </View>
       </View>

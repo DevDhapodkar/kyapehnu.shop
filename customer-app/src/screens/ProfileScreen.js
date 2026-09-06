@@ -19,6 +19,7 @@ import PressableScale from '../components/PressableScale';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVendorStore } from '../store/useVendorStore';
 import { fetchMyOrders } from '../api/vendorApi';
+import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -43,6 +44,10 @@ export default function ProfileScreen({ navigation }) {
   const resetVendorState = useVendorStore((state) => state.reset);
 
   const [activeCount, setActiveCount] = useState(0);
+  const deliveryPillLabel = getDeliveryPillLabel({
+    savedAddresses: profile?.savedAddresses,
+  });
+  const needsAddress = deliveryPillLabel === SET_ADDRESS_LABEL;
 
   useEffect(() => {
     if (token) {
@@ -137,10 +142,27 @@ export default function ProfileScreen({ navigation }) {
 
           <BrandLogo size="sm" showEmblem={true} />
 
-          <View style={styles.locationPill}>
-            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
-            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
-          </View>
+          <PressableScale
+            onPress={() => navigation.navigate('Address')}
+            style={styles.locationPill}
+            accessibilityRole="button"
+            accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
+          >
+            <MaterialIcons
+              name={needsAddress ? 'add-location-alt' : 'near-me'}
+              size={13}
+              color={needsAddress ? colors.accentCrimson : colors.accentGold}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                needsAddress && { color: colors.accentCrimson, textTransform: 'none' },
+              ]}
+              numberOfLines={1}
+            >
+              {deliveryPillLabel}
+            </Text>
+          </PressableScale>
         </View>
       </View>
 
@@ -197,7 +219,7 @@ export default function ProfileScreen({ navigation }) {
                 color={colors.accentGold}
               />
               <Text style={styles.userMetaText}>
-                {profile?.savedAddresses?.[0]?.city || 'Sitabuldi, Nagpur'}
+                {deliveryPillLabel}
               </Text>
             </View>
             <Text style={styles.userMetaDivider}>•</Text>

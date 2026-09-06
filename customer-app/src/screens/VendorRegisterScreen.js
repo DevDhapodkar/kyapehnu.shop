@@ -60,6 +60,7 @@ export default function VendorRegisterScreen({ navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [coords, setCoords] = useState([79.0882, 21.1458]);
+  const [pincode, setPincode] = useState('');
   const [expressOptIn, setExpressOptIn] = useState(true);
 
   const handleUseMyLocation = async () => {
@@ -72,13 +73,19 @@ export default function VendorRegisterScreen({ navigation }) {
       setCoords([pos.longitude, pos.latitude]);
 
       const geo = await reverseGeocodeLocation(pos);
-      if (geo?.formattedAddress && !address.trim()) {
-        setAddress(geo.formattedAddress);
+      if (geo?.formattedAddress && !addressLine.trim()) {
+        setAddressLine(geo.formattedAddress);
+      }
+      if (geo?.pincode && /^\d{6}$/.test(String(geo.pincode))) {
+        setPincode(String(geo.pincode));
+      }
+      if (geo?.areaName && NAGPUR_AREAS.includes(geo.areaName)) {
+        setSelectedArea(geo.areaName);
       }
 
       Alert.alert(
         'GPS Pin Updated',
-        `Location captured: ${geo?.areaLabel || 'Nagpur'} [${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}]`
+        `Location captured: ${geo?.areaLabel || 'pin set'} [${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}]`
       );
     } catch (err) {
       const isDenied = err?.message?.includes('denied') || err?.code === 1;
@@ -98,6 +105,13 @@ export default function VendorRegisterScreen({ navigation }) {
       Alert.alert(
         'Incomplete Details',
         'Please provide boutique name, owner name, and contact phone.'
+      );
+      return;
+    }
+    if (!/^\d{6}$/.test(String(pincode).trim())) {
+      Alert.alert(
+        'Pincode Required',
+        'Enter your boutique’s 6-digit Nagpur pincode (use GPS pin to auto-fill when available).'
       );
       return;
     }
@@ -125,7 +139,7 @@ export default function VendorRegisterScreen({ navigation }) {
         line1: addressLine.trim() || `${selectedArea}, Nagpur`,
         area: selectedArea,
         city: 'Nagpur',
-        pincode: '440001',
+        pincode: String(pincode).trim(),
       },
       location: {
         type: 'Point',
@@ -144,7 +158,11 @@ export default function VendorRegisterScreen({ navigation }) {
         'Welcome to Kya Pehnu Partner Hub',
         `${payload.shopName} is now registered on Nagpur 45-min corridor!`
       );
-      navigation.replace('VendorOrderList');
+      // No manual navigation here: setRole(VENDOR) above re-keys the
+      // NavigationContainer, which tears down the customer stack and mounts the
+      // vendor flow at its initial route (VendorOrders). Dispatching a REPLACE
+      // on the outgoing customer navigator only threw an "unhandled action /
+      // no screen named VendorOrderList" console error on every registration.
     } catch (err) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -331,6 +349,19 @@ export default function VendorRegisterScreen({ navigation }) {
               value={addressLine}
               onChangeText={setAddressLine}
               placeholder="e.g. West High Court Rd, Opp. Coffee House"
+              placeholderTextColor={colors.textAsh}
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Pincode *</Text>
+            <TextInput
+              value={pincode}
+              onChangeText={setPincode}
+              placeholder="6-digit Nagpur pincode"
+              keyboardType="number-pad"
+              maxLength={6}
               placeholderTextColor={colors.textAsh}
               style={styles.input}
             />

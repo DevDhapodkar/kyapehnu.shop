@@ -218,13 +218,22 @@ export const useAuthStore = create((set, get) => ({
 
     try {
       const profile = await syncUserProfile({
-        name: cred.user.displayName || 'Patron',
+        name: cred.user.displayName || '',
         email: cred.user.email,
         phone: cred.user.phoneNumber || '',
       });
       set({ profile, pendingProfile: null });
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      // Keep pending so auth listener can retry once phone is collected —
+      // never invent a placeholder mobile number server-side.
+      set({
+        pendingProfile: {
+          name: cred.user.displayName || '',
+          email: cred.user.email,
+          phone: cred.user.phoneNumber || '',
+        },
+      });
+      console.warn('[auth] Profile sync needs a valid phone:', err?.message || err);
     }
   },
 

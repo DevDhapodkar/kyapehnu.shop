@@ -3,23 +3,13 @@ import { Image } from 'expo-image';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import PressableScale from './PressableScale';
 import { fetchNearbyVendors } from '../api/vendorApi';
-import { mockStores } from '../data/mockStores';
 import { colors, radii, spacing } from '../theme/colors';
-
-const BOUTIQUE_FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=600&q=80',
-];
 
 /**
  * StorefrontAmbientBoutiquesList
  *
- * Implements Stitch's Curating Boutiques Section with Live Backend Data:
- * - Fetches live nearby vendors from Express /api/vendors/nearby
- * - Gracefully falls back to mockStores catalogue if backend is cold-starting or empty
- * - Stitch UI styling: glass-card container, 56x56 thumbnail, serif title, gold distance, dispatch chip
+ * Live nearby vendors from Express /api/vendors/nearby.
+ * Never invents boutiques or distances from mockStores / Unsplash.
  */
 export default function StorefrontAmbientBoutiquesList({
   onSelectBoutique,
@@ -31,58 +21,34 @@ export default function StorefrontAmbientBoutiquesList({
   useEffect(() => {
     let isMounted = true;
 
-    // Fetch live nearby boutiques from backend
     fetchNearbyVendors({ lat: 21.1458, lng: 79.0882 })
       .then((data) => {
         if (!isMounted) return;
-        if (Array.isArray(data) && data.length > 0) {
-          setVendors(
-            data.map((v, idx) => ({
-              id: v._id || `v-${idx}`,
-              name: v.shopName,
-              locality: v.address?.area || v.area || 'Nagpur',
-              distanceKm: v.distanceKm
-                ? Number(v.distanceKm).toFixed(1)
-                : (1.2 + idx * 0.7).toFixed(1),
-              dispatchTime: `${15 + idx * 7}m dispatch`,
-              image:
-                v.images?.[0] ||
-                v.image ||
-                BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
-            }))
-          );
-        } else {
-          // Fallback to mockStores when API has no active vendors
-          setVendors(
-            mockStores.slice(0, 4).map((s, idx) => ({
-              id: s.id,
-              name: s.name,
-              locality: s.area || 'Nagpur',
-              distanceKm: s.distanceKm
-                ? Number(s.distanceKm).toFixed(1)
-                : (1.2 + idx * 0.7).toFixed(1),
-              dispatchTime: `${s.etaMinutes || 25}m dispatch`,
-              image: s.image || BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
-            }))
-          );
+        if (!Array.isArray(data) || data.length === 0) {
+          setVendors([]);
+          return;
         }
+        setVendors(
+          data.map((v, idx) => ({
+            id: v._id || `v-${idx}`,
+            name: v.shopName,
+            locality: v.address?.area || v.area || '',
+            distanceKm:
+              typeof v.distanceKm === 'number'
+                ? Number(v.distanceKm).toFixed(1)
+                : null,
+            dispatchTime:
+              typeof v.etaMinutes === 'number'
+                ? `${v.etaMinutes}m dispatch`
+                : null,
+            image: v.images?.[0] || v.image || null,
+          }))
+        );
       })
       .catch((err) => {
         if (!isMounted) return;
         console.warn('[StorefrontAmbientBoutiquesList] Live vendor note:', err.message);
-        // Fallback to mockStores
-        setVendors(
-          mockStores.slice(0, 4).map((s, idx) => ({
-            id: s.id,
-            name: s.name,
-            locality: s.area || 'Nagpur',
-            distanceKm: s.distanceKm
-              ? Number(s.distanceKm).toFixed(1)
-              : (1.2 + idx * 0.7).toFixed(1),
-            dispatchTime: `${s.etaMinutes || 25}m dispatch`,
-            image: s.image || BOUTIQUE_FALLBACK_IMAGES[idx % BOUTIQUE_FALLBACK_IMAGES.length],
-          }))
-        );
+        setVendors([]);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -93,33 +59,22 @@ export default function StorefrontAmbientBoutiquesList({
     };
   }, []);
 
-  const displayList = vendors;
-
-  if (!loading && displayList.length === 0) {
+  if (loading || vendors.length === 0) {
     return null;
   }
 
   return (
     <View style={styles.container}>
-      {/* Section Header */}
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Nagpur Boutiques</Text>
-        <Text style={styles.statusOnline}>
-          {displayList.length > 0 ? `${displayList.length} Online` : 'Nearby'}
-        </Text>
+        <Text style={styles.statusOnline}>{vendors.length} Online</Text>
       </View>
 
-      {/* Boutique Cards List */}
       <View style={styles.list}>
-        {displayList.map((boutique) => {
+        {vendors.map((boutique) => {
           const isSelected =
             selectedBoutiqueId === boutique.id ||
             selectedBoutiqueId === boutique.name;
-
-          const imageSource =
-            typeof boutique.image === 'string'
-              ? { uri: boutique.image }
-              : boutique.image;
 
           return (
             <PressableScale
@@ -133,36 +88,38 @@ export default function StorefrontAmbientBoutiquesList({
                 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={`${boutique.name}, ${boutique.locality}`}
+              accessibilityLabel={`${boutique.name}, ${boutique.locality || 'Nagpur'}`}
             >
-              {/* Boutique Thumbnail (56x56) */}
               <View style={styles.thumbWrap}>
-                <Image
-                  source={imageSource}
-                  style={styles.thumbImage}
-                  contentFit="cover"
-                  transition={200}
-                />
+                {boutique.image ? (
+                  <Image
+                    source={{ uri: boutique.image }}
+                    style={styles.thumbImage}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                ) : (
+                  <View style={styles.thumbPlaceholder} />
+                )}
               </View>
 
-              {/* Info Column */}
               <View style={styles.infoCol}>
                 <View style={styles.titleRow}>
                   <Text style={styles.boutiqueName} numberOfLines={1}>
                     {boutique.name}
                   </Text>
-                  <Text style={styles.distanceText}>
-                    {boutique.distanceKm} km
-                  </Text>
+                  {boutique.distanceKm ? (
+                    <Text style={styles.distanceText}>{boutique.distanceKm} km</Text>
+                  ) : null}
                 </View>
 
                 <View style={styles.subRow}>
                   <Text style={styles.localityText} numberOfLines={1}>
-                    {boutique.locality}
+                    {boutique.locality || 'Nagpur'}
                   </Text>
-                  <Text style={styles.dispatchText}>
-                    {boutique.dispatchTime}
-                  </Text>
+                  {boutique.dispatchTime ? (
+                    <Text style={styles.dispatchText}>{boutique.dispatchTime}</Text>
+                  ) : null}
                 </View>
               </View>
             </PressableScale>
@@ -236,6 +193,11 @@ const styles = StyleSheet.create({
   thumbImage: {
     width: '100%',
     height: '100%',
+  },
+  thumbPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(18, 18, 21, 0.06)',
   },
   infoCol: {
     flex: 1,

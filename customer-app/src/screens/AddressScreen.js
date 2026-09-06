@@ -17,7 +17,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  getDistanceKm,
   isWithinNagpur,
   NAGPUR_CENTER,
 } from '../utils/geolocation';
@@ -34,6 +33,10 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { placeCartOrders, placeGuestCartOrders } from '../services/checkout';
 import { saveUserAddress, deleteUserAddress, fetchUserProfile } from '../api/vendorApi';
+import {
+  buildCheckoutAddressFromForm,
+  buildCheckoutAddressFromSaved,
+} from '../utils/checkoutAddress';
 import { colors, radii, spacing } from '../theme/colors';
 
 const ADDRESS_TYPES = [
@@ -104,14 +107,16 @@ export default function AddressScreen({ navigation }) {
     }
   };
 
-  // When map pin confirmed
+  // When map pin confirmed — never invent pincode; leave blank for customer to fill
   const handleConfirmMapLocation = (locationData) => {
     setCoords(locationData.coordinates);
-    setDetectedArea(locationData.formattedAddress || locationData.areaName);
-    setPincode(locationData.pincode || '440001');
+    setDetectedArea(locationData.formattedAddress || locationData.areaName || '');
+    if (locationData.pincode && /^\d{6}$/.test(String(locationData.pincode).trim())) {
+      setPincode(String(locationData.pincode).trim());
+    }
     if (!streetArea && locationData.road) {
-      setStreetArea(`${locationData.road}, ${locationData.areaName}`);
-    } else if (!streetArea) {
+      setStreetArea(`${locationData.road}, ${locationData.areaName || ''}`.trim());
+    } else if (!streetArea && locationData.areaName) {
       setStreetArea(locationData.areaName);
     }
   };
@@ -151,45 +156,24 @@ export default function AddressScreen({ navigation }) {
 
   // Save new address
   const handleSaveNewAddress = async () => {
-    if (!flatNo.trim()) {
-      Alert.alert('Missing Field', 'Please enter your flat, house, or studio number.');
-      return;
-    }
-    if (!streetArea.trim()) {
-      Alert.alert('Missing Field', 'Please enter your street, locality, or landmark.');
-      return;
-    }
-    if (!receiverName.trim() || !phone.trim()) {
-      Alert.alert('Missing Contact', 'Please enter receiver name and mobile number.');
-      return;
-    }
-    const cleanPhone = phone.replace(/[^0-9+]/g, '');
-    if (cleanPhone.replace(/[^0-9]/g, '').length < 10) {
-      Alert.alert('Invalid Phone', 'Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    if (!coords) {
-      Alert.alert(
-        'Map Pin Required',
-        'Please tap "Pin on Map" to confirm the exact doorstep delivery location.'
-      );
-      setIsMapOpen(true);
+    const built = buildCheckoutAddressFromForm({
+      flatNo,
+      streetArea,
+      detectedArea,
+      pincode,
+      receiverName,
+      phone,
+      coords,
+      addressType,
+    });
+    if (!built.ok) {
+      Alert.alert('Address Incomplete', built.error);
+      if (/pin on map|map pin|location/i.test(built.error)) setIsMapOpen(true);
+      else setShowAddForm(true);
       return;
     }
 
-    const payload = {
-      label: addressType,
-      line1: `${flatNo.trim()}, ${streetArea.trim()}`,
-      line2: detectedArea || 'Nagpur',
-      city: 'Nagpur',
-      pincode: pincode || '440001',
-      receiverName: receiverName.trim(),
-      receiverPhone: cleanPhone,
-      location: {
-        type: 'Point',
-        coordinates: coords,
-      },
-    };
+    const payload = built.address;
 
     setIsSavingAddress(true);
     try {
@@ -201,10 +185,16 @@ export default function AddressScreen({ navigation }) {
         if (newAddr) {
           setSelectedAddressId(newAddr._id);
         }
-      }
-      setShowAddForm(false);
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowAddForm(false);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } else {
+        // Guests cannot persist addresses — keep the form filled for checkout.
+        Alert.alert(
+          'Address Ready',
+          'Sign in to save this address for next time. You can still place this order as a guest with the details below.'
+        );
       }
     } catch (err) {
       Alert.alert('Save Failed', err.message || 'Could not save address.');
@@ -227,69 +217,35 @@ export default function AddressScreen({ navigation }) {
     let finalAddress = null;
 
     if (activeSavedAddress) {
-      finalAddress = {
-        label: activeSavedAddress.label || 'HOME',
-        line1: activeSavedAddress.line1,
-        line2: activeSavedAddress.line2 || 'Nagpur',
-        city: activeSavedAddress.city || 'Nagpur',
-        pincode: activeSavedAddress.pincode || '440001',
-        receiverName:
-          activeSavedAddress.receiverName ||
-          profile?.name ||
-          user?.displayName ||
-          'Nagpur Patron',
-        receiverPhone:
-          activeSavedAddress.receiverPhone || profile?.phone || '+91 99999 99999',
-        location: activeSavedAddress.location || {
-          type: 'Point',
-          coordinates: [NAGPUR_CENTER.longitude, NAGPUR_CENTER.latitude],
-        },
-      };
+      const built = buildCheckoutAddressFromSaved({
+        address: activeSavedAddress,
+        profile,
+        user,
+      });
+      if (!built.ok) {
+        Alert.alert('Address Incomplete', built.error);
+        setShowAddForm(true);
+        return;
+      }
+      finalAddress = built.address;
     } else {
-      // Must have valid form fields
-      if (!flatNo.trim() || !streetArea.trim()) {
-        Alert.alert(
-          'Delivery Address Required',
-          'Please fill out your delivery address particulars or select a saved address.'
-        );
-        setShowAddForm(true);
+      const built = buildCheckoutAddressFromForm({
+        flatNo,
+        streetArea,
+        detectedArea,
+        pincode,
+        receiverName,
+        phone,
+        coords,
+        addressType,
+      });
+      if (!built.ok) {
+        Alert.alert('Delivery Address Required', built.error);
+        if (/pin on map|map pin|location/i.test(built.error)) setIsMapOpen(true);
+        else setShowAddForm(true);
         return;
       }
-      if (!receiverName.trim() || !phone.trim()) {
-        Alert.alert(
-          'Contact Required',
-          'Please provide a receiver name and 10-digit mobile number.'
-        );
-        setShowAddForm(true);
-        return;
-      }
-      const cleanPhone = phone.replace(/[^0-9+]/g, '');
-      if (cleanPhone.replace(/[^0-9]/g, '').length < 10) {
-        Alert.alert('Invalid Mobile', 'Please enter a valid 10-digit mobile number.');
-        return;
-      }
-      if (!coords) {
-        Alert.alert(
-          'Location Pin Required',
-          'Please tap "Pin on Map" so our delivery rider can navigate to your door.'
-        );
-        setIsMapOpen(true);
-        return;
-      }
-
-      finalAddress = {
-        label: addressType,
-        line1: `${flatNo.trim()}, ${streetArea.trim()}`,
-        line2: detectedArea || 'Nagpur',
-        city: 'Nagpur',
-        pincode: pincode || '440001',
-        receiverName: receiverName.trim(),
-        receiverPhone: cleanPhone,
-        location: {
-          type: 'Point',
-          coordinates: coords,
-        },
-      };
+      finalAddress = built.address;
     }
 
     setIsPlacingOrder(true);
@@ -339,7 +295,10 @@ export default function AddressScreen({ navigation }) {
     }
   };
 
-  const hasConfirmedAddress = Boolean(activeSavedAddress || (flatNo && streetArea && coords));
+  const hasConfirmedAddress = Boolean(
+    activeSavedAddress ||
+      (flatNo.trim() && streetArea.trim() && coords && /^\d{6}$/.test(String(pincode).trim()))
+  );
 
   return (
     <View style={styles.root}>
@@ -488,7 +447,7 @@ export default function AddressScreen({ navigation }) {
                       <Text style={styles.savedAddressSub}>{addr.line2}</Text>
                     ) : null}
                     <Text style={styles.savedAddressState}>
-                      Nagpur, Maharashtra · {addr.pincode || '440001'}
+                      Nagpur, Maharashtra{addr.pincode ? ` · ${addr.pincode}` : ''}
                     </Text>
                   </PressableScale>
                 );

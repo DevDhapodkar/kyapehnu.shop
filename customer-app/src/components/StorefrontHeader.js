@@ -15,7 +15,7 @@ import { colors, spacing } from '../theme/colors';
  */
 export default function StorefrontHeader({
   insets,
-  areaLabel = 'Sitabuldi, Nagpur',
+  areaLabel = 'Set delivery address',
   onSelectLocation,
   onOpenProfile,
   onOpenBag,

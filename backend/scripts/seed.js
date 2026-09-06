@@ -8,7 +8,15 @@ dotenv.config();
 
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/kyapehnu';
 
-const SAMPLE_IMAGE = 'https://res.cloudinary.com/kyapehnu/image/upload/v1788015186/kyapehnu/products/sample.webp';
+// Real, reachable product imagery (Cloudinary sample.webp was a 404 placeholder).
+// Swap these for owned Cloudinary uploads once real catalogue photos exist.
+const IMG = {
+  angrakha: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c',
+  coord: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8',
+  tussarKurta: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b',
+  saree: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf',
+  anarkali: 'https://images.unsplash.com/photo-1597983073493-88cd35cf93b0',
+};
 
 async function seed() {
   try {
@@ -130,7 +138,7 @@ async function seed() {
           { size: 'M', stock: 6 },
           { size: 'L', stock: 3 },
         ],
-        images: [SAMPLE_IMAGE],
+        images: [IMG.angrakha],
       },
       {
         vendor: savedVendors[0]._id,
@@ -162,7 +170,7 @@ async function seed() {
           { size: 'S', stock: 5 },
           { size: 'M', stock: 4 },
         ],
-        images: [SAMPLE_IMAGE],
+        images: [IMG.coord],
       },
       {
         vendor: savedVendors[1]._id,
@@ -194,7 +202,7 @@ async function seed() {
           { size: 'L', stock: 7 },
           { size: 'XL', stock: 2 },
         ],
-        images: [SAMPLE_IMAGE],
+        images: [IMG.tussarKurta],
       },
       {
         vendor: savedVendors[1]._id,
@@ -224,7 +232,7 @@ async function seed() {
         sizes: [
           { size: 'FREE', stock: 4 },
         ],
-        images: [SAMPLE_IMAGE],
+        images: [IMG.saree],
       },
       {
         vendor: savedVendors[2]._id,
@@ -245,7 +253,7 @@ async function seed() {
           { size: 'M', stock: 3 },
           { size: 'L', stock: 2 },
         ],
-        images: [SAMPLE_IMAGE],
+        images: [IMG.anarkali],
       },
     ];
 

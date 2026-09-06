@@ -469,7 +469,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
               <View style={styles.specItem}>
                 <MaterialIcons
-                  name="styler"
+                  name="content-cut"
                   size={16}
                   color={colors.accentGold}
                 />

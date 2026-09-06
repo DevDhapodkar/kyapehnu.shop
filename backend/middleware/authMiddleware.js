@@ -2,6 +2,14 @@ import { verifyIdToken, isFirebaseConfigured } from '../config/firebase.js';
 import User from '../models/User.js';
 import Vendor from '../models/Vendor.js';
 
+// Dev-token auth (`Bearer dev-token-<uid>` impersonates any user with no
+// verification) is a hard auth bypass. It is fail-secure: OFF unless the server
+// is explicitly non-production AND opted in via ALLOW_DEV_TOKEN=true. With no
+// env set — as on any production/Render deploy — this path is disabled, so a
+// dev token is rejected and falls through to real Firebase verification.
+const DEV_AUTH_ENABLED =
+  process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_TOKEN === 'true';
+
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -11,7 +19,10 @@ const verifyToken = async (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
-  if (token.startsWith('dev-token-') || (process.env.DEV_AUTH_TOKEN && token === process.env.DEV_AUTH_TOKEN)) {
+  if (
+    DEV_AUTH_ENABLED &&
+    (token.startsWith('dev-token-') || (process.env.DEV_AUTH_TOKEN && token === process.env.DEV_AUTH_TOKEN))
+  ) {
     const uid = token.startsWith('dev-token-') ? token.replace('dev-token-', '') : 'dev-user-123';
     req.firebaseUser = {
       uid,

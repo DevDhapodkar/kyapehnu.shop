@@ -36,6 +36,7 @@ import useDeliveryLocation from '../hooks/useDeliveryLocation';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import { selectCartCount, useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { getDeliveryPillLabel, getUserInitials } from '../utils/deliveryPillLabel';
 import { EASE_OUT, duration } from '../theme/motion';
 import { colors, radii, spacing } from '../theme/colors';
 
@@ -90,7 +91,6 @@ export default function HomeScreen({ navigation }) {
   const guestExplore = useStorefrontStore((state) => state.guestExplore);
   const setGuestExplore = useStorefrontStore((state) => state.setGuestExplore);
 
-  const { areaLabel, status } = useDeliveryLocation();
   const cartCount = useCartStore(selectCartCount);
   const addToCart = useCartStore((state) => state.addToCart);
 
@@ -98,6 +98,19 @@ export default function HomeScreen({ navigation }) {
   // screen is a returning customer's storefront, so the drone shot and the
   // pitch are dropped and the catalogue is shown straight away.
   const isLoggedIn = useAuthStore((state) => Boolean(state.token));
+  const profile = useAuthStore((state) => state.profile);
+  const user = useAuthStore((state) => state.user);
+  // GPS still resolves for proximity sorting inside the hook; the pill never
+  // invents a neighbourhood — only a saved doorstep address counts.
+  useDeliveryLocation();
+  const areaLabel = getDeliveryPillLabel({
+    savedAddresses: profile?.savedAddresses,
+  });
+  const avatarUri = user?.photoURL || null;
+  const initials = getUserInitials({
+    name: profile?.name || user?.displayName,
+    email: profile?.email || user?.email,
+  });
   const showStorefront = isLoggedIn || guestExplore;
 
   // The CTA splits sign-up from sign-in: "Join Now" opens the Auth screen in
@@ -119,7 +132,9 @@ export default function HomeScreen({ navigation }) {
         <Storefront
           insets={insets}
           areaLabel={areaLabel}
-          status={status}
+          avatarUri={avatarUri}
+          initials={initials}
+          isSignedIn={isLoggedIn}
           onSelectLocation={() => navigation.navigate('Address')}
           onOpenProduct={openProduct}
           onOpenProfile={openProfile}
@@ -240,6 +255,9 @@ function MarketingScrollytelling({ insets, onJoin, onLogin, onExploreGuest }) {
 function Storefront({
   insets,
   areaLabel,
+  avatarUri,
+  initials,
+  isSignedIn,
   onSelectLocation,
   onOpenProduct,
   onOpenProfile,
@@ -444,6 +462,9 @@ function Storefront({
         onSelectLocation={onSelectLocation}
         onOpenProfile={onOpenProfile}
         onViewStory={onViewStory}
+        avatarUri={avatarUri}
+        initials={initials}
+        isSignedIn={isSignedIn}
       />
 
       {/* 2. Scrollable Commerce Feed */}

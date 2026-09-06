@@ -29,14 +29,28 @@ export default function StorefrontAmbientSpotlightCard({
 
   const item = product;
 
-  const handleToggleWishlist = () => {
+  // Honest data only: never invent a boutique name, locality, distance or ETA
+  // when the product record does not carry one.
+  const storeName = item.storeName || 'Atelier';
+  const localityLine = [
+    item.locality,
+    typeof item.distanceKm === 'number' ? `${item.distanceKm} km` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  // Nested Pressables (wishlist / bag) already stop the press from reaching the
+  // card's onPress, so tapping them does not open the detail view.
+  const handleToggleWishlist = (e) => {
+    e?.stopPropagation?.();
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
     }
     setIsWishlisted((prev) => !prev);
   };
 
-  const handleBagPress = () => {
+  const handleBagPress = (e) => {
+    e?.stopPropagation?.();
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -59,13 +73,15 @@ export default function StorefrontAmbientSpotlightCard({
             transition={300}
           />
 
-          {/* Top-left Glass Pill */}
-          <View style={styles.deliveryPill}>
-            <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
-            <Text style={styles.deliveryText}>
-              {item.deliveryMinutes || 28} min
-            </Text>
-          </View>
+          {/* Top-left Glass Pill — only when a real ETA exists */}
+          {item.deliveryMinutes ? (
+            <View style={styles.deliveryPill}>
+              <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
+              <Text style={styles.deliveryText}>
+                {item.deliveryMinutes} min
+              </Text>
+            </View>
+          ) : null}
 
           {/* Top-right Glass Wishlist */}
           <Pressable
@@ -89,10 +105,10 @@ export default function StorefrontAmbientSpotlightCard({
 
           {/* Bottom Floating Atelier Tag */}
           <View style={styles.atelierBar}>
-            <Text style={styles.storeNameText}>{item.storeName || 'Studio Anamika'}</Text>
-            <Text style={styles.localityText}>
-              {item.locality || 'Dharampeth'} · {item.distanceKm || 1.4} km
-            </Text>
+            <Text style={styles.storeNameText}>{storeName}</Text>
+            {localityLine ? (
+              <Text style={styles.localityText}>{localityLine}</Text>
+            ) : null}
           </View>
         </View>
 

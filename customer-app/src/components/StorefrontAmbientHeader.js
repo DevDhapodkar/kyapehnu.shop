@@ -2,27 +2,27 @@ import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import { colors, spacing } from '../theme/colors';
-
-const AVATAR_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCGM_0wLpRFGdu-DVvv3o-4_5lm7k5PpD7xHSFrnKrskzGaImQdgqLvQUe1Ty6B5lAWvubis-RxqXtbN_pbAinonRzB3BumMum1Dt63Io-9s6RzuJ82pDObYXpvFtISLR9jJ7Q8NJe97wlWTXFrsN7zdFLQdP4u3d8X6jxTopRhy02YVxRnwC47a9LuMAtmZB0wBfBIWdKY_1CzelhQPv-Y3sj00-AuS4BzQss6mEf4CSvb5V2jXllKzQ';
+import { SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 
 /**
  * StorefrontAmbientHeader
  *
- * Implements Stitch's Floating Capsule Navigation Bar (Ambient Blobs variant):
- * - Floating glass pill capsule suspended below status bar
- * - Frosted blur background refracts glowing ambient orbs behind it
- * - Left: Squircle brand emblem + "Kya Pehnu?" + "ATELIER" crimson subtext
- * - Center: Location pill: near_me Sitabuldi, Nagpur expand_more
- * - Right: Circular user profile avatar with crimson active status dot
+ * Floating glass capsule: brand · delivery pill · profile avatar/initials.
+ * Avatar never uses a hardcoded stock photo — photoURL, initials, or icon.
+ * Location pill defaults to prompting for a delivery address, not a fake locality.
  */
 export default function StorefrontAmbientHeader({
   insets,
-  areaLabel = 'Sitabuldi, Nagpur',
+  areaLabel = SET_ADDRESS_LABEL,
   onSelectLocation,
   onOpenProfile,
   onViewStory,
+  avatarUri = null,
+  initials = '',
+  isSignedIn = false,
 }) {
+  const needsAddress = !areaLabel || areaLabel === SET_ADDRESS_LABEL;
+
   return (
     <View
       style={[
@@ -32,7 +32,6 @@ export default function StorefrontAmbientHeader({
       pointerEvents="box-none"
     >
       <View style={styles.pillBar} pointerEvents="auto">
-        {/* Left: Brand Identity from Stitch */}
         <PressableScale
           onPress={onViewStory}
           style={styles.brandGroup}
@@ -50,33 +49,48 @@ export default function StorefrontAmbientHeader({
           </View>
         </PressableScale>
 
-        {/* Center: Location Pill */}
         <PressableScale
           onPress={onSelectLocation}
-          style={styles.locationBtn}
+          style={[styles.locationBtn, needsAddress && styles.locationBtnPrompt]}
           accessibilityRole="button"
-          accessibilityLabel="Select Location"
+          accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
         >
-          <MaterialIcons name="near-me" size={14} color={colors.accentGold} />
-          <Text style={styles.locationText} numberOfLines={1}>
+          <MaterialIcons
+            name={needsAddress ? 'add-location-alt' : 'near-me'}
+            size={14}
+            color={needsAddress ? colors.accentCrimson : colors.accentGold}
+          />
+          <Text
+            style={[styles.locationText, needsAddress && styles.locationTextPrompt]}
+            numberOfLines={1}
+          >
             {areaLabel}
           </Text>
           <MaterialIcons name="expand-more" size={14} color={colors.textAsh} />
         </PressableScale>
 
-        {/* Right: User Profile Avatar with Active Status Dot */}
         <PressableScale
           onPress={onOpenProfile}
           style={styles.avatarBtn}
           accessibilityRole="button"
           accessibilityLabel="Profile and settings"
         >
-          <Image
-            source={{ uri: AVATAR_URL }}
-            style={styles.avatarImage}
-            resizeMode="cover"
-          />
-          <View style={styles.crimsonStatusDot} />
+          {avatarUri ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              resizeMode="cover"
+            />
+          ) : initials ? (
+            <View style={styles.avatarInitials}>
+              <Text style={styles.avatarInitialsText}>{initials}</Text>
+            </View>
+          ) : (
+            <View style={styles.avatarInitials}>
+              <MaterialIcons name="person" size={18} color={colors.textObsidian} />
+            </View>
+          )}
+          {isSignedIn ? <View style={styles.crimsonStatusDot} /> : null}
         </PressableScale>
       </View>
     </View>
@@ -162,12 +176,20 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     maxWidth: 180,
   },
+  locationBtnPrompt: {
+    backgroundColor: 'rgba(196, 36, 58, 0.08)',
+  },
   locationText: {
     color: colors.textObsidian,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
+  },
+  locationTextPrompt: {
+    color: colors.accentCrimson,
+    textTransform: 'none',
+    letterSpacing: 0.1,
   },
   avatarBtn: {
     position: 'relative',
@@ -182,6 +204,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.80)',
+  },
+  avatarInitials: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.80)',
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitialsText: {
+    color: colors.textObsidian,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   crimsonStatusDot: {
     position: 'absolute',

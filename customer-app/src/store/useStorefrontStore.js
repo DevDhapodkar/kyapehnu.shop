@@ -2,9 +2,12 @@ import { create } from 'zustand';
 
 import { fetchStorefront } from '../api/vendorApi';
 import { mockStores } from '../data/mockStores';
+import { resolveStorefrontLoadResult } from '../utils/storefrontLoad';
 
-const PLACEHOLDER_IMAGE = 'https://picsum.photos/seed/kyapehnu/900/1200';
-
+/**
+ * Curated mock catalogue — for local demos only.
+ * Opt in with EXPO_PUBLIC_USE_MOCK_CATALOGUE=1; never used as a silent prod fallback.
+ */
 export const getCuratedProducts = () => {
   const list = [];
   for (const store of mockStores || []) {
@@ -54,13 +57,13 @@ export const getCuratedProducts = () => {
   return list;
 };
 
-const fallbackList = getCuratedProducts();
+const allowMockCatalogue =
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_USE_MOCK_CATALOGUE === '1';
 
 /**
  * Map a backend product (with its vendor populated) onto the shape every
- * customer screen already consumes (ProductCard, PDP, cart). Keeping the adapter
- * here means the storefront swapped from mock data to the live API without
- * touching those screens.
+ * customer screen already consumes (ProductCard, PDP, cart).
  * @param {any} p
  */
 export const toUiProduct = (p) => {
@@ -77,11 +80,11 @@ export const toUiProduct = (p) => {
       ? p.vendor.distanceKm
       : typeof p.distanceKm === 'number'
       ? p.distanceKm
-      : 1.4;
+      : null;
   const deliveryMinutes =
     p.deliveryMinutes ||
     p.vendor?.etaMinutes ||
-    (typeof distanceKm === 'number' ? Math.round(15 + distanceKm * 7) : 25);
+    (typeof distanceKm === 'number' ? Math.round(15 + distanceKm * 7) : null);
 
   const rawGender =
     p.gender ||
@@ -90,6 +93,8 @@ export const toUiProduct = (p) => {
       : p.category === 'MEN'
       ? 'Men'
       : 'Unisex');
+
+  const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
 
   return {
     id: p._id,
@@ -103,13 +108,12 @@ export const toUiProduct = (p) => {
     currency: 'INR',
     sizes: (p.sizes || []).map((s) => (typeof s === 'object' ? s.size : s)),
     sizesWithStock: p.sizes || [],
-    image: p.images?.[0] || PLACEHOLDER_IMAGE,
-    images: p.images || [],
+    image: images[0] || null,
+    images,
     description: p.description || '',
     colors: rawColors,
     colorway,
-    // Retail attributes for the product detail page.
-    brand: p.brand || p.vendor?.shopName || 'Nagpur Boutique',
+    brand: p.brand || p.vendor?.shopName || 'Local shop',
     material: p.material || '',
     pattern: p.pattern || '',
     fit: p.fit || '',
@@ -123,11 +127,10 @@ export const toUiProduct = (p) => {
     returnPolicy: p.returnPolicy || '7-day return',
     highlights: p.highlights || [],
     sku: p.sku || '',
-    // Vendor denormalised onto the line so the cart can build a per-shop order.
     storeId: p.vendor?._id,
     storeName: p.vendor?.shopName || p.brand || 'Local shop',
-    storeArea: p.vendor?.address?.area || p.vendor?.area || 'Nagpur',
-    locality: p.vendor?.address?.area || p.vendor?.area || 'Nagpur',
+    storeArea: p.vendor?.address?.area || p.vendor?.area || '',
+    locality: p.vendor?.address?.area || p.vendor?.area || '',
     storeCoordinates: Array.isArray(coords)
       ? { latitude: coords[1], longitude: coords[0] }
       : null,
@@ -138,10 +141,10 @@ export const toUiProduct = (p) => {
 };
 
 export const useStorefrontStore = create((set) => ({
-  products: fallbackList,
-  loading: false,
+  products: allowMockCatalogue ? getCuratedProducts() : [],
+  loading: !allowMockCatalogue,
   error: null,
-  loaded: true,
+  loaded: allowMockCatalogue,
   guestExplore: false,
   setGuestExplore: (val) => set({ guestExplore: val }),
 
@@ -149,15 +152,43 @@ export const useStorefrontStore = create((set) => ({
     set({ loading: true, error: null });
     try {
       const { items } = await fetchStorefront({ limit: 50 });
-      if (items && items.length > 0) {
-        set({ products: items.map(toUiProduct), loading: false, loaded: true, error: null });
-      } else {
-        set({ products: fallbackList, loading: false, loaded: true, error: null });
+      const result = resolveStorefrontLoadResult({
+        items: items || [],
+        mapItem: toUiProduct,
+      });
+      if (result.products.length === 0 && allowMockCatalogue) {
+        set({
+          products: getCuratedProducts(),
+          loading: false,
+          loaded: true,
+          error: null,
+        });
+        return;
       }
+      set({
+        products: result.products,
+        loading: false,
+        loaded: true,
+        error: null,
+      });
     } catch (error) {
       console.warn('[useStorefrontStore] Live fetch note:', error.message);
-      // Graceful fallback to curated Nagpur boutique catalog so app never shows an error
-      set({ products: fallbackList, loading: false, loaded: true, error: null });
+      if (allowMockCatalogue) {
+        set({
+          products: getCuratedProducts(),
+          loading: false,
+          loaded: true,
+          error: null,
+        });
+        return;
+      }
+      const result = resolveStorefrontLoadResult({ error });
+      set({
+        products: [],
+        loading: false,
+        loaded: true,
+        error: result.error,
+      });
     }
   },
 }));

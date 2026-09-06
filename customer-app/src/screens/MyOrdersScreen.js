@@ -22,6 +22,7 @@ import { formatCurrency as formatINR } from '../utils/format';
 import { fetchMyOrders, cancelMyOrder } from '../api/vendorApi';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
+import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -39,7 +40,12 @@ import { colors, radii, spacing } from '../theme/colors';
 export default function MyOrdersScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const token = useAuthStore((state) => state.token);
+  const profile = useAuthStore((state) => state.profile);
   const addToCart = useCartStore((state) => state.addToCart);
+  const deliveryPillLabel = getDeliveryPillLabel({
+    savedAddresses: profile?.savedAddresses,
+  });
+  const needsAddress = deliveryPillLabel === SET_ADDRESS_LABEL;
 
   const [selectedTab, setSelectedTab] = useState('active'); // 'active' | 'archive'
   const [orders, setOrders] = useState([]);
@@ -201,10 +207,27 @@ export default function MyOrdersScreen({ navigation }) {
 
           <BrandLogo size="sm" showEmblem={true} />
 
-          <View style={styles.locationPill}>
-            <MaterialIcons name="near-me" size={13} color={colors.accentGold} />
-            <Text style={styles.locationText}>Sitabuldi, Nagpur</Text>
-          </View>
+          <PressableScale
+            onPress={() => navigation.navigate('Address')}
+            style={styles.locationPill}
+            accessibilityRole="button"
+            accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
+          >
+            <MaterialIcons
+              name={needsAddress ? 'add-location-alt' : 'near-me'}
+              size={13}
+              color={needsAddress ? colors.accentCrimson : colors.accentGold}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                needsAddress && { color: colors.accentCrimson, textTransform: 'none' },
+              ]}
+              numberOfLines={1}
+            >
+              {deliveryPillLabel}
+            </Text>
+          </PressableScale>
         </View>
       </View>
 

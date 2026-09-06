@@ -11,13 +11,24 @@ const syncProfile = async (req, res) => {
 
     const formattedAddress =
       address && address.line1
-        ? address
-        : {
-            line1: req.body.line1 || 'West High Court Road',
-            area: req.body.area || 'Dharampeth',
+        ? {
+            ...address,
+            pincode: address.pincode || undefined,
+          }
+        : req.body.line1
+        ? {
+            line1: req.body.line1,
+            area: req.body.area || '',
             city: req.body.city || 'Nagpur',
-            pincode: req.body.pincode || '440001',
-          };
+            pincode: req.body.pincode,
+          }
+        : null;
+
+    if (!formattedAddress?.line1 || !/^\d{6}$/.test(String(formattedAddress.pincode || ''))) {
+      return res.status(400).json({
+        message: 'Boutique address line and a valid 6-digit pincode are required.',
+      });
+    }
 
     const formattedLocation =
       location && Array.isArray(location.coordinates) && location.coordinates.length === 2

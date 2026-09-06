@@ -13,7 +13,10 @@ import SplashScreenView from './src/components/SplashScreenView';
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' && width > 768;
+  // Mobile-first web app: real phones (<=480 CSS px) render edge-to-edge; any
+  // wider viewport (tablet, landscape phone, desktop window) is boxed into a
+  // centred phone frame so the layout never stretches past a handset column.
+  const isDesktop = Platform.OS === 'web' && width > 480;
   const [showSplash, setShowSplash] = useState(true);
 
   // expo-splash-screen's automatic hide does not fire on this setup, so the
@@ -23,6 +26,25 @@ export default function App() {
     SplashScreen.hideAsync().catch((error) => {
       console.warn('[App] could not hide the splash screen:', error);
     });
+  }, []);
+
+  // Mobile-web viewport hardening. Expo's generated <meta viewport> omits
+  // viewport-fit and maximum-scale, so on real phones (a) notch/home-indicator
+  // safe-area insets never populate, and (b) iOS Safari auto-zooms whenever a
+  // form field is focused and stays zoomed. Patching it at runtime survives web
+  // rebuilds and keeps the app feeling native on handsets.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'viewport');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover'
+    );
   }, []);
 
   // Wire the Firebase auth listener once, so a signed-in session rehydrates on

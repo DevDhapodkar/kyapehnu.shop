@@ -3,6 +3,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
 
+// Two tiers that do NOT overlap: the icon row selects the garment *type*
+// (who/what it is), the chip rail refines by *fabric / occasion*. Sharing the
+// same label in both rows made them read as duplicate controls, so each id now
+// appears in exactly one row.
 const QUICK_SWITCH_ITEMS = [
   { id: 'women', label: 'Women', icon: 'woman' },
   { id: 'men', label: 'Men', icon: 'man' },
@@ -13,10 +17,6 @@ const QUICK_SWITCH_ITEMS = [
 
 const FILTER_PILLS = [
   { id: 'all', label: 'All' },
-  { id: 'women', label: 'Women' },
-  { id: 'men', label: 'Men' },
-  { id: 'tops', label: 'Tops' },
-  { id: 'shirts', label: 'Shirts' },
   { id: 'silks', label: 'Silks' },
   { id: 'festive', label: 'Festive' },
   { id: 'linen', label: 'Linen' },
