@@ -4,6 +4,7 @@ import {
   PRODUCT_SOURCE,
   requiresRequalification,
 } from '../utils/productStatus.js';
+import { buildUniqueSku } from '../utils/sku.js';
 
 // Fields the client may never set directly — the server owns the moderation state.
 const PROTECTED_FIELDS = ['status', 'source', 'sku', 'qc', 'vendor', '_id'];
@@ -30,11 +31,12 @@ const createProduct = async (req, res) => {
       body.category = String(body.category).trim().toUpperCase();
     }
 
-    // Auto-generate unique SKU if not assigned
-    if (!body.sku) {
-      const catCode = (body.category || 'PRD').slice(0, 2).toUpperCase();
-      body.sku = `${catCode}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
-    }
+    // Auto-generate a catalog-unique SKU (sku is stripped by stripProtected, so
+    // this always runs). buildUniqueSku checks the collection so we never trip
+    // the unique index on a same-millisecond double-create.
+    body.sku = await buildUniqueSku(body.category, (sku) =>
+      Product.exists({ sku }).then(Boolean)
+    );
 
     // Default MRP if omitted: standard 25% markup
     if (!body.mrp && body.price) {

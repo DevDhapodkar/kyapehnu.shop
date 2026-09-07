@@ -4,7 +4,7 @@ import Vendor from '../models/Vendor.js';
 import Order from '../models/Order.js';
 import { verifyPassword, hashPassword, signAdminToken } from '../utils/adminAuth.js';
 import { PRODUCT_STATUS, statusForReview } from '../utils/productStatus.js';
-import { generateSku } from '../utils/sku.js';
+import { buildUniqueSku } from '../utils/sku.js';
 
 /** GET /api/admin/needs-setup -> { needsSetup } (true when no admin exists yet). */
 export const getSetupStatus = async (req, res) => {
@@ -121,7 +121,9 @@ export const reviewProduct = async (req, res) => {
     // Assign a human SKU on first approval only.
     if (nextStatus === PRODUCT_STATUS.APPROVED) {
       if (!product.sku) {
-        product.sku = generateSku(product.category);
+        product.sku = await buildUniqueSku(product.category, (sku) =>
+          Product.exists({ sku }).then(Boolean)
+        );
       }
       // Official printed MRP decided by admin on approval
       if (mrp !== undefined && Number(mrp) > 0) {

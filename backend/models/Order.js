@@ -82,6 +82,11 @@ const orderSchema = new mongoose.Schema(
 
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ vendor: 1, createdAt: -1 });
+// Vendor dashboard filters orders by status ($in) newest-first; keep the plain
+// vendor+createdAt above for the unfiltered "all orders" view.
+orderSchema.index({ vendor: 1, status: 1, createdAt: -1 });
+// Admin order console filters by status newest-first.
+orderSchema.index({ status: 1, createdAt: -1 });
 
 export const ORDER_STATUSES = STATUS_VALUES;
 export default mongoose.model('Order', orderSchema);

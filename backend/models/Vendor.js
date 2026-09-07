@@ -49,5 +49,7 @@ const vendorSchema = new mongoose.Schema(
 );
 
 vendorSchema.index({ location: '2dsphere' });
+// Admin moderation queue lists vendors by approval status, newest-first.
+vendorSchema.index({ approvalStatus: 1, createdAt: -1 });
 
 export default mongoose.model('Vendor', vendorSchema);

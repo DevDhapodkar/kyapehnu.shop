@@ -82,8 +82,15 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-productSchema.index({ vendor: 1 });
-// Storefront reads filter on status + availability; index the hot path.
-productSchema.index({ status: 1, isAvailable: 1 });
+// Vendor catalog feed (listMyProducts) filters by vendor and sorts by
+// updatedAt; the vendor prefix also serves vendor-scoped ownership lookups.
+productSchema.index({ vendor: 1, updatedAt: -1 });
+// Public storefront is the hottest read: it filters status + availability,
+// optionally by category, and sorts by updatedAt. This compound covers the
+// full filter-and-sort so the query never touches a document off-index.
+productSchema.index({ status: 1, isAvailable: 1, category: 1, updatedAt: -1 });
+// SKUs are printed to shopkeepers and must be unique; sparse so the many
+// pre-approval products that have no SKU yet do not collide on null.
+productSchema.index({ sku: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Product', productSchema);
