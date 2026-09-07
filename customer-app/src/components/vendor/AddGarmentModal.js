@@ -414,28 +414,23 @@ export default function AddGarmentModal({
   };
 
   const handlePublish = async () => {
-    console.log('[handlePublish called]', { name, price, colorsCount: selectedColors?.length, sizesCount: selectedSizes?.length });
     if (!name.trim()) {
-      console.warn('[handlePublish validation failed] name is empty');
       Alert.alert('Product Name Required', 'Please enter a name for this garment or outfit.');
       return;
     }
     const cleanPriceStr = String(price).replace(/[^0-9]/g, '');
     const parsedPrice = parseInt(cleanPriceStr, 10);
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      console.warn('[handlePublish validation failed] price is invalid:', price);
       Alert.alert('Price Required', 'Please enter a valid selling price in ₹ INR.');
       return;
     }
 
     if (selectedColors.length === 0) {
-      console.warn('[handlePublish validation failed] no colors selected');
       Alert.alert('Color Required', 'Please select at least one available color.');
       return;
     }
 
     if (selectedSizes.length === 0) {
-      console.warn('[handlePublish validation failed] no sizes selected');
       Alert.alert('Size Required', 'Please select at least one available size.');
       return;
     }
@@ -472,17 +467,14 @@ export default function AddGarmentModal({
       isAvailable: true,
     };
 
-    console.log('[handlePublish executing onSubmit] payload:', payload);
     setLoading(true);
     try {
       await onSubmit(payload);
-      console.log('[handlePublish onSubmit SUCCESS]');
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       onClose();
     } catch (err) {
-      console.error('[handlePublish onSubmit ERROR]:', err);
       Alert.alert('Publish Failed', err.message || 'Could not add product to catalog.');
     } finally {
       setLoading(false);

@@ -402,14 +402,14 @@ export default function AuthScreen({ navigation, route }) {
                   disabled={busy}
                   style={styles.primaryActionButton}
                   accessibilityRole="button"
-                  accessibilityLabel={isRegister ? 'Create Atelier Account' : 'Continue to Nagpur Ateliers'}
+                  accessibilityLabel={isRegister ? 'Create Account' : 'Continue to Nagpur Ateliers'}
                 >
                   {busy ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
                       <Text style={styles.primaryActionText}>
-                        {isRegister ? 'Create Atelier Account' : 'Continue to Nagpur Ateliers'}
+                        {isRegister ? 'Create Account' : 'Continue to Nagpur Ateliers'}
                       </Text>
                       <MaterialIcons name="arrow-forward" size={17} color="#FFFFFF" />
                     </>
