@@ -89,8 +89,9 @@ productSchema.index({ vendor: 1, updatedAt: -1 });
 // optionally by category, and sorts by updatedAt. This compound covers the
 // full filter-and-sort so the query never touches a document off-index.
 productSchema.index({ status: 1, isAvailable: 1, category: 1, updatedAt: -1 });
-// SKUs are printed to shopkeepers and must be unique; sparse so the many
-// pre-approval products that have no SKU yet do not collide on null.
+// SKUs are printed to shopkeepers and must be unique. App products get one at
+// create time; seeded/imported products can reach the catalog without one, so
+// the index is sparse to let those SKU-less docs coexist without colliding on null.
 productSchema.index({ sku: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Product', productSchema);

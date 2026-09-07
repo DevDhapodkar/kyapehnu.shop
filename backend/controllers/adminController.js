@@ -118,7 +118,8 @@ export const reviewProduct = async (req, res) => {
 
     product.status = nextStatus;
     product.qc = { reviewedBy: req.admin._id, reviewedAt: new Date(), reason: reason || undefined };
-    // Assign a human SKU on first approval only.
+    // App products already carry a SKU from create; this only backfills a
+    // product that reached approval without one (e.g. a seeded/imported item).
     if (nextStatus === PRODUCT_STATUS.APPROVED) {
       if (!product.sku) {
         product.sku = await buildUniqueSku(product.category, (sku) =>
