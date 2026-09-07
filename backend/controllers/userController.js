@@ -12,15 +12,11 @@ const syncProfile = async (req, res) => {
     const phoneDigits = cleanPhone.replace(/\D/g, '');
     const hasValidPhone = phoneDigits.length >= 10 && phoneDigits.slice(-10) !== '9999999999';
 
-    let user = await User.findOne({
-      $or: [
-        { firebaseUid: req.firebaseUser.uid },
-        ...(userEmail ? [{ email: userEmail }] : []),
-      ],
-    });
+    // Identity is the authenticated Firebase uid only. Matching by email (and
+    // reassigning firebaseUid on match) let one account adopt another's profile.
+    let user = await User.findOne({ firebaseUid: req.firebaseUser.uid });
 
     if (user) {
-      user.firebaseUid = req.firebaseUser.uid;
       if (userName) user.name = userName;
       if (userEmail) user.email = userEmail;
       if (hasValidPhone) user.phone = cleanPhone;

@@ -38,15 +38,13 @@ const syncProfile = async (req, res) => {
             coordinates: [79.0882, 21.1458],
           };
 
-    let vendor = await Vendor.findOne({
-      $or: [
-        { firebaseUid: req.firebaseUser.uid },
-        ...(userEmail ? [{ email: userEmail.toLowerCase() }] : []),
-      ],
-    });
+    // Identity is the authenticated Firebase account only. Never match by email
+    // (a client-supplied body field, or the synthetic "<shop>@kyapehnu.local"
+    // fallback above) — doing so let one account's sync match, then adopt and
+    // reassign another user's vendor record (cross-tenant account takeover).
+    let vendor = await Vendor.findOne({ firebaseUid: req.firebaseUser.uid });
 
     if (vendor) {
-      vendor.firebaseUid = req.firebaseUser.uid;
       if (shopName) vendor.shopName = shopName;
       if (ownerName) vendor.ownerName = ownerName;
       if (phone) vendor.phone = phone;

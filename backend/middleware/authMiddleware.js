@@ -50,18 +50,10 @@ const verifyToken = async (req, res, next) => {
 
 const requireUser = async (req, res, next) => {
   try {
-    const email = req.firebaseUser.email?.toLowerCase();
-    const user = await User.findOne({
-      $or: [
-        { firebaseUid: req.firebaseUser.uid },
-        ...(email ? [{ email }] : []),
-      ],
-    });
+    // Scope strictly to the authenticated uid — see requireVendor: the email
+    // fallback plus firebaseUid reassignment was a cross-account takeover path.
+    const user = await User.findOne({ firebaseUid: req.firebaseUser.uid });
     if (!user) return res.status(404).json({ message: 'User profile not found' });
-    if (user.firebaseUid !== req.firebaseUser.uid) {
-      user.firebaseUid = req.firebaseUser.uid;
-      await user.save();
-    }
     req.user = user;
     next();
   } catch (error) {
@@ -71,18 +63,10 @@ const requireUser = async (req, res, next) => {
 
 const requireVendor = async (req, res, next) => {
   try {
-    const email = req.firebaseUser.email?.toLowerCase();
-    const vendor = await Vendor.findOne({
-      $or: [
-        { firebaseUid: req.firebaseUser.uid },
-        ...(email ? [{ email }] : []),
-      ],
-    });
+    // Scope strictly to the authenticated uid. Matching by email and then
+    // reassigning firebaseUid let one account adopt another's vendor record.
+    const vendor = await Vendor.findOne({ firebaseUid: req.firebaseUser.uid });
     if (!vendor) return res.status(404).json({ message: 'Vendor profile not found' });
-    if (vendor.firebaseUid !== req.firebaseUser.uid) {
-      vendor.firebaseUid = req.firebaseUser.uid;
-      await vendor.save();
-    }
     req.vendor = vendor;
     next();
   } catch (error) {
