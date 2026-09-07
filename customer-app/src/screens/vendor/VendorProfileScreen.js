@@ -20,11 +20,11 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useVendorStore } from '../../store/useVendorStore';
 
 /**
- * VendorProfileScreen — Dedicated Dukan & Shopkeeper Settings Screen
- * Built specifically for Nagpur shopkeeper uncles (50-60 yrs old):
- * - Large, high-contrast readable information
+ * VendorProfileScreen — Dedicated Store & Boutique Settings Screen
+ * Built specifically for Nagpur boutique partners:
+ * - High-contrast readable information
  * - Shop details (Name, Owner, Phone, WhatsApp, Address)
- * - Live dukan status indicator
+ * - Live store status indicator
  * - 1-tap Nagpur Partner helpline call & WhatsApp support
  * - Clean sign out action
  * - Zero consumer shopping access
@@ -37,7 +37,7 @@ export default function VendorProfileScreen({ navigation }) {
   const resetVendorState = useVendorStore((state) => state.reset);
 
   const shopName = vendorProfile?.shopName || 'Nagpur Boutique';
-  const ownerName = vendorProfile?.ownerName || 'Dukan Malik';
+  const ownerName = vendorProfile?.ownerName || 'Store Owner';
   const phone = vendorProfile?.phone || '+91 712 254 9900';
   const whatsapp = vendorProfile?.whatsappNumber || phone;
   const area = vendorProfile?.address?.area || 'Sitabuldi';
@@ -54,35 +54,35 @@ export default function VendorProfileScreen({ navigation }) {
     };
 
     if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm('Kya aap dukan portal se sign out karna chahte hain?')) {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to sign out of the vendor portal?')) {
         await doSignOut();
       }
       return;
     }
 
     Alert.alert(
-      'Dukan Se Logout',
-      'Kya aap dukan portal se sign out karna chahte hain?',
+      'Sign Out of Store',
+      'Are you sure you want to sign out of the vendor portal?',
       [
-        { text: 'Nahi (Cancel)', style: 'cancel' },
-        { text: 'Haan, Logout Karein', style: 'destructive', onPress: doSignOut },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: doSignOut },
       ]
     );
   };
 
   const handleCallSupport = () => {
     Linking.openURL('tel:+917122549900').catch(() => {
-      Alert.alert('Nagpur Support Helpline', 'Call karein: +91 712 254 9900 (10 AM - 9 PM)');
+      Alert.alert('Nagpur Partner Helpline', 'Call us at: +91 712 254 9900 (10 AM - 9 PM)');
     });
   };
 
   const handleWhatsAppSupport = () => {
     Linking.openURL(
-      `https://wa.me/917122549900?text=Namaste%20Kya%20Pehnu%20Support,%20main%20${encodeURIComponent(
+      `https://wa.me/917122549900?text=Hello%20Kya%20Pehnu%20Support,%20I%20am%20contacting%20from%20${encodeURIComponent(
         shopName
-      )}%20se%20baat%20kar%20raha%20hoon.`
+      )}.`
     ).catch(() => {
-      Alert.alert('WhatsApp Helpline', 'WhatsApp par helpline uplabdh hai: +91 712 254 9900');
+      Alert.alert('WhatsApp Helpline', 'WhatsApp partner assistance: +91 712 254 9900');
     });
   };
 
@@ -96,7 +96,7 @@ export default function VendorProfileScreen({ navigation }) {
       {/* 2. Top Header Bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
         <View style={styles.topBarInner}>
-          <Text style={styles.topBarTitle}>👤 Dukan Profile & Settings</Text>
+          <Text style={styles.topBarTitle}>👤 Store Profile & Settings</Text>
           <View style={styles.topBarBadge}>
             <Text style={styles.topBarBadgeText}>VENDOR MODE</Text>
           </View>
@@ -121,14 +121,14 @@ export default function VendorProfileScreen({ navigation }) {
             <View style={styles.statusPill}>
               <View style={[styles.statusDot, isApproved && styles.statusDotLive]} />
               <Text style={styles.statusPillText}>
-                {isApproved ? '✓ DUKAAN LIVE HAI' : '⏳ ADMIN VERIFICATION IN PROGRESS'}
+                {isApproved ? '✓ STORE IS LIVE' : '⏳ ADMIN VERIFICATION IN PROGRESS'}
               </Text>
             </View>
             <Text style={styles.cityTag}>Nagpur</Text>
           </View>
 
           <Text style={styles.shopNameText}>{shopName}</Text>
-          <Text style={styles.ownerNameText}>Malik: {ownerName}</Text>
+          <Text style={styles.ownerNameText}>Proprietor: {ownerName}</Text>
 
           <View style={styles.divider} />
 
@@ -153,7 +153,7 @@ export default function VendorProfileScreen({ navigation }) {
 
           <View style={styles.infoRow}>
             <MaterialIcons name="store" size={20} color={colors.textSlate} />
-            <Text style={styles.infoLabel}>Pata (Address):</Text>
+            <Text style={styles.infoLabel}>Address:</Text>
             <Text style={styles.infoValue}>{addressLine}</Text>
           </View>
         </View>
@@ -162,7 +162,7 @@ export default function VendorProfileScreen({ navigation }) {
         <View style={styles.supportCard}>
           <Text style={styles.sectionHeaderTitle}>Nagpur Partner Helpline</Text>
           <Text style={styles.sectionHeaderDesc}>
-            Koi bhi dikkat ho toh seedha Kya Pehnu Nagpur team se baat karein:
+            Have questions or need assistance? Reach out directly to the Kya Pehnu Partner Desk:
           </Text>
 
           <PressableScale
@@ -175,8 +175,8 @@ export default function VendorProfileScreen({ navigation }) {
               <MaterialIcons name="call" size={22} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={styles.supportBtnTitle}>Phone Par Baat Karein</Text>
-              <Text style={styles.supportBtnSubtitle}>+91 712 254 9900 (Subah 10 baje - Raat 9 baje)</Text>
+              <Text style={styles.supportBtnTitle}>Call Partner Support</Text>
+              <Text style={styles.supportBtnSubtitle}>+91 712 254 9900 (10:00 AM - 9:00 PM)</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.textAsh} />
           </PressableScale>
@@ -191,8 +191,8 @@ export default function VendorProfileScreen({ navigation }) {
               <MaterialIcons name="chat" size={22} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={styles.supportBtnTitle}>WhatsApp Par Msg Karein</Text>
-              <Text style={styles.supportBtnSubtitle}>Turant reply payein</Text>
+              <Text style={styles.supportBtnTitle}>Message on WhatsApp</Text>
+              <Text style={styles.supportBtnSubtitle}>Instant partner assistance</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.textAsh} />
           </PressableScale>
@@ -203,10 +203,10 @@ export default function VendorProfileScreen({ navigation }) {
           onPress={handleSignOut}
           style={styles.signOutCard}
           accessibilityRole="button"
-          accessibilityLabel="Dukan se logout karein"
+          accessibilityLabel="Sign out of store"
         >
           <MaterialIcons name="logout" size={22} color={colors.accentCrimson} />
-          <Text style={styles.signOutText}>DUKAAN SE LOGOUT KAREIN (SIGN OUT)</Text>
+          <Text style={styles.signOutText}>SIGN OUT OF STORE ACCOUNT</Text>
         </PressableScale>
 
         <View style={styles.footerWrap}>

@@ -28,10 +28,10 @@ import {
 } from '../../store/useVendorStore';
 
 /**
- * VendorOrderListScreen — Grahak Orders Queue
- * Tailored for 50-60 year old Indian shopkeeper uncles:
+ * VendorOrderListScreen — Customer Orders Queue
+ * Tailored for Nagpur Boutique Shopkeepers:
  * - High contrast & large touch targets
- * - Hero "+ NAYA KAPDA JODEIN" button right at the top
+ * - Hero "+ ADD NEW GARMENT" button right at the top
  * - Instant status filter tabs (All, New, Accepted, Packed, Ready, In Transit, Delivered)
  * - Clear order cards with large prices & simple process buttons
  * - Integrated VendorBottomNav
@@ -62,13 +62,13 @@ export default function VendorOrderListScreen({ navigation }) {
   const displayOrders = orders;
 
   const filterTabs = [
-    { id: 'ALL', label: 'Sabhi (All)', count: allOrders.length },
-    { id: 'PENDING', label: 'Naye (New)', count: counts.PENDING || 0 },
+    { id: 'ALL', label: 'All Orders', count: allOrders.length },
+    { id: 'PENDING', label: 'New', count: counts.PENDING || 0 },
     { id: 'ACCEPTED', label: 'Accepted', count: counts.ACCEPTED || 0 },
     { id: 'PACKED', label: 'Packed', count: counts.PACKED || 0 },
     { id: 'READY_FOR_PICKUP', label: 'Ready', count: counts.READY_FOR_PICKUP || 0 },
-    { id: 'IN_TRANSIT', label: 'Rider Ke Paas', count: counts.IN_TRANSIT || 0 },
-    { id: 'DELIVERED', label: 'Pahunch Gaye', count: counts.DELIVERED || 0 },
+    { id: 'IN_TRANSIT', label: 'In Transit', count: counts.IN_TRANSIT || 0 },
+    { id: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED || 0 },
   ];
 
   const handleFilterChange = (filterId) => {
@@ -105,7 +105,7 @@ export default function VendorOrderListScreen({ navigation }) {
               onPress={() => navigation.navigate('VendorProfile')}
               style={styles.profileIconBtn}
               accessibilityRole="button"
-              accessibilityLabel="Dukan Profile"
+              accessibilityLabel="Store Profile"
             >
               <MaterialIcons name="storefront" size={20} color={colors.textObsidian} />
             </PressableScale>
@@ -134,20 +134,20 @@ export default function VendorOrderListScreen({ navigation }) {
         }
         ListHeaderComponent={
           <View style={styles.queueHeader}>
-            {/* Senior-Friendly Quick Action: + NAYA KAPDA JODEIN */}
+            {/* Quick Action: + ADD NEW GARMENT */}
             <PressableScale
               onPress={() => navigation.navigate('CatalogManager', { openAddModal: true })}
               style={styles.addPieceHeroCard}
               accessibilityRole="button"
-              accessibilityLabel="Naya Kapda Jodein"
+              accessibilityLabel="Add New Garment"
             >
               <View style={styles.addPieceHeroIconWrap}>
                 <MaterialIcons name="add-a-photo" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.addPieceHeroTextCol}>
-                <Text style={styles.addPieceHeroTitle}>+ NAYA KAPDA / SAREE JODEIN</Text>
+                <Text style={styles.addPieceHeroTitle}>+ ADD NEW GARMENT</Text>
                 <Text style={styles.addPieceHeroSubtitle}>
-                  Dukan ka naya piece ya saree catalog mein jodein
+                  Add a new piece or garment to your boutique catalog
                 </Text>
               </View>
               <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
@@ -162,7 +162,7 @@ export default function VendorOrderListScreen({ navigation }) {
               <View style={styles.tickerDivider} />
               <View style={styles.tickerItem}>
                 <MaterialIcons name="schedule" size={18} color={colors.accentCrimson} />
-                <Text style={styles.tickerValue}>{counts.PENDING || 0} Naye Orders</Text>
+                <Text style={styles.tickerValue}>{counts.PENDING || 0} New Orders</Text>
               </View>
               <View style={styles.tickerDivider} />
               <View style={styles.tickerItem}>
@@ -219,7 +219,7 @@ export default function VendorOrderListScreen({ navigation }) {
             </ScrollView>
 
             <View style={styles.queueTitleRow}>
-              <Text style={styles.queueTitle}>Grahak Orders List</Text>
+              <Text style={styles.queueTitle}>Customer Orders List</Text>
               <Text style={styles.queueCount}>
                 {displayOrders.length} Orders
               </Text>
@@ -235,12 +235,12 @@ export default function VendorOrderListScreen({ navigation }) {
             <View style={styles.emptyCard}>
               <MaterialIcons name="inventory" size={50} color={colors.accentGold} />
               <Text style={styles.emptyTitle}>
-                Abhi Koi Naya Order Nahi Hai
+                No Orders Yet
               </Text>
               <Text style={styles.emptySubtitle}>
                 {statusFilter === 'ALL'
-                  ? 'Nagpur ke grahak jaise hi aapki dukan se order karenge, yahan turant dikhayi dega.'
-                  : `"${statusFilter}" status mein abhi koi order nahi hai.`}
+                  ? 'Customer orders from Nagpur will appear here in real time.'
+                  : `No orders currently in "${statusFilter}" status.`}
               </Text>
             </View>
           )
@@ -303,7 +303,7 @@ export default function VendorOrderListScreen({ navigation }) {
                 </View>
 
                 <View style={styles.viewOrderBtn}>
-                  <Text style={styles.viewOrderText}>Order Kholein (Process)</Text>
+                  <Text style={styles.viewOrderText}>View & Process Order</Text>
                   <MaterialIcons name="arrow-forward" size={16} color={colors.accentCrimson} />
                 </View>
               </View>

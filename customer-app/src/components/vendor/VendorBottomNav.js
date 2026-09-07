@@ -8,13 +8,13 @@ import { colors } from '../../theme/colors';
 import { useVendorStore } from '../../store/useVendorStore';
 
 /**
- * Senior-Friendly Unified Bottom Navigation for Nagpur Boutique Shopkeepers (50-60 yr old uncles)
+ * Senior-Friendly Unified Bottom Navigation for Nagpur Boutique Shopkeepers
  * - Large touch targets (58px minimum)
- * - High-contrast icons & large bilingual text
+ * - High-contrast icons & clean English text
  * - Immediate tab switching between:
- *   1. 📦 Grahak Orders (with live order count)
- *   2. 👗 Mera Stock (with catalog piece count)
- *   3. 👤 Dukan Profile (shop info & logout)
+ *   1. 📦 Customer Orders (with live order count)
+ *   2. 👗 Inventory (with catalog piece count)
+ *   3. 👤 Store Profile (shop info & logout)
  */
 export default function VendorBottomNav({
   activeTab = 'orders', // 'orders' | 'stock' | 'profile'
@@ -38,12 +38,12 @@ export default function VendorBottomNav({
 
   return (
     <View style={[styles.bottomBarContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {/* Tab 1: Grahak Orders */}
+      {/* Tab 1: Customer Orders */}
       <PressableScale
         onPress={() => handleTabPress('VendorOrders')}
         style={[styles.navTab, activeTab === 'orders' && styles.navTabActive]}
         accessibilityRole="tab"
-        accessibilityLabel="Grahak Orders"
+        accessibilityLabel="Orders"
       >
         <View style={styles.iconWrap}>
           <MaterialIcons
@@ -58,16 +58,16 @@ export default function VendorBottomNav({
           )}
         </View>
         <Text style={[styles.tabLabel, activeTab === 'orders' && styles.tabLabelActive]}>
-          📦 Grahak Orders
+          📦 Orders
         </Text>
       </PressableScale>
 
-      {/* Tab 2: Mera Stock / Inventory */}
+      {/* Tab 2: Inventory */}
       <PressableScale
         onPress={() => handleTabPress('CatalogManager')}
         style={[styles.navTab, activeTab === 'stock' && styles.navTabActive]}
         accessibilityRole="tab"
-        accessibilityLabel="Mera Stock"
+        accessibilityLabel="Inventory"
       >
         <View style={styles.iconWrap}>
           <MaterialIcons
@@ -82,16 +82,16 @@ export default function VendorBottomNav({
           )}
         </View>
         <Text style={[styles.tabLabel, activeTab === 'stock' && styles.tabLabelActive]}>
-          👗 Mera Stock
+          👗 Inventory
         </Text>
       </PressableScale>
 
-      {/* Tab 3: Dukan Profile */}
+      {/* Tab 3: Store Profile */}
       <PressableScale
         onPress={() => handleTabPress('VendorProfile')}
         style={[styles.navTab, activeTab === 'profile' && styles.navTabActive]}
         accessibilityRole="tab"
-        accessibilityLabel="Dukan Profile"
+        accessibilityLabel="Store Profile"
       >
         <View style={styles.iconWrap}>
           <MaterialIcons
@@ -101,7 +101,7 @@ export default function VendorBottomNav({
           />
         </View>
         <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>
-          👤 Dukan Profile
+          👤 Store Profile
         </Text>
       </PressableScale>
     </View>

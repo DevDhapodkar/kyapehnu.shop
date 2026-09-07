@@ -66,15 +66,15 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
 
   const advanceLabel =
     currentStatus === 'PENDING'
-      ? '✓ Sweekar Karein (Accept)'
+      ? '✓ Accept Order'
       : currentStatus === 'ACCEPTED'
-      ? '📦 Pack Ho Gaya (Mark Packed)'
+      ? '📦 Mark Order Packed'
       : currentStatus === 'PACKED'
-      ? '🛵 Porter Bulayein (Dispatch)'
+      ? '🛵 Dispatch Porter'
       : currentStatus === 'READY_FOR_PICKUP'
-      ? '🤝 Rider Ko Diya (Handover)'
+      ? '🤝 Handover to Delivery Partner'
       : currentStatus === 'IN_TRANSIT'
-      ? '✓ Delivered (Mil Gaya)'
+      ? '✓ Mark Delivered'
       : currentStatus === 'DELIVERED'
       ? '✓ Order Complete'
       : 'Order Cancelled';
@@ -124,27 +124,27 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
       if (currentStatus === 'PENDING') {
         const updated = await acceptOrder(order._id);
         if (updated) setFetched(updated);
-        Alert.alert('Order Sweekar Ho Gaya', 'Order accept ho gaya hai. Kripya kapde pack karein.');
+        Alert.alert('Order Accepted', 'Order has been accepted. Please prepare and pack the garment.');
       } else if (currentStatus === 'ACCEPTED') {
         const updated = await advanceStatus(order._id, 'PACKED');
         if (updated) setFetched(updated);
-        Alert.alert('Kapda Pack Ho Gaya', 'Kapda pack ho gaya hai. Ab Porter rider bulane ke liye yahan dabayein.');
+        Alert.alert('Order Packed', 'Order is packed. Tap to dispatch a Porter delivery partner.');
       } else if (currentStatus === 'PACKED') {
         const res = await markOrderReady(order._id);
         if (res?.order) setFetched(res.order);
-        Alert.alert('Porter Rider Bulaya Gaya', 'Porter rider aapki dukan par parcel lene ke liye nikal chuka hai.');
+        Alert.alert('Porter Dispatched', 'A Porter delivery partner is en route to pick up the parcel from your boutique.');
       } else if (currentStatus === 'READY_FOR_PICKUP') {
         const updated = await advanceStatus(order._id, 'IN_TRANSIT');
         if (updated) setFetched(updated);
-        Alert.alert('Rider Ko Diya Gaya', 'Order doorstep trial ke liye nikal chuka hai.');
+        Alert.alert('Order Handed Over', 'Parcel is now in transit for customer doorstep trial.');
       } else if (currentStatus === 'IN_TRANSIT') {
         const updated = await advanceStatus(order._id, 'DELIVERED');
         if (updated) setFetched(updated);
-        Alert.alert('Order Complete', 'Order grahak tak pahunch gaya hai.');
+        Alert.alert('Order Complete', 'Garment delivered to customer successfully.');
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('Action Failed', err.message || 'Order update nahi ho saka.');
+      Alert.alert('Action Failed', err.message || 'Could not update order status.');
     }
   };
 
@@ -464,7 +464,7 @@ export default function VendorOrderDetailScreen({ route, navigation }) {
               accessibilityRole="button"
               accessibilityLabel="Decline Order"
             >
-              <Text style={{ color: '#D32F2F', fontWeight: '800', fontSize: 13 }}>✕ Cancel Karein</Text>
+              <Text style={{ color: '#D32F2F', fontWeight: '800', fontSize: 13 }}>✕ Cancel Order</Text>
             </PressableScale>
           )}
 

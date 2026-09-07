@@ -29,11 +29,11 @@ import { useAuthStore } from '../../store/useAuthStore';
 
 /**
  * CatalogManagerScreen — Senior-Friendly Stock & Inventory Management
- * Designed specifically for 50-60 year old Indian shopkeeper uncles:
+ * Designed specifically for Nagpur Boutique Shopkeepers:
  * - High contrast, large fonts & touch targets (50px+)
- * - Unmistakable "+ NAYA KAPDA JODEIN" Hero button & Floating Action Button
- * - Prominent "DUKAAN MEIN HAI" / "STOCK KHATAM" one-touch toggle button
- * - Clean bilingual wording
+ * - Unmistakable "+ ADD NEW GARMENT" Hero button & Floating Action Button
+ * - Prominent "IN STOCK" / "OUT OF STOCK" one-touch toggle button
+ * - Clean English wording
  * - Seamless Cloudinary-backed Add Garment modal
  */
 export default function CatalogManagerScreen({ navigation, route }) {
@@ -54,7 +54,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
   }, [loadCatalog]);
 
   const categories = [
-    { id: 'ALL', label: 'Sabhi (All)' },
+    { id: 'ALL', label: 'All Items' },
     { id: 'WOMEN', label: 'Women' },
     { id: 'MEN', label: 'Men' },
     { id: 'KIDS', label: 'Kids' },
@@ -68,7 +68,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
     try {
       await toggleAvailability(itemId, !currentAvailability);
     } catch (err) {
-      Alert.alert('Stock Update Failed', err.message || 'Stock update nahi ho saka.');
+      Alert.alert('Stock Update Failed', err.message || 'Could not update stock status.');
     }
   };
 
@@ -112,7 +112,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
             onPress={() => navigation.goBack()}
             style={styles.backBtn}
             accessibilityRole="button"
-            accessibilityLabel="Peeche jayein"
+            accessibilityLabel="Go back"
           >
             <MaterialIcons name="arrow-back-ios-new" size={18} color={colors.textObsidian} />
           </PressableScale>
@@ -121,7 +121,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
             <Text style={styles.shopName} numberOfLines={1}>
               {vendorProfile?.shopName || 'Nagpur Boutique'}
             </Text>
-            <Text style={styles.screenSubtitle}>👗 Mera Stock & Inventory</Text>
+            <Text style={styles.screenSubtitle}>👗 Boutique Inventory</Text>
           </View>
 
           <PressableScale
@@ -180,16 +180,16 @@ export default function CatalogManagerScreen({ navigation, route }) {
             <View style={styles.tickerRow}>
               <View style={styles.tickerBadge}>
                 <MaterialIcons name="checkroom" size={18} color={colors.accentCrimson} />
-                <Text style={styles.tickerText}>Total: {products.length} Piece</Text>
+                <Text style={styles.tickerText}>Total: {products.length} Items</Text>
               </View>
               <View style={[styles.tickerBadge, { borderColor: '#15803D', backgroundColor: '#F0FDF4' }]}>
                 <MaterialIcons name="check-circle" size={18} color="#15803D" />
-                <Text style={[styles.tickerText, { color: '#15803D' }]}>{inStockCount} Dukan Mein Hai</Text>
+                <Text style={[styles.tickerText, { color: '#15803D' }]}>{inStockCount} In Stock</Text>
               </View>
               {outOfStockCount > 0 && (
                 <View style={[styles.tickerBadge, { borderColor: '#B91C1C', backgroundColor: '#FEF2F2' }]}>
                   <MaterialIcons name="pause-circle-filled" size={18} color="#B91C1C" />
-                  <Text style={[styles.tickerText, { color: '#B91C1C' }]}>{outOfStockCount} Khatam</Text>
+                  <Text style={[styles.tickerText, { color: '#B91C1C' }]}>{outOfStockCount} Out of Stock</Text>
                 </View>
               )}
             </View>
@@ -200,7 +200,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Kapda, saree ya fabric dhoondhein..."
+                placeholder="Search garments, dresses, tops, denim..."
                 placeholderTextColor={colors.textAsh}
                 style={styles.searchInput}
               />
@@ -242,9 +242,9 @@ export default function CatalogManagerScreen({ navigation, route }) {
             </ScrollView>
 
             <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Dukan Ka Stock</Text>
+              <Text style={styles.sectionTitle}>Boutique Inventory</Text>
               <Text style={styles.sectionCountText}>
-                {filteredItems.length} Piece Dikha Rahe Hain
+                Showing {filteredItems.length} items
               </Text>
             </View>
           </View>
@@ -257,18 +257,18 @@ export default function CatalogManagerScreen({ navigation, route }) {
           ) : (
             <View style={styles.emptyCard}>
               <MaterialIcons name="checkroom" size={54} color={colors.accentGold} />
-              <Text style={styles.emptyTitle}>Koi Kapda Nahi Mila</Text>
+              <Text style={styles.emptyTitle}>No Garments Found</Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery || selectedCategory !== 'ALL'
-                  ? 'Search ya filter badal kar dekhein.'
-                  : 'Upar diye gaye "+ NAYA KAPDA JODEIN" button se apni dukan ke kapde jodein.'}
+                  ? 'Try adjusting your search or category filter.'
+                  : 'Tap "+ ADD NEW GARMENT" above to list your boutique collection.'}
               </Text>
               <PressableScale
                 onPress={() => setModalVisible(true)}
                 style={styles.emptyAddBtn}
               >
                 <MaterialIcons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.emptyAddBtnText}>+ Pehla Kapda Jodein</Text>
+                <Text style={styles.emptyAddBtnText}>+ Add First Garment</Text>
               </PressableScale>
             </View>
           )
@@ -303,7 +303,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
 
                   <View style={styles.priceRow}>
                     <Text style={styles.sellingPriceText}>{formatINR(item.price)}</Text>
-                    <Text style={styles.stockBadgeText}>· {totalUnits} Piece</Text>
+                    <Text style={styles.stockBadgeText}>· {totalUnits} Units</Text>
                   </View>
 
                   {item.material || item.subCategory ? (
@@ -346,7 +346,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
                 </View>
               </View>
 
-              {/* One-Touch Big Stock Toggle Banner (Designed for Uncles) */}
+              {/* One-Touch Big Stock Toggle Banner */}
               <PressableScale
                 onPress={() => handleToggleItemStock(item._id, isAvailable)}
                 style={[
@@ -354,7 +354,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
                   isAvailable ? styles.stockBannerAvailable : styles.stockBannerOutOfStock,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Stock badlein"
+                accessibilityLabel="Toggle stock availability"
               >
                 <MaterialIcons
                   name={isAvailable ? 'check-circle' : 'pause-circle-filled'}
@@ -368,12 +368,12 @@ export default function CatalogManagerScreen({ navigation, route }) {
                       isAvailable ? styles.stockTitleAvailable : styles.stockTitleOutOfStock,
                     ]}
                   >
-                    {isAvailable ? '✓ DUKAAN MEIN HAI (In Stock)' : '✕ STOCK KHATAM (Out of Stock)'}
+                    {isAvailable ? '✓ IN STOCK (Available)' : '✕ OUT OF STOCK'}
                   </Text>
                   <Text style={styles.stockBannerSub}>
                     {isAvailable
-                      ? 'Grahak ise order kar sakte hain. Tap karein band karne ke liye.'
-                      : 'Grahak ise nahi dekh sakte. Dukan mein aane par tap karein.'}
+                      ? 'Available for customer orders. Tap to mark out of stock.'
+                      : 'Unavailable for ordering. Tap to mark in stock.'}
                   </Text>
                 </View>
               </PressableScale>
@@ -382,7 +382,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
         }}
       />
 
-      {/* Floating Action Button (+ Naya Kapda) */}
+      {/* Floating Action Button (+ Add Garment) */}
       <PressableScale
         onPress={() => setModalVisible(true)}
         style={[styles.floatingAddBtn, { bottom: insets.bottom + 70 }]}
