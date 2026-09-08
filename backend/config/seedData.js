@@ -60,6 +60,31 @@ const upsertVendor = (data) =>
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
+/**
+ * Resolve the vendor a seed step should populate.
+ *
+ * The dev seed vendor squats on the owner's real email. Once a real account
+ * registers under that email it gets its own Firebase UID, so upserting by the
+ * seed's synthetic firebaseUid misses and then tries to INSERT — colliding on
+ * the unique email index (the E11000 seen on every boot). When an existing
+ * vendor already holds this email under a different UID, reuse it (only forcing
+ * approved + active so the demo catalogue can surface) rather than duplicating
+ * it or rewriting the real account's identity. Otherwise upsert by UID as before.
+ */
+export const resolveSeedVendor = async (data) => {
+  const existing = await Vendor.findOne({
+    $or: [{ firebaseUid: data.firebaseUid }, { email: data.email }],
+  });
+  if (existing && existing.firebaseUid !== data.firebaseUid) {
+    return Vendor.findByIdAndUpdate(
+      existing._id,
+      { $set: { approvalStatus: 'APPROVED', isActive: true } },
+      { returnDocument: 'after' }
+    );
+  }
+  return upsertVendor(data);
+};
+
 /** Upsert a seed product by its stable sku; always APPROVED + available. */
 const upsertProduct = (vendorId, sku, data) =>
   Product.findOneAndUpdate(
@@ -193,7 +218,7 @@ const step = async (label, fn) => {
 
 export const ensureBootstrapData = async () => {
   await step('dev vendor', async () => {
-    const vendor = await upsertVendor(DEV_VENDOR);
+    const vendor = await resolveSeedVendor(DEV_VENDOR);
 
     // A customer User for the dev account (never overwrite a real user's data).
     await User.findOneAndUpdate(
@@ -225,7 +250,7 @@ export const ensureBootstrapData = async () => {
   });
 
   await step('sample boutique', async () => {
-    const boutique = await upsertVendor(ANAMIKA_VENDOR);
+    const boutique = await resolveSeedVendor(ANAMIKA_VENDOR);
     const { sku, ...rest } = ANAMIKA_PRODUCT;
     await upsertProduct(boutique._id, sku, rest);
   });
