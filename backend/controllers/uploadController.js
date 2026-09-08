@@ -127,8 +127,14 @@ export const deleteProductImage = async (req, res) => {
 
   if (publicId.startsWith('local/')) {
     try {
-      const filename = publicId.replace('local/', '');
+      // Path-traversal containment: strip any directory component so a crafted
+      // publicId (e.g. "local/../../server.js") can never resolve outside the
+      // uploads directory and unlink an arbitrary server file.
+      const filename = path.basename(publicId.slice('local/'.length));
       const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
+      if (!filePath.startsWith(LOCAL_UPLOADS_DIR + path.sep)) {
+        return res.status(400).json({ message: 'Invalid publicId' });
+      }
       if (fs.existsSync(filePath)) {
         await fs.promises.unlink(filePath);
       }

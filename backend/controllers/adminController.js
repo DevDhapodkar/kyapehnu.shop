@@ -206,13 +206,16 @@ export const createProductAsAdmin = async (req, res) => {
     if (!body.vendor || !body.name || !(Number(body.price) > 0) || !body.category) {
       return res.status(400).json({ message: 'vendor, name, price and category are required' });
     }
+    const sku = await buildUniqueSku(body.category, (candidate) =>
+      Product.exists({ sku: candidate }).then(Boolean)
+    );
     const product = await Product.create({
       ...body,
       price: Number(body.price),
       mrp: body.mrp ? Number(body.mrp) : undefined,
       source: 'ADMIN',
       status: PRODUCT_STATUS.APPROVED,
-      sku: generateSku(body.category),
+      sku,
       qc: { reviewedBy: req.admin._id, reviewedAt: new Date() },
     });
     res.status(201).json(product);

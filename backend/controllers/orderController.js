@@ -240,6 +240,24 @@ const getOrderById = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
+    // Object-level authorization. This route only runs verifyToken (any signed-in
+    // Firebase account), so without this check any authenticated user could fetch
+    // any order by id and harvest the buyer's name, phone and delivery address.
+    // Only the buyer who placed it or the shop that owns it may read an order;
+    // guest web orders (no customer) are read via trackGuestOrder instead.
+    const uid = req.firebaseUser?.uid;
+    const [requestingUser, requestingVendor] = await Promise.all([
+      User.findOne({ firebaseUid: uid }).select('_id'),
+      Vendor.findOne({ firebaseUid: uid }).select('_id'),
+    ]);
+    const customerId = order.customer?._id || order.customer;
+    const vendorId = order.vendor?._id || order.vendor;
+    const ownsAsCustomer = requestingUser && customerId && requestingUser._id.equals(customerId);
+    const ownsAsVendor = requestingVendor && vendorId && requestingVendor._id.equals(vendorId);
+    if (!ownsAsCustomer && !ownsAsVendor) {
+      return res.status(403).json({ message: 'This order belongs to another account' });
+    }
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch order', error: error.message });
