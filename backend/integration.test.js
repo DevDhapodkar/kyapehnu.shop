@@ -268,4 +268,89 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
     assert.ok(statuses.includes('IN_TRANSIT'));
     assert.ok(statuses.includes('DELIVERED'));
   });
+
+  // Helper: create a product for this seeded vendor via the authed API.
+  const createProductForVendor = async (name) => {
+    const res = await fetch(`${baseUrl}/api/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer dev-token-${vendorUid}`,
+      },
+      body: JSON.stringify({
+        name,
+        category: 'WOMEN',
+        price: 1999,
+        sizes: [{ size: 'M', stock: 3 }],
+        colors: [{ name: 'Obsidian Black', hex: '#121215' }],
+        images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'],
+      }),
+    });
+    assert.equal(res.status, 201);
+    return res.json();
+  };
+
+  await t.test('11. Vendor deletes an order-free listing', async () => {
+    const throwaway = await createProductForVendor('Throwaway Draft Kurti');
+
+    const del = await fetch(`${baseUrl}/api/products/${throwaway._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer dev-token-${vendorUid}` },
+    });
+    assert.equal(del.status, 200);
+
+    const gone = await fetch(`${baseUrl}/api/products/${throwaway._id}`);
+    assert.equal(gone.status, 404, 'deleted product must no longer be fetchable');
+  });
+
+  await t.test('12. Deletion is refused for a product with order history', async () => {
+    const sellable = await createProductForVendor('Ordered Silk Dupatta');
+
+    const orderRes = await fetch(`${baseUrl}/api/orders/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendor: vendorId,
+        items: [
+          {
+            productId: sellable._id,
+            name: sellable.name,
+            price: sellable.price,
+            size: 'M',
+            quantity: 1,
+          },
+        ],
+        totalPrice: sellable.price,
+        deliveryAddress: {
+          line1: 'Flat 301, Palm Court',
+          area: 'Civil Lines',
+          city: 'Nagpur',
+          pincode: '440001',
+          receiverName: 'Devyani Joshi',
+          receiverPhone: customerPhone,
+        },
+        contact: { name: 'Devyani Joshi', phone: customerPhone },
+        paymentMethod: 'COD',
+      }),
+    });
+    assert.equal(orderRes.status, 201);
+
+    const del = await fetch(`${baseUrl}/api/products/${sellable._id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer dev-token-${vendorUid}` },
+    });
+    assert.equal(del.status, 409, 'a product referenced by an order must not be deletable');
+
+    const still = await fetch(`${baseUrl}/api/products/${sellable._id}`);
+    assert.equal(still.status, 200, 'the referenced product must survive the refused delete');
+  });
+
+  await t.test('13. Deleting an unknown/other product id is rejected', async () => {
+    const strangerId = new mongoose.Types.ObjectId().toString();
+    const del = await fetch(`${baseUrl}/api/products/${strangerId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer dev-token-${vendorUid}` },
+    });
+    assert.equal(del.status, 404);
+  });
 });

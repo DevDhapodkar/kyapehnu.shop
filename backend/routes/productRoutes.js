@@ -7,6 +7,7 @@ import {
   listMyProducts,
   getProduct,
   updateProduct,
+  deleteProduct,
 } from '../controllers/productController.js';
 
 const router = express.Router();
@@ -22,5 +23,6 @@ router.get('/mine', verifyToken, requireVendor, listMyProducts);
 router.get('/vendor/:vendorId', listByVendor);
 router.get('/:id', getProduct);
 router.patch('/:id', verifyToken, requireVendor, updateProduct);
+router.delete('/:id', verifyToken, requireVendor, deleteProduct);
 
 export default router;

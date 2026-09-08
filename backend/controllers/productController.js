@@ -1,4 +1,5 @@
 import Product from '../models/Product.js';
+import Order from '../models/Order.js';
 import {
   PRODUCT_STATUS,
   PRODUCT_SOURCE,
@@ -171,4 +172,39 @@ const updateProduct = async (req, res) => {
   }
 };
 
-export { createProduct, listStorefront, listByVendor, listMyProducts, getProduct, updateProduct };
+/**
+ * DELETE /api/products/:id (vendor). Hard-deletes a vendor's own listing, but
+ * refuses when any order references it — order line items keep a name/price
+ * snapshot, yet removing a referenced product still leaves a dangling
+ * `items.product` ref in order history. Vendors who want to stop selling a
+ * listing that has order history should mark it unavailable instead.
+ */
+const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findOne({ _id: req.params.id, vendor: req.vendor._id });
+    if (!product) return res.status(404).json({ message: 'Product not found for this vendor' });
+
+    const referenced = await Order.exists({ 'items.product': product._id });
+    if (referenced) {
+      return res.status(409).json({
+        message:
+          'This product appears in past orders and cannot be deleted. Mark it unavailable instead.',
+      });
+    }
+
+    await product.deleteOne();
+    res.json({ message: 'Product deleted', id: product._id });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete product', error: error.message });
+  }
+};
+
+export {
+  createProduct,
+  listStorefront,
+  listByVendor,
+  listMyProducts,
+  getProduct,
+  updateProduct,
+  deleteProduct,
+};
