@@ -267,6 +267,7 @@ export default function MyOrdersScreen({ navigation }) {
         <View style={styles.tabsRow}>
           <PressableScale
             onPress={() => setSelectedTab('active')}
+            wrapperStyle={{ flex: 1 }}
             style={[styles.tab, selectedTab === 'active' && styles.tabActive]}
           >
             <Text
@@ -281,6 +282,7 @@ export default function MyOrdersScreen({ navigation }) {
 
           <PressableScale
             onPress={() => setSelectedTab('archive')}
+            wrapperStyle={{ flex: 1 }}
             style={[styles.tab, selectedTab === 'archive' && styles.tabActive]}
           >
             <Text
@@ -406,10 +408,11 @@ export default function MyOrdersScreen({ navigation }) {
                   </View>
 
                   {/* Actions Row */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  <View style={styles.actionsRow}>
                     <PressableScale
                       onPress={() => handleTrackLive(ord)}
-                      style={[styles.trackLiveBtn, { flex: 1, marginTop: 0 }]}
+                      wrapperStyle={{ flex: 1 }}
+                      style={styles.trackLiveBtn}
                       accessibilityRole="button"
                       accessibilityLabel="Track Live"
                     >
@@ -421,20 +424,14 @@ export default function MyOrdersScreen({ navigation }) {
                       <PressableScale
                         onPress={() => handleCancelOrder(ord._id || ord.id)}
                         disabled={actionLoadingId === (ord._id || ord.id)}
-                        style={{
-                          paddingHorizontal: 16,
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          borderRadius: radii.md,
-                          backgroundColor: 'rgba(211, 47, 47, 0.08)',
-                          borderWidth: 1,
-                          borderColor: 'rgba(211, 47, 47, 0.25)',
-                        }}
+                        style={styles.cancelBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel Order"
                       >
                         {actionLoadingId === (ord._id || ord.id) ? (
                           <ActivityIndicator size="small" color="#D32F2F" />
                         ) : (
-                          <Text style={{ color: '#D32F2F', fontWeight: '700', fontSize: 13 }}>
+                          <Text style={styles.cancelBtnText}>
                             Cancel
                           </Text>
                         )}
@@ -829,6 +826,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 12,
+  },
   trackLiveBtn: {
     backgroundColor: colors.accentCrimson,
     borderRadius: radii.md,
@@ -837,7 +840,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 4,
     shadowColor: colors.accentCrimson,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -849,6 +851,21 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '700',
     letterSpacing: 0.6,
+  },
+  cancelBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(211, 47, 47, 0.25)',
+  },
+  cancelBtnText: {
+    color: '#D32F2F',
+    fontWeight: '700',
+    fontSize: 13,
   },
   archiveSection: {
     gap: spacing.sm,

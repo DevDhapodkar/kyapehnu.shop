@@ -39,17 +39,28 @@ export function getDeliveryPillLabel({ savedAddresses } = {}) {
  * @returns {string} up to 2 initials, uppercase
  */
 export function getUserInitials(person = {}) {
-  const name = (person.name || person.displayName || '').trim();
+  // Strip parentheticals / brackets like (Test), [Dev], etc. so "Riya Sharma (Test)" yields "RS"
+  const cleanName = (person.name || person.displayName || '')
+    .replace(/\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .trim();
+  const name = cleanName || (person.name || person.displayName || '').trim();
   if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
+    const parts = name.match(/[\p{L}\p{N}]+/gu) || [];
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
     }
-    return parts[0].slice(0, 2).toUpperCase();
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
   }
   const email = (person.email || '').trim();
-  if (email) return email[0].toUpperCase();
+  if (email) {
+    const match = email.match(/[\p{L}\p{N}]/u);
+    return match ? match[0].toUpperCase() : '';
+  }
   return '';
 }
+
 
 export { SET_ADDRESS_LABEL };

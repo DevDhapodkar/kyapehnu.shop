@@ -273,7 +273,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
           styles.scrollContent,
           {
             paddingTop: insets.top + 68,
-            paddingBottom: insets.bottom + 100,
+            paddingBottom: insets.bottom + 140,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -318,8 +318,8 @@ export default function LiveTrackingScreen({ route, navigation }) {
                   color={colors.accentCrimson}
                 />
               </View>
-              <Text style={styles.nodeTitle} numberOfLines={1}>{dropAddress}</Text>
-              <Text style={styles.nodeSub} numberOfLines={1}>{dropArea}</Text>
+              <Text style={styles.nodeTitle} numberOfLines={2}>{dropAddress}</Text>
+              <Text style={styles.nodeSub} numberOfLines={2}>{dropArea}</Text>
             </View>
           </View>
 
@@ -516,6 +516,9 @@ export default function LiveTrackingScreen({ route, navigation }) {
             </Text>
           </View>
         ))}
+
+        {/* Bottom padding spacer so bottom floating bar never covers content */}
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* 4. Sticky Bottom Action Bar */}
@@ -671,7 +674,8 @@ const styles = StyleSheet.create({
   },
   routeNode: {
     alignItems: 'center',
-    width: 90,
+    flex: 1,
+    maxWidth: 130,
   },
   atelierPin: {
     width: 34,

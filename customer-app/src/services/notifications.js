@@ -22,6 +22,7 @@ Notifications.setNotificationHandler({
  */
 export const registerForPush = async () => {
   try {
+    if (Platform.OS === 'web') return null;
     if (!Device.isDevice) return null;
 
     const existing = await Notifications.getPermissionsAsync();

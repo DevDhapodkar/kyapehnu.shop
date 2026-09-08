@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
+import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 
 export const PRODUCT_CARD_WIDTH = 210;
@@ -20,6 +21,7 @@ export const PRODUCT_CARD_WIDTH = 210;
  */
 export default function ProductCard({ product, onPress, onQuickAdd }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const handleToggleWishlist = (e) => {
     e?.stopPropagation?.();
@@ -54,10 +56,23 @@ export default function ProductCard({ product, onPress, onQuickAdd }) {
       {/* Media Box */}
       <View style={styles.imageWrap}>
         <Image
-          source={{ uri: product.image }}
+          source={
+            typeof product.image === 'number'
+              ? product.image
+              : {
+                  uri: resolveProductImageUri(
+                    imageFailed
+                      ? null
+                      : typeof product.image === 'string'
+                      ? product.image
+                      : product.image?.uri
+                  ),
+                }
+          }
           style={styles.image}
           contentFit="cover"
           transition={250}
+          onError={() => setImageFailed(true)}
         />
 
         {/* Top-left Glass Schedule Pill */}

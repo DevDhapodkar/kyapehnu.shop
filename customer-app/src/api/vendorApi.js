@@ -272,7 +272,7 @@ export const uploadProductImages = async (assets) => {
 
 /** GET /api/vendors/me — the shop profile behind the current token. */
 export const fetchVendorProfile = () =>
-  request(() => client.get('/vendors/me'), 'Failed to load shop profile', { retries: 2 });
+  request(() => client.get('/vendors/me'), 'Failed to load shop profile', { retries: 0 });
 
 /* ---------------------------------------------------------------- orders -- */
 

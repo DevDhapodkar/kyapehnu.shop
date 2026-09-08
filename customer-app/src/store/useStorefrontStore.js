@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { fetchStorefront } from '../api/vendorApi';
 import { mockStores } from '../data/mockStores';
 import { resolveStorefrontLoadResult } from '../utils/storefrontLoad';
+import { resolveProductImageUri, FALLBACK_PRODUCT_IMAGE } from '../utils/productImage';
 
 /**
  * Curated mock catalogue — for local demos only.
@@ -94,7 +95,15 @@ export const toUiProduct = (p) => {
       ? 'Men'
       : 'Unisex');
 
-  const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
+  const rawImages = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
+  let images = rawImages.map(resolveProductImageUri);
+  if (images.length === 0 && p.image) {
+    images = [resolveProductImageUri(p.image)];
+  }
+  if (images.length === 0) {
+    images = [FALLBACK_PRODUCT_IMAGE];
+  }
+  const mainImage = images[0] || FALLBACK_PRODUCT_IMAGE;
 
   return {
     id: p._id,
@@ -108,7 +117,7 @@ export const toUiProduct = (p) => {
     currency: 'INR',
     sizes: (p.sizes || []).map((s) => (typeof s === 'object' ? s.size : s)),
     sizesWithStock: p.sizes || [],
-    image: images[0] || null,
+    image: mainImage,
     images,
     description: p.description || '',
     colors: rawColors,

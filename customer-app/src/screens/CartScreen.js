@@ -23,6 +23,7 @@ import {
 } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
+import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -138,7 +139,7 @@ export default function CartScreen({ navigation }) {
           styles.scrollContent,
           {
             paddingTop: insets.top + 68,
-            paddingBottom: insets.bottom + 110,
+            paddingBottom: insets.bottom + 140,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -188,9 +189,15 @@ export default function CartScreen({ navigation }) {
                   <View style={styles.thumbWrap}>
                     <Image
                       source={
-                        typeof item.image === 'string'
-                          ? { uri: item.image }
-                          : item.image
+                        typeof item.image === 'number'
+                          ? item.image
+                          : {
+                              uri: resolveProductImageUri(
+                                typeof item.image === 'string'
+                                  ? item.image
+                                  : item.image?.uri
+                              ),
+                            }
                       }
                       style={styles.thumbImage}
                       contentFit="cover"
@@ -356,6 +363,9 @@ export default function CartScreen({ navigation }) {
                 </View>
               </View>
             </View>
+
+            {/* Bottom spacer so docked bar never overlaps price breakdown */}
+            <View style={{ height: 40 }} />
           </>
         )}
       </ScrollView>

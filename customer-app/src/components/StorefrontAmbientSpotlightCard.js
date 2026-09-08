@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
+import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -24,6 +25,7 @@ export default function StorefrontAmbientSpotlightCard({
   onBagNow,
 }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   if (!product) return null;
 
@@ -67,10 +69,23 @@ export default function StorefrontAmbientSpotlightCard({
         {/* Media Container (4:5 Aspect Ratio) */}
         <View style={styles.imageContainer}>
           <Image
-            source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+            source={
+              typeof item.image === 'number'
+                ? item.image
+                : {
+                    uri: resolveProductImageUri(
+                      imageFailed
+                        ? null
+                        : typeof item.image === 'string'
+                        ? item.image
+                        : item.image?.uri
+                    ),
+                  }
+            }
             style={styles.image}
             contentFit="cover"
             transition={300}
+            onError={() => setImageFailed(true)}
           />
 
           {/* Top-left Glass Pill — only when a real ETA exists */}

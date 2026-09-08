@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { PRESS_TRANSITION, PRESS_SCALE } from '../theme/motion';
@@ -59,6 +59,15 @@ export default function PressableScale({
     onPressOut?.(event);
   };
 
+  // If style contains layout/flex props, forward them to the outer Pressable
+  // so flexbox parent containers (like tabsRow or button rows) don't collapse it.
+  const flattened = StyleSheet.flatten(style) || {};
+  const wrapperLayout = {};
+  if (flattened.flex !== undefined) wrapperLayout.flex = flattened.flex;
+  if (flattened.flexGrow !== undefined) wrapperLayout.flexGrow = flattened.flexGrow;
+  if (flattened.flexShrink !== undefined) wrapperLayout.flexShrink = flattened.flexShrink;
+  if (flattened.alignSelf !== undefined) wrapperLayout.alignSelf = flattened.alignSelf;
+
   return (
     <Pressable
       onPress={onPress}
@@ -72,7 +81,7 @@ export default function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled, ...accessibilityState }}
       accessibilityHint={accessibilityHint}
-      style={wrapperStyle}
+      style={[wrapperLayout, wrapperStyle]}
     >
       <Animated.View
         style={[
@@ -86,3 +95,4 @@ export default function PressableScale({
     </Pressable>
   );
 }
+

@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import PressableScale from './PressableScale';
 import { fetchNearbyVendors } from '../api/vendorApi';
+import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -28,21 +29,39 @@ export default function StorefrontAmbientBoutiquesList({
           setVendors([]);
           return;
         }
+        // Filter out test / scratch boutiques
+        const curatedVendors = data.filter((v) => {
+          const name = (v?.shopName || '').toLowerCase();
+          return (
+            !name.includes('test') &&
+            !name.includes('delete me') &&
+            !name.includes('claude')
+          );
+        });
+
+        if (curatedVendors.length === 0) {
+          setVendors([]);
+          return;
+        }
+
         setVendors(
-          data.map((v, idx) => ({
-            id: v._id || `v-${idx}`,
-            name: v.shopName,
-            locality: v.address?.area || v.area || '',
-            distanceKm:
-              typeof v.distanceKm === 'number'
-                ? Number(v.distanceKm).toFixed(1)
-                : null,
-            dispatchTime:
-              typeof v.etaMinutes === 'number'
-                ? `${v.etaMinutes}m dispatch`
-                : null,
-            image: v.images?.[0] || v.image || null,
-          }))
+          curatedVendors.map((v, idx) => {
+            const rawImg = v.images?.[0] || v.image || null;
+            return {
+              id: v._id || `v-${idx}`,
+              name: v.shopName,
+              locality: v.address?.area || v.area || '',
+              distanceKm:
+                typeof v.distanceKm === 'number'
+                  ? Number(v.distanceKm).toFixed(1)
+                  : null,
+              dispatchTime:
+                typeof v.etaMinutes === 'number'
+                  ? `${v.etaMinutes}m dispatch`
+                  : null,
+              image: rawImg ? resolveProductImageUri(rawImg) : null,
+            };
+          })
         );
       })
       .catch((err) => {

@@ -36,6 +36,9 @@ test('prompts to set address when none saved — never invents Sitabuldi', () =>
 
 test('getUserInitials from name or email', () => {
   assert.equal(getUserInitials({ name: 'Dev Dhapodkar' }), 'DD');
+  assert.equal(getUserInitials({ name: 'Riya Sharma (Test)' }), 'RS');
+  assert.equal(getUserInitials({ name: 'Riya' }), 'RI');
   assert.equal(getUserInitials({ email: 'dev@example.com' }), 'D');
   assert.equal(getUserInitials({}), '');
 });
+

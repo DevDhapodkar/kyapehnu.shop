@@ -30,6 +30,7 @@ import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
 import { normalizeColor } from '../constants/colorPalette';
 import { formatCurrency as formatINR } from '../utils/format';
+import { resolveProductImageUri } from '../utils/productImage';
 import { useCartStore } from '../store/useCartStore';
 import { colors, radii, spacing } from '../theme/colors';
 
@@ -133,6 +134,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [selectedColor, setSelectedColor] = useState(
     normalizedColors[0] || { name: 'Standard', hex: '#121215' }
   );
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
 
   const discountPercent =
     item.mrp && item.price && item.mrp > item.price
@@ -263,11 +265,22 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Animated.View style={[styles.heroImageWrap, heroImageStyle]}>
             <Image
               source={
-                typeof item.image === 'string' ? { uri: item.image } : item.image
+                typeof item.image === 'number'
+                  ? item.image
+                  : {
+                      uri: resolveProductImageUri(
+                        heroImageFailed
+                          ? null
+                          : typeof item.image === 'string'
+                          ? item.image
+                          : item.image?.uri
+                      ),
+                    }
               }
               style={styles.heroImage}
               contentFit="cover"
               transition={300}
+              onError={() => setHeroImageFailed(true)}
             />
           </Animated.View>
 
@@ -585,9 +598,10 @@ export default function ProductDetailScreen({ route, navigation }) {
               <View style={styles.atelierThumbWrap}>
                 <Image
                   source={{
-                    uri:
+                    uri: resolveProductImageUri(
                       item.storeImage ||
-                      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&q=80',
+                      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&q=80'
+                    ),
                   }}
                   style={styles.atelierThumb}
                   contentFit="cover"
@@ -629,22 +643,31 @@ export default function ProductDetailScreen({ route, navigation }) {
           </View>
 
           {/* Spacing for sticky bottom bar */}
-          <View style={{ height: insets.bottom + 90 }} />
+          <View style={{ height: Math.max(insets.bottom, 24) + 120 }} />
         </View>
       </Animated.ScrollView>
 
-      {/* 4. Added to Bag Toast */}
+      {/* 4. Added to Bag Toast with direct View Bag action */}
       {addedToast ? (
-        <View style={styles.toastWrap} pointerEvents="none">
+        <View style={styles.toastWrap} pointerEvents="box-none">
           <View style={styles.toastInner}>
             <MaterialIcons
               name="check-circle"
               size={17}
               color={colors.accentGold}
             />
-            <Text style={styles.toastText}>
-              Added to Bag ({selectedColor.name} · {selectedSize})
+            <Text style={styles.toastText} numberOfLines={1}>
+              Added ({selectedColor.name} · {selectedSize})
             </Text>
+            <PressableScale
+              onPress={() => navigation.navigate('Cart')}
+              style={styles.toastBtn}
+              accessibilityRole="button"
+              accessibilityLabel="View Bag"
+            >
+              <Text style={styles.toastBtnText}>VIEW BAG</Text>
+              <MaterialIcons name="arrow-forward" size={11} color="#FFFFFF" />
+            </PressableScale>
           </View>
         </View>
       ) : null}
@@ -1216,6 +1239,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11.5,
     fontWeight: '600',
+  },
+  toastBtn: {
+    backgroundColor: colors.accentCrimson,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 6,
+  },
+  toastBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   bottomBarWrap: {
     position: 'absolute',

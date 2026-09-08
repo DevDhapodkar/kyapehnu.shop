@@ -111,8 +111,11 @@ export default function AddressScreen({ navigation }) {
   const handleConfirmMapLocation = (locationData) => {
     setCoords(locationData.coordinates);
     setDetectedArea(locationData.formattedAddress || locationData.areaName || '');
-    if (locationData.pincode && /^\d{6}$/.test(String(locationData.pincode).trim())) {
-      setPincode(String(locationData.pincode).trim());
+    // Do NOT overwrite if customer has already entered a valid 6-digit pincode
+    if (!pincode || !/^\d{6}$/.test(String(pincode).trim())) {
+      if (locationData.pincode && /^\d{6}$/.test(String(locationData.pincode).trim())) {
+        setPincode(String(locationData.pincode).trim());
+      }
     }
     if (!streetArea && locationData.road) {
       setStreetArea(`${locationData.road}, ${locationData.areaName || ''}`.trim());
@@ -229,6 +232,11 @@ export default function AddressScreen({ navigation }) {
       }
       finalAddress = built.address;
     } else {
+      const resolvedCoords =
+        Array.isArray(coords) && coords.length >= 2
+          ? coords
+          : [NAGPUR_CENTER.longitude, NAGPUR_CENTER.latitude];
+
       const built = buildCheckoutAddressFromForm({
         flatNo,
         streetArea,
@@ -236,7 +244,7 @@ export default function AddressScreen({ navigation }) {
         pincode,
         receiverName,
         phone,
-        coords,
+        coords: resolvedCoords,
         addressType,
       });
       if (!built.ok) {
@@ -297,7 +305,7 @@ export default function AddressScreen({ navigation }) {
 
   const hasConfirmedAddress = Boolean(
     activeSavedAddress ||
-      (flatNo.trim() && streetArea.trim() && coords && /^\d{6}$/.test(String(pincode).trim()))
+      (flatNo.trim() && streetArea.trim() && /^\d{6}$/.test(String(pincode).trim()))
   );
 
   return (

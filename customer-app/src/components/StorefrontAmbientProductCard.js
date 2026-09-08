@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
+import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 
 export const AMBIENT_CARD_WIDTH = 200;
@@ -27,6 +28,7 @@ export default function StorefrontAmbientProductCard({
   onQuickAdd,
 }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   // Nested Pressables (wishlist / quick-add) already stop the press from
   // reaching the card's onPress, so tapping them does not open the detail view.
@@ -70,13 +72,22 @@ export default function StorefrontAmbientProductCard({
       <View style={styles.imageWrap}>
         <Image
           source={
-            typeof product.image === 'string'
-              ? { uri: product.image }
-              : product.image
+            typeof product.image === 'number'
+              ? product.image
+              : {
+                  uri: resolveProductImageUri(
+                    imageFailed
+                      ? null
+                      : typeof product.image === 'string'
+                      ? product.image
+                      : product.image?.uri
+                  ),
+                }
           }
           style={styles.image}
           contentFit="cover"
           transition={250}
+          onError={() => setImageFailed(true)}
         />
 
         {/* Top-left Glass Schedule Pill */}
