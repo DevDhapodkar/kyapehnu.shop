@@ -247,7 +247,7 @@ export default function ColorWheelPicker({ onAddColor }) {
       >
         <MaterialIcons name="add" size={20} color="#FFFFFF" />
         <Text style={styles.addWheelColorBtnText}>
-          Add "{colorName || 'Custom Shade'}" to Garment
+          {`Add "${colorName || 'Custom Shade'}" to Garment`}
         </Text>
       </PressableScale>
     </View>

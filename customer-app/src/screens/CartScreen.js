@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import {
   Alert,
@@ -14,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import BrandLogo from '../components/BrandLogo';
+import OutOfDeliveryZoneModal from '../components/OutOfDeliveryZoneModal';
 import PressableScale from '../components/PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import {
@@ -24,6 +26,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { resolveProductImageUri } from '../utils/productImage';
+import { validateNagpurDeliveryBounds } from '../utils/checkoutAddress';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
@@ -47,6 +50,13 @@ export default function CartScreen({ navigation }) {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const profile = useAuthStore((state) => state.profile);
+  const activeSavedAddress = profile?.savedAddresses?.[0] || null;
+  const addressServiceability = activeSavedAddress
+    ? validateNagpurDeliveryBounds(activeSavedAddress)
+    : { valid: true };
+  const isAddressOutOfBounds = Boolean(activeSavedAddress && !addressServiceability.valid);
+  const [showZoneModal, setShowZoneModal] = useState(false);
+
   const deliveryPillLabel = getDeliveryPillLabel({
     savedAddresses: profile?.savedAddresses,
   });
@@ -78,7 +88,15 @@ export default function CartScreen({ navigation }) {
 
   const handleProceedToCheckout = () => {
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(
+        isAddressOutOfBounds
+          ? Haptics.NotificationFeedbackType.Warning
+          : Haptics.NotificationFeedbackType.Success
+      );
+    }
+    if (isAddressOutOfBounds) {
+      setShowZoneModal(true);
+      return;
     }
     navigation.navigate('Address');
   };
@@ -289,30 +307,76 @@ export default function CartScreen({ navigation }) {
 
             {/* Delivery Destination Card */}
             <PressableScale
-              onPress={() => navigation.navigate('Address')}
-              style={styles.addressCard}
+              onPress={() => {
+                if (isAddressOutOfBounds) {
+                  setShowZoneModal(true);
+                } else {
+                  navigation.navigate('Address');
+                }
+              }}
+              style={[
+                styles.addressCard,
+                isAddressOutOfBounds && styles.addressCardOutOfBounds,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Delivery Address"
             >
-              <View style={styles.addressIconWrap}>
+              <View
+                style={[
+                  styles.addressIconWrap,
+                  isAddressOutOfBounds && styles.addressIconWrapOutOfBounds,
+                ]}
+              >
                 <MaterialIcons
-                  name="location-on"
+                  name={
+                    isAddressOutOfBounds
+                      ? 'location-off'
+                      : profile?.savedAddresses?.length
+                        ? 'location-on'
+                        : 'add-location'
+                  }
                   size={20}
-                  color={profile?.savedAddresses?.length ? colors.accentGold : colors.accentCrimson}
+                  color={
+                    isAddressOutOfBounds
+                      ? colors.accentCrimson
+                      : profile?.savedAddresses?.length
+                        ? colors.accentGold
+                        : colors.accentCrimson
+                  }
                 />
               </View>
               <View style={styles.addressInfoCol}>
-                <Text style={styles.addressLabel}>DELIVERY ADDRESS</Text>
+                <View style={styles.addressHeaderRow}>
+                  <Text
+                    style={[
+                      styles.addressLabel,
+                      isAddressOutOfBounds && styles.addressLabelOutOfBounds,
+                    ]}
+                  >
+                    DELIVERY ADDRESS
+                  </Text>
+                  {isAddressOutOfBounds ? (
+                    <View style={styles.outOfBoundsBadge}>
+                      <MaterialIcons name="warning" size={10} color="#D92D20" />
+                      <Text style={styles.outOfBoundsBadgeText}>OUTSIDE ZONE</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.addressText} numberOfLines={1}>
                   {profile?.savedAddresses?.length
                     ? `${profile.savedAddresses[0].line1}, ${profile.savedAddresses[0].city || 'Nagpur'}`
                     : 'No address set · Tap to set doorstep'}
                 </Text>
+                {isAddressOutOfBounds ? (
+                  <Text style={styles.addressWarningSubtext} numberOfLines={1}>
+                    {addressServiceability?.reason || 'Outside Porter rapid network (Nagpur only)'} · Tap to fix
+                  </Text>
+                ) : null}
               </View>
               <MaterialIcons
                 name="chevron-right"
                 size={20}
-                color={colors.textAsh}
+                color={isAddressOutOfBounds ? colors.accentCrimson : colors.textAsh}
               />
             </PressableScale>
 
@@ -386,13 +450,18 @@ export default function CartScreen({ navigation }) {
 
             <PressableScale
               onPress={handleProceedToCheckout}
-              style={styles.checkoutBtn}
+              style={[
+                styles.checkoutBtn,
+                isAddressOutOfBounds && styles.checkoutBtnWarning,
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Proceed to Checkout"
+              accessibilityLabel={isAddressOutOfBounds ? 'Update Nagpur Address' : 'Proceed to Checkout'}
             >
-              <Text style={styles.checkoutLabel}>PROCEED TO CHECKOUT</Text>
+              <Text style={styles.checkoutLabel}>
+                {isAddressOutOfBounds ? 'UPDATE NAGPUR ADDRESS' : 'PROCEED TO CHECKOUT'}
+              </Text>
               <MaterialIcons
-                name="arrow-forward"
+                name={isAddressOutOfBounds ? 'edit-location' : 'arrow-forward'}
                 size={16}
                 color="#FFFFFF"
               />
@@ -400,6 +469,17 @@ export default function CartScreen({ navigation }) {
           </View>
         </View>
       ) : null}
+
+      {/* 5. Out of Delivery Network Error Modal Sheet */}
+      <OutOfDeliveryZoneModal
+        visible={showZoneModal}
+        onClose={() => setShowZoneModal(false)}
+        onPinOnMap={() => navigation.navigate('Address')}
+        error={addressServiceability?.reason || addressServiceability?.error}
+        distanceKm={addressServiceability?.distanceKm}
+        pincode={activeSavedAddress?.pincode}
+        city={activeSavedAddress?.city}
+      />
     </View>
   );
 }
@@ -700,6 +780,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  addressCardOutOfBounds: {
+    borderColor: 'rgba(217, 45, 32, 0.40)',
+    backgroundColor: 'rgba(254, 243, 242, 0.75)',
+  },
   addressIconWrap: {
     width: 36,
     height: 36,
@@ -708,8 +792,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  addressIconWrapOutOfBounds: {
+    backgroundColor: 'rgba(217, 45, 32, 0.14)',
+  },
   addressInfoCol: {
     flex: 1,
+  },
+  addressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   addressLabel: {
     color: colors.accentGoldDeep,
@@ -718,10 +810,36 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  addressLabelOutOfBounds: {
+    color: '#D92D20',
+  },
+  outOfBoundsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(217, 45, 32, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+    borderWidth: 0.5,
+    borderColor: 'rgba(217, 45, 32, 0.28)',
+  },
+  outOfBoundsBadgeText: {
+    color: '#D92D20',
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
   addressText: {
     color: colors.textObsidian,
     fontSize: 12.5,
     fontWeight: '600',
+    marginTop: 2,
+  },
+  addressWarningSubtext: {
+    color: '#D92D20',
+    fontSize: 11,
+    fontWeight: '500',
     marginTop: 2,
   },
   glassCard: {
@@ -897,6 +1015,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,
+  },
+  checkoutBtnWarning: {
+    backgroundColor: '#C05621',
+    shadowColor: '#C05621',
   },
   checkoutLabel: {
     color: '#FFFFFF',

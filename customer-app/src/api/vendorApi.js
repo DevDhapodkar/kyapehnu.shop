@@ -178,6 +178,13 @@ export const fetchStorefront = (params) =>
 export const placeOrder = (payload) =>
   request(() => client.post('/orders', payload), 'Failed to place order');
 
+/** POST /api/orders/check-serviceability — check if destination is within Porter's Nagpur same-city perimeter. */
+export const checkDeliveryServiceability = (payload) =>
+  request(
+    () => client.post('/orders/check-serviceability', payload),
+    'Failed to check delivery serviceability'
+  );
+
 /** POST /api/orders/guest — guest COD order from checkout (no auth required). */
 export const createGuestOrder = (payload) =>
   request(() => client.post('/orders/guest', payload), 'Failed to place guest order');
@@ -324,6 +331,13 @@ export const setProductAvailability = (productId, isAvailable) =>
   request(
     () => client.patch(`/products/${productId}`, { isAvailable }),
     'Failed to update availability'
+  );
+
+/** PATCH /api/products/:productId — update fields like sizes, stock units, and details. */
+export const updateProduct = (productId, updates) =>
+  request(
+    () => client.patch(`/products/${productId}`, updates),
+    'Failed to update product'
   );
 
 /** POST /api/products — new listing from the catalog manager. */

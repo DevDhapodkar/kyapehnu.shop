@@ -4,7 +4,7 @@ import Vendor from '../models/Vendor.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { notifyVendorNewOrder, notifyVendorOrderReady } from './whatsappController.js';
-import { requestDriver } from './porterController.js';
+import { requestDriver, checkServiceability } from './porterController.js';
 import { sendPush } from '../utils/pushNotifications.js';
 import {
   ORDER_STATUS,
@@ -119,6 +119,38 @@ const createOrder = async (req, res) => {
 
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress);
+
+    // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
+    const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
+    const serviceability = await checkServiceability({
+      pickup: {
+        lat: vendorCoords[1],
+        lng: vendorCoords[0],
+        address: vendor.address,
+      },
+      drop: {
+        lat: normalizedAddress.location.coordinates[1],
+        lng: normalizedAddress.location.coordinates[0],
+        address: normalizedAddress,
+      },
+      pincode: normalizedAddress.pincode,
+      city: normalizedAddress.city,
+    });
+
+    if (!serviceability.serviceable) {
+      return res.status(400).json({
+        error: 'OUT_OF_DELIVERY_ZONE',
+        message:
+          serviceability.reason ||
+          "Delivery address is outside Porter's same-city delivery network in Nagpur. Kyapehnu currently operates only within Nagpur city limits.",
+        details: {
+          distanceKm: serviceability.distanceKm,
+          pincode: normalizedAddress.pincode,
+          city: normalizedAddress.city,
+        },
+      });
+    }
+
     const finalTotalPrice =
       typeof totalPrice === 'number' && !isNaN(totalPrice)
         ? totalPrice
@@ -179,6 +211,38 @@ const createGuestOrder = async (req, res) => {
 
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress);
+
+    // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
+    const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
+    const serviceability = await checkServiceability({
+      pickup: {
+        lat: vendorCoords[1],
+        lng: vendorCoords[0],
+        address: vendor.address,
+      },
+      drop: {
+        lat: normalizedAddress.location.coordinates[1],
+        lng: normalizedAddress.location.coordinates[0],
+        address: normalizedAddress,
+      },
+      pincode: normalizedAddress.pincode,
+      city: normalizedAddress.city,
+    });
+
+    if (!serviceability.serviceable) {
+      return res.status(400).json({
+        error: 'OUT_OF_DELIVERY_ZONE',
+        message:
+          serviceability.reason ||
+          "Delivery address is outside Porter's same-city delivery network in Nagpur. Kyapehnu currently operates only within Nagpur city limits.",
+        details: {
+          distanceKm: serviceability.distanceKm,
+          pincode: normalizedAddress.pincode,
+          city: normalizedAddress.city,
+        },
+      });
+    }
+
     const finalTotalPrice =
       typeof totalPrice === 'number' && !isNaN(totalPrice)
         ? totalPrice
@@ -481,6 +545,64 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/orders/check-serviceability
+ * Public endpoint for frontend to pre-validate addresses and coordinates.
+ * Body: { deliveryAddress, vendorId?, pickup? }
+ */
+const checkOrderServiceability = async (req, res) => {
+  try {
+    const { deliveryAddress, vendorId, pickup } = req.body || {};
+    if (!deliveryAddress) {
+      return res.status(400).json({
+        serviceable: false,
+        message: 'deliveryAddress is required',
+      });
+    }
+
+    let vendorPickup = null;
+    if (vendorId && isValidId(vendorId)) {
+      const vendor = await Vendor.findById(vendorId).select('location address');
+      if (vendor?.location?.coordinates) {
+        vendorPickup = {
+          lat: vendor.location.coordinates[1],
+          lng: vendor.location.coordinates[0],
+          address: vendor.address,
+        };
+      }
+    } else if (pickup?.lat && pickup?.lng) {
+      vendorPickup = pickup;
+    }
+
+    const dropLat =
+      deliveryAddress.location?.coordinates?.[1] ??
+      deliveryAddress.lat ??
+      deliveryAddress.latitude;
+    const dropLng =
+      deliveryAddress.location?.coordinates?.[0] ??
+      deliveryAddress.lng ??
+      deliveryAddress.longitude;
+
+    const result = await checkServiceability({
+      pickup: vendorPickup,
+      drop:
+        dropLat != null && dropLng != null
+          ? { lat: Number(dropLat), lng: Number(dropLng), address: deliveryAddress }
+          : { address: deliveryAddress },
+      pincode: deliveryAddress.pincode,
+      city: deliveryAddress.city,
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      serviceable: false,
+      message: 'Failed to check delivery serviceability',
+      error: error.message,
+    });
+  }
+};
+
 export {
   createOrder,
   createGuestOrder,
@@ -492,4 +614,5 @@ export {
   updateOrderStatus,
   adminAdvanceOrder,
   cancelOrder,
+  checkOrderServiceability,
 };

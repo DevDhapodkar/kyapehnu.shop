@@ -12,9 +12,9 @@ import { useVendorStore } from '../../store/useVendorStore';
  * - Large touch targets (58px minimum)
  * - High-contrast icons & clean English text
  * - Immediate tab switching between:
- *   1. 📦 Customer Orders (with live order count)
- *   2. 👗 Inventory (with catalog piece count)
- *   3. 👤 Store Profile (shop info & logout)
+ *   1. Orders (with live pending order count)
+ *   2. Inventory (with catalog piece count)
+ *   3. Store Profile (shop info & logout)
  */
 export default function VendorBottomNav({
   activeTab = 'orders', // 'orders' | 'stock' | 'profile'
@@ -37,14 +37,22 @@ export default function VendorBottomNav({
   };
 
   return (
-    <View style={[styles.bottomBarContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View
+      style={[
+        styles.bottomBarContainer,
+        {
+          paddingBottom: Math.max(insets.bottom, 10),
+        },
+      ]}
+    >
       {/* Tab 1: Customer Orders */}
       <PressableScale
         onPress={() => handleTabPress('VendorOrders')}
-        style={[styles.navTab, activeTab === 'orders' && styles.navTabActive]}
+        style={styles.navTab}
         accessibilityRole="tab"
         accessibilityLabel="Orders"
       >
+        {activeTab === 'orders' && <View style={styles.activePill} />}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="local-shipping"
@@ -58,17 +66,18 @@ export default function VendorBottomNav({
           )}
         </View>
         <Text style={[styles.tabLabel, activeTab === 'orders' && styles.tabLabelActive]}>
-          📦 Orders
+          Orders
         </Text>
       </PressableScale>
 
       {/* Tab 2: Inventory */}
       <PressableScale
         onPress={() => handleTabPress('CatalogManager')}
-        style={[styles.navTab, activeTab === 'stock' && styles.navTabActive]}
+        style={styles.navTab}
         accessibilityRole="tab"
         accessibilityLabel="Inventory"
       >
+        {activeTab === 'stock' && <View style={styles.activePill} />}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="checkroom"
@@ -82,17 +91,38 @@ export default function VendorBottomNav({
           )}
         </View>
         <Text style={[styles.tabLabel, activeTab === 'stock' && styles.tabLabelActive]}>
-          👗 Inventory
+          Inventory
         </Text>
       </PressableScale>
 
-      {/* Tab 3: Store Profile */}
+      {/* Tab 3: Insights & Analytics */}
+      <PressableScale
+        onPress={() => handleTabPress('VendorAnalytics')}
+        style={styles.navTab}
+        accessibilityRole="tab"
+        accessibilityLabel="Analytics"
+      >
+        {activeTab === 'analytics' && <View style={styles.activePill} />}
+        <View style={styles.iconWrap}>
+          <MaterialIcons
+            name="bar-chart"
+            size={24}
+            color={activeTab === 'analytics' ? colors.accentCrimson : colors.textSlate}
+          />
+        </View>
+        <Text style={[styles.tabLabel, activeTab === 'analytics' && styles.tabLabelActive]}>
+          Analytics
+        </Text>
+      </PressableScale>
+
+      {/* Tab 4: Store Profile */}
       <PressableScale
         onPress={() => handleTabPress('VendorProfile')}
-        style={[styles.navTab, activeTab === 'profile' && styles.navTabActive]}
+        style={styles.navTab}
         accessibilityRole="tab"
         accessibilityLabel="Store Profile"
       >
+        {activeTab === 'profile' && <View style={styles.activePill} />}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="storefront"
@@ -101,7 +131,7 @@ export default function VendorBottomNav({
           />
         </View>
         <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>
-          👤 Store Profile
+          Store Profile
         </Text>
       </PressableScale>
     </View>
@@ -115,8 +145,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 2,
-    borderTopColor: 'rgba(217, 119, 6, 0.25)',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(217, 119, 6, 0.2)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -134,11 +164,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 6,
     gap: 3,
-    borderTopWidth: 3,
-    borderTopColor: 'transparent',
+    position: 'relative',
   },
-  navTabActive: {
-    borderTopColor: colors.accentCrimson,
+  activePill: {
+    position: 'absolute',
+    top: -8,
+    width: 36,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: colors.accentCrimson,
   },
   iconWrap: {
     position: 'relative',

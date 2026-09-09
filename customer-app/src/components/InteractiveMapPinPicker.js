@@ -426,9 +426,9 @@ export default function InteractiveMapPinPicker({
 
             {!inZone && (
               <View style={styles.warningBanner}>
-                <MaterialIcons name="info-outline" size={15} color="#B45309" />
+                <MaterialIcons name="error-outline" size={17} color="#B91C1C" />
                 <Text style={styles.warningText}>
-                  This pin is slightly outside central Nagpur. Delivery may take over 45 minutes.
+                  Outside Delivery Zone: This pin is outside Porter's same-city delivery network in Nagpur (~25km). Kyapehnu currently operates only within Nagpur.
                 </Text>
               </View>
             )}
@@ -436,19 +436,27 @@ export default function InteractiveMapPinPicker({
             {/* Confirm Button */}
             <PressableScale
               onPress={handleConfirm}
-              disabled={isGeocoding}
-              style={[styles.confirmBtn, isGeocoding && styles.confirmBtnDisabled]}
+              disabled={isGeocoding || !inZone}
+              style={[
+                styles.confirmBtn,
+                (isGeocoding || !inZone) && styles.confirmBtnDisabled,
+                !inZone && styles.confirmBtnOutOfZone,
+              ]}
               accessibilityRole="button"
-              accessibilityState={{ disabled: isGeocoding }}
-              accessibilityLabel="Confirm Delivery Location"
+              accessibilityState={{ disabled: isGeocoding || !inZone }}
+              accessibilityLabel={!inZone ? 'Outside Delivery Zone' : 'Confirm Delivery Location'}
             >
               {isGeocoding ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <MaterialIcons name="done" size={18} color="#FFFFFF" />
+                <MaterialIcons name={!inZone ? 'block' : 'done'} size={18} color="#FFFFFF" />
               )}
               <Text style={styles.confirmBtnText}>
-                {isGeocoding ? 'Resolving Doorstep...' : 'Confirm This Location'}
+                {isGeocoding
+                  ? 'Resolving Doorstep...'
+                  : !inZone
+                  ? 'Outside Nagpur Delivery Zone'
+                  : 'Confirm This Location'}
               </Text>
             </PressableScale>
           </View>
@@ -630,16 +638,20 @@ const styles = StyleSheet.create({
   warningBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    gap: 8,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: 'rgba(185, 28, 28, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   warningText: {
-    fontSize: 11,
-    color: '#92400E',
+    fontSize: 11.5,
+    color: '#991B1B',
+    fontWeight: '600',
     flex: 1,
+    lineHeight: 16,
   },
   confirmBtn: {
     backgroundColor: colors.accentCrimson,
@@ -656,6 +668,11 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: {
     opacity: 0.55,
+  },
+  confirmBtnOutOfZone: {
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   confirmBtnText: {
     color: '#FFFFFF',

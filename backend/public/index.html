@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
     <title>Kya Pehnu? — Shop Nagpur</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,9 +15,12 @@
         --line: rgba(245,243,239,.12); --ivory: #f5f3ef; --plat: #c9c7c2; --ash: #8a8891;
         --slate: #5c5a63; --crimson: #8e1b29; --crimsonB: #c4243a; --gold: #c8a24a; --green: #3fb27f;
       }
-      * { box-sizing: border-box; }
-      body { margin: 0; background: var(--obsidian); color: var(--ivory);
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+      html, body { overscroll-behavior: none; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+      body { margin: 0; background: var(--obsidian); color: var(--ivory); -webkit-user-select: none; user-select: none;
         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+      input, textarea { -webkit-user-select: text; user-select: text; }
+      @media screen and (max-width: 768px) { input, textarea, select { font-size: 16px !important; } }
       a { color: inherit; }
       .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
       header { position: sticky; top: 0; z-index: 20; background: rgba(10,10,12,.82);

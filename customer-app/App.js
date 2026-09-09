@@ -10,6 +10,7 @@ import { colors } from './src/theme/colors';
 import IosInstallPrompt from './src/components/IosInstallPrompt';
 import SplashScreenView from './src/components/SplashScreenView';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { applyNativeMobileWebHardening } from './src/utils/nativeWebHardening';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -29,23 +30,13 @@ export default function App() {
     });
   }, []);
 
-  // Mobile-web viewport hardening. Expo's generated <meta viewport> omits
-  // viewport-fit and maximum-scale, so on real phones (a) notch/home-indicator
-  // safe-area insets never populate, and (b) iOS Safari auto-zooms whenever a
-  // form field is focused and stays zoomed. Patching it at runtime survives web
-  // rebuilds and keeps the app feeling native on handsets.
+  // Mobile-web native app illusion hardening.
+  // Suppresses browser zoom (pinch, double-tap, input focus zoom), overscroll bounce,
+  // grey tap highlights, iOS callout popups, accidental text selection, and image drag.
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    let meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'viewport');
-      document.head.appendChild(meta);
+    if (Platform.OS === 'web') {
+      return applyNativeMobileWebHardening();
     }
-    meta.setAttribute(
-      'content',
-      'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover'
-    );
   }, []);
 
   // Wire the Firebase auth listener once, so a signed-in session rehydrates on

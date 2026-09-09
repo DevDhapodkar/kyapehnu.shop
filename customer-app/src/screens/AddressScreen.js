@@ -23,6 +23,7 @@ import {
 
 import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import InteractiveMapPinPicker from '../components/InteractiveMapPinPicker';
+import OutOfDeliveryZoneModal from '../components/OutOfDeliveryZoneModal';
 import PressableScale from '../components/PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import {
@@ -36,6 +37,7 @@ import { saveUserAddress, deleteUserAddress, fetchUserProfile } from '../api/ven
 import {
   buildCheckoutAddressFromForm,
   buildCheckoutAddressFromSaved,
+  validateNagpurDeliveryBounds,
 } from '../utils/checkoutAddress';
 import { colors, radii, spacing } from '../theme/colors';
 
@@ -89,6 +91,13 @@ export default function AddressScreen({ navigation }) {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [zoneErrorModal, setZoneErrorModal] = useState({
+    visible: false,
+    error: null,
+    distanceKm: null,
+    pincode: null,
+    city: null,
+  });
 
   const total = subtotal > 0 ? subtotal : 0;
 
@@ -217,6 +226,17 @@ export default function AddressScreen({ navigation }) {
       return;
     }
 
+    if (!activeServiceability.serviceable) {
+      setZoneErrorModal({
+        visible: true,
+        error: activeServiceability.error,
+        distanceKm: activeServiceability.distanceKm,
+        pincode: activeSavedAddress?.pincode || pincode,
+        city: activeSavedAddress?.city || 'Nagpur',
+      });
+      return;
+    }
+
     let finalAddress = null;
 
     if (activeSavedAddress) {
@@ -226,6 +246,16 @@ export default function AddressScreen({ navigation }) {
         user,
       });
       if (!built.ok) {
+        if (built.outOfBounds) {
+          setZoneErrorModal({
+            visible: true,
+            error: built.error,
+            pincode: activeSavedAddress?.pincode,
+            distanceKm: built.distanceKm,
+            city: activeSavedAddress?.city || 'Nagpur',
+          });
+          return;
+        }
         Alert.alert('Address Incomplete', built.error);
         setShowAddForm(true);
         return;
@@ -248,6 +278,16 @@ export default function AddressScreen({ navigation }) {
         addressType,
       });
       if (!built.ok) {
+        if (built.outOfBounds) {
+          setZoneErrorModal({
+            visible: true,
+            error: built.error,
+            pincode,
+            distanceKm: built.distanceKm,
+            city: 'Nagpur',
+          });
+          return;
+        }
         Alert.alert('Delivery Address Required', built.error);
         if (/pin on map|map pin|location/i.test(built.error)) setIsMapOpen(true);
         else setShowAddForm(true);
@@ -294,9 +334,22 @@ export default function AddressScreen({ navigation }) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
+      const isZoneError =
+        err?.response?.data?.error === 'OUT_OF_DELIVERY_ZONE' ||
+        /delivery network|delivery zone|outside.*nagpur/i.test(err?.message || '');
+      if (isZoneError) {
+        setZoneErrorModal({
+          visible: true,
+          error: err?.response?.data?.message || err.message,
+          distanceKm: err?.response?.data?.details?.distanceKm,
+          pincode: err?.response?.data?.details?.pincode,
+          city: err?.response?.data?.details?.city,
+        });
+        return;
+      }
       Alert.alert(
         'Checkout Note',
-        err.message || 'Could not place order. Please try again.'
+        err?.response?.data?.message || err.message || 'Could not place order. Please try again.'
       );
     } finally {
       setIsPlacingOrder(false);
@@ -307,6 +360,21 @@ export default function AddressScreen({ navigation }) {
     activeSavedAddress ||
       (flatNo.trim() && streetArea.trim() && /^\d{6}$/.test(String(pincode).trim()))
   );
+
+  // Active address serviceability check against Porter's Nagpur intra-city network
+  const activeServiceability = activeSavedAddress
+    ? validateNagpurDeliveryBounds({
+        coords: activeSavedAddress.location?.coordinates,
+        pincode: activeSavedAddress.pincode,
+        city: activeSavedAddress.city,
+      })
+    : showAddForm && (coords || pincode)
+    ? validateNagpurDeliveryBounds({
+        coords,
+        pincode,
+        city: 'Nagpur',
+      })
+    : { serviceable: true };
 
   return (
     <View style={styles.root}>
@@ -379,6 +447,47 @@ export default function AddressScreen({ navigation }) {
               <Text style={styles.stepInactiveText}>Confirm</Text>
             </View>
           </View>
+
+          {/* Porter Delivery Network Out of Zone Banner */}
+          {!activeServiceability.serviceable && (
+            <PressableScale
+              onPress={() =>
+                setZoneErrorModal({
+                  visible: true,
+                  error: activeServiceability.error,
+                  distanceKm: activeServiceability.distanceKm,
+                  pincode: activeSavedAddress?.pincode || pincode,
+                  city: activeSavedAddress?.city || 'Nagpur',
+                })
+              }
+              style={styles.outOfBoundsCard}
+              accessibilityRole="button"
+              accessibilityLabel="View delivery zone restriction details"
+            >
+              <View style={styles.outOfBoundsIconWrap}>
+                <MaterialIcons name="wrong-location" size={24} color="#B91C1C" />
+              </View>
+              <View style={styles.outOfBoundsTextCol}>
+                <Text style={styles.outOfBoundsTitle}>OUTSIDE PORTER DELIVERY NETWORK</Text>
+                <Text style={styles.outOfBoundsDesc}>
+                  {activeServiceability.error ||
+                    "This delivery address is outside Porter's same-city delivery network in Nagpur (~25km). Kyapehnu currently operates exclusively within Nagpur city limits."}
+                </Text>
+                <PressableScale
+                  onPress={() => {
+                    setShowAddForm(true);
+                    setIsMapOpen(true);
+                  }}
+                  style={styles.outOfBoundsBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Pin delivery location in Nagpur"
+                >
+                  <MaterialIcons name="add-location-alt" size={16} color="#FFFFFF" />
+                  <Text style={styles.outOfBoundsBtnText}>Pin Address in Nagpur</Text>
+                </PressableScale>
+              </View>
+            </PressableScale>
+          )}
 
           {/* Section: Saved Addresses for Returning Customer */}
           {savedAddresses.length > 0 && (
@@ -689,25 +798,38 @@ export default function AddressScreen({ navigation }) {
 
         <PressableScale
           onPress={handlePlaceOrder}
-          disabled={isPlacingOrder}
+          disabled={isPlacingOrder || !hasConfirmedAddress}
           style={[
             styles.placeOrderBtn,
-            !hasConfirmedAddress && styles.placeOrderBtnDisabled,
+            (!hasConfirmedAddress || !activeServiceability.serviceable) && styles.placeOrderBtnDisabled,
+            hasConfirmedAddress && !activeServiceability.serviceable && styles.placeOrderBtnOutOfZone,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Place Order"
+          accessibilityLabel={
+            hasConfirmedAddress && !activeServiceability.serviceable
+              ? 'Outside Delivery Zone — Tap to View Details'
+              : 'Place Order'
+          }
         >
           {isPlacingOrder ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <>
               <MaterialIcons
-                name={hasConfirmedAddress ? 'shopping-bag' : 'add-location'}
+                name={
+                  hasConfirmedAddress && !activeServiceability.serviceable
+                    ? 'block'
+                    : hasConfirmedAddress
+                    ? 'shopping-bag'
+                    : 'add-location'
+                }
                 size={18}
                 color="#FFFFFF"
               />
               <Text style={styles.placeOrderLabel}>
-                {hasConfirmedAddress
+                {hasConfirmedAddress && !activeServiceability.serviceable
+                  ? 'Outside Nagpur Delivery Zone'
+                  : hasConfirmedAddress
                   ? 'Place Order · COD'
                   : 'Set Address to Continue'}
               </Text>
@@ -722,6 +844,20 @@ export default function AddressScreen({ navigation }) {
         onClose={() => setIsMapOpen(false)}
         onConfirmLocation={handleConfirmMapLocation}
         initialCoordinates={coords || [NAGPUR_CENTER.longitude, NAGPUR_CENTER.latitude]}
+      />
+
+      {/* 6. Out of Delivery Network Error Modal Sheet */}
+      <OutOfDeliveryZoneModal
+        visible={zoneErrorModal.visible}
+        onClose={() => setZoneErrorModal((prev) => ({ ...prev, visible: false }))}
+        onPinOnMap={() => {
+          setShowAddForm(true);
+          setIsMapOpen(true);
+        }}
+        error={zoneErrorModal.error}
+        distanceKm={zoneErrorModal.distanceKm}
+        pincode={zoneErrorModal.pincode}
+        city={zoneErrorModal.city}
       />
     </View>
   );
@@ -1167,9 +1303,69 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textSlate,
     shadowOpacity: 0,
   },
+  placeOrderBtnOutOfZone: {
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0,
+  },
   placeOrderLabel: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  outOfBoundsCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#B91C1C',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: 12,
+    marginBottom: spacing.sm,
+    shadowColor: '#B91C1C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  outOfBoundsIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outOfBoundsTextCol: {
+    flex: 1,
+    gap: 6,
+  },
+  outOfBoundsTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#B91C1C',
+    letterSpacing: 0.5,
+  },
+  outOfBoundsDesc: {
+    fontSize: 12.5,
+    color: '#7F1D1D',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  outOfBoundsBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#B91C1C',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    marginTop: 4,
+  },
+  outOfBoundsBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

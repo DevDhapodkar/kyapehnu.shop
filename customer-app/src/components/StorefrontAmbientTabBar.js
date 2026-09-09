@@ -1,7 +1,64 @@
+import { useEffect } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import { colors, spacing } from '../theme/colors';
+import { spring } from '../theme/motion';
+
+function TabItem({ tab, isActive, onPress }) {
+  const iconScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (isActive) {
+      iconScale.value = withSequence(
+        withTiming(1.2, { duration: 90 }),
+        withSpring(1, spring.bouncy)
+      );
+    }
+  }, [isActive]);
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      style={styles.tabBtn}
+      accessibilityRole="tab"
+      accessibilityLabel={tab.label}
+      accessibilityState={{ selected: isActive }}
+    >
+      <Animated.View style={[styles.iconWrap, animatedIconStyle]}>
+        <MaterialIcons
+          name={tab.iconName}
+          size={21}
+          color={isActive ? colors.accentCrimson : colors.textAsh}
+        />
+        {tab.badge > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{tab.badge}</Text>
+          </View>
+        ) : null}
+      </Animated.View>
+      <Text
+        style={[
+          styles.tabLabel,
+          isActive ? styles.labelActive : styles.labelInactive,
+        ]}
+      >
+        {tab.label}
+      </Text>
+    </PressableScale>
+  );
+}
 
 /**
  * StorefrontAmbientTabBar
@@ -10,7 +67,7 @@ import { colors, spacing } from '../theme/colors';
  * - Floating rounded pill bar with heavy frosted backdrop blur
  * - Refracts ambient gradient orbs underneath
  * - MaterialIcons: storefront, search, shopping_bag, receipt_long
- * - Active tab highlighted in Royal Crimson (#C4243A)
+ * - Active tab highlighted in Royal Crimson (#C4243A) with Apple spring bounce
  */
 export default function StorefrontAmbientTabBar({
   insets,
@@ -34,41 +91,14 @@ export default function StorefrontAmbientTabBar({
       pointerEvents="box-none"
     >
       <View style={styles.navBar} pointerEvents="auto">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-
-          return (
-            <PressableScale
-              key={tab.id}
-              onPress={() => onSelectTab?.(tab.id)}
-              style={styles.tabBtn}
-              accessibilityRole="tab"
-              accessibilityLabel={tab.label}
-              accessibilityState={{ selected: isActive }}
-            >
-              <View style={styles.iconWrap}>
-                <MaterialIcons
-                  name={tab.iconName}
-                  size={21}
-                  color={isActive ? colors.accentCrimson : colors.textAsh}
-                />
-                {tab.badge > 0 ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{tab.badge}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text
-                style={[
-                  styles.tabLabel,
-                  isActive ? styles.labelActive : styles.labelInactive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
+        {tabs.map((tab) => (
+          <TabItem
+            key={tab.id}
+            tab={tab}
+            isActive={activeTab === tab.id}
+            onPress={() => onSelectTab?.(tab.id)}
+          />
+        ))}
       </View>
     </View>
   );

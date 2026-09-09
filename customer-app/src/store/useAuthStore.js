@@ -269,12 +269,12 @@ export const useAuthStore = create((set, get) => ({
   },
 
   setRole: (role) => {
-    // If account is a registered vendor, lock strictly to vendor mode: no shopping allowed.
-    if (get().vendorProfile && role === ROLES.CUSTOMER) {
-      console.warn('Vendor accounts are restricted to Vendor Mode only. Shopping is not permitted.');
-      return;
-    }
     set({ role });
+  },
+  toggleRole: () => {
+    set((state) => ({
+      role: state.role === ROLES.VENDOR ? ROLES.CUSTOMER : ROLES.VENDOR,
+    }));
   },
 
   setVendorProfile: (vendorProfile) => {

@@ -4,10 +4,12 @@ import {
   isPlaceholderPhone,
   buildCheckoutAddressFromSaved,
   buildCheckoutAddressFromForm,
+  validateNagpurDeliveryBounds,
 } from './checkoutAddress.js';
 
 test('detects invented placeholder phones', () => {
   assert.equal(isPlaceholderPhone('+91 99999 99999'), true);
+  assert.equal(isPlaceholderPhone('9999999999'), true);
   assert.equal(isPlaceholderPhone('9999999999'), true);
   assert.equal(isPlaceholderPhone('+91 98765 43210'), false);
 });
@@ -70,4 +72,60 @@ test('form address requires explicit pincode — no 440001 invent', () => {
   });
   assert.equal(result.ok, false);
   assert.match(result.error, /pincode|pin code/i);
+});
+
+test('saved address outside Porter Nagpur network coordinates fails hard (e.g. Mumbai)', () => {
+  const result = buildCheckoutAddressFromSaved({
+    address: {
+      label: 'HOME',
+      line1: 'Bandra West',
+      city: 'Nagpur',
+      pincode: '440010',
+      receiverName: 'Dev',
+      receiverPhone: '9876543210',
+      // Mumbai coordinates [lng, lat] ~700km away
+      location: { type: 'Point', coordinates: [72.8258, 19.0596] },
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.outOfBounds, true);
+  assert.match(result.error, /Porter|delivery network|outside/i);
+});
+
+test('saved address with non-Nagpur pincode fails hard (e.g. 400001 Mumbai)', () => {
+  const result = buildCheckoutAddressFromSaved({
+    address: {
+      label: 'HOME',
+      line1: '12 Palm Rd',
+      city: 'Nagpur',
+      pincode: '400001',
+      receiverName: 'Dev',
+      receiverPhone: '9876543210',
+      location: { type: 'Point', coordinates: [79.06, 21.14] },
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.outOfBounds, true);
+  assert.match(result.error, /Porter|400001|Nagpur/i);
+});
+
+test('form address with non-Nagpur city fails hard (e.g. Pune)', () => {
+  const bounds = validateNagpurDeliveryBounds({
+    coords: [79.06, 21.14],
+    pincode: '440010',
+    city: 'Pune',
+  });
+  assert.equal(bounds.serviceable, false);
+  assert.match(bounds.error, /Nagpur/i);
+});
+
+test('validateNagpurDeliveryBounds accepts valid Nagpur metropolitan locations', () => {
+  // Dharampeth
+  assert.equal(validateNagpurDeliveryBounds({ coords: [79.06, 21.14], pincode: '440010', city: 'Nagpur' }).serviceable, true);
+  // Sitabuldi
+  assert.equal(validateNagpurDeliveryBounds({ coords: [79.0882, 21.1458], pincode: '440012', city: 'Nagpur' }).serviceable, true);
+  // Sadar
+  assert.equal(validateNagpurDeliveryBounds({ coords: [79.0818, 21.1633], pincode: '440001', city: 'Nagpur' }).serviceable, true);
+  // Hingna peri-urban corridor
+  assert.equal(validateNagpurDeliveryBounds({ coords: [79.001, 21.109], pincode: '441110', city: 'Nagpur' }).serviceable, true);
 });

@@ -10,9 +10,13 @@ import {
   markOrderReady,
   updateOrderStatus,
   cancelOrder,
+  checkOrderServiceability,
 } from '../controllers/orderController.js';
 
 const router = express.Router();
+
+// Public delivery serviceability pre-validation check (Nagpur bounds)
+router.post('/check-serviceability', checkOrderServiceability);
 
 // Public web storefront: guest COD checkout + order tracking (no account).
 router.post('/guest', createGuestOrder);

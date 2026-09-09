@@ -209,6 +209,31 @@ export const useVendorStore = create((set, get) => ({
       throw error;
     }
   },
+
+  updateProduct: async (productId, updates) => {
+    const previous = get().products;
+    set((state) => ({
+      pendingProductId: productId,
+      catalogError: null,
+      products: state.products.map((product) =>
+        product._id === productId ? { ...product, ...updates } : product
+      ),
+    }));
+
+    try {
+      const updated = await api.updateProduct(productId, updates);
+      set((state) => ({
+        pendingProductId: null,
+        products: state.products.map((product) =>
+          product._id === productId ? { ...product, ...updated } : product
+        ),
+      }));
+      return updated;
+    } catch (error) {
+      set({ products: previous, pendingProductId: null, catalogError: error.message });
+      throw error;
+    }
+  },
 }));
 
 /* Selectors — importable so components subscribe to the narrowest slice. */

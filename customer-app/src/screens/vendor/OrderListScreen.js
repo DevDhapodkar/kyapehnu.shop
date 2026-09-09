@@ -120,7 +120,7 @@ export default function VendorOrderListScreen({ navigation }) {
         contentContainerStyle={[
           styles.listContent,
           {
-            paddingTop: insets.top + 68,
+            paddingTop: Math.max(insets.top + 76, 86),
             paddingBottom: insets.bottom + 95,
           },
         ]}
@@ -134,7 +134,7 @@ export default function VendorOrderListScreen({ navigation }) {
         }
         ListHeaderComponent={
           <View style={styles.queueHeader}>
-            {/* Quick Action: + ADD NEW GARMENT */}
+            {/* Quick Action: ADD NEW GARMENT */}
             <PressableScale
               onPress={() => navigation.navigate('CatalogManager', { openAddModal: true })}
               style={styles.addPieceHeroCard}
@@ -145,7 +145,7 @@ export default function VendorOrderListScreen({ navigation }) {
                 <MaterialIcons name="add-a-photo" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.addPieceHeroTextCol}>
-                <Text style={styles.addPieceHeroTitle}>+ ADD NEW GARMENT</Text>
+                <Text style={styles.addPieceHeroTitle}>ADD NEW GARMENT</Text>
                 <Text style={styles.addPieceHeroSubtitle}>
                   Add a new piece or garment to your boutique catalog
                 </Text>
@@ -155,20 +155,35 @@ export default function VendorOrderListScreen({ navigation }) {
 
             {/* Performance Stats Ticker */}
             <View style={styles.tickerCard}>
-              <View style={styles.tickerItem}>
+              <PressableScale
+                onPress={() => handleFilterChange('DELIVERED')}
+                style={styles.tickerItem}
+                accessibilityRole="button"
+                accessibilityLabel="Filter delivered orders"
+              >
                 <MaterialIcons name="check-circle" size={18} color="#15803D" />
                 <Text style={styles.tickerValue}>{counts.DELIVERED || 0} Delivered</Text>
-              </View>
+              </PressableScale>
               <View style={styles.tickerDivider} />
-              <View style={styles.tickerItem}>
+              <PressableScale
+                onPress={() => handleFilterChange('PENDING')}
+                style={styles.tickerItem}
+                accessibilityRole="button"
+                accessibilityLabel="Filter new orders"
+              >
                 <MaterialIcons name="schedule" size={18} color={colors.accentCrimson} />
                 <Text style={styles.tickerValue}>{counts.PENDING || 0} New Orders</Text>
-              </View>
+              </PressableScale>
               <View style={styles.tickerDivider} />
-              <View style={styles.tickerItem}>
+              <PressableScale
+                onPress={() => handleFilterChange('READY_FOR_PICKUP')}
+                style={styles.tickerItem}
+                accessibilityRole="button"
+                accessibilityLabel="Filter ready orders"
+              >
                 <MaterialIcons name="two-wheeler" size={18} color={colors.accentGoldDeep} />
                 <Text style={styles.tickerValue}>{counts.READY_FOR_PICKUP || 0} Ready</Text>
-              </View>
+              </PressableScale>
             </View>
 
             {/* Filter Tabs Rail */}
@@ -330,11 +345,15 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     paddingHorizontal: spacing.md,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(244, 239, 231, 0.96)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(217, 119, 6, 0.12)',
   },
   topBarInner: {
-    height: 54,
+    height: 52,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(217, 119, 6, 0.25)',
     flexDirection: 'row',
@@ -342,10 +361,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
   },
   shopIdentity: {
     justifyContent: 'center',

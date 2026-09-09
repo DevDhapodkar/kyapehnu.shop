@@ -2,6 +2,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Platform,
   RefreshControl,
   StatusBar,
   StyleSheet,
@@ -42,15 +43,18 @@ import { colors, radii, spacing } from '../theme/colors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Storefront first-view entrance. The header title precipitates in, then the
-// rail of cards a beat later — a short cascade the returning customer sees once
-// per open, not motion they pay for on every scroll.
-const FEED_HEADER_ENTER = FadeInDown.duration(duration.enter)
-  .easing(EASE_OUT)
+// Storefront first-view entrance with Apple fluid spring dynamics. The header
+// title arrives with a gentle spring, then the rail of cards cascades in with a bouncy settle.
+const FEED_HEADER_ENTER = FadeInDown.springify()
+  .damping(16)
+  .stiffness(180)
+  .mass(0.6)
   .reduceMotion(ReduceMotion.System);
-const FEED_LIST_ENTER = FadeInDown.duration(duration.enter)
-  .delay(90)
-  .easing(EASE_OUT)
+const FEED_LIST_ENTER = FadeInDown.springify()
+  .delay(80)
+  .damping(14)
+  .stiffness(160)
+  .mass(0.7)
   .reduceMotion(ReduceMotion.System);
 
 // The story sells the product in four beats, each one timed to a beat of the

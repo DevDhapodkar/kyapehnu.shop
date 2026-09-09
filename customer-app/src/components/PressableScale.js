@@ -1,32 +1,38 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  ReduceMotion,
+} from 'react-native-reanimated';
 
-import { PRESS_TRANSITION, PRESS_SCALE } from '../theme/motion';
+import { PRESS_SCALE } from '../theme/motion';
 import { fireHaptic } from '../utils/haptics';
+
+// Signature Apple fluid bouncy spring parameters:
+// Snappy down-scale on touch, organic tactile spring bounce on release
+const SPRING_DOWN = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.5,
+  reduceMotion: ReduceMotion.System,
+};
+
+const SPRING_UP = {
+  damping: 12,
+  stiffness: 220,
+  mass: 0.6,
+  reduceMotion: ReduceMotion.System,
+};
 
 /**
  * PressableScale
  *
- * The single press primitive for the whole app. Mobile has no hover, so every
- * affordance the web puts in hover has to live in the press — and a press that
- * only dims by opacity reads as dead. This scales the surface to 0.97 the instant
- * the finger lands (feedback on press-*in*, not on release) and springs it back
- * on lift, so the UI feels like it physically heard the tap.
+ * The universal press primitive for the whole app. Integrates Apple HIG fluid spring
+ * dynamics: down-scales with a fast, snappy spring on touch-in, and releases with a
+ * lively, organic tactile spring bounce on lift.
  *
- * The scale runs as a Reanimated CSS transition: it lives entirely on the UI
- * thread, needs no shared value, and never re-renders per frame. `scale` takes
- * the label and icons with it, which is what makes it read as one physical object
- * being pressed rather than a colour change.
- *
- * The visual style goes on `style` (applied to the animated surface, so borders,
- * fills and `overflow: 'hidden'` clip correctly); the outer Pressable is just the
- * touch target. A single, quiet haptic fires on press-in by default — pass
- * `haptic={false}` on anything pressed dozens of times a session.
- *
- * Props of note:
- *  - haptic:  'light' (default) | 'selection' | 'medium' | 'success' | 'error' | false
- *  - scaleTo: override the pressed scale (0.95–0.98 is the usable range)
+ * Runs entirely on UI thread via Reanimated worklets with zero JS thread re-renders.
  */
 export default function PressableScale({
   children,
@@ -46,16 +52,24 @@ export default function PressableScale({
   accessibilityHint,
   wrapperStyle,
 }) {
-  const [pressed, setPressed] = useState(false);
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const handlePressIn = (event) => {
-    setPressed(true);
-    if (haptic && !disabled) fireHaptic(haptic);
+    if (!disabled) {
+      scale.value = withSpring(scaleTo, SPRING_DOWN);
+      if (haptic) fireHaptic(haptic);
+    }
     onPressIn?.(event);
   };
 
   const handlePressOut = (event) => {
-    setPressed(false);
+    if (!disabled) {
+      scale.value = withSpring(1, SPRING_UP);
+    }
     onPressOut?.(event);
   };
 
@@ -83,13 +97,7 @@ export default function PressableScale({
       accessibilityHint={accessibilityHint}
       style={[wrapperLayout, wrapperStyle]}
     >
-      <Animated.View
-        style={[
-          PRESS_TRANSITION,
-          style,
-          pressed && !disabled ? { transform: [{ scale: scaleTo }] } : null,
-        ]}
-      >
+      <Animated.View style={[style, animatedStyle]}>
         {children}
       </Animated.View>
     </Pressable>

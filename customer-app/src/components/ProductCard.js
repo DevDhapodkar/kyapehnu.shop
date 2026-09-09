@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
+import { spring } from '../theme/motion';
 
 export const PRODUCT_CARD_WIDTH = 210;
 
@@ -15,19 +23,28 @@ export const PRODUCT_CARD_WIDTH = 210;
  *
  * Implements Stitch's Apple Glass horizontal rail card:
  * - 3:4 aspect ratio garment photography
- * - Glass schedule badge ("⏱ 32 min") & wishlist button
+ * - Glass schedule badge ("⏱ 32 min") & wishlist button with Apple bouncy pop
  * - Floating locality banner ("Gandhibagh · 2.1 km")
  * - Clean white bottom pane with store provenance, bold tabular price, and quick-add "+"
  */
 export default function ProductCard({ product, onPress, onQuickAdd }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const heartScale = useSharedValue(1);
+
+  const animatedHeartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
 
   const handleToggleWishlist = (e) => {
     e?.stopPropagation?.();
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
     }
+    heartScale.value = withSequence(
+      withTiming(1.38, { duration: 110 }),
+      withSpring(1, spring.pop)
+    );
     setIsWishlisted((prev) => !prev);
   };
 
@@ -89,9 +106,11 @@ export default function ProductCard({ product, onPress, onQuickAdd }) {
           accessibilityRole="button"
           accessibilityLabel="Wishlist item"
         >
-          <Text style={[styles.favIcon, isWishlisted && styles.favActive]}>
-            {isWishlisted ? '♥' : '♡'}
-          </Text>
+          <Animated.View style={animatedHeartStyle}>
+            <Text style={[styles.favIcon, isWishlisted && styles.favActive]}>
+              {isWishlisted ? '♥' : '♡'}
+            </Text>
+          </Animated.View>
         </Pressable>
 
         {/* Floating Locality Banner */}

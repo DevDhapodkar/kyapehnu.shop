@@ -1,8 +1,96 @@
 /**
  * Checkout address builders — never invent phone, name, pincode, or coords.
+ * Enforces Porter same-city delivery network boundary restrictions in Nagpur.
  */
 
 const PLACEHOLDER_PHONE_DIGITS = '9999999999';
+
+export const NAGPUR_CENTER = { lat: 21.1458, lng: 79.0882 };
+export const MAX_PORTER_RADIUS_KM = 25;
+export const NAGPUR_PINCODE_REGEX = /^(4400\d{2}|441\d{3})$/;
+
+/**
+ * Calculates distance between two latitude/longitude points in km using the Haversine formula.
+ */
+export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+/**
+ * Validates whether an address falls inside Porter's Nagpur same-city delivery network.
+ * Accepts either an address object or explicit { coords, pincode, city }.
+ * @param {object} input
+ * @returns {{ serviceable: boolean, valid: boolean, error?: string, reason?: string, distanceKm?: number }}
+ */
+export function validateNagpurDeliveryBounds(input = {}) {
+  const city = input?.city;
+  const pincode = input?.pincode || input?.postalCode;
+  const coords =
+    input?.coords ||
+    input?.location?.coordinates ||
+    (Array.isArray(input?.coordinates) ? input.coordinates : null);
+
+  // 1. City check (if provided, must be Nagpur)
+  if (city && typeof city === 'string') {
+    const cleanCity = city.trim().toLowerCase();
+    if (cleanCity && cleanCity !== 'nagpur' && !cleanCity.includes('nagpur')) {
+      const errorMsg = `Delivery is currently available exclusively within Nagpur city (received: ${city}).`;
+      return {
+        serviceable: false,
+        valid: false,
+        error: errorMsg,
+        reason: errorMsg,
+      };
+    }
+  }
+
+  // 2. Pincode check
+  if (pincode) {
+    const pin = String(pincode).trim();
+    if (!NAGPUR_PINCODE_REGEX.test(pin)) {
+      const errorMsg = `Pincode ${pin} is outside Porter's same-city delivery network in Nagpur. We currently deliver only within Nagpur (440001–440037, 441xxx).`;
+      return {
+        serviceable: false,
+        valid: false,
+        error: errorMsg,
+        reason: errorMsg,
+      };
+    }
+  }
+
+  // 3. Map Pin Coordinates check
+  if (Array.isArray(coords) && coords.length >= 2) {
+    const lng = coords[0];
+    const lat = coords[1];
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      const inBox = lat >= 20.95 && lat <= 21.32 && lng >= 78.90 && lng <= 79.28;
+      const distance = calculateDistanceKm(lat, lng, NAGPUR_CENTER.lat, NAGPUR_CENTER.lng);
+      if (!inBox || distance > MAX_PORTER_RADIUS_KM) {
+        const errorMsg = `Selected map pin is ${Math.round(distance)}km from Nagpur center, which is outside Porter's 25km same-city delivery network.`;
+        return {
+          serviceable: false,
+          valid: false,
+          distanceKm: distance,
+          error: errorMsg,
+          reason: errorMsg,
+        };
+      }
+    }
+  }
+
+  return { serviceable: true, valid: true };
+}
 
 /**
  * @param {string} phone
@@ -30,10 +118,10 @@ export function cleanPhoneOrNull(phone) {
 }
 
 /**
- * Build delivery address from a saved profile address. Hard-fails on gaps.
+ * Build delivery address from a saved profile address. Hard-fails on gaps or out-of-bounds locations.
  *
  * @param {{ address: object, profile?: object, user?: object }} params
- * @returns {{ ok: true, address: object } | { ok: false, error: string }}
+ * @returns {{ ok: true, address: object } | { ok: false, error: string, outOfBounds?: boolean }}
  */
 export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
   if (!address?.line1?.trim()) {
@@ -72,6 +160,16 @@ export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
     };
   }
 
+  // Restrict to Porter Nagpur same-city delivery network boundary
+  const bounds = validateNagpurDeliveryBounds({
+    coords,
+    pincode,
+    city: address.city || 'Nagpur',
+  });
+  if (!bounds.serviceable) {
+    return { ok: false, error: bounds.error, outOfBounds: true };
+  }
+
   return {
     ok: true,
     address: {
@@ -91,10 +189,10 @@ export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
 }
 
 /**
- * Build delivery address from the new-address form. Hard-fails on gaps.
+ * Build delivery address from the new-address form. Hard-fails on gaps or out-of-bounds locations.
  *
  * @param {object} form
- * @returns {{ ok: true, address: object } | { ok: false, error: string }}
+ * @returns {{ ok: true, address: object } | { ok: false, error: string, outOfBounds?: boolean }}
  */
 export function buildCheckoutAddressFromForm({
   flatNo,
@@ -133,6 +231,16 @@ export function buildCheckoutAddressFromForm({
       ok: false,
       error: 'Please tap "Pin on Map" so our delivery rider can navigate to your door.',
     };
+  }
+
+  // Restrict to Porter Nagpur same-city delivery network boundary
+  const bounds = validateNagpurDeliveryBounds({
+    coords,
+    pincode: pin,
+    city: 'Nagpur',
+  });
+  if (!bounds.serviceable) {
+    return { ok: false, error: bounds.error, outOfBounds: true };
   }
 
   return {

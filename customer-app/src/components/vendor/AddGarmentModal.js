@@ -949,7 +949,7 @@ export default function AddGarmentModal({
                 accessibilityLabel="Capture photo with camera"
               >
                 <MaterialIcons name="photo-camera" size={24} color="#FFFFFF" />
-                <Text style={styles.mediaActionBtnTextWhite}>📸 Take Photo / Video (Camera)</Text>
+                <Text style={styles.mediaActionBtnTextWhite}>Take Photo / Video (Camera)</Text>
               </PressableScale>
 
               <PressableScale
@@ -960,7 +960,7 @@ export default function AddGarmentModal({
                 accessibilityLabel="Choose from photo library"
               >
                 <MaterialIcons name="photo-library" size={24} color={colors.textObsidian} />
-                <Text style={styles.mediaActionBtnTextDark}>🖼️ Choose from Gallery (Photo / Video)</Text>
+                <Text style={styles.mediaActionBtnTextDark}>Choose from Gallery (Photo / Video)</Text>
               </PressableScale>
 
               <PressableScale
@@ -987,7 +987,7 @@ export default function AddGarmentModal({
               >
                 <MaterialIcons name="auto-awesome" size={22} color={colors.accentCrimson} />
                 <Text style={[styles.mediaActionBtnTextDark, { color: colors.accentCrimson, fontWeight: '600' }]}>
-                  ✨ Use Studio Lookbook Photo
+                  Use Studio Lookbook Photo
                 </Text>
               </PressableScale>
             </View>

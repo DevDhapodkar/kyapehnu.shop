@@ -96,7 +96,7 @@ export default function VendorProfileScreen({ navigation }) {
       {/* 2. Top Header Bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
         <View style={styles.topBarInner}>
-          <Text style={styles.topBarTitle}>👤 Store Profile & Settings</Text>
+          <Text style={styles.topBarTitle}>Store Profile & Settings</Text>
           <View style={styles.topBarBadge}>
             <Text style={styles.topBarBadgeText}>VENDOR MODE</Text>
           </View>
@@ -109,7 +109,7 @@ export default function VendorProfileScreen({ navigation }) {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 68,
+            paddingTop: Math.max(insets.top + 76, 86),
             paddingBottom: insets.bottom + 90,
           },
         ]}
@@ -198,6 +198,40 @@ export default function VendorProfileScreen({ navigation }) {
           </PressableScale>
         </View>
 
+        {/* View Boutique Analytics & Insights Card */}
+        <PressableScale
+          onPress={() => navigation.navigate('VendorAnalytics')}
+          style={styles.switchModeCard}
+          accessibilityRole="button"
+          accessibilityLabel="View Boutique Analytics"
+        >
+          <View style={[styles.switchModeIconWrap, { backgroundColor: colors.accentCrimson }]}>
+            <MaterialIcons name="insights" size={22} color="#FFFFFF" />
+          </View>
+          <View style={styles.switchModeTextCol}>
+            <Text style={styles.switchModeTitle}>Boutique Analytics & 60-Min Speed</Text>
+            <Text style={styles.switchModeSubtitle}>Fulfillment times, revenue velocity & top styles</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={colors.accentCrimson} />
+        </PressableScale>
+
+        {/* Switch to Customer Mode Card */}
+        <PressableScale
+          onPress={() => useAuthStore.getState().setRole('CUSTOMER')}
+          style={styles.switchModeCard}
+          accessibilityRole="button"
+          accessibilityLabel="Switch to customer storefront"
+        >
+          <View style={styles.switchModeIconWrap}>
+            <MaterialIcons name="storefront" size={22} color="#FFFFFF" />
+          </View>
+          <View style={styles.switchModeTextCol}>
+            <Text style={styles.switchModeTitle}>Switch to Customer Storefront</Text>
+            <Text style={styles.switchModeSubtitle}>Browse couture & try-at-doorstep fitting</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={colors.accentGoldDeep} />
+        </PressableScale>
+
         {/* Sign Out Card */}
         <PressableScale
           onPress={handleSignOut}
@@ -233,11 +267,15 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     paddingHorizontal: spacing.md,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(244, 239, 231, 0.96)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(217, 119, 6, 0.12)',
   },
   topBarInner: {
     height: 52,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(217, 119, 6, 0.25)',
     flexDirection: 'row',
@@ -245,10 +283,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 6,
     elevation: 3,
+  },
+  switchModeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.3)',
+    marginBottom: spacing.sm,
+    gap: 12,
+  },
+  switchModeIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.accentGoldDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchModeTextCol: {
+    flex: 1,
+  },
+  switchModeTitle: {
+    color: colors.textObsidian,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  switchModeSubtitle: {
+    color: colors.textSlate,
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
   },
   topBarTitle: {
     fontSize: 16,

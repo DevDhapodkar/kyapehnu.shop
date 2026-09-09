@@ -20,6 +20,8 @@ import * as Haptics from 'expo-haptics';
 import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
 import PressableScale from '../../components/PressableScale';
 import AddGarmentModal from '../../components/vendor/AddGarmentModal';
+import QuickRestockModal from '../../components/vendor/QuickRestockModal';
+import GarmentPreviewModal from '../../components/vendor/GarmentPreviewModal';
 import VendorBottomNav from '../../components/vendor/VendorBottomNav';
 import { normalizeColor } from '../../constants/colorPalette';
 import { formatCurrency as formatINR } from '../../utils/format';
@@ -31,10 +33,11 @@ import { useAuthStore } from '../../store/useAuthStore';
  * CatalogManagerScreen — Senior-Friendly Stock & Inventory Management
  * Designed specifically for Nagpur Boutique Shopkeepers:
  * - High contrast, large fonts & touch targets (50px+)
- * - Unmistakable "+ ADD NEW GARMENT" Hero button & Floating Action Button
+ * - Unmistakable "ADD NEW GARMENT" Hero button & Floating Action Capsule
  * - Prominent "IN STOCK" / "OUT OF STOCK" one-touch toggle button
- * - Clean English wording
- * - Seamless Cloudinary-backed Add Garment modal
+ * - Quick Restock & Sizes stepper modal
+ * - Storefront Live Preview on thumbnail tap
+ * - Guaranteed safe area layout (zero collisions with header or bottom navigation)
  */
 export default function CatalogManagerScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -43,11 +46,15 @@ export default function CatalogManagerScreen({ navigation, route }) {
   const loadCatalog = useVendorStore((state) => state.loadCatalog);
   const toggleAvailability = useVendorStore((state) => state.toggleAvailability);
   const addProduct = useVendorStore((state) => state.addProduct);
+  const updateProduct = useVendorStore((state) => state.updateProduct);
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(Boolean(route?.params?.openAddModal));
+  const [stockFilter, setStockFilter] = useState('ALL'); // 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
+  const [restockProduct, setRestockProduct] = useState(null);
+  const [previewProduct, setPreviewProduct] = useState(null);
 
   useEffect(() => {
     if (loadCatalog) loadCatalog();
@@ -84,19 +91,60 @@ export default function CatalogManagerScreen({ navigation, route }) {
     }
   };
 
+  const handleSaveRestock = async ({ productId, sizes, isAvailable }) => {
+    try {
+      await updateProduct(productId, { sizes, isAvailable });
+      Alert.alert('✓ Stock Updated', 'Garment inventory counts saved successfully.');
+    } catch (err) {
+      Alert.alert('Stock Update Failed', err.message || 'Could not update garment stock.');
+    }
+  };
+
+  const getItemTotalUnits = (item) => {
+    if (Array.isArray(item.sizes)) {
+      return item.sizes.reduce(
+        (sum, s) => sum + (typeof s === 'object' ? s.stock || 0 : 5),
+        0
+      );
+    }
+    return 5;
+  };
+
   const filteredItems = products.filter((it) => {
+    const isAvail = Boolean(it.isAvailable ?? it.inStock);
+    const totalUnits = getItemTotalUnits(it);
+    const isLow = isAvail && totalUnits > 0 && totalUnits <= 3;
+
+    let matchesStock = true;
+    if (stockFilter === 'IN_STOCK') matchesStock = isAvail;
+    else if (stockFilter === 'LOW_STOCK') matchesStock = isLow;
+    else if (stockFilter === 'OUT_OF_STOCK') matchesStock = !isAvail;
+
     const matchesCat =
       selectedCategory === 'ALL' ||
       it.category?.toUpperCase() === selectedCategory;
+
     const matchesSearch =
       !searchQuery.trim() ||
       it.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       it.subCategory?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
+
+    return matchesStock && matchesCat && matchesSearch;
   });
 
-  const inStockCount = products.filter((p) => p.isAvailable).length;
-  const outOfStockCount = products.filter((p) => !p.isAvailable).length;
+  const inStockCount = products.filter((p) => Boolean(p.isAvailable ?? p.inStock)).length;
+  const outOfStockCount = products.filter((p) => !Boolean(p.isAvailable ?? p.inStock)).length;
+  const lowStockCount = products.filter((p) => {
+    const isAvail = Boolean(p.isAvailable ?? p.inStock);
+    const units = getItemTotalUnits(p);
+    return isAvail && units > 0 && units <= 3;
+  }).length;
+
+  const totalValuation = products.reduce((acc, p) => {
+    const units = getItemTotalUnits(p);
+    const price = Number(p.price) || 0;
+    return acc + price * units;
+  }, 0);
 
   return (
     <View style={styles.root}>
@@ -105,11 +153,11 @@ export default function CatalogManagerScreen({ navigation, route }) {
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
 
-      {/* 2. Top Header Bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+      {/* 2. Top Header Bar (In Natural Flow to Prevent Hero Overlap) */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
         <View style={styles.topBarInner}>
           <PressableScale
-            onPress={() => navigation.goBack()}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('VendorOrders'))}
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel="Go back"
@@ -121,7 +169,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
             <Text style={styles.shopName} numberOfLines={1}>
               {vendorProfile?.shopName || 'Nagpur Boutique'}
             </Text>
-            <Text style={styles.screenSubtitle}>👗 Boutique Inventory</Text>
+            <Text style={styles.screenSubtitle}>Boutique Inventory</Text>
           </View>
 
           <PressableScale
@@ -131,7 +179,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
             accessibilityLabel="Add New Garment"
           >
             <MaterialIcons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.headerAddBtnText}>+ Add Item</Text>
+            <Text style={styles.headerAddBtnText}>Add Item</Text>
           </PressableScale>
         </View>
       </View>
@@ -143,8 +191,8 @@ export default function CatalogManagerScreen({ navigation, route }) {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 68,
-            paddingBottom: insets.bottom + 95,
+            paddingTop: 12,
+            paddingBottom: Math.max(insets.bottom, 16) + 140,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -157,7 +205,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
         }
         ListHeaderComponent={
           <View style={styles.headerContainer}>
-            {/* Senior-Friendly Hero Button: + ADD NEW GARMENT */}
+            {/* Senior-Friendly Hero Button: ADD NEW GARMENT */}
             <PressableScale
               onPress={() => setModalVisible(true)}
               style={styles.addPieceHeroCard}
@@ -168,7 +216,7 @@ export default function CatalogManagerScreen({ navigation, route }) {
                 <MaterialIcons name="add-a-photo" size={28} color="#FFFFFF" />
               </View>
               <View style={styles.addPieceHeroTextCol}>
-                <Text style={styles.addPieceHeroTitle}>+ ADD NEW GARMENT / APPAREL</Text>
+                <Text style={styles.addPieceHeroTitle}>ADD NEW GARMENT / APPAREL</Text>
                 <Text style={styles.addPieceHeroSubtitle}>
                   List dresses, tops, denim, sarees & more
                 </Text>
@@ -176,21 +224,79 @@ export default function CatalogManagerScreen({ navigation, route }) {
               <MaterialIcons name="arrow-forward" size={22} color="#FFFFFF" />
             </PressableScale>
 
+            {/* Catalog Pulse & Valuation Strip */}
+            <View style={styles.valuationBanner}>
+              <View style={styles.valuationLeft}>
+                <MaterialIcons name="account-balance-wallet" size={20} color={colors.accentGoldDeep} />
+                <View>
+                  <Text style={styles.valuationLabel}>Total Collection Value</Text>
+                  <Text style={styles.valuationAmount}>{formatINR(totalValuation)}</Text>
+                </View>
+              </View>
+              <View style={styles.valuationBadge}>
+                <Text style={styles.valuationBadgeText}>{products.length} Listed Styles</Text>
+              </View>
+            </View>
+
             {/* Quick Stock Summary Ticker */}
             <View style={styles.tickerRow}>
-              <View style={styles.tickerBadge}>
+              <PressableScale
+                onPress={() => setStockFilter('ALL')}
+                style={[
+                  styles.tickerBadge,
+                  stockFilter === 'ALL' && { borderColor: colors.accentCrimson, borderWidth: 2 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Filter all items"
+              >
                 <MaterialIcons name="checkroom" size={18} color={colors.accentCrimson} />
-                <Text style={styles.tickerText}>Total: {products.length} Items</Text>
-              </View>
-              <View style={[styles.tickerBadge, { borderColor: '#15803D', backgroundColor: '#F0FDF4' }]}>
+                <Text style={styles.tickerText}>Total: {products.length}</Text>
+              </PressableScale>
+
+              <PressableScale
+                onPress={() => setStockFilter(stockFilter === 'IN_STOCK' ? 'ALL' : 'IN_STOCK')}
+                style={[
+                  styles.tickerBadge,
+                  { borderColor: '#15803D', backgroundColor: stockFilter === 'IN_STOCK' ? '#DCFCE7' : '#F0FDF4' },
+                  stockFilter === 'IN_STOCK' && { borderWidth: 2 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Filter in-stock items"
+              >
                 <MaterialIcons name="check-circle" size={18} color="#15803D" />
                 <Text style={[styles.tickerText, { color: '#15803D' }]}>{inStockCount} In Stock</Text>
-              </View>
+              </PressableScale>
+
+              {lowStockCount > 0 && (
+                <PressableScale
+                  onPress={() => setStockFilter(stockFilter === 'LOW_STOCK' ? 'ALL' : 'LOW_STOCK')}
+                  style={[
+                    styles.tickerBadge,
+                    { borderColor: '#D97706', backgroundColor: stockFilter === 'LOW_STOCK' ? '#FEF3C7' : '#FFFBEB' },
+                    stockFilter === 'LOW_STOCK' && { borderWidth: 2 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Filter low-stock items"
+                >
+                  <MaterialIcons name="warning" size={18} color="#D97706" />
+                  <Text style={[styles.tickerText, { color: '#B45309' }]}>{lowStockCount} Low Stock</Text>
+                </PressableScale>
+              )}
+
               {outOfStockCount > 0 && (
-                <View style={[styles.tickerBadge, { borderColor: '#B91C1C', backgroundColor: '#FEF2F2' }]}>
+                <PressableScale
+                  onPress={() => setStockFilter(stockFilter === 'OUT_OF_STOCK' ? 'ALL' : 'OUT_OF_STOCK')}
+                  style={[
+                    styles.tickerBadge,
+                    { borderColor: '#B91C1C', backgroundColor: stockFilter === 'OUT_OF_STOCK' ? '#FEE2E2' : '#FEF2F2' },
+                    stockFilter === 'OUT_OF_STOCK' && { borderWidth: 2 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Filter out-of-stock items"
+                >
                   <MaterialIcons name="pause-circle-filled" size={18} color="#B91C1C" />
                   <Text style={[styles.tickerText, { color: '#B91C1C' }]}>{outOfStockCount} Out of Stock</Text>
-                </View>
+                </PressableScale>
               )}
             </View>
 
@@ -259,42 +365,47 @@ export default function CatalogManagerScreen({ navigation, route }) {
               <MaterialIcons name="checkroom" size={54} color={colors.accentGold} />
               <Text style={styles.emptyTitle}>No Garments Found</Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery || selectedCategory !== 'ALL'
-                  ? 'Try adjusting your search or category filter.'
-                  : 'Tap "+ ADD NEW GARMENT" above to list your boutique collection.'}
+                {searchQuery || selectedCategory !== 'ALL' || stockFilter !== 'ALL'
+                  ? 'Try adjusting your search or stock filter.'
+                  : 'Tap "ADD NEW GARMENT" above to list your boutique collection.'}
               </Text>
               <PressableScale
                 onPress={() => setModalVisible(true)}
                 style={styles.emptyAddBtn}
               >
                 <MaterialIcons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.emptyAddBtnText}>+ Add First Garment</Text>
+                <Text style={styles.emptyAddBtnText}>Add First Garment</Text>
               </PressableScale>
             </View>
           )
         }
         renderItem={({ item }) => {
           const isAvailable = Boolean(item.isAvailable ?? item.inStock);
-          const totalUnits = Array.isArray(item.sizes)
-            ? item.sizes.reduce(
-                (sum, s) => sum + (typeof s === 'object' ? s.stock || 0 : 5),
-                0
-              )
-            : 0;
+          const totalUnits = getItemTotalUnits(item);
           const thumbnail = item.images?.[0];
 
           return (
             <View style={styles.garmentCard}>
               {/* Main Product Info Row */}
               <View style={styles.cardTopRow}>
-                {/* Thumbnail */}
-                {thumbnail ? (
-                  <Image source={{ uri: thumbnail }} style={styles.garmentThumbnail} contentFit="cover" />
-                ) : (
-                  <View style={styles.garmentThumbnailFallback}>
-                    <MaterialIcons name="checkroom" size={28} color={colors.accentGold} />
+                {/* Thumbnail (Tap to Preview) */}
+                <PressableScale
+                  onPress={() => setPreviewProduct(item)}
+                  style={styles.thumbnailWrapper}
+                  accessibilityRole="button"
+                  accessibilityLabel="Preview storefront view"
+                >
+                  {thumbnail ? (
+                    <Image source={{ uri: thumbnail }} style={styles.garmentThumbnail} contentFit="cover" />
+                  ) : (
+                    <View style={styles.garmentThumbnailFallback}>
+                      <MaterialIcons name="checkroom" size={28} color={colors.accentGold} />
+                    </View>
+                  )}
+                  <View style={styles.previewTagSmall}>
+                    <MaterialIcons name="visibility" size={12} color="#FFFFFF" />
                   </View>
-                )}
+                </PressableScale>
 
                 <View style={styles.garmentInfoCol}>
                   <Text style={styles.garmentName} numberOfLines={2}>
@@ -346,51 +457,58 @@ export default function CatalogManagerScreen({ navigation, route }) {
                 </View>
               </View>
 
-              {/* One-Touch Big Stock Toggle Banner */}
-              <PressableScale
-                onPress={() => handleToggleItemStock(item._id, isAvailable)}
-                style={[
-                  styles.stockBannerBtn,
-                  isAvailable ? styles.stockBannerAvailable : styles.stockBannerOutOfStock,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Toggle stock availability"
-              >
-                <MaterialIcons
-                  name={isAvailable ? 'check-circle' : 'pause-circle-filled'}
-                  size={24}
-                  color={isAvailable ? '#15803D' : '#B91C1C'}
-                />
-                <View style={styles.stockBannerTextCol}>
+              {/* Action Buttons Row */}
+              <View style={styles.cardActionsRow}>
+                {/* 1. Quick Restock Button */}
+                <PressableScale
+                  onPress={() => setRestockProduct(item)}
+                  style={styles.quickRestockCardBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quick Restock"
+                >
+                  <MaterialIcons name="bolt" size={18} color={colors.accentGoldDeep} />
+                  <Text style={styles.quickRestockCardBtnText}>Restock / Sizes</Text>
+                </PressableScale>
+
+                {/* 2. One-Touch Big Stock Toggle Banner */}
+                <PressableScale
+                  onPress={() => handleToggleItemStock(item._id, isAvailable)}
+                  style={[
+                    styles.stockBannerBtn,
+                    isAvailable ? styles.stockBannerAvailable : styles.stockBannerOutOfStock,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle stock availability"
+                >
+                  <MaterialIcons
+                    name={isAvailable ? 'check-circle' : 'pause-circle-filled'}
+                    size={20}
+                    color={isAvailable ? '#15803D' : '#B91C1C'}
+                  />
                   <Text
                     style={[
                       styles.stockBannerTitle,
                       isAvailable ? styles.stockTitleAvailable : styles.stockTitleOutOfStock,
                     ]}
                   >
-                    {isAvailable ? '✓ IN STOCK (Available)' : '✕ OUT OF STOCK'}
+                    {isAvailable ? 'In Stock' : 'Out of Stock'}
                   </Text>
-                  <Text style={styles.stockBannerSub}>
-                    {isAvailable
-                      ? 'Available for customer orders. Tap to mark out of stock.'
-                      : 'Unavailable for ordering. Tap to mark in stock.'}
-                  </Text>
-                </View>
-              </PressableScale>
+                </PressableScale>
+              </View>
             </View>
           );
         }}
       />
 
-      {/* Floating Action Button (+ Add Garment) */}
+      {/* Floating Action Capsule (Add Garment) — Safely Docked Above Bottom Nav */}
       <PressableScale
         onPress={() => setModalVisible(true)}
-        style={[styles.floatingAddBtn, { bottom: insets.bottom + 70 }]}
+        style={[styles.floatingAddBtn, { bottom: Math.max(insets.bottom, 16) + 78 }]}
         accessibilityRole="button"
         accessibilityLabel="Add New Garment"
       >
-        <MaterialIcons name="add" size={26} color="#FFFFFF" />
-        <Text style={styles.floatingAddBtnText}>+ ADD GARMENT</Text>
+        <MaterialIcons name="add" size={22} color="#FFFFFF" />
+        <Text style={styles.floatingAddBtnText}>Add Garment</Text>
       </PressableScale>
 
       {/* Unified Bottom Navigation */}
@@ -403,6 +521,23 @@ export default function CatalogManagerScreen({ navigation, route }) {
         onSubmit={handleAddGarmentSubmit}
         shopName={vendorProfile?.shopName || 'Nagpur Boutique'}
       />
+
+      {/* Quick Restock Modal */}
+      <QuickRestockModal
+        visible={Boolean(restockProduct)}
+        product={restockProduct}
+        onClose={() => setRestockProduct(null)}
+        onSave={handleSaveRestock}
+      />
+
+      {/* Garment Preview Modal */}
+      <GarmentPreviewModal
+        visible={Boolean(previewProduct)}
+        product={previewProduct}
+        shopName={vendorProfile?.shopName || 'Nagpur Boutique'}
+        onClose={() => setPreviewProduct(null)}
+        onEditStock={(p) => setRestockProduct(p)}
+      />
     </View>
   );
 }
@@ -413,17 +548,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4EFE7',
   },
   topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 50,
     paddingHorizontal: spacing.md,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(244, 239, 231, 0.98)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(217, 119, 6, 0.12)',
+    zIndex: 50,
   },
   topBarInner: {
-    height: 54,
+    height: 52,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(217, 119, 6, 0.25)',
     flexDirection: 'row',
@@ -431,10 +566,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.sm + 2,
     shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
   },
   backBtn: {
     width: 36,
@@ -521,6 +656,46 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
+  valuationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radii.lg,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.25)',
+  },
+  valuationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  valuationLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.textSlate,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  valuationAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.textObsidian,
+    letterSpacing: -0.2,
+  },
+  valuationBadge: {
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radii.full,
+  },
+  valuationBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.accentGoldDeep,
+  },
   tickerRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -561,7 +736,9 @@ const styles = StyleSheet.create({
   },
   categoryPillsRow: {
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    paddingLeft: 2,
+    paddingRight: spacing.lg,
   },
   catPill: {
     paddingVertical: 8,
@@ -619,6 +796,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  thumbnailWrapper: {
+    position: 'relative',
+  },
   garmentThumbnail: {
     width: 85,
     height: 95,
@@ -636,6 +816,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  previewTagSmall: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(18, 18, 21, 0.7)',
+    borderRadius: 6,
+    padding: 3,
   },
   garmentInfoCol: {
     flex: 1,
@@ -704,14 +892,38 @@ const styles = StyleSheet.create({
     color: colors.textAsh,
     fontWeight: '700',
   },
-  stockBannerBtn: {
+  cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: 10,
+    marginTop: 2,
+  },
+  quickRestockCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: radii.lg,
-    borderWidth: 2,
+    backgroundColor: '#FAF9F5',
+    borderWidth: 1.5,
+    borderColor: 'rgba(217, 119, 6, 0.28)',
+  },
+  quickRestockCardBtnText: {
+    color: colors.accentGoldDeep,
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  stockBannerBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
   },
   stockBannerAvailable: {
     backgroundColor: '#F0FDF4',
@@ -721,11 +933,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     borderColor: '#B91C1C',
   },
-  stockBannerTextCol: {
-    flex: 1,
-  },
   stockBannerTitle: {
-    fontSize: 14.5,
+    fontSize: 13,
     fontWeight: '900',
   },
   stockTitleAvailable: {
@@ -734,33 +943,28 @@ const styles = StyleSheet.create({
   stockTitleOutOfStock: {
     color: '#B91C1C',
   },
-  stockBannerSub: {
-    fontSize: 11.5,
-    color: colors.textSlate,
-    marginTop: 1,
-  },
   floatingAddBtn: {
     position: 'absolute',
-    right: 18,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.accentCrimson,
     paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     borderRadius: 9999,
     shadowColor: colors.accentCrimson,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 90,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 95,
   },
   floatingAddBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   emptyCard: {
     alignItems: 'center',

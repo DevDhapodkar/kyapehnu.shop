@@ -16,6 +16,7 @@ import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
 import VendorProfileScreen from '../screens/vendor/VendorProfileScreen';
+import VendorAnalyticsScreen from '../screens/vendor/VendorAnalyticsScreen';
 import { useAuthStore, ROLES, selectRole } from '../store/useAuthStore';
 import { colors } from '../theme/colors';
 
@@ -144,6 +145,11 @@ function VendorFlow() {
         name="CatalogManager"
         component={CatalogManagerScreen}
         options={slideUpOptions(reduced, { headerShown: false })}
+      />
+      <VendorStack.Screen
+        name="VendorAnalytics"
+        component={VendorAnalyticsScreen}
+        options={{ headerShown: false }}
       />
       <VendorStack.Screen
         name="VendorProfile"

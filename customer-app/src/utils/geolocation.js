@@ -66,16 +66,21 @@ export function getDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Checks if the given coordinate is within the Nagpur delivery zone (~35 km radius).
+ * Checks if the given coordinate is within Porter's Nagpur same-city delivery network (~25 km radius).
  */
 export function isWithinNagpur(latitude, longitude) {
+  if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) return false;
+  // Bounding box check for Nagpur metropolitan territory
+  if (latitude < 20.95 || latitude > 21.32 || longitude < 78.90 || longitude > 79.28) {
+    return false;
+  }
   return (
     getDistanceKm(
       latitude,
       longitude,
       NAGPUR_CENTER.latitude,
       NAGPUR_CENTER.longitude
-    ) <= 35
+    ) <= 25
   );
 }
 

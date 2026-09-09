@@ -1,8 +1,17 @@
 import axios from 'axios';
+import {
+  checkServiceability,
+  calculateDistanceKm,
+  isWithinNagpurBounds,
+  isValidNagpurCity,
+  isValidNagpurPincode,
+  NAGPUR_CENTER,
+  MAX_DELIVERY_RADIUS_KM,
+} from '../utils/porterServiceability.js';
 
-const PORTER_API_BASE = 'https://pfe-apigw-uat.porter.in/v1';
+const PORTER_API_BASE = process.env.PORTER_API_BASE || 'https://pfe-apigw-uat.porter.in/v1';
 
-// Placeholder: request a driver from Porter once an order is ready for pickup.
+// Request a driver from Porter once an order is ready for pickup.
 const requestDriver = async (order, vendor) => {
   try {
     const response = await axios.post(
@@ -43,4 +52,13 @@ const requestDriver = async (order, vendor) => {
   }
 };
 
-export { requestDriver };
+export {
+  requestDriver,
+  checkServiceability,
+  calculateDistanceKm,
+  isWithinNagpurBounds,
+  isValidNagpurCity,
+  isValidNagpurPincode,
+  NAGPUR_CENTER,
+  MAX_DELIVERY_RADIUS_KM,
+};

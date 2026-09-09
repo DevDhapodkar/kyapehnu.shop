@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -8,6 +15,7 @@ import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
+import { spring } from '../theme/motion';
 
 /**
  * StorefrontAmbientSpotlightCard
@@ -15,7 +23,7 @@ import { colors, radii, spacing } from '../theme/colors';
  * Implements Stitch's Heavy Frosted Glass & Reduced Text Spotlight Card:
  * - 4:5 aspect ratio image
  * - Glass proximity pill: bolt 28 min (MaterialIcons)
- * - Glass wishlist toggle: favorite / favorite-border (MaterialIcons)
+ * - Glass wishlist toggle: favorite / favorite-border with Apple spring bounce
  * - Floating glass atelier bar: Studio Anamika | Dharampeth · 1.4 km
  * - Compact horizontal footer: Title & Price on left, Pill "Bag" button on right
  */
@@ -26,6 +34,11 @@ export default function StorefrontAmbientSpotlightCard({
 }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const heartScale = useSharedValue(1);
+
+  const animatedHeartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+  }));
 
   if (!product) return null;
 
@@ -48,6 +61,10 @@ export default function StorefrontAmbientSpotlightCard({
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
     }
+    heartScale.value = withSequence(
+      withTiming(1.38, { duration: 110 }),
+      withSpring(1, spring.pop)
+    );
     setIsWishlisted((prev) => !prev);
   };
 
@@ -111,11 +128,13 @@ export default function StorefrontAmbientSpotlightCard({
               isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'
             }
           >
-            <MaterialIcons
-              name={isWishlisted ? 'favorite' : 'favorite-border'}
-              size={17}
-              color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
-            />
+            <Animated.View style={animatedHeartStyle}>
+              <MaterialIcons
+                name={isWishlisted ? 'favorite' : 'favorite-border'}
+                size={17}
+                color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
+              />
+            </Animated.View>
           </Pressable>
 
           {/* Bottom Floating Atelier Tag */}

@@ -172,7 +172,7 @@ export default function ProfileScreen({ navigation }) {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 68,
+            paddingTop: Math.max(insets.top + 76, 86),
             paddingBottom: insets.bottom + spacing.xl,
           },
         ]}
@@ -415,6 +415,61 @@ export default function ProfileScreen({ navigation }) {
           </PressableScale>
         </View>
 
+        {/* Boutique Partner & Vendor Desk Section */}
+        <View style={styles.glassCard}>
+          <Text style={styles.sectionTitle}>Boutique Partner Desk</Text>
+
+          <PressableScale
+            onPress={() => {
+              useAuthStore.getState().setRole('VENDOR');
+            }}
+            style={styles.actionRow}
+            accessibilityRole="button"
+            accessibilityLabel="Switch to Vendor Mode"
+          >
+            <View style={[styles.prefIconWrap, { backgroundColor: 'rgba(196, 36, 58, 0.1)' }]}>
+              <MaterialIcons
+                name="storefront"
+                size={18}
+                color={colors.accentCrimson}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Switch to Vendor Mode</Text>
+              <Text style={styles.prefSubtitle}>Access Nagpur dispatch desk, inventory & orders</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={colors.textAsh}
+            />
+          </PressableScale>
+
+          <PressableScale
+            onPress={() => navigation.navigate('VendorRegister')}
+            style={styles.actionRow}
+            accessibilityRole="button"
+            accessibilityLabel="Register a new boutique shop"
+          >
+            <View style={[styles.prefIconWrap, { backgroundColor: 'rgba(217, 119, 6, 0.1)' }]}>
+              <MaterialIcons
+                name="add-business"
+                size={18}
+                color={colors.accentGoldDeep}
+              />
+            </View>
+            <View style={styles.prefTextCol}>
+              <Text style={styles.prefTitle}>Register New Boutique</Text>
+              <Text style={styles.prefSubtitle}>List your atelier on Nagpur 45-min corridor</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={20}
+              color={colors.textAsh}
+            />
+          </PressableScale>
+        </View>
+
         {/* Sign Out / Sign In Action Button */}
         {token ? (
           <PressableScale
@@ -475,13 +530,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     paddingHorizontal: spacing.md,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(244, 239, 231, 0.96)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(217, 119, 6, 0.12)',
   },
   topBarInner: {
     height: 52,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.82)',
+    borderColor: 'rgba(217, 119, 6, 0.22)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

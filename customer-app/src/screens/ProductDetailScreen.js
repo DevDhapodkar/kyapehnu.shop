@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import {
   Alert,
@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import Animated, {
   Extrapolation,
+  FadeInDown,
+  FadeOutDown,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -73,6 +75,48 @@ export default function ProductDetailScreen({ route, navigation }) {
   );
   const [addedToast, setAddedToast] = useState(false);
 
+  const rawColors = useMemo(() => {
+    if (!product) return [{ name: 'Standard', hex: '#121215' }];
+    const cols =
+      Array.isArray(product.colors) && product.colors.length > 0
+        ? product.colors
+        : product.colorway
+        ? product.colorway.split(',').map((s) => s.trim())
+        : [
+            { name: 'Obsidian Black', hex: '#121215' },
+            { name: 'Heritage Gold', hex: '#D97706' },
+          ];
+    return cols.map(normalizeColor);
+  }, [product]);
+
+  const [selectedColor, setSelectedColor] = useState(
+    rawColors[0] || { name: 'Standard', hex: '#121215' }
+  );
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
+
+  // Parallax scroll handler
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  const heroImageStyle = useAnimatedStyle(() => {
+    const y = scrollY.value;
+    return {
+      transform: [
+        { translateY: Math.max(0, y * 0.35) },
+        {
+          scale: interpolate(
+            y,
+            [-HERO_HEIGHT, 0, HERO_HEIGHT],
+            [1.25, 1, 1.1],
+            Extrapolation.CLAMP
+          ),
+        },
+      ],
+    };
+  });
+
   const addToCart = useCartStore((state) => state.addToCart);
 
   if (!product) {
@@ -119,50 +163,10 @@ export default function ProductDetailScreen({ route, navigation }) {
   const item = product;
   const sizes = item.sizes?.length ? item.sizes : DEFAULT_SIZES;
 
-  const rawColors =
-    Array.isArray(item.colors) && item.colors.length > 0
-      ? item.colors
-      : item.colorway
-      ? item.colorway.split(',').map((s) => s.trim())
-      : [
-          { name: 'Obsidian Black', hex: '#121215' },
-          { name: 'Heritage Gold', hex: '#D97706' },
-        ];
-
-  const normalizedColors = rawColors.map(normalizeColor);
-
-  const [selectedColor, setSelectedColor] = useState(
-    normalizedColors[0] || { name: 'Standard', hex: '#121215' }
-  );
-  const [heroImageFailed, setHeroImageFailed] = useState(false);
-
   const discountPercent =
     item.mrp && item.price && item.mrp > item.price
       ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
       : null;
-
-  // Parallax scroll handler
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
-
-  const heroImageStyle = useAnimatedStyle(() => {
-    const y = scrollY.value;
-    return {
-      transform: [
-        { translateY: Math.max(0, y * 0.35) },
-        {
-          scale: interpolate(
-            y,
-            [-HERO_HEIGHT, 0, HERO_HEIGHT],
-            [1.25, 1, 1.1],
-            Extrapolation.CLAMP
-          ),
-        },
-      ],
-    };
-  });
 
   const handleToggleWishlist = () => {
     if (Platform.OS !== 'web') {
@@ -649,7 +653,12 @@ export default function ProductDetailScreen({ route, navigation }) {
 
       {/* 4. Added to Bag Toast with direct View Bag action */}
       {addedToast ? (
-        <View style={styles.toastWrap} pointerEvents="box-none">
+        <Animated.View
+          style={styles.toastWrap}
+          pointerEvents="box-none"
+          entering={FadeInDown.springify().damping(13).stiffness(200).mass(0.6)}
+          exiting={FadeOutDown.duration(180)}
+        >
           <View style={styles.toastInner}>
             <MaterialIcons
               name="check-circle"
@@ -669,7 +678,7 @@ export default function ProductDetailScreen({ route, navigation }) {
               <MaterialIcons name="arrow-forward" size={11} color="#FFFFFF" />
             </PressableScale>
           </View>
-        </View>
+        </Animated.View>
       ) : null}
 
       {/* 5. Sticky Bottom Action Bar */}
