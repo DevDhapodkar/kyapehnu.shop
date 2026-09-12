@@ -68,7 +68,23 @@ const DARK_PALETTE_CSS = `
   .stitch-screen-root.dark .border-outline-variant\\/40, .dark .border-outline-variant\\/40 { border-color: rgba(90, 64, 64, 0.4) !important; }
   .stitch-screen-root.dark .border-outline-variant\\/50, .dark .border-outline-variant\\/50 { border-color: rgba(90, 64, 64, 0.5) !important; }
   .stitch-screen-root.dark .border-outline-variant\\/30, .dark .border-outline-variant\\/30 { border-color: rgba(90, 64, 64, 0.3) !important; }
+
+  /* Gradient utilities for dark suite */
+  .stitch-screen-root.dark .from-surface-container-lowest, .dark .from-surface-container-lowest { --tw-gradient-from: #0e0e10 var(--tw-gradient-from-position); --tw-gradient-to: rgba(14, 14, 16, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .via-surface-container-lowest\\/60, .dark .via-surface-container-lowest\\/60 { --tw-gradient-stops: var(--tw-gradient-from), rgba(14, 14, 16, 0.6), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .via-surface-container-lowest\\/30, .dark .via-surface-container-lowest\\/30 { --tw-gradient-stops: var(--tw-gradient-from), rgba(14, 14, 16, 0.3), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .to-surface-container-lowest\\/70, .dark .to-surface-container-lowest\\/70 { --tw-gradient-to: rgba(14, 14, 16, 0.7) var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .to-surface-container-lowest, .dark .to-surface-container-lowest { --tw-gradient-to: #0e0e10 var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .from-surface-container, .dark .from-surface-container { --tw-gradient-from: #201f21 var(--tw-gradient-from-position); --tw-gradient-to: rgba(32, 31, 33, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .to-surface-container-low, .dark .to-surface-container-low { --tw-gradient-to: #1c1b1d var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .from-surface-container-high, .dark .from-surface-container-high { --tw-gradient-from: #2a2a2c var(--tw-gradient-from-position); --tw-gradient-to: rgba(42, 42, 44, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .to-surface-container, .dark .to-surface-container { --tw-gradient-to: #201f21 var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .from-surface, .dark .from-surface { --tw-gradient-from: #131315 var(--tw-gradient-from-position); --tw-gradient-to: rgba(19, 19, 21, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+  .stitch-screen-root.dark .to-surface\\/40, .dark .to-surface\\/40 { --tw-gradient-to: rgba(19, 19, 21, 0.4) var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .to-surface, .dark .to-surface { --tw-gradient-to: #131315 var(--tw-gradient-to-position) !important; }
+  .stitch-screen-root.dark .from-surface-container-low, .dark .from-surface-container-low { --tw-gradient-from: #1c1b1d var(--tw-gradient-from-position); --tw-gradient-to: rgba(28, 27, 29, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
 `;
+
 
 /**
  * StitchScreenRenderer renders the EXACT HTML extracted directly from Google Stitch
