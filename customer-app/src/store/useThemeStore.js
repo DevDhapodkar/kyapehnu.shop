@@ -21,12 +21,7 @@ export const useThemeStore = create((set, get) => ({
       if (saved === 'dark' || saved === 'light') {
         get().setThemeMode(saved);
       } else {
-        // If system prefers dark, or default to light
-        if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) {
-          get().setThemeMode('dark');
-        } else {
-          get().setThemeMode('light');
-        }
+        get().setThemeMode('light');
       }
     } catch (e) {
       console.warn('[Theme] Could not load saved theme:', e);

@@ -64,9 +64,9 @@ function slideUpOptions(reduced, themeColors, extra = {}) {
 function CustomerFlow({ themeColors }) {
   const reduced = useReducedMotion();
   return (
-    <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced, themeColors)}>
-      <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+    <CustomerStack.Navigator initialRouteName="Welcome" screenOptions={makeScreenOptions(reduced, themeColors)}>
       <CustomerStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+      <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}

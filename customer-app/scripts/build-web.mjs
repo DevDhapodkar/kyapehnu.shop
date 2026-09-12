@@ -354,6 +354,6 @@ if (fs.existsSync(targetDir)) {
   fs.rmSync(targetDir, { recursive: true, force: true });
 }
 fs.mkdirSync(targetDir, { recursive: true });
-fs.cpSync(distWebDir, targetDir, { recursive: true, force: true });
+execSync(`cp -R "${distWebDir}/"* "${targetDir}/"`, { stdio: 'inherit' });
 
 console.log('✅ [4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');

@@ -21,6 +21,7 @@ export default function StitchScreenRenderer({
 }) {
   const containerRef = useRef(null);
   const isDark = useThemeStore((state) => state.isDark);
+  const setThemeMode = useThemeStore((state) => state.setThemeMode);
   const cartCount = useCartStore((state) => state.cartItems ? state.cartItems.reduce((sum, i) => sum + i.quantity, 0) : 0);
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
@@ -57,6 +58,13 @@ export default function StitchScreenRenderer({
   const processedHtml = React.useMemo(() => {
     if (!screenData || !screenData.html) return '';
     let html = screenData.html;
+
+    // Sanitize entity artifacts from Stitch exports
+    html = html.replace(/&amp;rupee|&rupee/gi, '₹');
+    html = html.replace(
+      /https:\/\/lh3\.googleusercontent\.com\/aida\/AOf_eGf[a-zA-Z0-9_-]+/g,
+      'https://lh3.googleusercontent.com/aida/AEtjO1XLruF6z25WUMTieESOTqs6U_f0RItYEQ-VWu3MTB_6pjBPHi8GZuBctGZFpJgLxU4isMRO6kF7kvO75Fk6DuipAvC-1JeEe0PNhyzkbBOpftUT1k0fIHQkiuCOCu4SLdRbyHyp0b5ZJtwFe1U8-9RKwL6g6v6rRhRe0NnlNROsNN9jb4WxChLPlI2spDT-OPraDBAfn3rRULsS9BTIMPTyM5d-B93O8ICs2kal2QW2tgCaKd-egcPKLVtw'
+    );
 
     // Update cart badge numbers
     html = html.replace(
@@ -233,15 +241,24 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // 5. Hero Card "View Piece" Button or Click on Hero Card
+      // 5. Product or Hero Card Click (Opens PDP)
+      const priceElement = target.closest('[aria-label*="₹"]');
       const heroBtn = target.closest('button');
-      if (heroBtn && heroBtn.textContent && heroBtn.textContent.includes('View Piece')) {
+      if (
+        (priceElement && !target.closest('button[aria-label="Add to bag"]')) ||
+        (heroBtn && heroBtn.textContent && heroBtn.textContent.includes('View Piece'))
+      ) {
         e.preventDefault();
         e.stopPropagation();
+        const label = priceElement ? priceElement.getAttribute('aria-label') : '';
+        const parts = label ? label.split(',') : [];
+        const title = parts[0]?.trim() || 'Royal Chanderi Zari Set';
+        const priceStr = parts[1]?.replace(/[^0-9]/g, '') || '4750';
+        const price = parseInt(priceStr, 10) || 4750;
         navigation?.navigate?.('ProductDetail', {
-          id: 'garment-hero-chanderi',
-          title: 'Royal Chanderi Zari Set',
-          price: 4750,
+          id: 'garment-selected',
+          title,
+          price,
           boutiqueName: 'Dharampeth Atelier',
           image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA7S-N2WWsNXgtuAYoxV3VTKQj3zhQPJJVOqBebPKzwABDFzSMW8_Ma853uQn3Uh8t4ERL-qIjxCVuKaA1pBPZgz6Uh5jMAmjaeXXKaYzP90t225iQtt3IPiDJ6MeblM2eVZAA3a3T6fZNDtw1pbAIXEVn23GTbHNZwNTmCuADF2lyaHwYfFyFhDrB-ue-c49KvygdOgf5U9uviu-2NnPa9sZBsXaXdhFjKESwZ7jP7QBdTAo0RwlWsGg',
         });
@@ -377,6 +394,7 @@ export default function StitchScreenRenderer({
         btn.textContent &&
         (btn.textContent.includes('Proceed to Nagpur Delivery') ||
           btn.textContent.includes('Proceed to Delivery') ||
+          btn.textContent.includes('Add Delivery Address') ||
           btn.textContent.includes('Select Address') ||
           btn.textContent.includes('Proceed to Checkout'))
       ) {
