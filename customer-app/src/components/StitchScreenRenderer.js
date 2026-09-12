@@ -5,6 +5,71 @@ import { useThemeStore } from '../store/useThemeStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore, ROLES } from '../store/useAuthStore';
 
+const DARK_PALETTE_CSS = `
+  .stitch-screen-root.dark, .dark .stitch-screen-root, html.dark .stitch-screen-root {
+    --color-surface: #131315 !important;
+    --color-background: #131315 !important;
+    --color-on-surface: #e5e1e4 !important;
+    --color-surface-container: #201f21 !important;
+    --color-surface-container-low: #1c1b1d !important;
+    --color-surface-container-lowest: #0e0e10 !important;
+    --color-surface-container-high: #2a2a2c !important;
+    --color-surface-container-highest: #353437 !important;
+    --color-surface-variant: #353437 !important;
+    --color-on-surface-variant: #e3bebd !important;
+    --color-outline: #aa8988 !important;
+    --color-outline-variant: #5a4040 !important;
+    --color-secondary: #eac166 !important;
+    --color-secondary-container: #785a00 !important;
+  }
+
+  .stitch-screen-root.dark .bg-surface, .dark .bg-surface { background-color: #131315 !important; }
+  .stitch-screen-root.dark .bg-surface-dim, .dark .bg-surface-dim { background-color: #131315 !important; }
+  .stitch-screen-root.dark .bg-surface-bright, .dark .bg-surface-bright { background-color: #39393b !important; }
+  .stitch-screen-root.dark .bg-surface-container, .dark .bg-surface-container { background-color: #201f21 !important; }
+  .stitch-screen-root.dark .bg-surface-container-low, .dark .bg-surface-container-low { background-color: #1c1b1d !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest, .dark .bg-surface-container-lowest { background-color: #0e0e10 !important; }
+  .stitch-screen-root.dark .bg-surface-container-high, .dark .bg-surface-container-high { background-color: #2a2a2c !important; }
+  .stitch-screen-root.dark .bg-surface-container-highest, .dark .bg-surface-container-highest { background-color: #353437 !important; }
+  .stitch-screen-root.dark .bg-surface-variant, .dark .bg-surface-variant { background-color: #353437 !important; }
+  .stitch-screen-root.dark .bg-background, .dark .bg-background { background-color: #131315 !important; }
+  .stitch-screen-root.dark .text-on-surface, .dark .text-on-surface { color: #e5e1e4 !important; }
+  .stitch-screen-root.dark .text-on-surface-variant, .dark .text-on-surface-variant { color: #e3bebd !important; }
+  .stitch-screen-root.dark .text-on-background, .dark .text-on-background { color: #e5e1e4 !important; }
+  .stitch-screen-root.dark .text-secondary, .dark .text-secondary { color: #eac166 !important; }
+  .stitch-screen-root.dark .border-outline, .dark .border-outline { border-color: #aa8988 !important; }
+  .stitch-screen-root.dark .border-outline-variant, .dark .border-outline-variant { border-color: #5a4040 !important; }
+  .stitch-screen-root.dark .border-border-hairline, .dark .border-border-hairline { border-color: #353437 !important; }
+  .stitch-screen-root.dark .border-surface-container, .dark .border-surface-container { border-color: #201f21 !important; }
+  .stitch-screen-root.dark .border-surface-container-high, .dark .border-surface-container-high { border-color: #2a2a2c !important; }
+
+  /* Opacity utilities for dark suite */
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/80, .dark .bg-surface-container-lowest\\/80 { background-color: rgba(14, 14, 16, 0.8) !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/85, .dark .bg-surface-container-lowest\\/85 { background-color: rgba(14, 14, 16, 0.85) !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/90, .dark .bg-surface-container-lowest\\/90 { background-color: rgba(14, 14, 16, 0.9) !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/95, .dark .bg-surface-container-lowest\\/95 { background-color: rgba(14, 14, 16, 0.95) !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/60, .dark .bg-surface-container-lowest\\/60 { background-color: rgba(14, 14, 16, 0.6) !important; }
+  .stitch-screen-root.dark .bg-surface-container-lowest\\/50, .dark .bg-surface-container-lowest\\/50 { background-color: rgba(14, 14, 16, 0.5) !important; }
+  .stitch-screen-root.dark .bg-surface-container\\/60, .dark .bg-surface-container\\/60 { background-color: rgba(32, 31, 33, 0.6) !important; }
+  .stitch-screen-root.dark .bg-surface-container-high\\/80, .dark .bg-surface-container-high\\/80 { background-color: rgba(42, 42, 44, 0.8) !important; }
+  .stitch-screen-root.dark .bg-surface-container-high\\/60, .dark .bg-surface-container-high\\/60 { background-color: rgba(42, 42, 44, 0.6) !important; }
+  .stitch-screen-root.dark .bg-surface-container-high\\/90, .dark .bg-surface-container-high\\/90 { background-color: rgba(42, 42, 44, 0.9) !important; }
+  .stitch-screen-root.dark .bg-surface-container-high\\/40, .dark .bg-surface-container-high\\/40 { background-color: rgba(42, 42, 44, 0.4) !important; }
+  .stitch-screen-root.dark .bg-surface-container-low\\/95, .dark .bg-surface-container-low\\/95 { background-color: rgba(28, 27, 29, 0.95) !important; }
+  .stitch-screen-root.dark .bg-surface-container-highest\\/95, .dark .bg-surface-container-highest\\/95 { background-color: rgba(53, 52, 55, 0.95) !important; }
+  .stitch-screen-root.dark .bg-surface-container-highest\\/90, .dark .bg-surface-container-highest\\/90 { background-color: rgba(53, 52, 55, 0.9) !important; }
+  .stitch-screen-root.dark .bg-surface\\/80, .dark .bg-surface\\/80 { background-color: rgba(19, 19, 21, 0.8) !important; }
+  .stitch-screen-root.dark .bg-surface\\/85, .dark .bg-surface\\/85 { background-color: rgba(19, 19, 21, 0.85) !important; }
+  .stitch-screen-root.dark .bg-surface\\/90, .dark .bg-surface\\/90 { background-color: rgba(19, 19, 21, 0.9) !important; }
+  .stitch-screen-root.dark .bg-secondary-container\\/30, .dark .bg-secondary-container\\/30 { background-color: rgba(120, 90, 0, 0.3) !important; }
+  .stitch-screen-root.dark .bg-secondary-container\\/20, .dark .bg-secondary-container\\/20 { background-color: rgba(120, 90, 0, 0.2) !important; }
+  .stitch-screen-root.dark .bg-secondary-container\\/25, .dark .bg-secondary-container\\/25 { background-color: rgba(120, 90, 0, 0.25) !important; }
+  .stitch-screen-root.dark .bg-secondary-container\\/40, .dark .bg-secondary-container\\/40 { background-color: rgba(120, 90, 0, 0.4) !important; }
+  .stitch-screen-root.dark .border-outline-variant\\/40, .dark .border-outline-variant\\/40 { border-color: rgba(90, 64, 64, 0.4) !important; }
+  .stitch-screen-root.dark .border-outline-variant\\/50, .dark .border-outline-variant\\/50 { border-color: rgba(90, 64, 64, 0.5) !important; }
+  .stitch-screen-root.dark .border-outline-variant\\/30, .dark .border-outline-variant\\/30 { border-color: rgba(90, 64, 64, 0.3) !important; }
+`;
+
 /**
  * StitchScreenRenderer renders the EXACT HTML extracted directly from Google Stitch
  * with full Tailwind CSS styling, Google Fonts (EB Garamond & Plus Jakarta Sans),
@@ -640,6 +705,7 @@ export default function StitchScreenRenderer({
 
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>
+      <style dangerouslySetInnerHTML={{ __html: DARK_PALETTE_CSS }} />
       {/* Dynamic Luxury Toast Banner */}
       {toastMessage ? (
         <div
