@@ -26,11 +26,10 @@ async function main() {
 
   try {
     const page = await browser.newPage();
-    page.on('console', msg => {
-      const text = msg.text();
-      if (!text.includes('Download the React DevTools')) {
-        console.log(`[Browser Console]:`, text);
-      }
+
+    // Ensure light theme is forced for light suite capture
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem('@kyapehnu/theme_mode', 'light');
     });
 
     await page.goto('https://www.kyapehnu.shop/app', { waitUntil: 'networkidle0', timeout: 35000 });
@@ -45,23 +44,21 @@ async function main() {
       { name: '06_light_orders', action: () => window.__NAV__.navigate('MyOrders') },
       { name: '07_light_profile', action: () => window.__NAV__.navigate('Profile') },
       { name: '08_light_auth', action: () => window.__NAV__.navigate('Auth') },
-      { name: '09_light_vendor_register', action: () => window.__NAV__.navigate('VendorRegister') },
-      { name: '10_light_vendor_queue', action: () => {
-        // switch role to vendor
-        const authStore = window.__NAV__;
-        window.__NAV__.navigate('Home');
-      }},
+      { name: '09_light_welcome', action: () => window.__NAV__.navigate('Welcome') },
+      { name: '10_light_vendor_register', action: () => window.__NAV__.navigate('VendorRegister') },
+      { name: '11_light_catalog_manager', action: () => window.__NAV__.navigate('CatalogManager') },
+      { name: '12_light_product_ingestion', action: () => window.__NAV__.navigate('ProductIngestion') },
     ];
 
     for (const scr of screens) {
       console.log(`📸 Capturing ${scr.name}...`);
       await page.evaluate(scr.action);
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1400));
       const ssPath = path.join(outDir, `${scr.name}.png`);
       await page.screenshot({ path: ssPath, fullPage: false });
     }
 
-    console.log('✅ All customer screens verified and captured successfully!');
+    console.log('✅ All screens verified and captured successfully!');
 
   } catch (err) {
     console.error('❌ Verification error:', err);

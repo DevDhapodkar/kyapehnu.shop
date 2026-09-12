@@ -35,6 +35,15 @@ async function runAudit() {
     await page.evaluate(() => {
       const splash = document.querySelector('.fixed.inset-0.z-50, [id="coutureProgressBar"]');
       if (splash) splash.click();
+      if (window.__THEME_STORE__) {
+        window.__THEME_STORE__.getState().setThemeMode('light');
+      }
+      if (window.__AUTH_STORE__) {
+        window.__AUTH_STORE__.getState().setRole('CUSTOMER');
+      }
+      if (window.__NAV__) {
+        window.__NAV__.navigate('Home');
+      }
     });
   } catch (e) {}
 
