@@ -59,12 +59,11 @@ export default function StitchScreenRenderer({
     if (!screenData || !screenData.html) return '';
     let html = screenData.html;
 
-    // Sanitize entity artifacts from Stitch exports
+    // Sanitize entity artifacts and icon names from Stitch exports
     html = html.replace(/&amp;rupee|&rupee/gi, '₹');
-    html = html.replace(
-      /https:\/\/lh3\.googleusercontent\.com\/aida\/AOf_eGf[a-zA-Z0-9_-]+/g,
-      'https://lh3.googleusercontent.com/aida/AEtjO1XLruF6z25WUMTieESOTqs6U_f0RItYEQ-VWu3MTB_6pjBPHi8GZuBctGZFpJgLxU4isMRO6kF7kvO75Fk6DuipAvC-1JeEe0PNhyzkbBOpftUT1k0fIHQkiuCOCu4SLdRbyHyp0b5ZJtwFe1U8-9RKwL6g6v6rRhRe0NnlNROsNN9jb4WxChLPlI2spDT-OPraDBAfn3rRULsS9BTIMPTyM5d-B93O8ICs2kal2QW2tgCaKd-egcPKLVtw'
-    );
+    html = html.replace(/fitbit_push_ups/gi, 'receipt_long');
+    const royalCrestUrl = 'https://lh3.googleusercontent.com/aida/AEtjO1VnExgRV6OGL1IkUJrOwHJCTHcaj3ATm4vhTTU2y-L44Ar2NYsYlBu5ENvh4NFq2sOj1QiK_evlN-eoUkhuG3EfTz050QYCPCKRTQRIoJqEoY-PhYpnzcr-HmCUCfTcvRfAul3QsiqHSguDpuGgScnLRwtgXFqzBfDjDE5HyEsTocDD1dykjDKk2XVh6_Uo9pbafQHgDt7ClzAnspBkb8STruPTbiVM-J63df0Lq1l-zZWrwovDGnuhgnUs';
+    html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/(AOf_eGf|AEtjO1XLru)[a-zA-Z0-9_-]+/g, royalCrestUrl);
 
     // Update cart badge numbers
     html = html.replace(

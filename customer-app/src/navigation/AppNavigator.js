@@ -103,6 +103,26 @@ function CustomerFlow({ themeColors }) {
         component={VendorRegisterScreen}
         options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
+      <CustomerStack.Screen
+        name="CatalogManager"
+        component={CatalogManagerScreen}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+      <CustomerStack.Screen
+        name="ProductIngestion"
+        component={ProductIngestionScreen}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+      <CustomerStack.Screen
+        name="VendorOrders"
+        component={VendorOrderListScreen}
+        options={{ headerShown: false }}
+      />
+      <CustomerStack.Screen
+        name="VendorOrderDetail"
+        component={VendorOrderDetailScreen}
+        options={{ headerShown: false }}
+      />
     </CustomerStack.Navigator>
   );
 }
