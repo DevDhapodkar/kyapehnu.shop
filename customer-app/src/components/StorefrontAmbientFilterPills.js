@@ -2,6 +2,7 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 // Two tiers that do NOT overlap: the icon row selects the garment *type*
 // (who/what it is), the chip rail refines by *fabric / occasion*. Sharing the
@@ -26,6 +27,8 @@ export default function StorefrontAmbientFilterPills({
   selectedId = 'all',
   onSelectCategory,
 }) {
+  const { colors, isDark } = useTheme();
+
   return (
     <View style={styles.wrapper}>
       {/* 1. Sleek Category Quick-Switch Bar with Micro-Badges (5 columns) */}
@@ -39,7 +42,14 @@ export default function StorefrontAmbientFilterPills({
                 onPress={() => onSelectCategory?.(isSelected ? 'all' : item.id)}
                 style={[
                   styles.quickCard,
-                  isSelected && styles.quickCardSelected,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.55)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.80)',
+                  },
+                  isSelected && {
+                    borderColor: colors.accentCrimson,
+                    backgroundColor: isDark ? 'rgba(196, 36, 58, 0.18)' : 'rgba(255, 255, 255, 0.75)',
+                  },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter by ${item.label}`}
@@ -48,7 +58,9 @@ export default function StorefrontAmbientFilterPills({
                 <View
                   style={[
                     styles.iconCircle,
-                    isSelected ? styles.iconCircleActive : styles.iconCircleInactive,
+                    isSelected
+                      ? styles.iconCircleActive
+                      : { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(18, 18, 20, 0.05)' },
                   ]}
                 >
                   <MaterialIcons
@@ -60,7 +72,10 @@ export default function StorefrontAmbientFilterPills({
                 <Text
                   style={[
                     styles.quickLabel,
-                    isSelected ? styles.quickLabelActive : styles.quickLabelInactive,
+                    {
+                      color: isSelected ? colors.textObsidian : colors.textSlate,
+                      fontWeight: isSelected ? '700' : '600',
+                    },
                   ]}
                 >
                   {item.label}
@@ -87,7 +102,15 @@ export default function StorefrontAmbientFilterPills({
               onPress={() => onSelectCategory?.(pill.id)}
               style={[
                 styles.pill,
-                isSelected ? styles.pillSelected : styles.pillGlass,
+                isSelected
+                  ? [styles.pillSelected, { backgroundColor: isDark ? colors.accentCrimson : colors.textObsidian }]
+                  : [
+                      styles.pillGlass,
+                      {
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.55)',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.80)',
+                      },
+                    ],
               ]}
               accessibilityRole="button"
               accessibilityLabel={pill.label}
@@ -96,7 +119,7 @@ export default function StorefrontAmbientFilterPills({
               <Text
                 style={[
                   styles.pillText,
-                  isSelected ? styles.pillTextSelected : styles.pillTextGlass,
+                  isSelected ? styles.pillTextSelected : [styles.pillTextGlass, { color: colors.textSlate }],
                 ]}
               >
                 {pill.label}

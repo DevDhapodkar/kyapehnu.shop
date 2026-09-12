@@ -13,7 +13,7 @@ const enterAsGuest = async (page: Page) => {
   // Absolute '/app/' — the bundle is served under its exported baseUrl, and a
   // bare '/' would resolve to the static server root, not the app.
   await page.goto('/app/', { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Explore Storefront as Guest' }).click();
+  await page.getByRole('button', { name: /(Explore Storefront as Guest|Browse Catalog as guest)/i }).first().click();
   // Storefront settles once product cards render. The price lives in the card's
   // aria-label ("<name>, ₹<price>"), so match the attribute, not visible text.
   await expect(page.locator('[aria-label*="₹"]').first()).toBeVisible({ timeout: 30000 });

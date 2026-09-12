@@ -17,6 +17,7 @@ import AmbientBackgroundBlobs from '../components/AmbientBackgroundBlobs';
 import PressableScale from '../components/PressableScale';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -41,6 +42,7 @@ export default function WelcomeScreen({
   onRegisterShop,
 }) {
   const insets = useSafeAreaInsets();
+  const { colors: themeColors, isDark } = useTheme();
 
   const handleGetStarted = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -80,8 +82,8 @@ export default function WelcomeScreen({
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Ambient Glowing Gradient Blobs */}
       <AmbientBackgroundBlobs />
@@ -97,20 +99,38 @@ export default function WelcomeScreen({
             ]}
           >
             {/* Live Nagpur Ateliers Proximity Pill */}
-            <View style={styles.proximityPill}>
-              <View style={styles.pulsingBeacon} />
-              <Text style={styles.proximityText}>NAGPUR ATELIERS LIVE</Text>
+            <View
+              style={[
+                styles.proximityPill,
+                {
+                  backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(244, 243, 238, 0.92)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.06)',
+                },
+              ]}
+            >
+              <View style={[styles.pulsingBeacon, { backgroundColor: themeColors.accentCrimson }]} />
+              <Text style={[styles.proximityText, { color: isDark ? '#C9C7C2' : themeColors.textSlate }]}>
+                NAGPUR EXPRESS
+              </Text>
             </View>
 
-            {/* Quick Explore Pill */}
+            {/* Heritage Guild Pill */}
             <PressableScale
               onPress={handleExplore}
-              style={styles.explorePill}
+              style={[
+                styles.explorePill,
+                {
+                  backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(244, 243, 238, 0.92)',
+                  borderColor: isDark ? 'rgba(200, 162, 74, 0.25)' : 'rgba(179, 138, 43, 0.2)',
+                },
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Explore Storefront as Guest"
+              accessibilityLabel="Heritage Guild"
             >
-              <Text style={styles.exploreText}>Explore</Text>
-              <MaterialIcons name="chevron-right" size={16} color="rgba(19, 19, 22, 0.75)" />
+              <MaterialIcons name="stars" size={14} color={themeColors.accentGold} />
+              <Text style={[styles.exploreText, { color: themeColors.accentGoldDeep || themeColors.accentGold }]}>
+                HERITAGE GUILD
+              </Text>
             </PressableScale>
           </View>
 
@@ -119,7 +139,7 @@ export default function WelcomeScreen({
             contentContainerStyle={[
               styles.scrollContent,
               {
-                paddingBottom: insets.bottom + 170,
+                paddingBottom: insets.bottom + 180,
               },
             ]}
             showsVerticalScrollIndicator={false}
@@ -130,58 +150,135 @@ export default function WelcomeScreen({
               {/* Emblem Container with Radiant Halo */}
               <View style={styles.emblemContainer}>
                 <View style={styles.emblemHalo} />
-                <View style={styles.emblemBox}>
+                <View
+                  style={[
+                    styles.emblemBox,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 26, 0.8)' : 'rgba(255, 255, 255, 0.75)',
+                      borderColor: isDark ? 'rgba(200, 162, 74, 0.35)' : 'rgba(255, 255, 255, 0.95)',
+                      shadowColor: themeColors.accentCrimson,
+                    },
+                  ]}
+                >
                   <Image
-                    source={require('../../assets/images/stitch-emblem.png')}
+                    source={require('../../assets/images/brand-emblem.png')}
                     style={styles.emblemImage}
                     resizeMode="cover"
                   />
                 </View>
-                {/* Proximity Tag Indicator */}
-                <View style={styles.proximityTag}>
-                  <MaterialIcons name="star" size={12} color="#C8A24A" />
-                  <Text style={styles.proximityTagText}>60-MIN DOORSTEP</Text>
+
+                {/* 45-min Bolt Badge */}
+                <View
+                  style={[
+                    styles.boltBadge,
+                    {
+                      backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(200, 162, 74, 0.3)' : 'rgba(18, 18, 20, 0.08)',
+                    },
+                  ]}
+                >
+                  <MaterialIcons name="bolt" size={13} color={themeColors.accentCrimson} />
+                  <Text style={[styles.boltBadgeText, { color: isDark ? '#FAF9F5' : themeColors.textObsidian }]}>
+                    45 min
+                  </Text>
                 </View>
               </View>
 
               {/* App Title & Garamond Headline */}
               <View style={styles.headlineBlock}>
-                <Text style={styles.eyebrow}>NAGPUR HYPERLOCAL COUTURE</Text>
-                <Text style={styles.titleSerif}>
-                  Kya Pehnu<Text style={styles.crimsonGlyph}>?</Text>
+                <Text style={[styles.eyebrow, { color: themeColors.accentGold }]}>
+                  — NAGPUR COUTURE GUILD —
                 </Text>
-                <Text style={styles.subtitle}>
-                  Handcrafted silken drapes & designer ensembles from Sitabuldi & Dharampeth to your door in an hour.
+                <Text style={[styles.titleSerif, { color: isDark ? '#FFFFFF' : themeColors.textPrimary }]}>
+                  Kya Pehnu<Text style={[styles.crimsonGlyph, { color: themeColors.accentCrimson }]}>?</Text>
                 </Text>
+                <Text style={[styles.subtitle, { color: isDark ? '#C9C7C2' : themeColors.textSecondary }]}>
+                  Curated bespoke handlooms & designer ensembles delivered warm to your suite.
+                </Text>
+
+                {/* Corridor Chips */}
+                <View style={styles.corridorsRow}>
+                  {['Sitabuldi', 'Dharampeth', 'Gandhibagh'].map((zone, idx) => (
+                    <React.Fragment key={zone}>
+                      {idx > 0 && (
+                        <Text style={[styles.corridorDot, { color: isDark ? '#5A5854' : '#C4C2BA' }]}>
+                          •
+                        </Text>
+                      )}
+                      <View
+                        style={[
+                          styles.corridorChip,
+                          {
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(244, 243, 238, 0.9)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.06)',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.corridorText,
+                            { color: isDark ? '#E5E1E4' : themeColors.textSlate },
+                          ]}
+                        >
+                          {zone}
+                        </Text>
+                      </View>
+                    </React.Fragment>
+                  ))}
+                </View>
               </View>
 
               {/* 3 Frosted Micro Value Pillars */}
               <View style={styles.valuePillarsGrid}>
-                {/* Pillar 1: 60 Mins */}
-                <View style={styles.valuePillarCard}>
+                {/* Pillar 1: 45 Mins */}
+                <View
+                  style={[
+                    styles.valuePillarCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.82)' : 'rgba(255, 255, 255, 0.52)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.85)',
+                    },
+                  ]}
+                >
                   <View style={[styles.pillarIconWrap, styles.iconWrapRose]}>
-                    <MaterialIcons name="schedule" size={16} color="#C4243A" />
+                    <MaterialIcons name="schedule" size={16} color={themeColors.accentCrimson} />
                   </View>
-                  <Text style={styles.pillarTitle}>60 Mins</Text>
-                  <Text style={styles.pillarCaption}>Porter dispatch</Text>
+                  <Text style={[styles.pillarTitle, { color: themeColors.textPrimary }]}>45 Mins</Text>
+                  <Text style={[styles.pillarCaption, { color: themeColors.textAsh }]}>Porter dispatch</Text>
                 </View>
 
                 {/* Pillar 2: Doorstep Trial */}
-                <View style={styles.valuePillarCard}>
+                <View
+                  style={[
+                    styles.valuePillarCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.82)' : 'rgba(255, 255, 255, 0.52)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.85)',
+                    },
+                  ]}
+                >
                   <View style={[styles.pillarIconWrap, styles.iconWrapAmber]}>
-                    <MaterialIcons name="verified-user" size={16} color="#C8A24A" />
+                    <MaterialIcons name="verified-user" size={16} color={themeColors.accentGold} />
                   </View>
-                  <Text style={styles.pillarTitle}>Doorstep Trial</Text>
-                  <Text style={styles.pillarCaption}>Try before buy</Text>
+                  <Text style={[styles.pillarTitle, { color: themeColors.textPrimary }]}>Doorstep Trial</Text>
+                  <Text style={[styles.pillarCaption, { color: themeColors.textAsh }]}>Try before buy</Text>
                 </View>
 
                 {/* Pillar 3: Pay on Delivery */}
-                <View style={styles.valuePillarCard}>
+                <View
+                  style={[
+                    styles.valuePillarCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.82)' : 'rgba(255, 255, 255, 0.52)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.85)',
+                    },
+                  ]}
+                >
                   <View style={[styles.pillarIconWrap, styles.iconWrapEmerald]}>
                     <MaterialIcons name="payments" size={16} color="#059669" />
                   </View>
-                  <Text style={styles.pillarTitle}>Pay on Delivery</Text>
-                  <Text style={styles.pillarCaption}>Zero risk COD</Text>
+                  <Text style={[styles.pillarTitle, { color: themeColors.textPrimary }]}>Pay on Delivery</Text>
+                  <Text style={[styles.pillarCaption, { color: themeColors.textAsh }]}>Zero risk COD</Text>
                 </View>
               </View>
             </View>
@@ -191,46 +288,86 @@ export default function WelcomeScreen({
           <View
             style={[
               styles.dockedGlassTray,
-              { paddingBottom: Math.max(insets.bottom + 12, 24) },
+              { paddingBottom: Math.max(insets.bottom + 12, 20) },
             ]}
           >
-            <View style={styles.glassActionCard}>
-              {/* Primary CTA: Get Started */}
+            <View
+              style={[
+                styles.glassActionCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.92)' : 'rgba(255, 255, 255, 0.72)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.9)',
+                },
+              ]}
+            >
+              {/* Primary CTA: Explore Looks */}
               <PressableScale
                 onPress={handleGetStarted}
-                style={styles.primaryCta}
+                style={[styles.primaryCta, { backgroundColor: themeColors.accentCrimson }]}
                 accessibilityRole="button"
-                accessibilityLabel="Get Started with Kya Pehnu"
+                accessibilityLabel="Explore Looks"
               >
-                <Text style={styles.primaryCtaText}>Get Started</Text>
+                <Text style={styles.primaryCtaText}>Explore Looks</Text>
                 <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
               </PressableScale>
 
-              {/* Secondary CTA: Sign In */}
-              <View style={styles.secondaryRow}>
-                <Text style={styles.secondaryText}>Already have an account?</Text>
-                <PressableScale
-                  onPress={handleSignIn}
-                  style={styles.signInBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Sign In"
-                >
-                  <Text style={styles.signInBtnText}>Sign In</Text>
-                  <MaterialIcons name="chevron-right" size={15} color="#C4243A" />
-                </PressableScale>
-              </View>
+              {/* Secondary CTA: Log In to Your Account */}
+              <PressableScale
+                onPress={handleSignIn}
+                style={[
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(18, 18, 20, 0.08)',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Log In to Your Account"
+              >
+                <Text style={[styles.secondaryBtnText, { color: isDark ? '#FAF9F5' : themeColors.textObsidian }]}>
+                  Log In to Your Account
+                </Text>
+              </PressableScale>
 
-              {/* Vendor Portal Mini Link */}
-              <View style={styles.vendorLinkRow}>
-                <Text style={styles.vendorPromptText}>Run a boutique in Nagpur?</Text>
+              {/* Guest and Partner Links */}
+              <View style={styles.linksBlock}>
                 <PressableScale
-                  onPress={handleRegisterShop}
-                  style={styles.vendorBtn}
-                  accessibilityRole="link"
-                  accessibilityLabel="Register Shop as Vendor"
+                  onPress={handleExplore}
+                  style={styles.guestLink}
+                  accessibilityRole="button"
+                  accessibilityLabel="Explore Storefront as Guest"
                 >
-                  <Text style={styles.vendorBtnText}>Register Shop →</Text>
+                  <Text style={[styles.guestPromptText, { color: themeColors.textAsh }]}>
+                    Browsing as guest?{' '}
+                    <Text style={[styles.guestActionText, { color: themeColors.accentCrimson }]}>
+                      Browse Catalog
+                    </Text>
+                  </Text>
                 </PressableScale>
+
+                <View style={styles.vendorLinkRow}>
+                  <Text style={[styles.vendorPromptText, { color: themeColors.textAsh }]}>
+                    Run a boutique in Nagpur?
+                  </Text>
+                  <PressableScale
+                    onPress={handleRegisterShop}
+                    style={styles.vendorBtn}
+                    accessibilityRole="link"
+                    accessibilityLabel="Register Shop as Vendor"
+                  >
+                    <Text style={[styles.vendorBtnText, { color: themeColors.accentGold }]}>
+                      Register Shop →
+                    </Text>
+                  </PressableScale>
+                </View>
+
+                {/* Verified Guild Footer */}
+                <View style={styles.verifiedRow}>
+                  <MaterialIcons name="verified-user" size={12} color={themeColors.accentGold} />
+                  <Text style={[styles.verifiedText, { color: themeColors.textAsh }]}>
+                    VERIFIED HERITAGE ARTISANS · NAGPUR NETWORK
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -362,7 +499,7 @@ const styles = StyleSheet.create({
   emblemBox: {
     width: 104,
     height: 104,
-    borderRadius: 26,
+    borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.45)',
     borderWidth: 1.5,
@@ -377,7 +514,48 @@ const styles = StyleSheet.create({
   emblemImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 22,
+    borderRadius: 24,
+  },
+  boltBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  boltBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  corridorsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+  },
+  corridorChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  corridorText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  corridorDot: {
+    fontSize: 10,
   },
   proximityTag: {
     position: 'absolute',
@@ -520,7 +698,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 32,
     padding: 16,
-    gap: 12,
+    gap: 10,
     shadowColor: '#C4243A',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.08,
@@ -553,36 +731,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  secondaryRow: {
-    flexDirection: 'row',
+  secondaryBtn: {
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 6,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  secondaryBtnText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  linksBlock: {
+    gap: 8,
+    alignItems: 'center',
     paddingTop: 2,
   },
-  secondaryText: {
-    fontSize: 12,
-    color: '#5C5A63',
-    fontWeight: '400',
+  guestLink: {
+    paddingVertical: 2,
   },
-  signInBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
+  guestPromptText: {
+    fontSize: 11.5,
   },
-  signInBtnText: {
-    fontSize: 12.5,
+  guestActionText: {
     fontWeight: '700',
-    color: '#C4243A',
+    textDecorationLine: 'underline',
   },
   vendorLinkRow: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.06)',
-    paddingTop: 10,
+    paddingTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    width: '100%',
   },
   vendorPromptText: {
     fontSize: 11,
@@ -596,12 +785,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#C8A24A',
   },
+  verifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 2,
+  },
+  verifiedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
   homeIndicator: {
     width: 128,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(19, 19, 22, 0.18)',
     alignSelf: 'center',
-    marginTop: 14,
+    marginTop: 12,
   },
 });

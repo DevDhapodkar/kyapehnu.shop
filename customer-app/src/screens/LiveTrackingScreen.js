@@ -21,6 +21,7 @@ import { formatCurrency as formatINR } from '../utils/format';
 import { fetchOrder, trackGuestOrder, cancelMyOrder } from '../api/vendorApi';
 import { useAuthStore } from '../store/useAuthStore';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * LiveTrackingScreen — Rider in Motion (Frosted Glass & Ambient Blobs)
@@ -38,6 +39,7 @@ import { colors, radii, spacing } from '../theme/colors';
  */
 export default function LiveTrackingScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors: themeColors, isDark } = useTheme();
   const { order, orderId: paramOrderId, phone } = route.params || {};
 
   const token = useAuthStore((state) => state.token);
@@ -224,8 +226,8 @@ export default function LiveTrackingScreen({ route, navigation }) {
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
@@ -235,17 +237,31 @@ export default function LiveTrackingScreen({ route, navigation }) {
         style={[styles.topBar, { paddingTop: insets.top + 4 }]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.navigate('Home')}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go to Storefront"
           >
             <MaterialIcons
               name="arrow-back-ios-new"
               size={17}
-              color={colors.textObsidian}
+              color={themeColors.textPrimary}
             />
           </PressableScale>
 
@@ -253,14 +269,19 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
           <PressableScale
             onPress={handleNeedHelp}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Help"
           >
             <MaterialIcons
               name="support-agent"
               size={18}
-              color={colors.textObsidian}
+              color={themeColors.textPrimary}
             />
           </PressableScale>
         </View>
@@ -279,7 +300,15 @@ export default function LiveTrackingScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Animated Route & Radar Map Card */}
-        <View style={styles.radarCard}>
+        <View
+          style={[
+            styles.radarCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.78)',
+            },
+          ]}
+        >
           {/* Radar background circles */}
           <View style={styles.radarBackground}>
             <View style={styles.radarCircle1} />
@@ -294,17 +323,24 @@ export default function LiveTrackingScreen({ route, navigation }) {
                 <MaterialIcons
                   name="local-mall"
                   size={14}
-                  color={colors.accentGoldDeep}
+                  color={themeColors.accentGoldDeep}
                 />
               </View>
-              <Text style={styles.nodeTitle} numberOfLines={1}>{storeName}</Text>
-              <Text style={styles.nodeSub} numberOfLines={1}>{storeArea}</Text>
+              <Text style={[styles.nodeTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>{storeName}</Text>
+              <Text style={[styles.nodeSub, { color: themeColors.textAsh }]} numberOfLines={1}>{storeArea}</Text>
             </View>
 
             {/* Connecting line with moving rider */}
             <View style={styles.routeTrack}>
-              <View style={styles.trackLine} />
-              <View style={[styles.riderMarker, isOnTheWay && { backgroundColor: colors.accentCrimson }]}>
+              <View
+                style={[
+                  styles.trackLine,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(18, 18, 20, 0.12)',
+                  },
+                ]}
+              />
+              <View style={[styles.riderMarker, { backgroundColor: themeColors.accentCrimson }]}>
                 <MaterialIcons name="two-wheeler" size={16} color="#FFFFFF" />
               </View>
             </View>
@@ -315,19 +351,33 @@ export default function LiveTrackingScreen({ route, navigation }) {
                 <MaterialIcons
                   name="home"
                   size={15}
-                  color={colors.accentCrimson}
+                  color={themeColors.accentCrimson}
                 />
               </View>
-              <Text style={styles.nodeTitle} numberOfLines={2}>{dropAddress}</Text>
-              <Text style={styles.nodeSub} numberOfLines={2}>{dropArea}</Text>
+              <Text style={[styles.nodeTitle, { color: themeColors.textPrimary }]} numberOfLines={2}>{dropAddress}</Text>
+              <Text style={[styles.nodeSub, { color: themeColors.textAsh }]} numberOfLines={2}>{dropArea}</Text>
             </View>
           </View>
 
           {/* Floating ETA Banner */}
-          <View style={styles.etaBar}>
-            <View style={styles.etaPill}>
-              <MaterialIcons name="bolt" size={14} color={colors.accentGold} />
-              <Text style={styles.etaText}>
+          <View
+            style={[
+              styles.etaBar,
+              {
+                borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.etaPill,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                },
+              ]}
+            >
+              <MaterialIcons name="bolt" size={14} color={themeColors.accentGold} />
+              <Text style={[styles.etaText, { color: themeColors.textPrimary }]}>
                 {isCancelled
                   ? 'Order Cancelled'
                   : isDelivered
@@ -336,7 +386,7 @@ export default function LiveTrackingScreen({ route, navigation }) {
               </Text>
             </View>
             <View style={styles.distancePill}>
-              <Text style={styles.distanceText}>
+              <Text style={[styles.distanceText, { color: themeColors.textSlate }]}>
                 {isDelivered ? 'Doorstep Trial' : 'Rapid Radius'}
               </Text>
             </View>
@@ -344,13 +394,21 @@ export default function LiveTrackingScreen({ route, navigation }) {
         </View>
 
         {/* Live Status Card */}
-        <View style={styles.statusCard}>
+        <View
+          style={[
+            styles.statusCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.78)',
+            },
+          ]}
+        >
           <View style={styles.statusHeaderRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.statusEyebrow}>
+              <Text style={[styles.statusEyebrow, { color: themeColors.accentGoldDeep }]}>
                 NAGPUR EXPRESS · {orderId}
               </Text>
-              <Text style={styles.statusTitle}>{displayTitle}</Text>
+              <Text style={[styles.statusTitle, { color: themeColors.textPrimary }]}>{displayTitle}</Text>
             </View>
             <View style={[styles.liveBadge, isCancelled && { backgroundColor: 'rgba(180, 40, 40, 0.15)' }]}>
               <View style={[styles.livePulseDot, isCancelled && { backgroundColor: '#D32F2F' }]} />
@@ -364,49 +422,91 @@ export default function LiveTrackingScreen({ route, navigation }) {
           <View style={styles.progressRow}>
             {/* Step 1: Confirmed */}
             <View style={styles.progressStep}>
-              <View style={isConfirmed ? styles.stepCircleDone : styles.stepCircleActive}>
+              <View
+                style={
+                  isConfirmed
+                    ? [styles.stepCircleDone, { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian }]
+                    : styles.stepCircleActive
+                }
+              >
                 {isConfirmed ? (
                   <MaterialIcons name="check" size={12} color="#FFFFFF" />
                 ) : (
                   <View style={styles.activeCoreDot} />
                 )}
               </View>
-              <Text style={isConfirmed ? styles.stepLabelDone : styles.stepLabelActive}>Confirmed</Text>
+              <Text style={isConfirmed ? [styles.stepLabelDone, { color: themeColors.textPrimary }] : styles.stepLabelActive}>Confirmed</Text>
             </View>
 
-            <View style={isPickedUp ? styles.progressLineDone : styles.progressLineActive} />
+            <View
+              style={
+                isPickedUp
+                  ? [styles.progressLineDone, { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian }]
+                  : styles.progressLineActive
+              }
+            />
 
             {/* Step 2: Packed */}
             <View style={styles.progressStep}>
-              <View style={isPickedUp ? styles.stepCircleDone : isConfirmed ? styles.stepCircleActive : styles.stepCircleInactive}>
+              <View
+                style={
+                  isPickedUp
+                    ? [styles.stepCircleDone, { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian }]
+                    : isConfirmed
+                    ? styles.stepCircleActive
+                    : styles.stepCircleInactive
+                }
+              >
                 {isPickedUp ? (
                   <MaterialIcons name="check" size={12} color="#FFFFFF" />
                 ) : (
                   <View style={styles.activeCoreDot} />
                 )}
               </View>
-              <Text style={isPickedUp ? styles.stepLabelDone : styles.stepLabelActive}>Ready</Text>
+              <Text style={isPickedUp ? [styles.stepLabelDone, { color: themeColors.textPrimary }] : styles.stepLabelActive}>Ready</Text>
             </View>
 
-            <View style={isOnTheWay ? styles.progressLineDone : styles.progressLineActive} />
+            <View
+              style={
+                isOnTheWay
+                  ? [styles.progressLineDone, { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian }]
+                  : styles.progressLineActive
+              }
+            />
 
             {/* Step 3: Out for delivery */}
             <View style={styles.progressStep}>
-              <View style={isDelivered ? styles.stepCircleDone : isOnTheWay ? styles.stepCircleActive : styles.stepCircleInactive}>
+              <View
+                style={
+                  isDelivered
+                    ? [styles.stepCircleDone, { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian }]
+                    : isOnTheWay
+                    ? styles.stepCircleActive
+                    : styles.stepCircleInactive
+                }
+              >
                 {isDelivered ? (
                   <MaterialIcons name="check" size={12} color="#FFFFFF" />
                 ) : (
                   <View style={styles.activeCoreDot} />
                 )}
               </View>
-              <Text style={isDelivered ? styles.stepLabelDone : styles.stepLabelActive}>On the Way</Text>
+              <Text style={isDelivered ? [styles.stepLabelDone, { color: themeColors.textPrimary }] : styles.stepLabelActive}>On the Way</Text>
             </View>
           </View>
         </View>
 
         {/* Courier / Dispatch Partner Card */}
-        <View style={styles.riderCard}>
-          <View style={styles.riderAvatar}>
+        <View
+          style={[
+            styles.riderCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.52)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+            },
+          ]}
+        >
+          <View style={[styles.riderAvatar, { backgroundColor: isDark ? '#262529' : themeColors.textObsidian }]}>
             <Text style={styles.riderAvatarText}>
               {porterDriver ? porterDriver.name.charAt(0).toUpperCase() : 'A'}
             </Text>
@@ -414,15 +514,15 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
           <View style={styles.riderInfoCol}>
             <View style={styles.riderNameRow}>
-              <Text style={styles.riderName}>
+              <Text style={[styles.riderName, { color: themeColors.textPrimary }]}>
                 {porterDriver ? porterDriver.name : storeName}
               </Text>
               <View style={styles.ratingBadge}>
-                <MaterialIcons name="verified" size={12} color={colors.accentGold} />
-                <Text style={styles.ratingText}>Verified</Text>
+                <MaterialIcons name="verified" size={12} color={themeColors.accentGold} />
+                <Text style={[styles.ratingText, { color: themeColors.textPrimary }]}>Verified</Text>
               </View>
             </View>
-            <Text style={styles.riderVehicle}>
+            <Text style={[styles.riderVehicle, { color: themeColors.textSlate }]}>
               {porterDriver ? porterDriver.vehicle : 'Atelier Express Fitting Partner'}
             </Text>
           </View>
@@ -435,12 +535,18 @@ export default function LiveTrackingScreen({ route, navigation }) {
                   porterDriver?.phone || liveOrder?.vendor?.phone || '+917122549900'
                 )
               }
-              style={styles.contactBtn}
+              style={[
+                styles.contactBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Call concierge"
             >
-              <MaterialIcons name="call" size={16} color={colors.textObsidian} />
-              <Text style={styles.contactBtnLabel}>Call</Text>
+              <MaterialIcons name="call" size={16} color={themeColors.textPrimary} />
+              <Text style={[styles.contactBtnLabel, { color: themeColors.textPrimary }]}>Call</Text>
             </PressableScale>
 
             <PressableScale
@@ -450,12 +556,18 @@ export default function LiveTrackingScreen({ route, navigation }) {
                   porterDriver?.name || storeName
                 )
               }
-              style={styles.contactBtn}
+              style={[
+                styles.contactBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="WhatsApp concierge"
             >
-              <MaterialIcons name="chat" size={16} color={colors.textObsidian} />
-              <Text style={styles.contactBtnLabel}>WhatsApp</Text>
+              <MaterialIcons name="chat" size={16} color={themeColors.textPrimary} />
+              <Text style={[styles.contactBtnLabel, { color: themeColors.textPrimary }]}>WhatsApp</Text>
             </PressableScale>
           </View>
         </View>
@@ -495,23 +607,32 @@ export default function LiveTrackingScreen({ route, navigation }) {
 
         {/* Garment Summary Chips */}
         {items.map((item, idx) => (
-          <View key={item.product || item.id || idx} style={styles.garmentCard}>
+          <View
+            key={item.product || item.id || idx}
+            style={[
+              styles.garmentCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.75)' : 'rgba(255, 255, 255, 0.45)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.75)',
+              },
+            ]}
+          >
             <View style={styles.garmentIconWrap}>
               <MaterialIcons
                 name="checkroom"
                 size={18}
-                color={colors.accentGold}
+                color={themeColors.accentGold}
               />
             </View>
             <View style={styles.garmentInfoCol}>
-              <Text style={styles.garmentName} numberOfLines={1}>
+              <Text style={[styles.garmentName, { color: themeColors.textPrimary }]} numberOfLines={1}>
                 {item.name}
               </Text>
-              <Text style={styles.garmentStore}>
+              <Text style={[styles.garmentStore, { color: themeColors.textAsh }]}>
                 Size {item.size || 'Free'} · {item.quantity || 1} unit · {storeName}
               </Text>
             </View>
-            <Text style={styles.garmentPrice}>
+            <Text style={[styles.garmentPrice, { color: themeColors.textPrimary }]}>
               {formatINR((item.price || 0) * (item.quantity || 1))}
             </Text>
           </View>
@@ -528,7 +649,15 @@ export default function LiveTrackingScreen({ route, navigation }) {
           { paddingBottom: Math.max(insets.bottom, spacing.md) },
         ]}
       >
-        <View style={styles.bottomBar}>
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              backgroundColor: isDark ? 'rgba(14, 14, 16, 0.92)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+        >
           <PressableScale
             onPress={handleNeedHelp}
             style={styles.helpBtn}
@@ -538,14 +667,14 @@ export default function LiveTrackingScreen({ route, navigation }) {
             <MaterialIcons
               name="support-agent"
               size={16}
-              color={colors.textObsidian}
+              color={themeColors.textPrimary}
             />
-            <Text style={styles.helpText}>Need Help?</Text>
+            <Text style={[styles.helpText, { color: themeColors.textPrimary }]}>Need Help?</Text>
           </PressableScale>
 
           <PressableScale
             onPress={() => navigation.navigate('Home')}
-            style={styles.storefrontBtn}
+            style={[styles.storefrontBtn, { backgroundColor: themeColors.accentCrimson }]}
             accessibilityRole="button"
             accessibilityLabel="Back to Storefront"
           >

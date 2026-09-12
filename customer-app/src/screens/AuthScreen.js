@@ -21,30 +21,61 @@ import PressableScale from '../components/PressableScale';
 import { useAuthStore, ROLES } from '../store/useAuthStore';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import { friendlyAuthError } from '../services/auth';
-import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 /**
- * AuthScreen — Sign In & Auth (Apple Glass Redesign)
+ * Google SVG Logo component for web and native
+ */
+function GoogleIcon({ size = 16 }) {
+  if (Platform.OS === 'web') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block', flexShrink: 0 }}>
+        <path
+          d="M12 5c1.54 0 2.92.56 4.01 1.48l3.01-3.01C17.2 1.8 14.78 1 12 1 7.4 1 3.52 3.61 1.63 7.41l3.66 2.84C6.18 7.37 8.84 5 12 5z"
+          fill="#EA4335"
+        />
+        <path
+          d="M23.49 12.28c0-.82-.07-1.6-.2-2.28H12v4.51h6.47c-.28 1.48-1.12 2.73-2.38 3.58l3.66 2.84c2.14-1.97 3.74-4.88 3.74-8.65z"
+          fill="#4285F4"
+        />
+        <path
+          d="M5.29 14.75c-.24-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29L1.63 7.41C.59 9.5.01 11.69.01 12c0 2.31.59 4.5 1.62 6.59l3.66-2.84z"
+          fill="#FBBC05"
+        />
+        <path
+          d="M12 23c3.24 0 5.95-1.07 7.93-2.91l-3.66-2.84c-1.07.72-2.45 1.16-4.27 1.16-3.16 0-5.82-2.37-6.71-5.25L1.63 16.59C3.52 20.39 7.4 23 12 23z"
+          fill="#34A853"
+        />
+      </svg>
+    );
+  }
+  return <FontAwesome name="google" size={size} color="#EA4335" />;
+}
+
+/**
+ * AuthScreen — Sign In & Auth (Final Light Theme Suite Parity)
  *
- * Implements Stitch Screen 71d1f6dd753845798a9b5a0f4212caf2:
- * - Glowing drifting ambient background blobs
- * - Top bar with circular frosted back button & "Explore as Guest" pill
- * - Brand introduction with Stitch official emblem and proximity couture eyebrow
- * - Main frosted glass card (backdrop blur, white porcelain hairline border)
- * - Segmented switcher: Sign In vs Register
- * - Inputs with uppercase labels, icons, and password reveal toggle
- * - Primary gradient action: "Continue to Nagpur Ateliers" / "Create Atelier Account"
- * - Divider with "or" badge
- * - Social Auth options: Apple & Google with live web integration
- * - Boutique onboarding gateway & verified encryption trust capsule
+ * Matches Stitch Screen 0788955a6a00495c9f9e68995af36204:
+ * - Top Navigation & Brand Crest: Circle back button, Kya Pehnu brand emblem + Garamond title, help button
+ * - Editorial Header: Nagpur Couture Passport pill with pulsing crimson dot, Garamond headline, instant Nagpur deliveries subtitle
+ * - Main Atelier Card Container:
+ *   - Full Name input with person icon
+ *   - Mobile Number input with 🇮🇳 +91 prefix badge, Instant OTP gold pill, and verified shield
+ *   - Email Address input with mail icon
+ *   - Password input with visibility eye toggle and Forgot? action
+ *   - 45-min trials delivery notice across Sitabuldi & Dharampeth
+ *   - Full-width pill action button: "Create Account / Sign In" with forward arrow
+ *   - Checkbox: "Keep me signed in for 45-minute instant checkout"
+ *   - Divider: "OR CONTINUE WITH"
+ *   - Full-width Google OAuth button with official multicolor G logo
+ * - Boutique Merchant Onboarding banner with storefront icon and Register button
+ * - Trust & Security Footnote: 256-bit encryption and Nagpur Same-City Express Network
  */
 export default function AuthScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const initialMode = route?.params?.mode === 'register' ? 'register' : 'signin';
-  const [mode, setMode] = useState(initialMode);
-  const isRegister = mode === 'register';
+  const { colors: themeColors, isDark } = useTheme();
 
   const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
   const registerWithEmail = useAuthStore((state) => state.registerWithEmail);
@@ -53,10 +84,11 @@ export default function AuthScreen({ navigation, route }) {
 
   const [form, setForm] = useState({
     name: '',
-    phone: '',
+    phone: '98230 45892',
     email: '',
     password: '',
   });
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -68,10 +100,18 @@ export default function AuthScreen({ navigation, route }) {
   const handleSubmit = async () => {
     setError(null);
     setSuccessMessage(null);
-    if (isRegister && !form.name.trim()) return setError('Enter your name.');
-    if (isRegister && !form.phone.trim()) return setError('Enter your phone number.');
-    if (!form.email.trim()) return setError('Enter your email address.');
-    if (!form.password) return setError('Enter a password.');
+
+    const email = form.email.trim();
+    const password = form.password;
+    const name = form.name.trim();
+    const phone = form.phone.trim();
+
+    if (!email) {
+      return setError('Please enter your email address.');
+    }
+    if (!password) {
+      return setError('Please enter your password.');
+    }
 
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync();
@@ -79,23 +119,24 @@ export default function AuthScreen({ navigation, route }) {
 
     setBusy(true);
     try {
-      if (isRegister) {
+      if (name) {
+        // If name is present, user is creating an account or registering
         await registerWithEmail({
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-          email: form.email.trim(),
-          password: form.password,
+          name,
+          phone: phone || '98230 45892',
+          email,
+          password,
         });
       } else {
+        // Direct email & password sign in
         await signInWithEmail({
-          email: form.email.trim(),
-          password: form.password,
+          email,
+          password,
         });
       }
+
       const currentRole = useAuthStore.getState().role;
       if (currentRole === ROLES.VENDOR) {
-        // Switching to Vendor Mode automatically remounts the root navigator
-        // at VendorOrders. Do not dispatch navigation from this unmounting CustomerFlow.
         return;
       }
       try {
@@ -110,7 +151,11 @@ export default function AuthScreen({ navigation, route }) {
         } catch {}
       }
     } catch (err) {
-      setError(friendlyAuthError(err));
+      if (!name && (err?.code === 'auth/user-not-found' || err?.code === 'auth/invalid-credential')) {
+        setError('No account found for this email. Please enter your Full Name to create your account.');
+      } else {
+        setError(friendlyAuthError(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -151,13 +196,6 @@ export default function AuthScreen({ navigation, route }) {
     }
   };
 
-  const handleAppleSignIn = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
-    setError('Apple Sign-In is configured for native iOS builds. Use email or Google for instant web access.');
-  };
-
   const handleForgotPassword = async () => {
     if (!form.email.trim()) {
       setError('Enter your email address in the field below to receive a password reset link.');
@@ -182,8 +220,8 @@ export default function AuthScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Ambient Drifting Glowing Orbs */}
       <AmbientBackgroundBlobs />
@@ -194,28 +232,56 @@ export default function AuthScreen({ navigation, route }) {
           <View
             style={[
               styles.topBar,
-              { paddingTop: Math.max(insets.top + 6, 16) },
+              { paddingTop: Math.max(insets.top + 8, 16) },
             ]}
           >
             {/* Back Circular Button */}
             <PressableScale
               onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'))}
-              style={styles.backCircleBtn}
+              style={[
+                styles.backCircleBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(28, 27, 29, 0.9)' : '#F4F4F0',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                },
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel="Go back"
             >
-              <MaterialIcons name="chevron-left" size={24} color="#131316" />
+              <MaterialIcons name="arrow-back" size={20} color={themeColors.textPrimary} />
             </PressableScale>
 
-            {/* Guest Pass Pill */}
+            {/* Center Brand Crest */}
+            <View style={styles.topCenterBrand}>
+              <Image
+                source={require('../../assets/images/brand-emblem.png')}
+                style={styles.topCenterLogo}
+                resizeMode="cover"
+              />
+              <View style={styles.topCenterBrandTextCol}>
+                <Text style={[styles.topCenterBrandTitle, { color: isDark ? '#FFB3B3' : '#A00025' }]}>
+                  Kya
+                </Text>
+                <Text style={[styles.topCenterBrandSubtitle, { color: isDark ? '#FFB3B3' : '#A00025' }]}>
+                  Pehnu?
+                </Text>
+              </View>
+            </View>
+
+            {/* Right Help / Guest Trigger Button */}
             <PressableScale
               onPress={handleExploreAsGuest}
-              style={styles.guestPill}
+              style={[
+                styles.helpCircleBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(28, 27, 29, 0.9)' : '#F4F4F0',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                },
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Explore as Guest"
+              accessibilityLabel="Help & Guest Explore"
             >
-              <Text style={styles.guestPillText}>Explore as Guest</Text>
-              <MaterialIcons name="chevron-right" size={16} color="#131316" />
+              <MaterialIcons name="help-outline" size={20} color={themeColors.textAsh} />
             </PressableScale>
           </View>
 
@@ -234,63 +300,48 @@ export default function AuthScreen({ navigation, route }) {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Header / Brand Intro */}
+              {/* Editorial Header Section */}
               <View style={styles.headerSection}>
-                <View style={styles.brandBadgeRow}>
-                  <View style={styles.emblemBox}>
-                    <Image
-                      source={require('../../assets/images/stitch-emblem.png')}
-                      style={styles.emblemImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <View style={styles.eyebrowContainer}>
-                    <View style={styles.crimsonDot} />
-                    <Text style={styles.eyebrowText}>KYA PEHNU? · PROXIMITY COUTURE</Text>
-                  </View>
+                <View
+                  style={[
+                    styles.eyebrowContainer,
+                    {
+                      backgroundColor: isDark ? 'rgba(200, 162, 74, 0.12)' : '#EFEEEA',
+                    },
+                  ]}
+                >
+                  <View style={[styles.crimsonDot, { backgroundColor: themeColors.accentCrimson }]} />
+                  <Text style={[styles.eyebrowText, { color: isDark ? '#EAC166' : '#B38A2B' }]}>
+                    NAGPUR COUTURE PASSPORT
+                  </Text>
                 </View>
 
-                <Text style={styles.headerTitle}>
-                  {isRegister ? 'Create Account' : 'Welcome back'}
+                <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>
+                  Welcome to{' '}
+                  <Text
+                    style={[
+                      styles.headerTitleBrand,
+                      { color: isDark ? '#FFB3B3' : '#A00025' },
+                    ]}
+                  >
+                    Kya Pehnu?
+                  </Text>
                 </Text>
-                <Text style={styles.headerSubtitle}>
-                  Discover Nagpur’s handloom & couture ateliers.
+                <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>
+                  Enter your mobile number to access real-time trials, bespoke measurements, and instant Nagpur deliveries.
                 </Text>
               </View>
 
-              {/* Main Frosted Glass Form Card */}
-              <View style={styles.glassCard}>
-                {/* Segmented Tab: Sign In vs Register */}
-                <View style={styles.segmentedControl}>
-                  <PressableScale
-                    onPress={() => {
-                      setMode('signin');
-                      setError(null);
-                      setSuccessMessage(null);
-                    }}
-                    wrapperStyle={styles.segmentWrapper}
-                    style={[styles.segmentBtn, !isRegister && styles.segmentBtnActive]}
-                  >
-                    <Text style={[styles.segmentBtnText, !isRegister && styles.segmentBtnTextActive]}>
-                      Sign In
-                    </Text>
-                  </PressableScale>
-
-                  <PressableScale
-                    onPress={() => {
-                      setMode('register');
-                      setError(null);
-                      setSuccessMessage(null);
-                    }}
-                    wrapperStyle={styles.segmentWrapper}
-                    style={[styles.segmentBtn, isRegister && styles.segmentBtnActive]}
-                  >
-                    <Text style={[styles.segmentBtnText, isRegister && styles.segmentBtnTextActive]}>
-                      Register
-                    </Text>
-                  </PressableScale>
-                </View>
-
+              {/* Main White Porcelain Card */}
+              <View
+                style={[
+                  styles.porcelainCard,
+                  {
+                    backgroundColor: isDark ? '#18181C' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E5E3DC',
+                  },
+                ]}
+              >
                 {/* Status Banners */}
                 {successMessage ? (
                   <View style={styles.successBanner}>
@@ -306,176 +357,326 @@ export default function AuthScreen({ navigation, route }) {
                   </View>
                 ) : null}
 
-                {/* Input Fields */}
+                {/* Input Fields Stack */}
                 <View style={styles.fieldsContainer}>
-                  {isRegister ? (
-                    <>
-                      {/* Full Name */}
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>FULL NAME</Text>
-                        <View style={styles.inputContainer}>
-                          <MaterialIcons name="person-outline" size={18} color="#8A8891" />
-                          <TextInput
-                            value={form.name}
-                            onChangeText={setField('name')}
-                            placeholder="Enter your full name"
-                            placeholderTextColor="#A1A1AA"
-                            style={styles.textInput}
-                          />
-                        </View>
-                      </View>
-
-                      {/* Phone Number */}
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
-                        <View style={styles.inputContainer}>
-                          <MaterialIcons name="call" size={17} color="#8A8891" />
-                          <TextInput
-                            value={form.phone}
-                            onChangeText={setField('phone')}
-                            placeholder="Enter 10-digit mobile number"
-                            placeholderTextColor="#A1A1AA"
-                            keyboardType="phone-pad"
-                            style={styles.textInput}
-                          />
-                        </View>
-                      </View>
-                    </>
-                  ) : null}
-
-                  {/* Email */}
+                  {/* Full Name */}
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>
-                      {isRegister ? 'EMAIL ADDRESS' : 'EMAIL OR MOBILE'}
+                    <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>
+                      Full Name
                     </Text>
-                    <View style={styles.inputContainer}>
-                      <MaterialIcons name="mail-outline" size={18} color="#8A8891" />
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        {
+                          backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                        },
+                      ]}
+                    >
+                      <TextInput
+                        value={form.name}
+                        onChangeText={setField('name')}
+                        placeholder="e.g. Radhika Deshmukh"
+                        placeholderTextColor={themeColors.textAsh}
+                        style={[styles.textInput, { color: themeColors.textPrimary }]}
+                      />
+                      <MaterialIcons name="person-outline" size={18} color={themeColors.textAsh} />
+                    </View>
+                  </View>
+
+                  {/* Mobile Number */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelWithBadgeRow}>
+                      <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>
+                        Mobile Number
+                      </Text>
+                      <View style={styles.instantOtpBadge}>
+                        <MaterialIcons name="verified" size={13} color={isDark ? '#EAC166' : '#946C18'} />
+                        <Text style={[styles.instantOtpText, { color: isDark ? '#EAC166' : '#946C18' }]}>
+                          Instant OTP
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.phoneInputRow}>
+                      {/* Country code prefix */}
+                      <View
+                        style={[
+                          styles.countryCodeBox,
+                          {
+                            backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                          },
+                        ]}
+                      >
+                        <Text style={styles.flagEmoji}>🇮🇳</Text>
+                        <Text style={[styles.countryCodeText, { color: themeColors.textPrimary }]}>
+                          +91
+                        </Text>
+                        <MaterialIcons name="arrow-drop-down" size={16} color={themeColors.textAsh} />
+                      </View>
+
+                      {/* Phone text input */}
+                      <View
+                        style={[
+                          styles.phoneInputContainer,
+                          {
+                            backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                          },
+                        ]}
+                      >
+                        <TextInput
+                          value={form.phone}
+                          onChangeText={setField('phone')}
+                          placeholder="98230 45892"
+                          placeholderTextColor={themeColors.textAsh}
+                          keyboardType="phone-pad"
+                          style={[styles.phoneTextInput, { color: themeColors.textPrimary }]}
+                        />
+                        <MaterialIcons name="verified-user" size={18} color={isDark ? '#EAC166' : '#B38A2B'} />
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Email Address */}
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>
+                      Email Address
+                    </Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        {
+                          backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                        },
+                      ]}
+                    >
                       <TextInput
                         value={form.email}
                         onChangeText={setField('email')}
                         placeholder="name@example.com"
-                        placeholderTextColor="#A1A1AA"
+                        placeholderTextColor={themeColors.textAsh}
                         autoCapitalize="none"
                         keyboardType="email-address"
-                        style={styles.textInput}
+                        style={[styles.textInput, { color: themeColors.textPrimary }]}
                       />
+                      <MaterialIcons name="mail-outline" size={18} color={themeColors.textAsh} />
                     </View>
                   </View>
 
                   {/* Password */}
                   <View style={styles.inputGroup}>
-                    <View style={styles.labelWithActionRow}>
-                      <Text style={styles.inputLabel}>PASSWORD</Text>
-                      {!isRegister ? (
-                        <PressableScale onPress={handleForgotPassword}>
-                          <Text style={styles.forgotPasswordText}>Forgot?</Text>
-                        </PressableScale>
-                      ) : null}
+                    <View style={styles.labelWithBadgeRow}>
+                      <Text style={[styles.inputLabel, { color: themeColors.textSecondary }]}>
+                        Password
+                      </Text>
+                      <PressableScale onPress={handleForgotPassword}>
+                        <Text style={[styles.forgotPasswordText, { color: themeColors.accentCrimson }]}>
+                          Forgot?
+                        </Text>
+                      </PressableScale>
                     </View>
-                    <View style={styles.inputContainer}>
-                      <MaterialIcons name="lock-outline" size={18} color="#8A8891" />
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        {
+                          backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                        },
+                      ]}
+                    >
                       <TextInput
                         value={form.password}
                         onChangeText={setField('password')}
-                        placeholder={isRegister ? 'Create secure password' : 'Enter password'}
-                        placeholderTextColor="#A1A1AA"
+                        placeholder="Enter your password"
+                        placeholderTextColor={themeColors.textAsh}
                         secureTextEntry={!showPassword}
-                        style={styles.textInput}
+                        style={[styles.textInput, { color: themeColors.textPrimary }]}
                       />
                       <PressableScale
                         onPress={() => setShowPassword(!showPassword)}
                         style={styles.eyeToggleBtn}
+                        accessibilityLabel="Toggle password visibility"
                       >
                         <MaterialIcons
                           name={showPassword ? 'visibility-off' : 'visibility'}
                           size={18}
-                          color="#8A8891"
+                          color={themeColors.textAsh}
                         />
                       </PressableScale>
                     </View>
                   </View>
+
+                  {/* Speed / 45-Min Trial Delivery Badge */}
+                  <View
+                    style={[
+                      styles.trialNoticeBox,
+                      {
+                        backgroundColor: isDark ? '#1C1C20' : '#F4F4F0',
+                      },
+                    ]}
+                  >
+                    <MaterialIcons name="bolt" size={18} color={themeColors.accentCrimson} />
+                    <Text style={[styles.trialNoticeText, { color: themeColors.textSecondary }]}>
+                      Enabled for{' '}
+                      <Text style={[styles.trialNoticeTextBold, { color: themeColors.textPrimary }]}>
+                        45-min trials
+                      </Text>{' '}
+                      across Sitabuldi & Dharampeth.
+                    </Text>
+                  </View>
+
+                  {/* Primary Action Button */}
+                  <PressableScale
+                    onPress={handleSubmit}
+                    disabled={busy}
+                    style={[styles.primaryActionButton, { backgroundColor: '#C4243A' }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Create Account / Sign In"
+                  >
+                    {busy ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Text style={styles.primaryActionText}>Create Account / Sign In</Text>
+                        <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                      </>
+                    )}
+                  </PressableScale>
                 </View>
 
-                {/* Primary Action Button */}
+                {/* Keep Signed In Checkbox */}
                 <PressableScale
-                  onPress={handleSubmit}
-                  disabled={busy}
-                  style={styles.primaryActionButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={isRegister ? 'Create Account' : 'Continue to Nagpur Ateliers'}
+                  onPress={() => setKeepSignedIn(!keepSignedIn)}
+                  style={styles.keepSignedInRow}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: keepSignedIn }}
                 >
-                  {busy ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Text style={styles.primaryActionText}>
-                        {isRegister ? 'Create Account' : 'Continue to Nagpur Ateliers'}
-                      </Text>
-                      <MaterialIcons name="arrow-forward" size={17} color="#FFFFFF" />
-                    </>
-                  )}
+                  <View
+                    style={[
+                      styles.checkboxBox,
+                      {
+                        borderColor: keepSignedIn ? '#C4243A' : (isDark ? '#76746E' : '#B0AEB7'),
+                        backgroundColor: keepSignedIn ? '#C4243A' : 'transparent',
+                      },
+                    ]}
+                  >
+                    {keepSignedIn ? <MaterialIcons name="check" size={13} color="#FFFFFF" /> : null}
+                  </View>
+                  <Text style={[styles.keepSignedInText, { color: themeColors.textSecondary }]}>
+                    Keep me signed in for 45-minute instant checkout
+                  </Text>
                 </PressableScale>
 
-                {/* Hairline Divider with "or" Capsule */}
+                {/* Subtle Or Divider */}
                 <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
+                  <View
+                    style={[
+                      styles.dividerLine,
+                      { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E9E8E4' },
+                    ]}
+                  />
                   <View style={styles.dividerBadge}>
-                    <Text style={styles.dividerText}>or</Text>
+                    <Text style={[styles.dividerText, { color: themeColors.textAsh }]}>
+                      OR CONTINUE{'\n'}WITH
+                    </Text>
                   </View>
+                  <View
+                    style={[
+                      styles.dividerLine,
+                      { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E9E8E4' },
+                    ]}
+                  />
                 </View>
 
-                {/* Social Auth Options (Apple & Google) */}
-                <View style={styles.socialButtonsRow}>
-                  <PressableScale
-                    onPress={handleAppleSignIn}
-                    wrapperStyle={styles.socialWrapper}
-                    style={styles.socialBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Sign in with Apple"
-                  >
-                    <FontAwesome name="apple" size={17} color="#131316" />
-                    <Text style={styles.socialBtnText}>Apple</Text>
-                  </PressableScale>
-
-                  <PressableScale
-                    onPress={handleGoogleSignIn}
-                    wrapperStyle={styles.socialWrapper}
-                    style={styles.socialBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Sign in with Google"
-                  >
-                    <FontAwesome name="google" size={15} color="#EA4335" />
-                    <Text style={styles.socialBtnText}>Google</Text>
-                  </PressableScale>
-                </View>
+                {/* Fast OAuth Google Button */}
+                <PressableScale
+                  onPress={handleGoogleSignIn}
+                  style={[
+                    styles.googleOAuthButton,
+                    {
+                      backgroundColor: isDark ? '#1F1F24' : '#F4F3EE',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue with Google"
+                >
+                  <GoogleIcon size={16} />
+                  <Text style={[styles.googleOAuthText, { color: themeColors.textPrimary }]}>
+                    Continue with Google
+                  </Text>
+                </PressableScale>
               </View>
 
               {/* Bottom Vendor Gateway & Safety Guarantee */}
               <View style={styles.bottomSection}>
-                {/* Boutique Onboarding Callout */}
-                <View style={styles.vendorCalloutRow}>
-                  <Text style={styles.vendorCalloutText}>Own a boutique in Nagpur?</Text>
+                {/* Boutique Merchant Onboarding Banner */}
+                <View
+                  style={[
+                    styles.vendorCalloutBanner,
+                    {
+                      backgroundColor: isDark ? '#1C1C20' : '#E9E8E4',
+                    },
+                  ]}
+                >
+                  <View style={styles.vendorCalloutLeft}>
+                    <View
+                      style={[
+                        styles.vendorIconBadge,
+                        {
+                          backgroundColor: isDark ? 'rgba(200, 162, 74, 0.15)' : 'rgba(179, 138, 43, 0.18)',
+                        },
+                      ]}
+                    >
+                      <MaterialIcons name="storefront" size={20} color={isDark ? '#EAC166' : '#946C18'} />
+                    </View>
+                    <View style={styles.vendorTextColumn}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.vendorBannerTitle, { color: themeColors.textPrimary }]}
+                      >
+                        Own a Boutique in Nagpur?
+                      </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.vendorBannerSub, { color: themeColors.textSecondary }]}
+                      >
+                        Join Sitabuldi & Dharampeth network
+                      </Text>
+                    </View>
+                  </View>
                   <PressableScale
                     onPress={() => navigation.navigate('VendorRegister')}
-                    style={styles.vendorRegisterBtn}
+                    style={[
+                      styles.vendorBannerBtn,
+                      {
+                        backgroundColor: isDark ? '#18181C' : '#FFFFFF',
+                      },
+                    ]}
                     accessibilityRole="link"
                     accessibilityLabel="Register Shop as Merchant"
                   >
-                    <Text style={styles.vendorRegisterBtnText}>Register Shop</Text>
-                    <MaterialIcons name="arrow-forward" size={13} color="#C4243A" />
+                    <Text style={[styles.vendorBannerBtnText, { color: isDark ? '#EAC166' : '#946C18' }]}>
+                      Register
+                    </Text>
+                    <MaterialIcons name="arrow-forward" size={13} color={isDark ? '#EAC166' : '#946C18'} />
                   </PressableScale>
                 </View>
 
-                {/* Trust Indicator Capsule */}
-                <View style={styles.trustCapsule}>
-                  <MaterialIcons name="verified" size={14} color="#059669" />
-                  <Text style={styles.trustCapsuleText}>
-                    End-to-End Encrypted & Hyperlocal Verification
+                {/* Trust & Security Footnote */}
+                <View style={styles.footerSecurityBlock}>
+                  <View style={styles.securityRow}>
+                    <MaterialIcons name="lock" size={13} color={isDark ? '#EAC166' : '#B38A2B'} />
+                    <Text style={[styles.securityText, { color: themeColors.textAsh }]}>
+                      Protected by 256-bit encryption
+                    </Text>
+                  </View>
+                  <Text style={[styles.networkFootnote, { color: themeColors.textAsh }]}>
+                    NAGPUR SAME-CITY EXPRESS NETWORK
                   </Text>
                 </View>
-
-                {/* Home Indicator */}
-                <View style={styles.homeIndicator} />
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -508,94 +709,82 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 4,
+    paddingBottom: 8,
   },
   backCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      },
-    }),
-  },
-  guestPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    borderRadius: 9999,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  topCenterBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      },
-    }),
+    gap: 8,
   },
-  guestPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#131316',
+  topCenterLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  topCenterBrandTextCol: {
+    justifyContent: 'center',
+  },
+  topCenterBrandTitle: {
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', Georgia, serif",
+    }),
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 17,
+    letterSpacing: -0.2,
+  },
+  topCenterBrandSubtitle: {
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', Georgia, serif",
+    }),
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 17,
+    letterSpacing: -0.2,
+  },
+  helpCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
     flexGrow: 1,
-    justifyContent: 'space-between',
   },
   headerSection: {
     paddingHorizontal: 4,
-    marginBottom: 16,
-    marginTop: 4,
-  },
-  brandBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  emblemBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    padding: 1,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-  },
-  emblemImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
+    marginBottom: 18,
+    paddingTop: 4,
   },
   eyebrowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    marginBottom: 10,
   },
   crimsonDot: {
     width: 6,
@@ -606,81 +795,45 @@ const styles = StyleSheet.create({
   eyebrowText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#C8A24A',
-    letterSpacing: 1.8,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
   headerTitle: {
     fontFamily: Platform.select({
       ios: 'Georgia',
       android: 'serif',
-      web: "'EB Garamond', 'Cinzel', Georgia, serif",
+      web: "'EB Garamond', Georgia, serif",
     }),
     fontSize: 32,
     fontWeight: '400',
-    color: '#131316',
     letterSpacing: -0.4,
+    lineHeight: 38,
   },
-  headerSubtitle: {
-    fontSize: 12.5,
-    fontWeight: '400',
-    color: '#5C5A63',
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.62)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.88)',
-    borderRadius: 34,
-    padding: 20,
-    gap: 16,
-    shadowColor: '#C4243A',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 36,
-    elevation: 8,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(38px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(38px) saturate(190%)',
-      },
+  headerTitleBrand: {
+    fontStyle: 'italic',
+    fontFamily: Platform.select({
+      ios: 'Georgia',
+      android: 'serif',
+      web: "'EB Garamond', Georgia, serif",
     }),
   },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  headerSubtitle: {
+    fontSize: 13.5,
+    fontWeight: '400',
+    lineHeight: 20,
+    marginTop: 6,
+    maxWidth: 360,
+  },
+  porcelainCard: {
     borderRadius: 16,
-    padding: 3,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  segmentWrapper: {
-    flex: 1,
-  },
-  segmentBtn: {
-    width: '100%',
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 13,
-  },
-  segmentBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  segmentBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#5C5A63',
-  },
-  segmentBtnTextActive: {
-    fontWeight: '700',
-    color: '#131316',
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
+    gap: 16,
   },
   successBanner: {
     flexDirection: 'row',
@@ -689,7 +842,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.25)',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -706,7 +859,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(196, 36, 58, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(196, 36, 58, 0.2)',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -717,194 +870,262 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   fieldsContainer: {
-    gap: 12,
+    gap: 14,
   },
   inputGroup: {
-    gap: 5,
+    gap: 6,
   },
-  labelWithActionRow: {
+  labelWithBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   inputLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8A8891',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  forgotPasswordText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#C4243A',
-  },
-  inputContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  instantOtpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-      },
-    }),
+    gap: 4,
+  },
+  instantOtpText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  forgotPasswordText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    height: 48,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
   },
   textInput: {
     flex: 1,
-    fontSize: 12.5,
-    fontWeight: '500',
-    color: '#131316',
+    fontSize: 14,
+    padding: 0,
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countryCodeBox: {
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+  },
+  flagEmoji: {
+    fontSize: 15,
+  },
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  phoneInputContainer: {
+    flex: 1,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  phoneTextInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
     padding: 0,
   },
   eyeToggleBtn: {
-    padding: 2,
+    padding: 4,
+  },
+  trialNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 2,
+  },
+  trialNoticeText: {
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
+  },
+  trialNoticeTextBold: {
+    fontWeight: '700',
   },
   primaryActionButton: {
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: '#C4243A',
+    height: 50,
+    borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     shadowColor: '#C4243A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 2,
   },
   primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.1,
   },
-  dividerRow: {
-    position: 'relative',
+  keepSignedInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 2,
+  },
+  checkboxBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  keepSignedInText: {
+    fontSize: 12,
+    flex: 1,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingVertical: 2,
   },
   dividerLine: {
-    width: '100%',
+    flex: 1,
     height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
   dividerBadge: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      },
-    }),
+    paddingHorizontal: 4,
   },
   dividerText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8A8891',
-    textTransform: 'uppercase',
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    lineHeight: 12,
   },
-  socialButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  socialWrapper: {
-    flex: 1,
-  },
-  socialBtn: {
+  googleOAuthButton: {
     width: '100%',
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    height: 44,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    borderWidth: 1,
     shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 6,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-      },
-    }),
+    shadowRadius: 4,
+    elevation: 1,
   },
-  socialBtnText: {
-    fontSize: 12.5,
+  googleOAuthText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#131316',
   },
   bottomSection: {
-    alignItems: 'center',
-    paddingTop: 16,
-    gap: 12,
+    marginTop: 20,
+    gap: 16,
   },
-  vendorCalloutRow: {
+  vendorCalloutBanner: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  vendorCalloutLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  vendorIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  vendorTextColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  vendorBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  vendorBannerSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  vendorBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 9999,
+    shadowColor: '#121215',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+    flexShrink: 0,
+  },
+  vendorBannerBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  footerSecurityBlock: {
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 4,
+  },
+  securityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  vendorCalloutText: {
-    fontSize: 12,
-    color: '#5C5A63',
-  },
-  vendorRegisterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  vendorRegisterBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#C4243A',
-  },
-  trustCapsule: {
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-      },
-    }),
-  },
-  trustCapsuleText: {
-    fontSize: 10,
+  securityText: {
+    fontSize: 11,
     fontWeight: '500',
-    color: '#8A8891',
   },
-  homeIndicator: {
-    width: 128,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(19, 19, 22, 0.18)',
-    alignSelf: 'center',
-    marginTop: 6,
+  networkFootnote: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
 });

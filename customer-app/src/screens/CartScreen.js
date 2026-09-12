@@ -28,6 +28,7 @@ import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLa
 import { resolveProductImageUri } from '../utils/productImage';
 import { validateNagpurDeliveryBounds } from '../utils/checkoutAddress';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * CartScreen — Your Bag (Frosted Glass & Ambient Blobs)
@@ -44,6 +45,7 @@ import { colors, radii, spacing } from '../theme/colors';
  */
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
 
   const cartItems = useCartStore(selectCartItems);
   const subtotal = useCartStore(selectCartTotal);
@@ -102,21 +104,43 @@ export default function CartScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: colors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
 
       {/* 2. Floating Top Header */}
       <View
-        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        style={[
+          styles.topBar,
+          {
+            paddingTop: insets.top + 4,
+            backgroundColor: isDark ? 'rgba(14, 14, 16, 0.92)' : 'rgba(250, 249, 245, 0.92)',
+            borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
+          },
+        ]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(24, 24, 28, 0.85)' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(217, 119, 6, 0.22)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.goBack()}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
@@ -131,7 +155,12 @@ export default function CartScreen({ navigation }) {
 
           <PressableScale
             onPress={() => navigation.navigate('Address')}
-            style={styles.locationPill}
+            style={[
+              styles.locationPill,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.45)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
           >
@@ -141,7 +170,11 @@ export default function CartScreen({ navigation }) {
               color={needsAddress ? colors.accentCrimson : colors.accentGold}
             />
             <Text
-              style={[styles.locationText, needsAddress && { color: colors.accentCrimson, textTransform: 'none' }]}
+              style={[
+                styles.locationText,
+                { color: colors.textObsidian },
+                needsAddress && { color: colors.accentCrimson, textTransform: 'none' },
+              ]}
               numberOfLines={1}
             >
               {deliveryPillLabel}
@@ -165,28 +198,36 @@ export default function CartScreen({ navigation }) {
         {/* Screen Title & Eyebrow */}
         <View style={styles.titleSection}>
           <View style={styles.titleRow}>
-            <Text style={styles.screenTitle}>Your Bag</Text>
+            <Text style={[styles.screenTitle, { color: colors.textObsidian }]}>Your Bag</Text>
             <View style={styles.itemCountBadge}>
               <Text style={styles.itemCountText}>
                 {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Items'}
               </Text>
             </View>
           </View>
-          <Text style={styles.screenSubtitle}>
+          <Text style={[styles.screenSubtitle, { color: colors.textSlate }]}>
             45-min Atelier Express Delivery
           </Text>
         </View>
 
         {/* Empty State */}
         {cartItems.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+              },
+            ]}
+          >
             <MaterialIcons
               name="shopping-bag"
               size={48}
               color={colors.accentGold}
             />
-            <Text style={styles.emptyTitle}>Your bag is empty</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textObsidian }]}>Your bag is empty</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSlate }]}>
               Curated garments from Sitabuldi & Dharampeth boutiques ready for
               instant delivery.
             </Text>
@@ -202,7 +243,16 @@ export default function CartScreen({ navigation }) {
             {/* Bag Items List */}
             <View style={styles.itemsList}>
               {cartItems.map((item) => (
-                <View key={item.key || `${item.productId || item.id}-${item.size}`} style={styles.itemCard}>
+                <View
+                  key={item.key || `${item.productId || item.id}-${item.size}`}
+                  style={[
+                    styles.itemCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                    },
+                  ]}
+                >
                   {/* Thumbnail */}
                   <View style={styles.thumbWrap}>
                     <Image
@@ -226,7 +276,7 @@ export default function CartScreen({ navigation }) {
                   {/* Info */}
                   <View style={styles.itemInfoCol}>
                     <View style={styles.itemHeaderRow}>
-                      <Text style={styles.itemName} numberOfLines={1}>
+                      <Text style={[styles.itemName, { color: colors.textObsidian }]} numberOfLines={1}>
                         {item.name}
                       </Text>
                       <PressableScale
@@ -244,7 +294,7 @@ export default function CartScreen({ navigation }) {
                     </View>
 
                     <View style={styles.itemMetaRow}>
-                      <Text style={styles.itemMeta}>Size {item.size || 'Free'}</Text>
+                      <Text style={[styles.itemMeta, { color: colors.textSlate }]}>Size {item.size || 'Free'}</Text>
                       {item.color ? (
                         <View style={styles.itemColorBadge}>
                           {item.colorHex ? (
@@ -259,18 +309,26 @@ export default function CartScreen({ navigation }) {
                         </View>
                       ) : null}
                       <Text style={styles.itemMetaDot}>·</Text>
-                      <Text style={styles.itemMetaStore} numberOfLines={1}>
+                      <Text style={[styles.itemMetaStore, { color: colors.accentGoldDeep }]} numberOfLines={1}>
                         {item.storeName || 'Atelier'}
                       </Text>
                     </View>
 
                     <View style={styles.itemBottomRow}>
-                      <Text style={styles.itemPrice}>
+                      <Text style={[styles.itemPrice, { color: colors.textObsidian }]}>
                         {formatINR(item.price * item.quantity)}
                       </Text>
 
                       {/* Stepper Controls */}
-                      <View style={styles.stepperWrap}>
+                      <View
+                        style={[
+                          styles.stepperWrap,
+                          {
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.65)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.85)',
+                          },
+                        ]}
+                      >
                         <PressableScale
                           onPress={() => handleDecrement(item)}
                           style={styles.stepperBtn}
@@ -284,7 +342,7 @@ export default function CartScreen({ navigation }) {
                           />
                         </PressableScale>
 
-                        <Text style={styles.quantityText}>{item.quantity}</Text>
+                        <Text style={[styles.quantityText, { color: colors.textObsidian }]}>{item.quantity}</Text>
 
                         <PressableScale
                           onPress={() => handleIncrement(item)}
@@ -316,6 +374,10 @@ export default function CartScreen({ navigation }) {
               }}
               style={[
                 styles.addressCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                },
                 isAddressOutOfBounds && styles.addressCardOutOfBounds,
               ]}
               accessibilityRole="button"
@@ -362,7 +424,7 @@ export default function CartScreen({ navigation }) {
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.addressText} numberOfLines={1}>
+                <Text style={[styles.addressText, { color: colors.textObsidian }]} numberOfLines={1}>
                   {profile?.savedAddresses?.length
                     ? `${profile.savedAddresses[0].line1}, ${profile.savedAddresses[0].city || 'Nagpur'}`
                     : 'No address set · Tap to set doorstep'}
@@ -381,37 +443,61 @@ export default function CartScreen({ navigation }) {
             </PressableScale>
 
             {/* Payment — COD only (backend enum; UPI not wired) */}
-            <View style={styles.glassCard}>
-              <Text style={styles.cardHeaderTitle}>Payment</Text>
+            <View
+              style={[
+                styles.glassCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                },
+              ]}
+            >
+              <Text style={[styles.cardHeaderTitle, { color: colors.textObsidian }]}>Payment</Text>
               <View style={styles.paymentMethodsRow}>
-                <View style={[styles.paymentOptionBtn, styles.paymentOptionActive]}>
+                <View
+                  style={[
+                    styles.paymentOptionBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+                      borderColor: colors.accentCrimson,
+                    },
+                  ]}
+                >
                   <MaterialIcons
                     name="check-circle"
                     size={17}
                     color={colors.accentCrimson}
                   />
-                  <Text style={[styles.paymentOptionText, styles.paymentTextActive]}>
+                  <Text style={[styles.paymentOptionText, { color: colors.textObsidian, fontWeight: '700' }]}>
                     Cash on Delivery
                   </Text>
                 </View>
               </View>
-              <Text style={styles.paymentHint}>
+              <Text style={[styles.paymentHint, { color: colors.textAsh }]}>
                 Pay the rider when your fitting arrives. Online UPI / card checkout is not available yet.
               </Text>
             </View>
 
             {/* Billing Summary Breakdown */}
-            <View style={styles.glassCard}>
-              <Text style={styles.cardHeaderTitle}>Price Breakdown</Text>
+            <View
+              style={[
+                styles.glassCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                },
+              ]}
+            >
+              <Text style={[styles.cardHeaderTitle, { color: colors.textObsidian }]}>Price Breakdown</Text>
               <View style={styles.billRows}>
                 <View style={styles.billRow}>
-                  <Text style={styles.billLabel}>Subtotal</Text>
-                  <Text style={styles.billValue}>{formatINR(subtotal)}</Text>
+                  <Text style={[styles.billLabel, { color: colors.textSlate }]}>Subtotal</Text>
+                  <Text style={[styles.billValue, { color: colors.textObsidian }]}>{formatINR(subtotal)}</Text>
                 </View>
 
                 <View style={styles.billRow}>
                   <View style={styles.expressTagRow}>
-                    <Text style={styles.billLabel}>Express Delivery</Text>
+                    <Text style={[styles.billLabel, { color: colors.textSlate }]}>Express Delivery</Text>
                     <View style={styles.rapidBadge}>
                       <Text style={styles.rapidBadgeText}>45 MIN</Text>
                     </View>
@@ -419,11 +505,11 @@ export default function CartScreen({ navigation }) {
                   <Text style={styles.freeText}>FREE</Text>
                 </View>
 
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]} />
 
                 <View style={styles.billRow}>
-                  <Text style={styles.totalBillLabel}>Total</Text>
-                  <Text style={styles.totalBillValue}>{formatINR(total)}</Text>
+                  <Text style={[styles.totalBillLabel, { color: colors.textObsidian }]}>Total</Text>
+                  <Text style={[styles.totalBillValue, { color: colors.textObsidian }]}>{formatINR(total)}</Text>
                 </View>
               </View>
             </View>
@@ -442,10 +528,18 @@ export default function CartScreen({ navigation }) {
             { paddingBottom: Math.max(insets.bottom, spacing.md) },
           ]}
         >
-          <View style={styles.bottomBar}>
+          <View
+            style={[
+              styles.bottomBar,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 26, 0.95)' : 'rgba(255, 255, 255, 0.75)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.85)',
+              },
+            ]}
+          >
             <View style={styles.priceCol}>
-              <Text style={styles.toPayLabel}>TO PAY</Text>
-              <Text style={styles.toPayPrice}>{formatINR(total)}</Text>
+              <Text style={[styles.toPayLabel, { color: colors.textAsh }]}>TO PAY</Text>
+              <Text style={[styles.toPayPrice, { color: colors.textObsidian }]}>{formatINR(total)}</Text>
             </View>
 
             <PressableScale

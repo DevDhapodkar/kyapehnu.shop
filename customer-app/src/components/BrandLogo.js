@@ -1,13 +1,14 @@
 import React from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * BrandLogo — Kya Pehnu? Official Stitch Brand Identity
  *
  * Implements the brand identity from Stitch project 15360757500694020784:
  * - Miniature Royal Crimson & Gold Squircle Emblem
- * - High-fashion serif typography: "KYA" in obsidian + "PEHNU?" in italic crimson
+ * - High-fashion serif typography: "KYA" in obsidian/ivory + "PEHNU?" in italic crimson
  * - Antique gold provenance accent dot
  */
 export default function BrandLogo({
@@ -16,21 +17,41 @@ export default function BrandLogo({
   style,
   dark = false,
 }) {
+  const { isDark, colors: themeColors } = useTheme();
+  const effectiveDark = dark || isDark;
+
   const isSm = size === 'sm';
   const isLg = size === 'lg';
 
   const emblemSize = isSm ? 22 : isLg ? 34 : 26;
   const fontSize = isSm ? 12 : isLg ? 19 : 14.5;
+  const borderRadius = emblemSize * 0.28;
 
   return (
     <View style={[styles.container, style]}>
       {showEmblem ? (
-        <View style={[styles.emblemWrap, { width: emblemSize, height: emblemSize }]}>
+        <View
+          style={[
+            styles.emblemWrap,
+            {
+              width: emblemSize,
+              height: emblemSize,
+              borderRadius,
+            },
+          ]}
+        >
           <Image
-            source={require('../../assets/images/icon.png')}
+            source={require('../../assets/images/brand-emblem.png')}
             style={[
               styles.emblemImage,
-              { width: emblemSize, height: emblemSize, borderRadius: emblemSize * 0.28 },
+              {
+                width: emblemSize,
+                height: emblemSize,
+                borderRadius,
+                borderColor: effectiveDark
+                  ? 'rgba(200, 162, 74, 0.4)'
+                  : 'rgba(255, 255, 255, 0.45)',
+              },
             ]}
             resizeMode="cover"
           />
@@ -41,17 +62,31 @@ export default function BrandLogo({
         <Text
           style={[
             styles.kyaText,
-            { fontSize, color: dark ? '#FFFFFF' : colors.textObsidian },
+            {
+              fontSize,
+              color: effectiveDark ? '#FAF9F5' : (themeColors?.textPrimary || colors.textObsidian),
+            },
           ]}
         >
           KYA
         </Text>
-        <Text style={[styles.pehnuText, { fontSize }]}> PEHNU?</Text>
+        <Text
+          style={[
+            styles.pehnuText,
+            {
+              fontSize,
+              color: themeColors?.accentCrimson || colors.accentCrimson,
+            },
+          ]}
+        >
+          {' '}PEHNU?
+        </Text>
         <View
           style={[
             styles.goldDot,
             isSm && styles.goldDotSm,
             isLg && styles.goldDotLg,
+            { backgroundColor: themeColors?.accentGold || colors.accentGold },
           ]}
         />
       </View>
@@ -66,6 +101,7 @@ const styles = StyleSheet.create({
   },
   emblemWrap: {
     marginRight: 7,
+    overflow: 'hidden',
     shadowColor: colors.accentCrimson,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

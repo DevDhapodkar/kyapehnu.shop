@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
+import BrandLogo from '../../components/BrandLogo';
 import PressableScale from '../../components/PressableScale';
 import VendorBottomNav from '../../components/vendor/VendorBottomNav';
 import { colors, radii, spacing } from '../../theme/colors';
@@ -244,6 +245,7 @@ export default function VendorProfileScreen({ navigation }) {
         </PressableScale>
 
         <View style={styles.footerWrap}>
+          <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 8 }} />
           <Text style={styles.footerStamp}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
           <Text style={styles.footerCorridor}>Sitabuldi · Dharampeth · Itwari · Gandhibagh · Sadar</Text>
         </View>

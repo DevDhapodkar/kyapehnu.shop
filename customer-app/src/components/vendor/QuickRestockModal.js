@@ -15,14 +15,18 @@ import * as Haptics from 'expo-haptics';
 
 import PressableScale from '../PressableScale';
 import { formatCurrency as formatINR } from '../../utils/format';
-import { colors, radii, spacing } from '../../theme/colors';
+import { radii, spacing } from '../../theme/colors';
+import { useTheme } from '../../theme/useTheme';
 
 /**
  * Senior-Friendly Quick Restock & Size Units Adjuster
  * Designed for Nagpur boutique shopkeepers to update stock units in seconds.
+ * Fully theme-aware supporting Ivory Studio Light and Royal Crimson Noir.
  */
 export default function QuickRestockModal({ visible, product, onClose, onSave }) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+
   const [sizeStocks, setSizeStocks] = useState({});
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,7 +47,6 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
         }
       });
     } else {
-      // Default common sizes if none configured
       ['S', 'M', 'L'].forEach((sz) => {
         initial[sz] = 5;
       });
@@ -113,22 +116,43 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
       onRequestClose={onClose}
     >
       <View style={styles.scrimOverlay}>
-        <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <View
+          style={[
+            styles.sheetContainer,
+            {
+              backgroundColor: isDark ? colors.surfaceCard : '#FAF9F5',
+              borderColor: colors.borderHairline,
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
+            },
+          ]}
+        >
           {/* Header Bar */}
-          <View style={styles.sheetHeader}>
-            <View style={styles.sheetHandle} />
+          <View style={[styles.sheetHeader, { borderBottomColor: colors.borderHairline }]}>
+            <View
+              style={[
+                styles.sheetHandle,
+                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(18, 18, 21, 0.18)' },
+              ]}
+            />
             <View style={styles.headerRow}>
               <View style={styles.titleCol}>
-                <Text style={styles.sheetTitle}>Quick Restock & Sizes</Text>
-                <Text style={styles.sheetSubtitle}>Update stock counts in 1-tap</Text>
+                <Text style={[styles.sheetTitle, { color: colors.textObsidian }]}>
+                  Quick Restock & Sizes
+                </Text>
+                <Text style={[styles.sheetSubtitle, { color: colors.textAsh }]}>
+                  Update stock counts in 1-tap
+                </Text>
               </View>
               <PressableScale
                 onPress={onClose}
-                style={styles.closeBtn}
+                style={[
+                  styles.closeBtn,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 21, 0.06)' },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Close restock modal"
               >
-                <MaterialIcons name="close" size={22} color={colors.textObsidian} />
+                <MaterialIcons name="close" size={20} color={colors.textObsidian} />
               </PressableScale>
             </View>
           </View>
@@ -138,20 +162,37 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
             contentContainerStyle={styles.scrollBody}
           >
             {/* Product Summary Header Card */}
-            <View style={styles.productSnippetCard}>
+            <View
+              style={[
+                styles.productSnippetCard,
+                {
+                  backgroundColor: isDark ? colors.surfacePorcelain || '#18181C' : '#FFFFFF',
+                  borderColor: colors.borderHairline,
+                },
+              ]}
+            >
               {thumbnail ? (
                 <Image source={{ uri: thumbnail }} style={styles.productThumb} contentFit="cover" />
               ) : (
-                <View style={styles.productThumbFallback}>
-                  <MaterialIcons name="checkroom" size={24} color={colors.accentGold} />
+                <View
+                  style={[
+                    styles.productThumbFallback,
+                    {
+                      backgroundColor: isDark ? 'rgba(200, 162, 74, 0.15)' : 'rgba(179, 138, 43, 0.1)',
+                    },
+                  ]}
+                >
+                  <MaterialIcons name="checkroom" size={24} color={colors.accentGold || '#B38A2B'} />
                 </View>
               )}
               <View style={styles.productSnippetInfo}>
-                <Text style={styles.productName} numberOfLines={1}>
+                <Text style={[styles.productName, { color: colors.textObsidian }]} numberOfLines={1}>
                   {product.name}
                 </Text>
-                <Text style={styles.productPrice}>{formatINR(product.price)}</Text>
-                <Text style={styles.totalUnitsBadge}>
+                <Text style={[styles.productPrice, { color: colors.accentCrimson }]}>
+                  {formatINR(product.price)}
+                </Text>
+                <Text style={[styles.totalUnitsBadge, { color: colors.textSlate }]}>
                   Total: {totalUnits} {totalUnits === 1 ? 'Unit' : 'Units'} available
                 </Text>
               </View>
@@ -159,36 +200,78 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
 
             {/* Quick Batch Actions */}
             <View style={styles.batchActionRow}>
-              <Text style={styles.batchActionLabel}>Quick Adjust:</Text>
+              <Text style={[styles.batchActionLabel, { color: colors.textSlate }]}>Quick Adjust:</Text>
               <PressableScale
                 onPress={() => handleBatchAdd(5)}
-                style={styles.batchBtn}
+                style={[
+                  styles.batchBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(200, 162, 74, 0.15)' : 'rgba(179, 138, 43, 0.1)',
+                    borderColor: isDark ? 'rgba(200, 162, 74, 0.3)' : 'rgba(179, 138, 43, 0.25)',
+                  },
+                ]}
               >
-                <Text style={styles.batchBtnText}>+5 to All Sizes</Text>
+                <Text style={[styles.batchBtnText, { color: colors.accentGoldDeep || '#946C18' }]}>
+                  +5 to All Sizes
+                </Text>
               </PressableScale>
               <PressableScale
                 onPress={() => handleBatchAdd(10)}
-                style={styles.batchBtn}
+                style={[
+                  styles.batchBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(200, 162, 74, 0.15)' : 'rgba(179, 138, 43, 0.1)',
+                    borderColor: isDark ? 'rgba(200, 162, 74, 0.3)' : 'rgba(179, 138, 43, 0.25)',
+                  },
+                ]}
               >
-                <Text style={styles.batchBtnText}>+10 to All</Text>
+                <Text style={[styles.batchBtnText, { color: colors.accentGoldDeep || '#946C18' }]}>
+                  +10 to All
+                </Text>
               </PressableScale>
             </View>
 
             {/* Size Steppers Grid */}
             <View style={styles.sizesSection}>
-              <Text style={styles.sectionHeader}>Garment Sizes & Quantities</Text>
+              <Text style={[styles.sectionHeader, { color: colors.textObsidian }]}>
+                Garment Sizes & Quantities
+              </Text>
               <View style={styles.sizesGrid}>
                 {Object.keys(sizeStocks).map((sizeKey) => {
                   const qty = sizeStocks[sizeKey] || 0;
                   return (
-                    <View key={sizeKey} style={styles.sizeStepperCard}>
-                      <View style={styles.sizeBadge}>
-                        <Text style={styles.sizeBadgeText}>{sizeKey}</Text>
+                    <View
+                      key={sizeKey}
+                      style={[
+                        styles.sizeStepperCard,
+                        {
+                          backgroundColor: isDark ? colors.surfacePorcelain || '#18181C' : '#FFFFFF',
+                          borderColor: colors.borderHairline,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.sizeBadge,
+                          {
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 21, 0.05)',
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.sizeBadgeText, { color: colors.textObsidian }]}>
+                          {sizeKey}
+                        </Text>
                       </View>
                       <View style={styles.stepperControls}>
                         <PressableScale
                           onPress={() => handleAdjustUnit(sizeKey, -1)}
-                          style={[styles.stepperBtn, qty === 0 && styles.stepperBtnDisabled]}
+                          style={[
+                            styles.stepperBtn,
+                            {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 21, 0.06)',
+                            },
+                            qty === 0 && styles.stepperBtnDisabled,
+                          ]}
                           disabled={qty === 0}
                         >
                           <MaterialIcons
@@ -198,13 +281,24 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
                           />
                         </PressableScale>
                         <View style={styles.qtyBox}>
-                          <Text style={[styles.qtyText, qty === 0 && styles.qtyTextZero]}>
+                          <Text
+                            style={[
+                              styles.qtyText,
+                              { color: colors.textObsidian },
+                              qty === 0 && { color: colors.textAsh },
+                            ]}
+                          >
                             {qty}
                           </Text>
                         </View>
                         <PressableScale
                           onPress={() => handleAdjustUnit(sizeKey, 1)}
-                          style={styles.stepperBtn}
+                          style={[
+                            styles.stepperBtn,
+                            {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 21, 0.06)',
+                            },
+                          ]}
                         >
                           <MaterialIcons name="add" size={18} color={colors.textObsidian} />
                         </PressableScale>
@@ -220,24 +314,32 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
               onPress={() => setIsAvailable((prev) => !prev)}
               style={[
                 styles.availabilityPill,
-                isAvailable ? styles.availPillActive : styles.availPillInactive,
+                isAvailable
+                  ? {
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#F0FDF4',
+                      borderColor: '#10B981',
+                    }
+                  : {
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                      borderColor: colors.accentCrimson,
+                    },
               ]}
             >
               <MaterialIcons
                 name={isAvailable ? 'check-circle' : 'pause-circle-filled'}
                 size={22}
-                color={isAvailable ? '#15803D' : '#B91C1C'}
+                color={isAvailable ? '#10B981' : colors.accentCrimson}
               />
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.availPillTitle,
-                    { color: isAvailable ? '#15803D' : '#B91C1C' },
+                    { color: isAvailable ? '#10B981' : colors.accentCrimson },
                   ]}
                 >
                   {isAvailable ? 'Listing is Active (In Stock)' : 'Listing is Paused (Out of Stock)'}
                 </Text>
-                <Text style={styles.availPillSub}>
+                <Text style={[styles.availPillSub, { color: colors.textSlate }]}>
                   {isAvailable
                     ? 'Customers in Nagpur can buy this piece right now.'
                     : 'Hidden from checkout until you mark in stock.'}
@@ -247,17 +349,17 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={styles.sheetFooter}>
+          <View style={[styles.sheetFooter, { borderTopColor: colors.borderHairline }]}>
             <PressableScale
               onPress={handleSave}
-              style={styles.saveBtn}
+              style={[styles.saveBtn, { backgroundColor: colors.accentCrimson }]}
               disabled={saving}
             >
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <MaterialIcons name="save" size={20} color="#FFFFFF" />
+                  <MaterialIcons name="save" size={18} color="#FFFFFF" />
                   <Text style={styles.saveBtnText}>Save Stock Changes</Text>
                 </>
               )}
@@ -272,34 +374,30 @@ export default function QuickRestockModal({ visible, product, onClose, onSave })
 const styles = StyleSheet.create({
   scrimOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(18, 18, 21, 0.55)',
+    backgroundColor: 'rgba(18, 18, 21, 0.65)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#FAF9F5',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1.5,
-    borderColor: 'rgba(217, 119, 6, 0.22)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
     maxHeight: '85%',
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 20,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 -8px 30px rgba(0, 0, 0, 0.3)',
+      },
+    }),
   },
   sheetHeader: {
     paddingTop: 12,
     paddingHorizontal: spacing.md,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(217, 119, 6, 0.12)',
   },
   sheetHandle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(18, 18, 21, 0.18)',
     alignSelf: 'center',
     marginBottom: 10,
   },
@@ -312,21 +410,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textObsidian,
+    fontSize: 17,
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   sheetSubtitle: {
     fontSize: 12,
-    color: colors.textSlate,
     marginTop: 2,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(18, 18, 21, 0.06)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -337,23 +432,20 @@ const styles = StyleSheet.create({
   productSnippetCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: radii.md,
     padding: spacing.sm + 2,
     borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.16)',
     gap: 12,
   },
   productThumb: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
   },
   productThumbFallback: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -362,19 +454,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   productName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textObsidian,
   },
   productPrice: {
     fontSize: 14,
-    fontWeight: '800',
-    color: colors.accentCrimson,
+    fontWeight: '700',
   },
   totalUnitsBadge: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: colors.textSlate,
+    fontSize: 11,
+    fontWeight: '500',
   },
   batchActionRow: {
     flexDirection: 'row',
@@ -383,59 +472,50 @@ const styles = StyleSheet.create({
   },
   batchActionLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSlate,
+    fontWeight: '600',
   },
   batchBtn: {
-    paddingVertical: 6,
+    paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.25)',
   },
   batchBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: colors.accentGoldDeep,
+    fontSize: 11,
+    fontWeight: '600',
   },
   sizesSection: {
     gap: 10,
   },
   sectionHeader: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textObsidian,
-    letterSpacing: 0.2,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   sizesGrid: {
-    gap: 10,
+    gap: 8,
   },
   sizeStepperCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: 'rgba(18, 18, 21, 0.08)',
   },
   sizeBadge: {
-    minWidth: 44,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: 'rgba(18, 18, 21, 0.05)',
+    minWidth: 40,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sizeBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textObsidian,
+    fontSize: 12,
+    fontWeight: '700',
   },
   stepperControls: {
     flexDirection: 'row',
@@ -443,78 +523,57 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(18, 18, 21, 0.06)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperBtnDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   qtyBox: {
-    minWidth: 38,
+    minWidth: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   qtyText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textObsidian,
-  },
-  qtyTextZero: {
-    color: colors.textAsh,
+    fontSize: 15,
+    fontWeight: '700',
   },
   availabilityPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 14,
+    borderRadius: radii.md,
     padding: 12,
-    borderWidth: 1.5,
-  },
-  availPillActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#15803D',
-  },
-  availPillInactive: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#B91C1C',
+    borderWidth: 1,
   },
   availPillTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
   },
   availPillSub: {
     fontSize: 11,
-    color: colors.textSlate,
     marginTop: 2,
   },
   sheetFooter: {
     paddingHorizontal: spacing.md,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(217, 119, 6, 0.12)',
   },
   saveBtn: {
-    backgroundColor: colors.accentCrimson,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: radii.full,
+    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    shadowColor: colors.accentCrimson,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 6,
+    gap: 6,
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

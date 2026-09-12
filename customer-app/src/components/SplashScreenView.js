@@ -8,31 +8,39 @@ import {
   Text,
   View,
 } from 'react-native';
-import { colors, radii, spacing } from '../theme/colors';
+import { MaterialIcons } from '@expo/vector-icons';
+import { radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
- * SplashScreenView — Stitch Screen 258da2cb975b4237b16a01741ceb554f
- * "Splash Screen — Animated Luxe Logo Entrance"
+ * SplashScreenView — Stitch Screen:
+ * - final_light_theme Splash Screen (Mobile) [9735fbef21c8409cb211a9ad0ab33f93]
+ * - final_theme_dark Splash Screen (Mobile) [d0443ae1ed74434f85a9822ea1d2de5c]
  *
- * Provides a couture atelier entrance on cold start:
- * - Ambient floating warm glowing blobs
- * - Center stage with frosted glass card and golden aura pulse
- * - The official Royal Crimson & Gold Atelier Emblem from Stitch
- * - Nagpur Hyperlocal Couture provenance pill
- * - Connects to local ateliers before smoothly dissolving
+ * Implements the exact Stitch design elements:
+ * - Top status: Nagpur Express (live pulse) + Heritage Guild (star)
+ * - Center: Royal Crimson & Gold Squircle Emblem with 45 min bolt badge
+ * - Nagpur Couture Guild eyebrow + Garamond brand title
+ * - Narrative description + Corridor chips (Sitabuldi · Dharampeth · Gandhibagh)
+ * - Bottom: Connecting Ateliers · Nagpur Live + Verified Heritage Artisans · v2.4
  */
 export default function SplashScreenView({ onFinish }) {
+  const { colors: themeColors, isDark } = useTheme();
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const auraAnim = useRef(new Animated.Value(0.4)).current;
   const exitAnim = useRef(new Animated.Value(1)).current;
+
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
 
   useEffect(() => {
     // Entrance: Fade & Scale in
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 700,
         useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.spring(scaleAnim, {
@@ -48,12 +56,12 @@ export default function SplashScreenView({ onFinish }) {
       Animated.sequence([
         Animated.timing(auraAnim, {
           toValue: 0.85,
-          duration: 1200,
+          duration: 1100,
           useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(auraAnim, {
           toValue: 0.4,
-          duration: 1200,
+          duration: 1100,
           useNativeDriver: Platform.OS !== 'web',
         }),
       ])
@@ -61,30 +69,107 @@ export default function SplashScreenView({ onFinish }) {
     auraLoop.start();
 
     // Auto-dismiss after 1.8 seconds with graceful dissolve
+    let safetyTimer = null;
     const timer = setTimeout(() => {
       Animated.timing(exitAnim, {
         toValue: 0,
-        duration: 600,
+        duration: 500,
         useNativeDriver: Platform.OS !== 'web',
       }).start(() => {
+        if (safetyTimer) clearTimeout(safetyTimer);
         auraLoop.stop();
-        onFinish?.();
+        onFinishRef.current?.();
       });
-    }, 1900);
+      if (Platform.OS === 'web') {
+        safetyTimer = setTimeout(() => {
+          auraLoop.stop();
+          onFinishRef.current?.();
+        }, 600);
+      }
+    }, 1800);
 
     return () => {
       clearTimeout(timer);
+      if (safetyTimer) clearTimeout(safetyTimer);
       auraLoop.stop();
     };
-  }, [auraAnim, exitAnim, fadeAnim, onFinish, scaleAnim]);
+  }, [auraAnim, exitAnim, fadeAnim, scaleAnim]);
 
   return (
-    <Animated.View style={[styles.root, { opacity: exitAnim }]}>
+    <Animated.View
+      style={[
+        styles.root,
+        {
+          backgroundColor: isDark ? '#0E0E10' : '#FAF9F5',
+          opacity: exitAnim,
+        },
+      ]}
+    >
       {/* Ambient Floating Glowing Blobs */}
-      <View style={[styles.blob, styles.blobTopLeft]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobTopRight]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobBottom]} pointerEvents="none" />
+      <View
+        style={[
+          styles.blob,
+          styles.blobTopLeft,
+          { backgroundColor: isDark ? 'rgba(196, 36, 58, 0.18)' : 'rgba(244, 63, 94, 0.15)' },
+        ]}
+        pointerEvents="none"
+      />
+      <View
+        style={[
+          styles.blob,
+          styles.blobTopRight,
+          { backgroundColor: isDark ? 'rgba(200, 162, 74, 0.15)' : 'rgba(245, 158, 11, 0.12)' },
+        ]}
+        pointerEvents="none"
+      />
+      <View
+        style={[
+          styles.blob,
+          styles.blobBottom,
+          { backgroundColor: isDark ? 'rgba(142, 27, 41, 0.2)' : 'rgba(236, 72, 153, 0.12)' },
+        ]}
+        pointerEvents="none"
+      />
 
+      {/* Top Status Header Bar */}
+      <Animated.View style={[styles.topBar, { opacity: fadeAnim }]}>
+        <View
+          style={[
+            styles.topPill,
+            {
+              backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(244, 243, 238, 0.92)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.06)',
+            },
+          ]}
+        >
+          <View style={[styles.pulseDot, { backgroundColor: themeColors.accentCrimson }]} />
+          <Text
+            style={[
+              styles.topPillText,
+              { color: isDark ? '#C9C7C2' : themeColors.textSlate },
+            ]}
+          >
+            NAGPUR EXPRESS
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.topPill,
+            {
+              backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(244, 243, 238, 0.92)',
+              borderColor: isDark ? 'rgba(200, 162, 74, 0.25)' : 'rgba(179, 138, 43, 0.2)',
+            },
+          ]}
+        >
+          <MaterialIcons name="stars" size={13} color={themeColors.accentGold} />
+          <Text style={[styles.topPillText, { color: themeColors.accentGoldDeep || themeColors.accentGold }]}>
+            HERITAGE GUILD
+          </Text>
+        </View>
+      </Animated.View>
+
+      {/* Center Stage Hero Content */}
       <Animated.View
         style={[
           styles.content,
@@ -99,50 +184,157 @@ export default function SplashScreenView({ onFinish }) {
           style={[
             styles.auraGlow,
             {
+              backgroundColor: themeColors.accentGold,
               opacity: auraAnim,
-              transform: [{ scale: auraAnim.interpolate({
-                inputRange: [0.4, 0.85],
-                outputRange: [0.95, 1.15],
-              }) }],
+              transform: [
+                {
+                  scale: auraAnim.interpolate({
+                    inputRange: [0.4, 0.85],
+                    outputRange: [0.95, 1.15],
+                  }),
+                },
+              ],
             },
           ]}
         />
 
-        {/* Frosted Glass Emblem Card */}
-        <View style={styles.emblemCard}>
-          <Image
-            source={require('../../assets/images/icon.png')}
-            style={styles.emblemImage}
-            resizeMode="cover"
-          />
+        {/* Frosted Glass Emblem Card with 45-min Bolt Badge */}
+        <View style={styles.emblemContainer}>
+          <View
+            style={[
+              styles.emblemCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 26, 0.8)' : 'rgba(255, 255, 255, 0.75)',
+                borderColor: isDark ? 'rgba(200, 162, 74, 0.35)' : 'rgba(255, 255, 255, 0.95)',
+                shadowColor: themeColors.accentCrimson,
+              },
+            ]}
+          >
+            <Image
+              source={require('../../assets/images/brand-emblem.png')}
+              style={styles.emblemImage}
+              resizeMode="cover"
+            />
+          </View>
+
+          {/* Bolt 45-min Pill Badge */}
+          <View
+            style={[
+              styles.boltPill,
+              {
+                backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(200, 162, 74, 0.3)' : 'rgba(18, 18, 20, 0.08)',
+              },
+            ]}
+          >
+            <MaterialIcons name="bolt" size={13} color={themeColors.accentCrimson} />
+            <Text
+              style={[
+                styles.boltText,
+                { color: isDark ? '#FAF9F5' : themeColors.textObsidian },
+              ]}
+            >
+              45 min
+            </Text>
+          </View>
         </View>
 
-        {/* Nagpur Hyperlocal Couture Badge */}
-        <View style={styles.badgePill}>
-          <View style={styles.badgeDot} />
-          <Text style={styles.badgeText}>NAGPUR HYPERLOCAL COUTURE</Text>
+        {/* Eyebrow */}
+        <View style={styles.eyebrowWrap}>
+          <Text
+            style={[
+              styles.eyebrowText,
+              { color: themeColors.accentGold },
+            ]}
+          >
+            — NAGPUR COUTURE GUILD —
+          </Text>
         </View>
 
         {/* Brand Title */}
-        <Text style={styles.brandTitle}>Kya Pehnu?</Text>
-        <Text style={styles.brandSubtitle}>
-          The city’s finest ateliers at your doorstep
+        <Text
+          style={[
+            styles.brandTitle,
+            { color: isDark ? '#FFFFFF' : themeColors.textObsidian },
+          ]}
+        >
+          Kya Pehnu?
         </Text>
+
+        {/* Subtitle */}
+        <Text
+          style={[
+            styles.brandSubtitle,
+            { color: isDark ? '#C9C7C2' : themeColors.textSlate },
+          ]}
+        >
+          Curated bespoke handlooms & designer ensembles delivered warm to your suite.
+        </Text>
+
+        {/* Corridor Chips */}
+        <View style={styles.corridorsRow}>
+          {['Sitabuldi', 'Dharampeth', 'Gandhibagh'].map((zone, idx) => (
+            <React.Fragment key={zone}>
+              {idx > 0 && (
+                <Text style={[styles.corridorDot, { color: isDark ? '#5A5854' : '#C4C2BA' }]}>
+                  •
+                </Text>
+              )}
+              <View
+                style={[
+                  styles.corridorChip,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(244, 243, 238, 0.8)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.06)',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.corridorText,
+                    { color: isDark ? '#E5E1E4' : themeColors.textSlate },
+                  ]}
+                >
+                  {zone}
+                </Text>
+              </View>
+            </React.Fragment>
+          ))}
+        </View>
       </Animated.View>
 
-      {/* Bottom Launch Pill */}
+      {/* Bottom Launch Status */}
       <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
-        <View style={styles.launchPill}>
-          <ActivityIndicator size="small" color={colors.accentCrimson} />
-          <Text style={styles.launchText}>
-            Connecting to Dharampeth & Civil Lines…
+        <View
+          style={[
+            styles.launchPill,
+            {
+              backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(255, 255, 255, 0.75)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
+            },
+          ]}
+        >
+          <ActivityIndicator size="small" color={themeColors.accentCrimson} />
+          <Text
+            style={[
+              styles.launchText,
+              { color: isDark ? '#FAF9F5' : themeColors.textObsidian },
+            ]}
+          >
+            Connecting Ateliers · Nagpur Live
           </Text>
         </View>
 
         <View style={styles.provenanceRow}>
-          <Text style={styles.provenanceText}>60-Min Doorstep Trial</Text>
-          <Text style={styles.provenanceBullet}>•</Text>
-          <Text style={styles.provenanceText}>Curated Boutiques</Text>
+          <MaterialIcons name="verified-user" size={13} color={themeColors.accentGold} />
+          <Text
+            style={[
+              styles.provenanceText,
+              { color: isDark ? '#7E7C85' : themeColors.textAsh },
+            ]}
+          >
+            Verified Heritage Artisans · v2.4
+          </Text>
         </View>
       </Animated.View>
     </Animated.View>
@@ -153,10 +345,11 @@ const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
-    backgroundColor: '#FAF9F5',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 56,
+    paddingTop: Platform.OS === 'web' ? 24 : 50,
+    paddingBottom: Platform.OS === 'web' ? 32 : 44,
+    paddingHorizontal: 20,
     overflow: 'hidden',
   },
   blob: {
@@ -173,56 +366,77 @@ const styles = StyleSheet.create({
     left: -50,
     width: 280,
     height: 280,
-    backgroundColor: 'rgba(244, 63, 94, 0.28)',
   },
   blobTopRight: {
-    top: '30%',
+    top: '25%',
     right: -60,
     width: 260,
     height: 260,
-    backgroundColor: 'rgba(245, 158, 11, 0.24)',
   },
   blobBottom: {
     bottom: -60,
     left: '15%',
     width: 300,
     height: 300,
-    backgroundColor: 'rgba(236, 72, 153, 0.2)',
+  },
+  topBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  topPillText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   content: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     width: '100%',
-    paddingHorizontal: 24,
+    maxWidth: 380,
+    paddingHorizontal: 12,
   },
   auraGlow: {
     position: 'absolute',
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: colors.accentGold,
-    top: '25%',
+    top: -10,
     ...Platform.select({
       web: {
         filter: 'blur(45px)',
       },
     }),
   },
+  emblemContainer: {
+    position: 'relative',
+    marginBottom: 18,
+  },
   emblemCard: {
     width: 124,
     height: 124,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 34,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
-    shadowColor: colors.accentCrimson,
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.22,
     shadowRadius: 36,
     elevation: 8,
     ...Platform.select({
@@ -235,89 +449,109 @@ const styles = StyleSheet.create({
   emblemImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 26,
+    borderRadius: 28,
   },
-  badgePill: {
+  boltPill: {
+    position: 'absolute',
+    bottom: -6,
+    right: -8,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 26,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accentCrimson,
-    marginRight: 7,
-  },
-  badgeText: {
-    color: colors.accentCrimson,
-    fontSize: 9.5,
+  boltText: {
+    fontSize: 10.5,
     fontWeight: '700',
-    letterSpacing: 1.8,
+    letterSpacing: -0.2,
+  },
+  eyebrowWrap: {
+    marginBottom: 6,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
   },
   brandTitle: {
-    marginTop: 12,
-    fontSize: 34,
+    fontSize: 36,
     fontFamily: Platform.select({
       ios: 'Georgia',
       android: 'serif',
       web: "'EB Garamond', Georgia, serif",
     }),
     fontWeight: '500',
-    color: colors.textObsidian,
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   brandSubtitle: {
-    marginTop: 6,
-    fontSize: 13,
-    color: colors.textSlate,
-    fontWeight: '400',
+    marginTop: 8,
+    fontSize: 13.5,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  corridorsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+  },
+  corridorChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  corridorText: {
+    fontSize: 11,
+    fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  corridorDot: {
+    fontSize: 10,
   },
   footer: {
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 24,
-    gap: 12,
+    gap: 10,
   },
   launchPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    gap: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.65)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 12,
   },
   launchText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textObsidian,
+    letterSpacing: 0.2,
   },
   provenanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   provenanceText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.textAsh,
-  },
-  provenanceBullet: {
-    fontSize: 11,
-    color: colors.textAsh,
+    fontSize: 10.5,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 });

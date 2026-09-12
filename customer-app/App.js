@@ -6,6 +6,8 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/useAuthStore';
+import { useThemeStore } from './src/store/useThemeStore';
+import { useCartStore } from './src/store/useCartStore';
 import { colors } from './src/theme/colors';
 import IosInstallPrompt from './src/components/IosInstallPrompt';
 import SplashScreenView from './src/components/SplashScreenView';
@@ -14,12 +16,20 @@ import { applyNativeMobileWebHardening } from './src/utils/nativeWebHardening';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
+  const initTheme = useThemeStore((state) => state.initTheme);
+  const isDark = useThemeStore((state) => state.isDark);
+  const activeColors = useThemeStore((state) => state.colors);
   const { width } = useWindowDimensions();
   // Mobile-first web app: real phones (<=480 CSS px) render edge-to-edge; any
   // wider viewport (tablet, landscape phone, desktop window) is boxed into a
   // centred phone frame so the layout never stretches past a handset column.
   const isDesktop = Platform.OS === 'web' && width > 480;
   const [showSplash, setShowSplash] = useState(true);
+
+  // Initialize saved theme on mount
+  useEffect(() => {
+    initTheme();
+  }, [initTheme]);
 
   // expo-splash-screen's automatic hide does not fire on this setup, so the
   // launch screen stays over the app forever. Hiding it once the root has
@@ -44,6 +54,8 @@ export default function App() {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.__AUTH_STORE__ = useAuthStore;
+      window.__THEME_STORE__ = useThemeStore;
+      window.__CART_STORE__ = useCartStore;
     }
     const unsubscribe = initAuth();
     return () => unsubscribe?.();
@@ -57,9 +69,32 @@ export default function App() {
     : undefined;
 
   return (
-    <View style={[styles.root, isDesktop && styles.desktopOuter]}>
-      <View style={[styles.appContainer, isDesktop && styles.desktopFrame]}>
-        <GestureHandlerRootView style={styles.appContainer}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: activeColors.groundBase },
+        isDesktop && [
+          styles.desktopOuter,
+          { backgroundColor: isDark ? '#050506' : '#F3EFE6' },
+        ],
+      ]}
+    >
+      <View
+        style={[
+          styles.appContainer,
+          { backgroundColor: activeColors.groundBase },
+          isDesktop && [
+            styles.desktopFrame,
+            {
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(217, 119, 6, 0.15)',
+              boxShadow: isDark
+                ? '0 20px 60px rgba(0, 0, 0, 0.8)'
+                : '0 20px 60px rgba(18, 18, 21, 0.08)',
+            },
+          ],
+        ]}
+      >
+        <GestureHandlerRootView style={[styles.appContainer, { backgroundColor: activeColors.groundBase }]}>
           <SafeAreaProvider initialMetrics={desktopMetrics}>
             <ErrorBoundary>
               <AppNavigator />
@@ -78,10 +113,8 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FAF9F5',
   },
   desktopOuter: {
-    backgroundColor: '#F3EFE6',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
@@ -91,7 +124,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: '#FAF9F5',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -102,7 +134,5 @@ const styles = StyleSheet.create({
     maxHeight: '100%',
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.15)',
-    boxShadow: '0 20px 60px rgba(18, 18, 21, 0.08)',
   },
 });

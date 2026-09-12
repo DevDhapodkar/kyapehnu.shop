@@ -24,6 +24,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
 import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * MyOrdersScreen — Orders & Fitting Archive (Frosted Glass & Ambient Blobs)
@@ -39,6 +40,7 @@ import { colors, radii, spacing } from '../theme/colors';
  */
 export default function MyOrdersScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors: themeColors, isDark } = useTheme();
   const token = useAuthStore((state) => state.token);
   const profile = useAuthStore((state) => state.profile);
   const addToCart = useCartStore((state) => state.addToCart);
@@ -180,8 +182,8 @@ export default function MyOrdersScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
@@ -191,17 +193,31 @@ export default function MyOrdersScreen({ navigation }) {
         style={[styles.topBar, { paddingTop: insets.top + 4 }]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.goBack()}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
             <MaterialIcons
               name="arrow-back-ios-new"
               size={17}
-              color={colors.textObsidian}
+              color={themeColors.textPrimary}
             />
           </PressableScale>
 
@@ -209,19 +225,25 @@ export default function MyOrdersScreen({ navigation }) {
 
           <PressableScale
             onPress={() => navigation.navigate('Address')}
-            style={styles.locationPill}
+            style={[
+              styles.locationPill,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.75)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
           >
             <MaterialIcons
               name={needsAddress ? 'add-location-alt' : 'near-me'}
               size={13}
-              color={needsAddress ? colors.accentCrimson : colors.accentGold}
+              color={needsAddress ? themeColors.accentCrimson : themeColors.accentGold}
             />
             <Text
               style={[
                 styles.locationText,
-                needsAddress && { color: colors.accentCrimson, textTransform: 'none' },
+                { color: themeColors.textPrimary },
+                needsAddress && { color: themeColors.accentCrimson, textTransform: 'none' },
               ]}
               numberOfLines={1}
             >
@@ -246,17 +268,25 @@ export default function MyOrdersScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.accentCrimson}
+            tintColor={themeColors.accentCrimson}
           />
         }
       >
         {/* Screen Header */}
         <View style={styles.titleSection}>
-          <Text style={styles.eyebrow}>Nagpur Concierge</Text>
+          <Text style={[styles.eyebrow, { color: themeColors.accentGold }]}>Nagpur Concierge</Text>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>Orders</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>Orders</Text>
+            <View
+              style={[
+                styles.countBadge,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                },
+              ]}
+            >
+              <Text style={[styles.countText, { color: themeColors.textPrimary }]}>
                 {orders.length} {orders.length === 1 ? 'order' : 'orders'}
               </Text>
             </View>
@@ -264,15 +294,30 @@ export default function MyOrdersScreen({ navigation }) {
         </View>
 
         {/* Tab Switcher */}
-        <View style={styles.tabsRow}>
+        <View
+          style={[
+            styles.tabsRow,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.8)' : 'rgba(255, 255, 255, 0.45)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.75)',
+            },
+          ]}
+        >
           <PressableScale
             onPress={() => setSelectedTab('active')}
             wrapperStyle={{ flex: 1 }}
-            style={[styles.tab, selectedTab === 'active' && styles.tabActive]}
+            style={[
+              styles.tab,
+              selectedTab === 'active' && [
+                styles.tabActive,
+                { backgroundColor: isDark ? themeColors.accentCrimson : themeColors.textObsidian },
+              ],
+            ]}
           >
             <Text
               style={[
                 styles.tabText,
+                { color: themeColors.textSlate },
                 selectedTab === 'active' && styles.tabTextActive,
               ]}
             >
@@ -283,11 +328,18 @@ export default function MyOrdersScreen({ navigation }) {
           <PressableScale
             onPress={() => setSelectedTab('archive')}
             wrapperStyle={{ flex: 1 }}
-            style={[styles.tab, selectedTab === 'archive' && styles.tabActive]}
+            style={[
+              styles.tab,
+              selectedTab === 'archive' && [
+                styles.tabActive,
+                { backgroundColor: isDark ? themeColors.accentCrimson : themeColors.textObsidian },
+              ],
+            ]}
           >
             <Text
               style={[
                 styles.tabText,
+                { color: themeColors.textSlate },
                 selectedTab === 'archive' && styles.tabTextActive,
               ]}
             >
@@ -298,35 +350,61 @@ export default function MyOrdersScreen({ navigation }) {
 
         {loading ? (
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={colors.accentGold} />
+            <ActivityIndicator size="large" color={themeColors.accentGold} />
           </View>
         ) : !token ? (
-          <View style={[styles.activeCard, { alignItems: 'center', paddingVertical: 32 }]}>
-            <MaterialIcons name="lock-outline" size={36} color={colors.accentGold} />
-            <Text style={[styles.garmentTitle, { marginTop: 12, textAlign: 'center' }]}>
+          <View
+            style={[
+              styles.activeCard,
+              {
+                alignItems: 'center',
+                paddingVertical: 32,
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
+              },
+            ]}
+          >
+            <MaterialIcons name="lock-outline" size={36} color={themeColors.accentGold} />
+            <Text style={[styles.garmentTitle, { marginTop: 12, textAlign: 'center', color: themeColors.textPrimary }]}>
               Sign in to view orders
             </Text>
-            <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16 }]}>
+            <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16, color: themeColors.textAsh }]}>
               Your live fitting timelines and order archive will appear here.
             </Text>
             <PressableScale
               onPress={() => navigation.navigate('Auth')}
-              style={[styles.trackLiveBtn, { alignSelf: 'center', paddingHorizontal: 24 }]}
+              style={[
+                styles.trackLiveBtn,
+                { alignSelf: 'center', paddingHorizontal: 24, backgroundColor: themeColors.accentCrimson },
+              ]}
             >
               <Text style={styles.trackLiveLabel}>Sign In</Text>
             </PressableScale>
           </View>
         ) : selectedTab === 'active' ? (
           activeOrders.length === 0 ? (
-            <View style={[styles.activeCard, { alignItems: 'center', paddingVertical: 32 }]}>
-              <MaterialIcons name="shopping-bag" size={36} color={colors.accentGold} />
-              <Text style={[styles.garmentTitle, { marginTop: 12 }]}>No active orders</Text>
-              <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16 }]}>
+            <View
+              style={[
+                styles.activeCard,
+                {
+                  alignItems: 'center',
+                  paddingVertical: 32,
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
+            >
+              <MaterialIcons name="shopping-bag" size={36} color={themeColors.accentGold} />
+              <Text style={[styles.garmentTitle, { marginTop: 12, color: themeColors.textPrimary }]}>No active orders</Text>
+              <Text style={[styles.corridorSub, { textAlign: 'center', marginTop: 4, marginBottom: 16, color: themeColors.textAsh }]}>
                 Browse Sitabuldi and Dharampeth boutiques with rapid doorstep fitting.
               </Text>
               <PressableScale
                 onPress={() => navigation.navigate('Home')}
-                style={[styles.trackLiveBtn, { alignSelf: 'center', paddingHorizontal: 20 }]}
+                style={[
+                  styles.trackLiveBtn,
+                  { alignSelf: 'center', paddingHorizontal: 20, backgroundColor: themeColors.accentCrimson },
+                ]}
               >
                 <Text style={styles.trackLiveLabel}>Browse Boutiques</Text>
               </PressableScale>
@@ -338,27 +416,36 @@ export default function MyOrdersScreen({ navigation }) {
               const isCancellable = ['PENDING', 'ACCEPTED'].includes(ord.status?.toUpperCase());
 
               return (
-                <View key={ord._id || ord.id} style={styles.activeCard}>
+                <View
+                  key={ord._id || ord.id}
+                  style={[
+                    styles.activeCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.55)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
+                    },
+                  ]}
+                >
                   <View style={styles.activeCardHeader}>
                     <View style={{ flex: 1 }}>
                       <View style={styles.atelierTagRow}>
-                        <Text style={styles.atelierName}>
+                        <Text style={[styles.atelierName, { color: themeColors.textPrimary }]}>
                           {vendor.shopName || 'Nagpur Atelier'}
                         </Text>
                         <MaterialIcons
                           name="verified"
                           size={14}
-                          color={colors.accentGold}
+                          color={themeColors.accentGold}
                         />
                       </View>
-                      <Text style={styles.orderIdSub}>
+                      <Text style={[styles.orderIdSub, { color: themeColors.textAsh }]}>
                         {vendor.address?.area || 'Nagpur'} · Order #{String(ord._id || ord.id).slice(-6).toUpperCase()}
                       </Text>
                     </View>
 
                     <View style={styles.inTransitBadge}>
-                      <View style={styles.transitDot} />
-                      <Text style={styles.inTransitText}>
+                      <View style={[styles.transitDot, { backgroundColor: themeColors.accentCrimson }]} />
+                      <Text style={[styles.inTransitText, { color: themeColors.accentCrimson }]}>
                         {ord.status === 'IN_TRANSIT'
                           ? 'In Transit'
                           : ord.status === 'READY_FOR_PICKUP'
@@ -372,36 +459,44 @@ export default function MyOrdersScreen({ navigation }) {
                     </View>
                   </View>
 
-                  <Text style={styles.garmentTitle}>
+                  <Text style={[styles.garmentTitle, { color: themeColors.textPrimary }]}>
                     {firstItem.name || 'Boutique Garment'}
                     {ord.items?.length > 1 ? ` +${ord.items.length - 1} more` : ''}
                   </Text>
 
                   <View style={styles.garmentMetaRow}>
-                    <Text style={styles.garmentSize}>
+                    <Text style={[styles.garmentSize, { color: themeColors.textSlate }]}>
                       Size {firstItem.size || 'Free'} · {ord.items?.length || 1} {ord.items?.length === 1 ? 'item' : 'items'}
                     </Text>
-                    <Text style={styles.garmentPrice}>
+                    <Text style={[styles.garmentPrice, { color: themeColors.textPrimary }]}>
                       {formatINR(ord.totalPrice || firstItem.price || 0)}
                     </Text>
                   </View>
 
                   {/* Rider Corridor Banner */}
-                  <View style={styles.corridorBanner}>
+                  <View
+                    style={[
+                      styles.corridorBanner,
+                      {
+                        backgroundColor: isDark ? 'rgba(14, 14, 16, 0.65)' : 'rgba(255, 255, 255, 0.65)',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+                      },
+                    ]}
+                  >
                     <MaterialIcons
                       name="two-wheeler"
                       size={18}
-                      color={colors.accentCrimson}
+                      color={themeColors.accentCrimson}
                     />
                     <View style={styles.corridorTextCol}>
-                      <Text style={styles.corridorTitle}>
+                      <Text style={[styles.corridorTitle, { color: themeColors.textPrimary }]}>
                         {ord.status === 'IN_TRANSIT'
                           ? 'Porter rider en route'
                           : ord.status === 'READY_FOR_PICKUP'
                           ? 'Driver arriving at boutique'
                           : 'Preparing in atelier'}
                       </Text>
-                      <Text style={styles.corridorSub}>
+                      <Text style={[styles.corridorSub, { color: themeColors.textAsh }]}>
                         {ord.deliveryAddress?.line1 || 'Sitabuldi corridor'}
                       </Text>
                     </View>
@@ -412,7 +507,7 @@ export default function MyOrdersScreen({ navigation }) {
                     <PressableScale
                       onPress={() => handleTrackLive(ord)}
                       wrapperStyle={{ flex: 1 }}
-                      style={styles.trackLiveBtn}
+                      style={[styles.trackLiveBtn, { backgroundColor: themeColors.accentCrimson }]}
                       accessibilityRole="button"
                       accessibilityLabel="Track Live"
                     >
@@ -445,12 +540,22 @@ export default function MyOrdersScreen({ navigation }) {
         ) : (
           /* Past Archive Section */
           <View style={styles.archiveSection}>
-            <Text style={styles.archiveSectionTitle}>Past Archive</Text>
+            <Text style={[styles.archiveSectionTitle, { color: themeColors.textPrimary }]}>Past Archive</Text>
 
             <View style={styles.archiveList}>
               {pastOrders.length === 0 ? (
-                <View style={[styles.archiveCard, { alignItems: 'center', paddingVertical: 24 }]}>
-                  <Text style={[styles.archiveAtelier, { textAlign: 'center' }]}>
+                <View
+                  style={[
+                    styles.archiveCard,
+                    {
+                      alignItems: 'center',
+                      paddingVertical: 24,
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.52)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.archiveAtelier, { textAlign: 'center', color: themeColors.textPrimary }]}>
                     No completed or cancelled orders yet.
                   </Text>
                 </View>
@@ -461,13 +566,22 @@ export default function MyOrdersScreen({ navigation }) {
                   const isDelivered = ord.status === 'DELIVERED';
 
                   return (
-                    <View key={ord._id || ord.id} style={styles.archiveCard}>
+                    <View
+                      key={ord._id || ord.id}
+                      style={[
+                        styles.archiveCard,
+                        {
+                          backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.52)',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                        },
+                      ]}
+                    >
                       <View style={styles.archiveHeaderRow}>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.archiveAtelier}>
+                          <Text style={[styles.archiveAtelier, { color: themeColors.textPrimary }]}>
                             {vendor.shopName || 'Nagpur Boutique'} · {vendor.address?.area || 'Nagpur'}
                           </Text>
-                          <Text style={styles.archiveDate}>
+                          <Text style={[styles.archiveDate, { color: themeColors.textAsh }]}>
                             #{String(ord._id || ord.id).slice(-6).toUpperCase()} ·{' '}
                             {ord.createdAt ? new Date(ord.createdAt).toLocaleDateString() : 'Recent'}
                           </Text>
@@ -485,12 +599,12 @@ export default function MyOrdersScreen({ navigation }) {
                           <MaterialIcons
                             name={isDelivered ? 'check-circle' : 'cancel'}
                             size={13}
-                            color={isDelivered ? colors.accentGoldDeep : '#D32F2F'}
+                            color={isDelivered ? themeColors.accentGoldDeep : '#D32F2F'}
                           />
                           <Text
                             style={[
                               styles.keptText,
-                              !isDelivered && { color: '#D32F2F' },
+                              isDelivered ? { color: themeColors.accentGoldDeep } : { color: '#D32F2F' },
                             ]}
                           >
                             {isDelivered ? 'Delivered' : 'Cancelled'}
@@ -499,11 +613,11 @@ export default function MyOrdersScreen({ navigation }) {
                       </View>
 
                       <View style={styles.archiveGarmentRow}>
-                        <Text style={styles.archiveGarmentName} numberOfLines={1}>
+                        <Text style={[styles.archiveGarmentName, { color: themeColors.textPrimary }]} numberOfLines={1}>
                           {firstItem.name || 'Boutique Item'}
                           {ord.items?.length > 1 ? ` (+${ord.items.length - 1})` : ''}
                         </Text>
-                        <Text style={styles.archivePrice}>
+                        <Text style={[styles.archivePrice, { color: themeColors.textPrimary }]}>
                           {formatINR(ord.totalPrice || firstItem.price || 0)}
                         </Text>
                       </View>
@@ -511,14 +625,20 @@ export default function MyOrdersScreen({ navigation }) {
                       <View style={styles.archiveActionsRow}>
                         <PressableScale
                           onPress={() => handleReorder(firstItem, vendor)}
-                          style={styles.reorderBtn}
+                          style={[
+                            styles.reorderBtn,
+                            {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                            },
+                          ]}
                         >
                           <MaterialIcons
                             name="receipt-long"
                             size={14}
-                            color={colors.textObsidian}
+                            color={themeColors.textPrimary}
                           />
-                          <Text style={styles.reorderBtnText}>Reorder to Bag</Text>
+                          <Text style={[styles.reorderBtnText, { color: themeColors.textPrimary }]}>Reorder to Bag</Text>
                         </PressableScale>
 
                         <PressableScale
@@ -529,14 +649,20 @@ export default function MyOrdersScreen({ navigation }) {
                               [{ text: 'OK' }]
                             )
                           }
-                          style={styles.rateBtn}
+                          style={[
+                            styles.rateBtn,
+                            {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                            },
+                          ]}
                         >
                           <MaterialIcons
                             name="star"
                             size={14}
-                            color={colors.accentGold}
+                            color={themeColors.accentGold}
                           />
-                          <Text style={styles.rateBtnText}>Rate Atelier</Text>
+                          <Text style={[styles.rateBtnText, { color: themeColors.textPrimary }]}>Rate Atelier</Text>
                         </PressableScale>
                       </View>
                     </View>
@@ -548,25 +674,43 @@ export default function MyOrdersScreen({ navigation }) {
         )}
 
         {/* Doorstep Tailor Fitting Banner */}
-        <View style={styles.tailorBanner}>
-          <View style={styles.tailorIconWrap}>
+        <View
+          style={[
+            styles.tailorBanner,
+            {
+              backgroundColor: isDark ? 'rgba(179, 138, 43, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+              borderColor: isDark ? 'rgba(179, 138, 43, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.tailorIconWrap,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.65)',
+              },
+            ]}
+          >
             <MaterialIcons
               name="design-services"
               size={22}
-              color={colors.accentGold}
+              color={themeColors.accentGold}
             />
           </View>
 
           <View style={styles.tailorInfoCol}>
-            <Text style={styles.tailorTitle}>Doorstep Tailor Fitting</Text>
-            <Text style={styles.tailorSub}>
+            <Text style={[styles.tailorTitle, { color: themeColors.textPrimary }]}>Doorstep Tailor Fitting</Text>
+            <Text style={[styles.tailorSub, { color: themeColors.textSlate }]}>
               Alteration master on-call in Nagpur for adjustments
             </Text>
           </View>
 
           <PressableScale
             onPress={handleTailorChat}
-            style={styles.tailorChatBtn}
+            style={[
+              styles.tailorChatBtn,
+              { backgroundColor: isDark ? themeColors.accentGold : themeColors.textObsidian },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Chat with tailor"
           >

@@ -1,6 +1,8 @@
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useReducedMotion } from 'react-native-reanimated';
+
+export const navigationRef = createNavigationContainerRef();
 
 import HomeScreen from '../screens/HomeScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -33,63 +35,41 @@ import { colors } from '../theme/colors';
 const CustomerStack = createNativeStackNavigator();
 const VendorStack = createNativeStackNavigator();
 
-/**
- * Navigation theme.
- *
- * React Navigation paints the screen container itself, so its background matches
- * the Ivory Studio base (#FAF9F5) to eliminate any dark flash during screen transitions.
- */
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#FAF9F5',
-    card: '#FAF9F5',
-    text: colors.textObsidian,
-    border: 'rgba(217, 119, 6, 0.15)',
-    primary: colors.accentCrimson,
-    notification: colors.accentCrimson,
-  },
-};
+import { useThemeStore } from '../store/useThemeStore';
 
 /**
- * Shared header styling for the screens that keep a native header.
+ * Screen transitions honour the platform and current theme.
  */
-const baseScreenOptions = {
-  headerShown: false,
-  contentStyle: { backgroundColor: '#FAF9F5' },
-};
-
-/**
- * Screen transitions honour the platform.
- */
-function makeScreenOptions(reduced) {
+function makeScreenOptions(reduced, themeColors) {
   return {
-    ...baseScreenOptions,
+    headerShown: false,
+    contentStyle: { backgroundColor: themeColors.groundBase },
     animation: reduced ? 'fade' : 'slide_from_right',
   };
 }
 
-function slideUpOptions(reduced, extra = {}) {
+function slideUpOptions(reduced, themeColors, extra = {}) {
   return {
     headerShown: false,
+    contentStyle: { backgroundColor: themeColors.groundBase },
     animation: reduced ? 'fade' : 'slide_from_bottom',
     animationMatchesGesture: true,
     ...extra,
   };
 }
 
+
 /** Buyer side: the full Frosted Glass & Ambient Blobs commerce flow. */
-function CustomerFlow() {
+function CustomerFlow({ themeColors }) {
   const reduced = useReducedMotion();
   return (
-    <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced)}>
+    <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced, themeColors)}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="ProductDetail"
         component={ProductDetailScreen}
-        options={slideUpOptions(reduced, { headerShown: false })}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
       <CustomerStack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
@@ -115,22 +95,22 @@ function CustomerFlow() {
       <CustomerStack.Screen
         name="Auth"
         component={AuthScreen}
-        options={slideUpOptions(reduced, { headerShown: false })}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
       <CustomerStack.Screen
         name="VendorRegister"
         component={VendorRegisterScreen}
-        options={slideUpOptions(reduced, { headerShown: false })}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
     </CustomerStack.Navigator>
   );
 }
 
 /** Shop-owner side: the order desk and catalogue controls. */
-function VendorFlow() {
+function VendorFlow({ themeColors }) {
   const reduced = useReducedMotion();
   return (
-    <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={makeScreenOptions(reduced)}>
+    <VendorStack.Navigator initialRouteName="VendorOrders" screenOptions={makeScreenOptions(reduced, themeColors)}>
       <VendorStack.Screen
         name="VendorOrders"
         component={VendorOrderListScreen}
@@ -144,7 +124,7 @@ function VendorFlow() {
       <VendorStack.Screen
         name="CatalogManager"
         component={CatalogManagerScreen}
-        options={slideUpOptions(reduced, { headerShown: false })}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
       <VendorStack.Screen
         name="VendorAnalytics"
@@ -172,23 +152,34 @@ function VendorFlow() {
 }
 
 /**
- * One binary, two flows. `role` in the auth store is the only switch: changing
- * it unmounts one stack and mounts the other, which also throws away the
- * navigation history — deliberate, since a customer's back stack has no
- * meaning inside the vendor desk.
+ * One binary, two flows. `role` in the auth store and `themeMode` in the theme store
+ * govern the navigation container styling and initial mounts.
  */
 export default function AppNavigator() {
   const role = useAuthStore(selectRole);
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const themeColors = useThemeStore((state) => state.colors);
+
+  const navTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: themeColors.groundBase,
+      card: themeColors.groundBase,
+      text: themeColors.textObsidian,
+      border: themeColors.borderHairline,
+      primary: themeColors.accentCrimson,
+      notification: themeColors.accentCrimson,
+    },
+  };
+
+  if (typeof window !== 'undefined') {
+    window.__NAV__ = navigationRef;
+  }
 
   return (
-    // Keyed by role on purpose. NavigationContainer owns the navigation state
-    // and rehydrates a remounting child navigator from it, so without this the
-    // two flows share history by route name — flipping Vendor Mode from the
-    // customer Profile would land on the vendor Profile instead of the order
-    // desk. Changing the key tears the container down and starts the new flow
-    // at its own initial route.
-    <NavigationContainer key={role} theme={navTheme}>
-      {role === ROLES.VENDOR ? <VendorFlow /> : <CustomerFlow />}
+    <NavigationContainer ref={navigationRef} key={`${role}-${themeMode}`} theme={navTheme}>
+      {role === ROLES.VENDOR ? <VendorFlow themeColors={themeColors} /> : <CustomerFlow themeColors={themeColors} />}
     </NavigationContainer>
   );
 }

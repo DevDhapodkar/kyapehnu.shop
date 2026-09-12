@@ -191,6 +191,10 @@ const faviconSource = path.join(projectRoot, 'assets/images/favicon.png');
 if (fs.existsSync(faviconSource)) {
   fs.copyFileSync(faviconSource, path.join(distWebDir, 'favicon.png'));
 }
+const faviconIcoSource = path.join(projectRoot, 'assets/images/favicon.ico');
+if (fs.existsSync(faviconIcoSource)) {
+  fs.copyFileSync(faviconIcoSource, path.join(distWebDir, 'favicon.ico'));
+}
 
 // Clean target directory and copy fresh build files
 if (fs.existsSync(targetDir)) {

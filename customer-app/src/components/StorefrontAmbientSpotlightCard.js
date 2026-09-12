@@ -16,6 +16,7 @@ import { formatCurrency as formatINR } from '../utils/format';
 import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
 import { spring } from '../theme/motion';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * StorefrontAmbientSpotlightCard
@@ -32,6 +33,7 @@ export default function StorefrontAmbientSpotlightCard({
   onPress,
   onBagNow,
 }) {
+  const { colors, isDark } = useTheme();
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const heartScale = useSharedValue(1);
@@ -80,7 +82,13 @@ export default function StorefrontAmbientSpotlightCard({
     <View style={styles.outerContainer}>
       <PressableScale
         onPress={() => onPress?.(item)}
-        style={styles.card}
+        style={[
+          styles.card,
+          {
+            backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.55)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.82)',
+          },
+        ]}
         accessibilityLabel={`${item.name}, ${formatINR(item.price)}`}
       >
         {/* Media Container (4:5 Aspect Ratio) */}
@@ -107,9 +115,17 @@ export default function StorefrontAmbientSpotlightCard({
 
           {/* Top-left Glass Pill — only when a real ETA exists */}
           {item.deliveryMinutes ? (
-            <View style={styles.deliveryPill}>
+            <View
+              style={[
+                styles.deliveryPill,
+                {
+                  backgroundColor: isDark ? 'rgba(20, 20, 24, 0.82)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.80)',
+                },
+              ]}
+            >
               <MaterialIcons name="bolt" size={13} color={colors.accentGold} />
-              <Text style={styles.deliveryText}>
+              <Text style={[styles.deliveryText, { color: colors.textObsidian }]}>
                 {item.deliveryMinutes} min
               </Text>
             </View>
@@ -121,6 +137,10 @@ export default function StorefrontAmbientSpotlightCard({
             hitSlop={8}
             style={({ pressed }) => [
               styles.wishlistBtn,
+              {
+                backgroundColor: isDark ? 'rgba(20, 20, 24, 0.82)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.80)',
+              },
               pressed && styles.btnPressed,
             ]}
             accessibilityRole="button"
@@ -138,10 +158,18 @@ export default function StorefrontAmbientSpotlightCard({
           </Pressable>
 
           {/* Bottom Floating Atelier Tag */}
-          <View style={styles.atelierBar}>
-            <Text style={styles.storeNameText}>{storeName}</Text>
+          <View
+            style={[
+              styles.atelierBar,
+              {
+                backgroundColor: isDark ? 'rgba(20, 20, 24, 0.85)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.80)',
+              },
+            ]}
+          >
+            <Text style={[styles.storeNameText, { color: colors.textObsidian }]}>{storeName}</Text>
             {localityLine ? (
-              <Text style={styles.localityText}>{localityLine}</Text>
+              <Text style={[styles.localityText, { color: colors.accentGoldDeep }]}>{localityLine}</Text>
             ) : null}
           </View>
         </View>
@@ -149,11 +177,11 @@ export default function StorefrontAmbientSpotlightCard({
         {/* Compact Footer Pane */}
         <View style={styles.footerRow}>
           <View style={styles.metaCol}>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text style={[styles.title, { color: colors.textObsidian }]} numberOfLines={1}>
               {item.name}
             </Text>
             <View style={styles.priceRow}>
-              <Text style={styles.price}>{formatINR(item.price)}</Text>
+              <Text style={[styles.price, { color: colors.textObsidian }]}>{formatINR(item.price)}</Text>
               {item.originalPrice ? (
                 <Text style={styles.originalPrice}>
                   {formatINR(item.originalPrice)}

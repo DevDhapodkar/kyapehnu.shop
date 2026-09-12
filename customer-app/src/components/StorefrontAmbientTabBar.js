@@ -9,10 +9,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import PressableScale from './PressableScale';
-import { colors, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 import { spring } from '../theme/motion';
 
-function TabItem({ tab, isActive, onPress }) {
+function TabItem({ tab, isActive, onPress, colors }) {
   const iconScale = useSharedValue(1);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ function TabItem({ tab, isActive, onPress }) {
         withSpring(1, spring.bouncy)
       );
     }
-  }, [isActive]);
+  }, [isActive, iconScale]);
 
   const animatedIconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconScale.value }],
@@ -43,7 +43,7 @@ function TabItem({ tab, isActive, onPress }) {
           color={isActive ? colors.accentCrimson : colors.textAsh}
         />
         {tab.badge > 0 ? (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { backgroundColor: colors.accentCrimson }]}>
             <Text style={styles.badgeText}>{tab.badge}</Text>
           </View>
         ) : null}
@@ -51,7 +51,10 @@ function TabItem({ tab, isActive, onPress }) {
       <Text
         style={[
           styles.tabLabel,
-          isActive ? styles.labelActive : styles.labelInactive,
+          {
+            color: isActive ? colors.accentCrimson : colors.textAsh,
+            fontWeight: isActive ? '700' : '500',
+          },
         ]}
       >
         {tab.label}
@@ -65,20 +68,22 @@ function TabItem({ tab, isActive, onPress }) {
  *
  * Implements Stitch's Frosted Glass Tab Bar:
  * - Floating rounded pill bar with heavy frosted backdrop blur
- * - Refracts ambient gradient orbs underneath
+ * - Refracts ambient gradient orbs underneath in Light & Dark modes
  * - MaterialIcons: storefront, search, shopping_bag, receipt_long
  * - Active tab highlighted in Royal Crimson (#C4243A) with Apple spring bounce
  */
 export default function StorefrontAmbientTabBar({
   insets,
   activeTab = 'explore',
-  cartCount = 2,
+  cartCount = 0,
   onSelectTab,
 }) {
+  const { colors, isDark } = useTheme();
+
   const tabs = [
     { id: 'explore', label: 'Explore', iconName: 'storefront' },
     { id: 'search', label: 'Search', iconName: 'search' },
-    { id: 'bag', label: 'Bag', iconName: 'shopping-bag', badge: cartCount ?? 2 },
+    { id: 'bag', label: 'Bag', iconName: 'shopping-bag', badge: cartCount },
     { id: 'orders', label: 'Orders', iconName: 'receipt-long' },
   ];
 
@@ -90,13 +95,24 @@ export default function StorefrontAmbientTabBar({
       ]}
       pointerEvents="box-none"
     >
-      <View style={styles.navBar} pointerEvents="auto">
+      <View
+        style={[
+          styles.navBar,
+          {
+            backgroundColor: isDark ? 'rgba(20, 20, 24, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+            shadowColor: isDark ? '#000000' : '#121215',
+          },
+        ]}
+        pointerEvents="auto"
+      >
         {tabs.map((tab) => (
           <TabItem
             key={tab.id}
             tab={tab}
             isActive={activeTab === tab.id}
             onPress={() => onSelectTab?.(tab.id)}
+            colors={colors}
           />
         ))}
       </View>
@@ -119,24 +135,19 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     height: 58,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.58)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.80)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 12,
-    shadowColor: '#121215',
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 36,
     elevation: 10,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(36px) saturate(210%) brightness(104%)',
         WebkitBackdropFilter: 'blur(36px) saturate(210%) brightness(104%)',
-        boxShadow:
-          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 24px 48px -12px rgba(18, 18, 20, 0.12)',
       },
     }),
   },
@@ -159,7 +170,6 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 7.5,
-    backgroundColor: colors.accentCrimson,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -174,13 +184,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginTop: 2,
-  },
-  labelActive: {
-    color: colors.accentCrimson,
-    fontWeight: '700',
-  },
-  labelInactive: {
-    color: colors.textAsh,
-    fontWeight: '500',
   },
 });

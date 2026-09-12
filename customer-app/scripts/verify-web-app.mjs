@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const scratchDir = '/Users/devdhapodkar/.gemini/antigravity/brain/e64d8bd6-6a33-4c24-bb6e-2d0d4b88e4e2/scratch';
+const scratchDir = process.env.SCRATCH_DIR || '/Users/devdhapodkar/.gemini/antigravity-cli/brain/85ea5b49-6a64-4346-96aa-87e81f977bd1/scratch';
 if (!fs.existsSync(scratchDir)) {
   fs.mkdirSync(scratchDir, { recursive: true });
 }

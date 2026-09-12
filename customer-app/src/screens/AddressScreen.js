@@ -40,6 +40,7 @@ import {
   validateNagpurDeliveryBounds,
 } from '../utils/checkoutAddress';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 const ADDRESS_TYPES = [
   { id: 'HOME', label: 'Home', icon: 'home' },
@@ -59,6 +60,7 @@ const ADDRESS_TYPES = [
  */
 export default function AddressScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors: themeColors, isDark } = useTheme();
 
   const cartItems = useCartStore(selectCartItems);
   const subtotal = useCartStore(selectCartTotal);
@@ -377,8 +379,8 @@ export default function AddressScreen({ navigation }) {
     : { serviceable: true };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: themeColors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
@@ -388,29 +390,50 @@ export default function AddressScreen({ navigation }) {
         style={[styles.topBar, { paddingTop: insets.top + 4 }]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.goBack()}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
             <MaterialIcons
               name="arrow-back-ios-new"
               size={17}
-              color={colors.textObsidian}
+              color={themeColors.textPrimary}
             />
           </PressableScale>
 
-          <Text style={styles.headerTitle}>Express Fitting Checkout</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>
+            Express Fitting Checkout
+          </Text>
 
           <PressableScale
             onPress={handleShare}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Share"
           >
-            <MaterialIcons name="share" size={17} color={colors.textObsidian} />
+            <MaterialIcons name="share" size={17} color={themeColors.textPrimary} />
           </PressableScale>
         </View>
       </View>
@@ -434,17 +457,57 @@ export default function AddressScreen({ navigation }) {
         >
           {/* Checkout Steps Progress Indicator */}
           <View style={styles.stepsBar}>
-            <View style={styles.stepDone}>
-              <MaterialIcons name="check" size={13} color={colors.textObsidian} />
-              <Text style={styles.stepDoneText}>Bag</Text>
+            <View
+              style={[
+                styles.stepDone,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.75)',
+                },
+              ]}
+            >
+              <MaterialIcons name="check" size={13} color={themeColors.textPrimary} />
+              <Text style={[styles.stepDoneText, { color: themeColors.textPrimary }]}>Bag</Text>
             </View>
-            <View style={styles.stepConnector} />
-            <View style={styles.stepActive}>
+            <View
+              style={[
+                styles.stepConnector,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : themeColors.textAsh,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.stepActive,
+                { backgroundColor: themeColors.accentCrimson },
+              ]}
+            >
               <Text style={styles.stepActiveText}>Address</Text>
             </View>
-            <View style={styles.stepConnector} />
-            <View style={styles.stepInactive}>
-              <Text style={styles.stepInactiveText}>Confirm</Text>
+            <View
+              style={[
+                styles.stepConnector,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : themeColors.textAsh,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.stepInactive,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(18, 18, 20, 0.05)',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stepInactiveText,
+                  { color: themeColors.textAsh },
+                ]}
+              >
+                Confirm
+              </Text>
             </View>
           </View>
 
@@ -493,7 +556,7 @@ export default function AddressScreen({ navigation }) {
           {savedAddresses.length > 0 && (
             <View style={styles.sectionWrap}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Saved Addresses</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Saved Addresses</Text>
                 <PressableScale
                   onPress={() => setShowAddForm((prev) => !prev)}
                   style={styles.toggleFormBtn}
@@ -501,9 +564,9 @@ export default function AddressScreen({ navigation }) {
                   <MaterialIcons
                     name={showAddForm ? 'remove' : 'add'}
                     size={15}
-                    color={colors.accentCrimson}
+                    color={themeColors.accentCrimson}
                   />
-                  <Text style={styles.toggleFormText}>
+                  <Text style={[styles.toggleFormText, { color: themeColors.accentCrimson }]}>
                     {showAddForm ? 'Hide Form' : 'Add New'}
                   </Text>
                 </PressableScale>
@@ -522,7 +585,9 @@ export default function AddressScreen({ navigation }) {
                     }}
                     style={[
                       styles.savedAddressCard,
-                      isSelected && styles.savedAddressCardSelected,
+                      isSelected
+                        ? [styles.savedAddressCardSelected, { backgroundColor: isDark ? 'rgba(32, 31, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: themeColors.accentCrimson }]
+                        : { backgroundColor: isDark ? 'rgba(22, 22, 25, 0.85)' : 'rgba(255, 255, 255, 0.65)', borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)' },
                     ]}
                   >
                     <View style={styles.savedHeaderRow}>
@@ -530,14 +595,14 @@ export default function AddressScreen({ navigation }) {
                         <View
                           style={[
                             styles.savedRadioCircle,
-                            isSelected && styles.savedRadioCircleActive,
+                            isSelected && [styles.savedRadioCircleActive, { backgroundColor: themeColors.accentCrimson, borderColor: themeColors.accentCrimson }],
                           ]}
                         >
                           {isSelected && (
                             <MaterialIcons name="check" size={12} color="#FFFFFF" />
                           )}
                         </View>
-                        <Text style={styles.savedTitle}>
+                        <Text style={[styles.savedTitle, { color: themeColors.textPrimary }]}>
                           {addr.label || 'Delivery Address'}
                         </Text>
                       </View>
@@ -548,22 +613,22 @@ export default function AddressScreen({ navigation }) {
                         style={styles.deleteAddrBtn}
                       >
                         {isDeleting ? (
-                          <ActivityIndicator size="small" color={colors.accentCrimson} />
+                          <ActivityIndicator size="small" color={themeColors.accentCrimson} />
                         ) : (
                           <MaterialIcons
                             name="delete-outline"
                             size={18}
-                            color={colors.textAsh}
+                            color={themeColors.textAsh}
                           />
                         )}
                       </PressableScale>
                     </View>
 
-                    <Text style={styles.savedAddressBody}>{addr.line1}</Text>
+                    <Text style={[styles.savedAddressBody, { color: themeColors.textSlate }]}>{addr.line1}</Text>
                     {addr.line2 ? (
-                      <Text style={styles.savedAddressSub}>{addr.line2}</Text>
+                      <Text style={[styles.savedAddressSub, { color: themeColors.textAsh }]}>{addr.line2}</Text>
                     ) : null}
-                    <Text style={styles.savedAddressState}>
+                    <Text style={[styles.savedAddressState, { color: themeColors.textAsh }]}>
                       Nagpur, Maharashtra{addr.pincode ? ` · ${addr.pincode}` : ''}
                     </Text>
                   </PressableScale>
@@ -574,13 +639,21 @@ export default function AddressScreen({ navigation }) {
 
           {/* Section: New Address Form (Rendered if customer has no addresses or toggles Add New) */}
           {(showAddForm || savedAddresses.length === 0) && (
-            <View style={styles.glassCard}>
+            <View
+              style={[
+                styles.glassCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.85)',
+                },
+              ]}
+            >
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardTitle}>
+                <Text style={[styles.cardTitle, { color: themeColors.textPrimary }]}>
                   {savedAddresses.length > 0 ? 'New Delivery Address' : 'Delivery Address'}
                 </Text>
                 <View style={styles.requiredBadge}>
-                  <Text style={styles.requiredBadgeText}>REQUIRED</Text>
+                  <Text style={[styles.requiredBadgeText, { color: themeColors.accentCrimson }]}>REQUIRED</Text>
                 </View>
               </View>
 
@@ -589,7 +662,9 @@ export default function AddressScreen({ navigation }) {
                 onPress={() => setIsMapOpen(true)}
                 style={[
                   styles.mapPinBanner,
-                  coords ? styles.mapPinBannerConfirmed : styles.mapPinBannerPending,
+                  coords
+                    ? [styles.mapPinBannerConfirmed, isDark && { backgroundColor: 'rgba(196, 36, 58, 0.15)', borderColor: 'rgba(196, 36, 58, 0.35)' }]
+                    : [styles.mapPinBannerPending, isDark && { backgroundColor: 'rgba(179, 138, 43, 0.15)', borderColor: 'rgba(179, 138, 43, 0.35)' }],
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Pin delivery location on map"
@@ -598,20 +673,22 @@ export default function AddressScreen({ navigation }) {
                   <View
                     style={[
                       styles.mapIconCircle,
-                      coords ? styles.mapIconCircleConfirmed : styles.mapIconCirclePending,
+                      coords
+                        ? [styles.mapIconCircleConfirmed, isDark && { backgroundColor: 'rgba(196, 36, 58, 0.25)' }]
+                        : [styles.mapIconCirclePending, isDark && { backgroundColor: 'rgba(179, 138, 43, 0.25)' }],
                     ]}
                   >
                     <MaterialIcons
                       name={coords ? 'location-on' : 'add-location-alt'}
                       size={20}
-                      color={coords ? colors.accentCrimson : colors.accentGold}
+                      color={coords ? themeColors.accentCrimson : themeColors.accentGold}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.mapBannerTitle}>
+                    <Text style={[styles.mapBannerTitle, { color: themeColors.textPrimary }]}>
                       {coords ? 'Drop Location Pinned' : 'Pin Exact Doorstep on Map'}
                     </Text>
-                    <Text style={styles.mapBannerSub} numberOfLines={1}>
+                    <Text style={[styles.mapBannerSub, { color: themeColors.textSlate }]} numberOfLines={1}>
                       {detectedArea ||
                         (coords
                           ? `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`
@@ -620,14 +697,14 @@ export default function AddressScreen({ navigation }) {
                   </View>
                 </View>
 
-                <View style={styles.pinActionChip}>
-                  <Text style={styles.pinActionChipText}>
+                <View style={[styles.pinActionChip, { backgroundColor: isDark ? '#201F21' : '#FFFFFF' }]}>
+                  <Text style={[styles.pinActionChipText, { color: themeColors.accentCrimson }]}>
                     {coords ? 'Change' : 'Pin Map'}
                   </Text>
                   <MaterialIcons
                     name="chevron-right"
                     size={16}
-                    color={colors.accentCrimson}
+                    color={themeColors.accentCrimson}
                   />
                 </View>
               </PressableScale>
@@ -642,7 +719,9 @@ export default function AddressScreen({ navigation }) {
                       onPress={() => setAddressType(type.id)}
                       style={[
                         styles.typePill,
-                        isSelected ? styles.typePillSelected : styles.typePillGlass,
+                        isSelected
+                          ? [styles.typePillSelected, { backgroundColor: isDark ? themeColors.accentCrimson : themeColors.textObsidian, borderColor: isDark ? themeColors.accentCrimson : themeColors.textObsidian }]
+                          : [styles.typePillGlass, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.7)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }],
                       ]}
                       accessibilityRole="button"
                       accessibilityLabel={type.label}
@@ -650,12 +729,12 @@ export default function AddressScreen({ navigation }) {
                       <MaterialIcons
                         name={type.icon}
                         size={15}
-                        color={isSelected ? '#FFFFFF' : colors.textObsidian}
+                        color={isSelected ? '#FFFFFF' : themeColors.textPrimary}
                       />
                       <Text
                         style={[
                           styles.typeLabel,
-                          isSelected && styles.typeLabelSelected,
+                          isSelected ? styles.typeLabelSelected : { color: themeColors.textPrimary },
                         ]}
                       >
                         {type.label}
@@ -666,86 +745,86 @@ export default function AddressScreen({ navigation }) {
               </View>
 
               {/* Flat / Studio No */}
-              <View style={styles.inputWrap}>
+              <View style={[styles.inputWrap, { backgroundColor: isDark ? '#1A1A1D' : 'rgba(255, 255, 255, 0.85)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }]}>
                 <MaterialIcons
                   name="meeting-room"
                   size={18}
-                  color={colors.accentGold}
+                  color={themeColors.accentGold}
                 />
                 <TextInput
                   value={flatNo}
                   onChangeText={setFlatNo}
                   placeholder="Flat / House / Studio No. *"
-                  placeholderTextColor={colors.textAsh}
-                  style={styles.inputField}
+                  placeholderTextColor={themeColors.textAsh}
+                  style={[styles.inputField, { color: themeColors.textPrimary }]}
                 />
               </View>
 
               {/* Landmark / Street */}
-              <View style={styles.inputWrap}>
+              <View style={[styles.inputWrap, { backgroundColor: isDark ? '#1A1A1D' : 'rgba(255, 255, 255, 0.85)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }]}>
                 <MaterialIcons
                   name="location-city"
                   size={18}
-                  color={colors.accentGold}
+                  color={themeColors.accentGold}
                 />
                 <TextInput
                   value={streetArea}
                   onChangeText={setStreetArea}
                   placeholder="Landmark / Street / Area *"
-                  placeholderTextColor={colors.textAsh}
-                  style={styles.inputField}
+                  placeholderTextColor={themeColors.textAsh}
+                  style={[styles.inputField, { color: themeColors.textPrimary }]}
                 />
               </View>
 
               {/* Pincode */}
-              <View style={styles.inputWrap}>
+              <View style={[styles.inputWrap, { backgroundColor: isDark ? '#1A1A1D' : 'rgba(255, 255, 255, 0.85)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }]}>
                 <MaterialIcons
                   name="markunread-mailbox"
                   size={18}
-                  color={colors.accentGold}
+                  color={themeColors.accentGold}
                 />
                 <TextInput
                   value={pincode}
                   onChangeText={setPincode}
                   placeholder="Nagpur Postal Pincode (e.g. 440010)"
-                  placeholderTextColor={colors.textAsh}
+                  placeholderTextColor={themeColors.textAsh}
                   keyboardType="numeric"
                   maxLength={6}
-                  style={styles.inputField}
+                  style={[styles.inputField, { color: themeColors.textPrimary }]}
                 />
               </View>
 
               {/* Receiver Name */}
-              <View style={styles.inputWrap}>
+              <View style={[styles.inputWrap, { backgroundColor: isDark ? '#1A1A1D' : 'rgba(255, 255, 255, 0.85)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }]}>
                 <MaterialIcons
                   name="person"
                   size={18}
-                  color={colors.accentGold}
+                  color={themeColors.accentGold}
                 />
                 <TextInput
                   value={receiverName}
                   onChangeText={setReceiverName}
                   placeholder="Receiver Name *"
-                  placeholderTextColor={colors.textAsh}
-                  style={styles.inputField}
+                  placeholderTextColor={themeColors.textAsh}
+                  style={[styles.inputField, { color: themeColors.textPrimary }]}
                 />
               </View>
 
               {/* Receiver Phone */}
-              <View style={styles.inputWrap}>
+              <View style={[styles.inputWrap, { backgroundColor: isDark ? '#1A1A1D' : 'rgba(255, 255, 255, 0.85)', borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)' }]}>
                 <MaterialIcons
                   name="phone"
                   size={18}
-                  color={colors.accentGold}
+                  color={themeColors.accentGold}
                 />
                 <TextInput
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="10-Digit Delivery Mobile Number *"
-                  placeholderTextColor={colors.textAsh}
+                  placeholderTextColor={themeColors.textAsh}
                   keyboardType="phone-pad"
                   maxLength={13}
-                  style={styles.inputField}
+                  style={[styles.inputField, { color: themeColors.textPrimary }]}
                 />
               </View>
 
@@ -753,7 +832,10 @@ export default function AddressScreen({ navigation }) {
               {isLoggedIn && (
                 <PressableScale
                   onPress={handleSaveNewAddress}
-                  style={styles.saveAddressBtn}
+                  style={[
+                    styles.saveAddressBtn,
+                    { backgroundColor: isDark ? '#262529' : themeColors.textObsidian },
+                  ]}
                   accessibilityRole="button"
                 >
                   {isSavingAddress ? (
@@ -770,13 +852,21 @@ export default function AddressScreen({ navigation }) {
           )}
 
           {/* Doorstep Fitting Guarantee Card */}
-          <View style={styles.trustCard}>
+          <View
+            style={[
+              styles.trustCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.6)' : 'rgba(255, 255, 255, 0.5)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(18, 18, 20, 0.05)',
+              },
+            ]}
+          >
             <View style={styles.trustIconCircle}>
-              <MaterialIcons name="verified-user" size={18} color={colors.accentGold} />
+              <MaterialIcons name="verified-user" size={18} color={themeColors.accentGold} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.trustTitle}>Nagpur Doorstep Fitting Guarantee</Text>
-              <Text style={styles.trustBody}>
+              <Text style={[styles.trustTitle, { color: themeColors.textPrimary }]}>Nagpur Doorstep Fitting Guarantee</Text>
+              <Text style={[styles.trustBody, { color: themeColors.textAsh }]}>
                 Try garments on before paying. 15-minute wait time per order. Full doorstep return with zero questions asked.
               </Text>
             </View>
@@ -788,12 +878,16 @@ export default function AddressScreen({ navigation }) {
       <View
         style={[
           styles.bottomBar,
-          { paddingBottom: Math.max(insets.bottom, 16) },
+          {
+            paddingBottom: Math.max(insets.bottom, 16),
+            backgroundColor: isDark ? 'rgba(14, 14, 16, 0.92)' : 'rgba(255, 255, 255, 0.85)',
+            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.9)',
+          },
         ]}
       >
         <View style={styles.orderSummaryCol}>
-          <Text style={styles.orderSummaryEyebrow}>ORDER TOTAL</Text>
-          <Text style={styles.orderSummaryPrice}>{formatINR(total)}</Text>
+          <Text style={[styles.orderSummaryEyebrow, { color: themeColors.textAsh }]}>ORDER TOTAL</Text>
+          <Text style={[styles.orderSummaryPrice, { color: themeColors.textPrimary }]}>{formatINR(total)}</Text>
         </View>
 
         <PressableScale

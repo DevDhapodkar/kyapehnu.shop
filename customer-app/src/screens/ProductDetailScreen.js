@@ -35,6 +35,7 @@ import { formatCurrency as formatINR } from '../utils/format';
 import { resolveProductImageUri } from '../utils/productImage';
 import { useCartStore } from '../store/useCartStore';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = Math.min(540, SCREEN_HEIGHT * 0.58);
@@ -66,6 +67,7 @@ const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 export default function ProductDetailScreen({ route, navigation }) {
   const { product } = route.params || {};
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
 
   const [activeAngle, setActiveAngle] = useState('front');
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -121,39 +123,40 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   if (!product) {
     return (
-      <View style={styles.root}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.root, { backgroundColor: colors.groundBase }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <AmbientBackgroundBlobs />
-        <View style={[styles.topBar, { paddingTop: insets.top + 4 }]} pointerEvents="box-none">
-          <View style={styles.topBarInner} pointerEvents="auto">
-            <PressableScale
-              onPress={() => navigation.goBack()}
-              style={styles.navBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <MaterialIcons name="arrow-back-ios-new" size={17} color={colors.textObsidian} />
-            </PressableScale>
-            <BrandLogo size="sm" showEmblem={true} />
-            <View style={{ width: 34 }} />
-          </View>
+        <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+          <PressableScale
+            onPress={() => navigation.goBack()}
+            style={styles.topBarBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons
+              name="arrow-back-ios-new"
+              size={17}
+              color={colors.textObsidian}
+            />
+          </PressableScale>
         </View>
         <View style={styles.notFoundCenter}>
           <View style={styles.notFoundIconWrap}>
-            <MaterialIcons name="checkroom" size={40} color={colors.accentGoldDeep} />
+            <MaterialIcons
+              name="search-off"
+              size={36}
+              color={colors.accentGold}
+            />
           </View>
-          <Text style={styles.notFoundTitle}>Garment Unavailable</Text>
-          <Text style={styles.notFoundSubtitle}>
-            This curated piece is not currently in the atelier catalogue or the link is invalid.
+          <Text style={[styles.notFoundTitle, { color: colors.textObsidian }]}>Garment Not Found</Text>
+          <Text style={[styles.notFoundSubtitle, { color: colors.textSlate }]}>
+            This piece may have been reserved by another atelier patron in Nagpur.
           </Text>
           <PressableScale
             onPress={() => navigation.navigate('Home')}
-            style={styles.notFoundBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Return to Storefront"
+            style={styles.backStorefrontBtn}
           >
-            <Text style={styles.notFoundBtnText}>Return to Storefront</Text>
-            <MaterialIcons name="arrow-forward" size={16} color="#FFFFFF" />
+            <Text style={styles.backStorefrontBtnText}>Explore Nagpur Ateliers</Text>
           </PressableScale>
         </View>
       </View>
@@ -161,10 +164,13 @@ export default function ProductDetailScreen({ route, navigation }) {
   }
 
   const item = product;
-  const sizes = item.sizes?.length ? item.sizes : DEFAULT_SIZES;
+  const sizes =
+    Array.isArray(item.sizes) && item.sizes.length > 0
+      ? item.sizes
+      : DEFAULT_SIZES;
 
   const discountPercent =
-    item.mrp && item.price && item.mrp > item.price
+    item.mrp && item.mrp > item.price
       ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
       : null;
 
@@ -177,43 +183,81 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const handleShare = async () => {
     try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       await Share.share({
-        message: `${item.name} from ${item.storeName} on Kya Pehnu? - Nagpur Express Luxury`,
+        title: item.name,
+        message: `Take a look at ${item.name} from ${item.storeName || 'Kya Pehnu?'} on Nagpur 45-Min Atelier Express Delivery: https://kyapehnu.shop/app`,
       });
-    } catch {
-      // ignore
+    } catch (_err) {
+      // User cancelled
     }
-  };
-
-  const handleSizeGuide = () => {
-    setShowSizeGuide(true);
   };
 
   const handleAddToCart = () => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    addToCart(item, selectedSize, selectedColor);
+    addToCart(
+      {
+        ...item,
+        color: selectedColor.name,
+        colorHex: selectedColor.hex,
+      },
+      selectedSize
+    );
     setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2600);
+    setTimeout(() => {
+      setAddedToast(false);
+    }, 2800);
+  };
+
+  const handleSizeGuide = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowSizeGuide(true);
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: colors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
 
       {/* 2. Floating Frosted Top Bar */}
       <View
-        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        style={[
+          styles.topBar,
+          {
+            paddingTop: insets.top + 4,
+            backgroundColor: isDark ? 'rgba(14, 14, 16, 0.92)' : 'rgba(250, 249, 245, 0.92)',
+            borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
+          },
+        ]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(24, 24, 28, 0.85)' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(217, 119, 6, 0.22)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.goBack()}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
@@ -229,7 +273,13 @@ export default function ProductDetailScreen({ route, navigation }) {
           <View style={styles.topBarRight}>
             <PressableScale
               onPress={handleToggleWishlist}
-              style={styles.topBarBtn}
+              style={[
+                styles.topBarBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Wishlist item"
             >
@@ -242,7 +292,13 @@ export default function ProductDetailScreen({ route, navigation }) {
 
             <PressableScale
               onPress={handleShare}
-              style={styles.topBarBtn}
+              style={[
+                styles.topBarBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Share item"
             >
@@ -289,7 +345,15 @@ export default function ProductDetailScreen({ route, navigation }) {
           </Animated.View>
 
           {/* Floating Angle Switcher Bar */}
-          <View style={styles.angleSwitcherBar}>
+          <View
+            style={[
+              styles.angleSwitcherBar,
+              {
+                backgroundColor: isDark ? 'rgba(20, 20, 24, 0.85)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.80)',
+              },
+            ]}
+          >
             {ANGLES.map((angle) => {
               const isActive = activeAngle === angle.id;
               return (
@@ -298,13 +362,17 @@ export default function ProductDetailScreen({ route, navigation }) {
                   onPress={() => setActiveAngle(angle.id)}
                   style={[
                     styles.anglePill,
-                    isActive && styles.anglePillActive,
+                    {
+                      backgroundColor: isActive
+                        ? (isDark ? colors.accentCrimson : colors.textObsidian)
+                        : (isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.60)'),
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       styles.anglePillText,
-                      isActive && styles.anglePillTextActive,
+                      isActive ? styles.anglePillTextActive : { color: colors.textObsidian },
                     ]}
                   >
                     {angle.label}
@@ -318,14 +386,22 @@ export default function ProductDetailScreen({ route, navigation }) {
         {/* Content Sheet Section */}
         <View style={styles.sheetContent}>
           {/* Card 1: Title & Pricing */}
-          <View style={styles.glassCard}>
-            <Text style={styles.atelierEyebrow}>
+          <View
+            style={[
+              styles.glassCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+              },
+            ]}
+          >
+            <Text style={[styles.atelierEyebrow, { color: colors.accentGoldDeep }]}>
               {item.storeName} · {item.storeArea || 'Dharampeth'}
             </Text>
-            <Text style={styles.title}>{item.name}</Text>
+            <Text style={[styles.title, { color: colors.textObsidian }]}>{item.name}</Text>
 
             <View style={styles.priceRow}>
-              <Text style={styles.currentPrice}>{formatINR(item.price)}</Text>
+              <Text style={[styles.currentPrice, { color: colors.textObsidian }]}>{formatINR(item.price)}</Text>
               {item.mrp ? (
                 <Text style={styles.originalPrice}>{formatINR(item.mrp)}</Text>
               ) : null}
@@ -339,15 +415,23 @@ export default function ProductDetailScreen({ route, navigation }) {
             </View>
 
             {item.description ? (
-              <Text style={styles.descriptionText}>{item.description}</Text>
+              <Text style={[styles.descriptionText, { color: colors.textSlate }]}>{item.description}</Text>
             ) : null}
           </View>
 
           {/* Card 2: Colorway Palette */}
           {normalizedColors.length > 0 ? (
-            <View style={styles.glassCard}>
+            <View
+              style={[
+                styles.glassCard,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+                },
+              ]}
+            >
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardHeaderTitle}>Colorway</Text>
+                <Text style={[styles.cardHeaderTitle, { color: colors.textObsidian }]}>Colorway</Text>
                 <View style={styles.selectedColorBadge}>
                   <View
                     style={[
@@ -424,9 +508,17 @@ export default function ProductDetailScreen({ route, navigation }) {
           ) : null}
 
           {/* Card 3: Size Selector */}
-          <View style={styles.glassCard}>
+          <View
+            style={[
+              styles.glassCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+              },
+            ]}
+          >
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardHeaderTitle}>Size</Text>
+              <Text style={[styles.cardHeaderTitle, { color: colors.textObsidian }]}>Size</Text>
               <PressableScale
                 onPress={handleSizeGuide}
                 style={styles.guideBtn}
@@ -451,13 +543,21 @@ export default function ProductDetailScreen({ route, navigation }) {
                     onPress={() => setSelectedSize(sz)}
                     style={[
                       styles.sizePill,
-                      isSelected ? styles.sizePillSelected : styles.sizePillGlass,
+                      isSelected
+                        ? [styles.sizePillSelected, { backgroundColor: isDark ? colors.accentCrimson : colors.textObsidian }]
+                        : [
+                            styles.sizePillGlass,
+                            {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.60)',
+                              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.85)',
+                            },
+                          ],
                     ]}
                   >
                     <Text
                       style={[
                         styles.sizeText,
-                        isSelected ? styles.sizeTextSelected : styles.sizeTextGlass,
+                        isSelected ? styles.sizeTextSelected : [styles.sizeTextGlass, { color: colors.textObsidian }],
                       ]}
                     >
                       {sz}
@@ -469,10 +569,26 @@ export default function ProductDetailScreen({ route, navigation }) {
           </View>
 
           {/* Card 4: Couture & Craft Specifications Grid */}
-          <View style={styles.glassCard}>
-            <Text style={styles.cardHeaderTitle}>Couture & Craft Details</Text>
+          <View
+            style={[
+              styles.glassCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+              },
+            ]}
+          >
+            <Text style={[styles.cardHeaderTitle, { color: colors.textObsidian }]}>Couture & Craft Details</Text>
             <View style={styles.specsGrid}>
-              <View style={styles.specItem}>
+              <View
+                style={[
+                  styles.specItem,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.45)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.75)',
+                  },
+                ]}
+              >
                 <MaterialIcons
                   name="texture"
                   size={16}
@@ -480,11 +596,19 @@ export default function ProductDetailScreen({ route, navigation }) {
                 />
                 <View style={styles.specTextCol}>
                   <Text style={styles.specLabel}>Fabric</Text>
-                  <Text style={styles.specValue}>{item.material || 'Pure Silk / Cotton'}</Text>
+                  <Text style={[styles.specValue, { color: colors.textObsidian }]}>{item.material || 'Pure Silk / Cotton'}</Text>
                 </View>
               </View>
 
-              <View style={styles.specItem}>
+              <View
+                style={[
+                  styles.specItem,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.45)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.75)',
+                  },
+                ]}
+              >
                 <MaterialIcons
                   name="content-cut"
                   size={16}
@@ -492,7 +616,7 @@ export default function ProductDetailScreen({ route, navigation }) {
                 />
                 <View style={styles.specTextCol}>
                   <Text style={styles.specLabel}>Cut / Silhouette</Text>
-                  <Text style={styles.specValue}>{item.subCategory || item.category || 'Atelier Collection'}</Text>
+                  <Text style={[styles.specValue, { color: colors.textObsidian }]}>{item.subCategory || item.category || 'Atelier Collection'}</Text>
                 </View>
               </View>
 
@@ -597,9 +721,22 @@ export default function ProductDetailScreen({ route, navigation }) {
           </View>
 
           {/* Card 5: Atelier Quick Badge (Call button removed per Stitch spec) */}
-          <View style={styles.glassCard}>
+          <View
+            style={[
+              styles.glassCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+              },
+            ]}
+          >
             <View style={styles.atelierRow}>
-              <View style={styles.atelierThumbWrap}>
+              <View
+                style={[
+                  styles.atelierThumbWrap,
+                  { borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.8)' },
+                ]}
+              >
                 <Image
                   source={{
                     uri: resolveProductImageUri(
@@ -612,8 +749,8 @@ export default function ProductDetailScreen({ route, navigation }) {
                 />
               </View>
               <View style={styles.atelierInfo}>
-                <Text style={styles.atelierName}>{item.storeName || 'Nagpur Atelier'}</Text>
-                <Text style={styles.atelierDetails}>
+                <Text style={[styles.atelierName, { color: colors.textObsidian }]}>{item.storeName || 'Nagpur Atelier'}</Text>
+                <Text style={[styles.atelierDetails, { color: colors.textAsh }]}>
                   {[
                     item.storeArea || 'Nagpur',
                     item.distanceKm ? `${item.distanceKm} km` : null,
@@ -632,7 +769,13 @@ export default function ProductDetailScreen({ route, navigation }) {
                       Alert.alert('Stylist Consultation', 'Stylist WhatsApp hotline available at +91 712 254 9900.');
                     });
                   }}
-                  style={styles.atelierActionBtn}
+                  style={[
+                    styles.atelierActionBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.85)',
+                    },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="WhatsApp video styling"
                 >
@@ -688,12 +831,20 @@ export default function ProductDetailScreen({ route, navigation }) {
           { paddingBottom: Math.max(insets.bottom, spacing.md) },
         ]}
       >
-        <View style={styles.bottomBar}>
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 26, 0.95)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+        >
           <View style={styles.priceCol}>
-            <Text style={styles.totalLabel}>
+            <Text style={[styles.totalLabel, { color: colors.textAsh }]}>
               {selectedColor.name.toUpperCase()} · SIZE {selectedSize}
             </Text>
-            <Text style={styles.totalPrice}>{formatINR(item.price)}</Text>
+            <Text style={[styles.totalPrice, { color: colors.textObsidian }]}>{formatINR(item.price)}</Text>
           </View>
 
           <PressableScale
@@ -716,7 +867,15 @@ export default function ProductDetailScreen({ route, navigation }) {
         onRequestClose={() => setShowSizeGuide(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.sizeModalContent}>
+          <View
+            style={[
+              styles.sizeModalContent,
+              {
+                backgroundColor: isDark ? '#18181C' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(217, 119, 6, 0.22)',
+              },
+            ]}
+          >
             <View style={styles.sizeModalHeader}>
               <View style={styles.sizeModalHeaderLeft}>
                 <View style={styles.sizeModalIconWrap}>
@@ -727,8 +886,8 @@ export default function ProductDetailScreen({ route, navigation }) {
                   />
                 </View>
                 <View>
-                  <Text style={styles.sizeModalTitle}>Atelier Size Guide</Text>
-                  <Text style={styles.sizeModalSub}>
+                  <Text style={[styles.sizeModalTitle, { color: colors.textObsidian }]}>Atelier Size Guide</Text>
+                  <Text style={[styles.sizeModalSub, { color: colors.textAsh }]}>
                     Nagpur Tailor Standard (Inches)
                   </Text>
                 </View>

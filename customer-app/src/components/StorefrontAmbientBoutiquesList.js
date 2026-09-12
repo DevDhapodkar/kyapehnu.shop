@@ -5,6 +5,7 @@ import PressableScale from './PressableScale';
 import { fetchNearbyVendors } from '../api/vendorApi';
 import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * StorefrontAmbientBoutiquesList
@@ -78,6 +79,8 @@ export default function StorefrontAmbientBoutiquesList({
     };
   }, []);
 
+  const { colors, isDark } = useTheme();
+
   if (loading || vendors.length === 0) {
     return null;
   }
@@ -85,8 +88,8 @@ export default function StorefrontAmbientBoutiquesList({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Nagpur Boutiques</Text>
-        <Text style={styles.statusOnline}>{vendors.length} Online</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textObsidian }]}>Nagpur Boutiques</Text>
+        <Text style={[styles.statusOnline, { color: colors.textAsh }]}>{vendors.length} Online</Text>
       </View>
 
       <View style={styles.list}>
@@ -101,6 +104,10 @@ export default function StorefrontAmbientBoutiquesList({
               onPress={() => onSelectBoutique?.(boutique)}
               style={[
                 styles.card,
+                {
+                  backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.48)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.72)',
+                },
                 isSelected && {
                   borderColor: colors.accentCrimson,
                   borderWidth: 1.5,
@@ -118,26 +125,26 @@ export default function StorefrontAmbientBoutiquesList({
                     transition={200}
                   />
                 ) : (
-                  <View style={styles.thumbPlaceholder} />
+                  <View style={[styles.thumbPlaceholder, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(18, 18, 21, 0.06)' }]} />
                 )}
               </View>
 
               <View style={styles.infoCol}>
                 <View style={styles.titleRow}>
-                  <Text style={styles.boutiqueName} numberOfLines={1}>
+                  <Text style={[styles.boutiqueName, { color: colors.textObsidian }]} numberOfLines={1}>
                     {boutique.name}
                   </Text>
                   {boutique.distanceKm ? (
-                    <Text style={styles.distanceText}>{boutique.distanceKm} km</Text>
+                    <Text style={[styles.distanceText, { color: colors.accentGold }]}>{boutique.distanceKm} km</Text>
                   ) : null}
                 </View>
 
                 <View style={styles.subRow}>
-                  <Text style={styles.localityText} numberOfLines={1}>
+                  <Text style={[styles.localityText, { color: colors.textSlate }]} numberOfLines={1}>
                     {boutique.locality || 'Nagpur'}
                   </Text>
                   {boutique.dispatchTime ? (
-                    <Text style={styles.dispatchText}>{boutique.dispatchTime}</Text>
+                    <Text style={[styles.dispatchText, { color: colors.textAsh }]}>{boutique.dispatchTime}</Text>
                   ) : null}
                 </View>
               </View>

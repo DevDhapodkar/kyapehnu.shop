@@ -40,6 +40,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { getDeliveryPillLabel, getUserInitials } from '../utils/deliveryPillLabel';
 import { EASE_OUT, duration } from '../theme/motion';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -92,6 +93,7 @@ const SCROLL_RANGE = SCREEN_HEIGHT * SECTIONS.length;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
   const guestExplore = useStorefrontStore((state) => state.guestExplore);
   const setGuestExplore = useStorefrontStore((state) => state.setGuestExplore);
 
@@ -131,8 +133,8 @@ export default function HomeScreen({ navigation }) {
 
   if (showStorefront) {
     return (
-      <View style={styles.storefrontRoot}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.storefrontRoot, { backgroundColor: colors.groundBase }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <Storefront
           insets={insets}
           areaLabel={areaLabel}
@@ -153,8 +155,8 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: colors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <WelcomeScreen
         navigation={navigation}
         onGetStarted={() => openAuth('register')}
@@ -271,6 +273,7 @@ function Storefront({
   onNavigateOrders,
   onViewStory,
 }) {
+  const { colors, isDark } = useTheme();
   const products = useStorefrontStore((state) => state.products);
   const loading = useStorefrontStore((state) => state.loading);
   const loaded = useStorefrontStore((state) => state.loaded);
@@ -499,17 +502,49 @@ function Storefront({
           <Text style={styles.bannerTitle}>In stock, near you</Text>
         </Animated.View>
 
+        {/* Service Quality Bar: Nagpur Courier Promise (Stitch Specification) */}
+        <View
+          style={[
+            styles.serviceQualityBar,
+            {
+              backgroundColor: isDark ? 'rgba(28, 27, 29, 0.85)' : '#F4F3EE',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E5E3DC',
+            },
+          ]}
+        >
+          <View style={styles.serviceQualityLeft}>
+            <View style={[styles.crimsonPulseDot, { backgroundColor: colors.accentCrimson }]} />
+            <Text style={[styles.serviceQualityEyebrow, { color: colors.accentCrimson }]}>
+              NAGPUR INSTANT ATELIER
+            </Text>
+          </View>
+          <View style={styles.serviceQualityRight}>
+            <MaterialIcons name="bolt" size={15} color={colors.accentGold} />
+            <Text style={[styles.serviceQualityCaption, { color: colors.textSlate }]}>
+              45-Min Doorstep Trial Active
+            </Text>
+          </View>
+        </View>
+
         {/* Real-time Frosted Glass Search Bar */}
         {(isSearchOpen || activeTab === 'search' || searchQuery.length > 0) && (
           <View style={styles.searchBarWrap}>
-            <View style={styles.searchBar}>
+            <View
+              style={[
+                styles.searchBar,
+                {
+                  backgroundColor: isDark ? 'rgba(26, 26, 30, 0.88)' : 'rgba(255, 255, 255, 0.85)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(217, 119, 6, 0.25)',
+                },
+              ]}
+            >
               <MaterialIcons name="search" size={18} color={colors.accentGold} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search silhouettes, silks, boutiques in Nagpur..."
                 placeholderTextColor={colors.textAsh}
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.textObsidian }]}
                 autoFocus={isSearchOpen}
                 returnKeyType="search"
               />
@@ -521,11 +556,11 @@ function Storefront({
             </View>
             {searchQuery ? (
               <View style={styles.searchNoticeRow}>
-                <Text style={styles.searchNoticeText}>
+                <Text style={[styles.searchNoticeText, { color: colors.textSlate }]}>
                   {filteredProducts.length} {filteredProducts.length === 1 ? 'piece' : 'pieces'} found
                 </Text>
                 <PressableScale onPress={() => setSearchQuery('')}>
-                  <Text style={styles.resetSearchText}>Clear</Text>
+                  <Text style={[styles.resetSearchText, { color: colors.accentCrimson }]}>Clear</Text>
                 </PressableScale>
               </View>
             ) : null}
@@ -540,10 +575,18 @@ function Storefront({
 
         {/* Search empty state if query has no matches */}
         {searchQuery && filteredProducts.length === 0 ? (
-          <View style={styles.emptySearchCard}>
+          <View
+            style={[
+              styles.emptySearchCard,
+              {
+                backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(217, 119, 6, 0.2)',
+              },
+            ]}
+          >
             <MaterialIcons name="search-off" size={36} color={colors.accentGold} />
-            <Text style={styles.emptySearchTitle}>No Pieces Found</Text>
-            <Text style={styles.emptySearchSubtitle}>
+            <Text style={[styles.emptySearchTitle, { color: colors.textObsidian }]}>No Pieces Found</Text>
+            <Text style={[styles.emptySearchSubtitle, { color: colors.textSlate }]}>
               {`No garments match "${searchQuery}" in this radius.`}
             </Text>
             <PressableScale
@@ -561,17 +604,54 @@ function Storefront({
           <>
             {/* Hero Spotlight Garment Card: Hidden while actively searching */}
             {!searchQuery && spotlightProduct ? (
-              <StorefrontAmbientSpotlightCard
-                product={spotlightProduct}
-                onPress={onOpenProduct}
-                onBagNow={onQuickAdd}
-              />
+              <>
+                <StorefrontAmbientSpotlightCard
+                  product={spotlightProduct}
+                  onPress={onOpenProduct}
+                  onBagNow={onQuickAdd}
+                />
+
+                {/* Doorstep Stylist / 15-Min Trial Banner (Stitch Specification) */}
+                <View
+                  style={[
+                    styles.couturierTrialCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(28, 27, 29, 0.85)' : '#F4F3EE',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E5E3DC',
+                    },
+                  ]}
+                >
+                  <View style={styles.couturierTrialLeft}>
+                    <View
+                      style={[
+                        styles.couturierTrialIconWrap,
+                        {
+                          backgroundColor: isDark
+                            ? 'rgba(196, 36, 58, 0.2)'
+                            : 'rgba(196, 36, 58, 0.1)',
+                        },
+                      ]}
+                    >
+                      <MaterialIcons name="checkroom" size={22} color={colors.accentCrimson} />
+                    </View>
+                    <View style={styles.couturierTrialTextCol}>
+                      <Text style={[styles.couturierTrialTitle, { color: colors.textObsidian }]}>
+                        Doorstep Couturier Trial
+                      </Text>
+                      <Text style={[styles.couturierTrialSub, { color: colors.textAsh }]}>
+                        Delivered on heritage satin hangers. Take 15 mins to try sizes at home before purchase.
+                      </Text>
+                    </View>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={20} color={colors.textAsh} />
+                </View>
+              </>
             ) : null}
 
             {/* Horizontal Scroll Rail: Express Ateliers (Under 45 Minutes) */}
             <View style={styles.railSection}>
               <View style={styles.railHeaderRow}>
-                <Text style={styles.railTitle}>
+                <Text style={[styles.railTitle, { color: colors.textObsidian }]}>
                   {searchQuery ? 'Matching Pieces' : 'Under 45 Minutes'}
                 </Text>
                 <PressableScale
@@ -581,7 +661,7 @@ function Storefront({
                   }}
                   style={styles.viewAllBtn}
                 >
-                  <Text style={styles.viewAllText}>
+                  <Text style={[styles.viewAllText, { color: colors.accentCrimson }]}>
                     {searchQuery ? 'Reset' : 'View All'}
                   </Text>
                   <MaterialIcons
@@ -598,14 +678,22 @@ function Storefront({
                   style={styles.loader}
                 />
               ) : isEmpty ? (
-                <View style={styles.emptyCatalogueCard}>
+                <View
+                  style={[
+                    styles.emptyCatalogueCard,
+                    {
+                      backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.75)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(217, 119, 6, 0.2)',
+                    },
+                  ]}
+                >
                   <View style={styles.emptyCatalogueIconCircle}>
                     <MaterialIcons name="storefront" size={26} color={colors.accentCrimson} />
                   </View>
-                  <Text style={styles.emptyCatalogueTitle}>
+                  <Text style={[styles.emptyCatalogueTitle, { color: colors.textObsidian }]}>
                     {error ? 'Catalogue Connection' : 'Nagpur Collections Updating'}
                   </Text>
-                  <Text style={styles.emptyCatalogueDesc}>
+                  <Text style={[styles.emptyCatalogueDesc, { color: colors.textMuted }]}>
                     {error
                       ? `Atelier feed connection note: ${error}. Tap below to reconnect.`
                       : 'Sitabuldi & Dharampeth boutiques are cataloguing their daily handloom arrivals. Check back shortly or tap to refresh.'}
@@ -970,5 +1058,78 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  serviceQualityBar: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  serviceQualityLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  crimsonPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  serviceQualityEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  serviceQualityRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  serviceQualityCaption: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  couturierTrialCard: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    marginBottom: 4,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  couturierTrialLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  couturierTrialIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  couturierTrialTextCol: {
+    flex: 1,
+  },
+  couturierTrialTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  couturierTrialSub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
   },
 });

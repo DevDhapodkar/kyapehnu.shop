@@ -8,6 +8,7 @@ import PressableScale from './PressableScale';
 import { formatCurrency as formatINR } from '../utils/format';
 import { resolveProductImageUri } from '../utils/productImage';
 import { colors, radii, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 
 export const AMBIENT_CARD_WIDTH = 200;
 
@@ -27,6 +28,7 @@ export default function StorefrontAmbientProductCard({
   onPress,
   onQuickAdd,
 }) {
+  const { colors, isDark } = useTheme();
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -66,7 +68,13 @@ export default function StorefrontAmbientProductCard({
       onPress={onPress}
       haptic={false}
       accessibilityLabel={`${product.name}, ${formatINR(product.price)}`}
-      style={styles.card}
+      style={[
+        styles.card,
+        {
+          backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.48)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.72)',
+        },
+      ]}
     >
       {/* Media Box (3:4 Aspect Ratio) */}
       <View style={styles.imageWrap}>
@@ -91,16 +99,30 @@ export default function StorefrontAmbientProductCard({
         />
 
         {/* Top-left Glass Schedule Pill */}
-        <View style={styles.schedulePill}>
+        <View
+          style={[
+            styles.schedulePill,
+            {
+              backgroundColor: isDark ? 'rgba(20, 20, 24, 0.82)' : 'rgba(255, 255, 255, 0.55)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.80)',
+            },
+          ]}
+        >
           <MaterialIcons name="schedule" size={11} color={colors.accentGold} />
-          <Text style={styles.scheduleText}>{deliveryMins} min</Text>
+          <Text style={[styles.scheduleText, { color: colors.textObsidian }]}>{deliveryMins} min</Text>
         </View>
 
         {/* Top-right Wishlist Button */}
         <Pressable
           onPress={handleToggleWishlist}
           hitSlop={10}
-          style={styles.favBtn}
+          style={[
+            styles.favBtn,
+            {
+              backgroundColor: isDark ? 'rgba(20, 20, 24, 0.82)' : 'rgba(255, 255, 255, 0.55)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.80)',
+            },
+          ]}
           accessibilityRole="button"
           accessibilityLabel="Wishlist item"
         >
@@ -112,8 +134,16 @@ export default function StorefrontAmbientProductCard({
         </Pressable>
 
         {/* Bottom Glass Locality Pill */}
-        <View style={styles.localityBanner}>
-          <Text style={styles.localityText} numberOfLines={1}>
+        <View
+          style={[
+            styles.localityBanner,
+            {
+              backgroundColor: isDark ? 'rgba(20, 20, 24, 0.85)' : 'rgba(255, 255, 255, 0.55)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.80)',
+            },
+          ]}
+        >
+          <Text style={[styles.localityText, { color: colors.textObsidian }]} numberOfLines={1}>
             {distanceText ? `${localityText} · ${distanceText}` : localityText}
           </Text>
         </View>
@@ -122,16 +152,22 @@ export default function StorefrontAmbientProductCard({
       {/* Info Row */}
       <View style={styles.infoRow}>
         <View style={styles.infoLeft}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, { color: colors.textObsidian }]} numberOfLines={1}>
             {product.name}
           </Text>
-          <Text style={styles.price}>{formatINR(product.price)}</Text>
+          <Text style={[styles.price, { color: colors.textObsidian }]}>{formatINR(product.price)}</Text>
         </View>
 
         {onQuickAdd ? (
           <PressableScale
             onPress={handleQuickAdd}
-            style={styles.addBtn}
+            style={[
+              styles.addBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.80)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Quick add to bag"
           >

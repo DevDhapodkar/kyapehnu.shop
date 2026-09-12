@@ -18,16 +18,18 @@ import BrandLogo from '../components/BrandLogo';
 import PressableScale from '../components/PressableScale';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVendorStore } from '../store/useVendorStore';
+import { useTheme } from '../theme/useTheme';
 import { fetchMyOrders } from '../api/vendorApi';
 import { getDeliveryPillLabel, SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 import { colors, radii, spacing } from '../theme/colors';
 
 /**
- * ProfileScreen — Profile & Concierge (Frosted Glass & Ambient Blobs)
+ * ProfileScreen — Profile & Concierge (Ivory Studio & Royal Noir)
  *
- * Implements Stitch Screen a42b188e2b8b48ed8c17bb5b2d9b487e:
+ * Implements Stitch Screens f14e6cfd61634d85b06c4fdc9822a969 & fc2f0f419c554284b72d6b5d672d3aaf:
  * - Animated drifting ambient background blobs
  * - Frosted glass client portal header
+ * - Atelier Appearance & Theme selector (Ivory Studio Light / Crimson Noir Dark)
  * - Concierge tier badge & patron profile card
  * - Action tiles: Orders, Addresses, Saved
  * - Concierge hotline (+91 712 254 9900) & WhatsApp stylist links
@@ -36,6 +38,7 @@ import { colors, radii, spacing } from '../theme/colors';
  */
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark, themeMode, setThemeMode } = useTheme();
 
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
@@ -115,21 +118,43 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: colors.groundBase }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
 
       {/* 2. Floating Top Header */}
       <View
-        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        style={[
+          styles.topBar,
+          {
+            paddingTop: insets.top + 4,
+            backgroundColor: isDark ? 'rgba(14, 14, 16, 0.92)' : 'rgba(250, 249, 245, 0.92)',
+            borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
+          },
+        ]}
         pointerEvents="box-none"
       >
-        <View style={styles.topBarInner} pointerEvents="auto">
+        <View
+          style={[
+            styles.topBarInner,
+            {
+              backgroundColor: isDark ? 'rgba(24, 24, 28, 0.85)' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(217, 119, 6, 0.22)',
+            },
+          ]}
+          pointerEvents="auto"
+        >
           <PressableScale
             onPress={() => navigation.goBack()}
-            style={styles.topBarBtn}
+            style={[
+              styles.topBarBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
@@ -144,7 +169,12 @@ export default function ProfileScreen({ navigation }) {
 
           <PressableScale
             onPress={() => navigation.navigate('Address')}
-            style={styles.locationPill}
+            style={[
+              styles.locationPill,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.45)',
+              },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
           >
@@ -156,12 +186,14 @@ export default function ProfileScreen({ navigation }) {
             <Text
               style={[
                 styles.locationText,
+                { color: colors.textObsidian },
                 needsAddress && { color: colors.accentCrimson, textTransform: 'none' },
               ]}
               numberOfLines={1}
             >
               {deliveryPillLabel}
             </Text>
+            <MaterialIcons name="expand-more" size={13} color={colors.textAsh} />
           </PressableScale>
         </View>
       </View>
@@ -190,7 +222,15 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Member Profile Card */}
-        <View style={styles.profileCard}>
+        <View
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.52)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+            },
+          ]}
+        >
           <View style={styles.tierRow}>
             <View style={styles.tierBadge}>
               <MaterialIcons
@@ -256,7 +296,13 @@ export default function ProfileScreen({ navigation }) {
             {/* Orders Tile */}
             <PressableScale
               onPress={() => navigation.navigate('MyOrders')}
-              style={styles.tileBtn}
+              style={[
+                styles.tileBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="View orders"
             >
@@ -265,8 +311,8 @@ export default function ProfileScreen({ navigation }) {
                 size={20}
                 color={colors.accentCrimson}
               />
-              <Text style={styles.tileLabel}>Orders</Text>
-              <Text style={styles.tileValue}>
+              <Text style={[styles.tileLabel, { color: colors.textSlate }]}>Orders</Text>
+              <Text style={[styles.tileValue, { color: colors.textObsidian }]}>
                 {activeCount > 0 ? `${activeCount} Active` : '0 Active'}
               </Text>
             </PressableScale>
@@ -274,7 +320,13 @@ export default function ProfileScreen({ navigation }) {
             {/* Addresses Tile */}
             <PressableScale
               onPress={() => navigation.navigate('Address')}
-              style={styles.tileBtn}
+              style={[
+                styles.tileBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="View addresses"
             >
@@ -283,8 +335,8 @@ export default function ProfileScreen({ navigation }) {
                 size={20}
                 color={colors.accentGold}
               />
-              <Text style={styles.tileLabel}>Addresses</Text>
-              <Text style={styles.tileValue}>
+              <Text style={[styles.tileLabel, { color: colors.textSlate }]}>Addresses</Text>
+              <Text style={[styles.tileValue, { color: colors.textObsidian }]}>
                 {profile?.savedAddresses?.length ? 'Saved' : 'Add New'}
               </Text>
             </PressableScale>
@@ -301,7 +353,13 @@ export default function ProfileScreen({ navigation }) {
                   ]
                 )
               }
-              style={styles.tileBtn}
+              style={[
+                styles.tileBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.55)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.8)',
+                },
+              ]}
               accessibilityRole="button"
               accessibilityLabel="View wishlist"
             >
@@ -310,16 +368,190 @@ export default function ProfileScreen({ navigation }) {
                 size={20}
                 color={colors.accentCrimson}
               />
-              <Text style={styles.tileLabel}>Wishlist</Text>
-              <Text style={styles.tileValue}>Curated</Text>
+              <Text style={[styles.tileLabel, { color: colors.textSlate }]}>Wishlist</Text>
+              <Text style={[styles.tileValue, { color: colors.textObsidian }]}>Curated</Text>
             </PressableScale>
           </View>
         </View>
 
 
+        {/* Atelier Appearance & Theme Selector (Stitch Luxury Specification) */}
+        <View
+          style={[
+            styles.glassCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+            <Text style={[styles.sectionTitle, { color: colors.textObsidian }]}>Atelier Appearance & Theme</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: isDark ? 'rgba(200, 162, 74, 0.12)' : 'rgba(217, 119, 6, 0.10)',
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 9999,
+              }}
+            >
+              <MaterialIcons name={isDark ? 'nightlight' : 'wb-sunny'} size={11} color={colors.accentGold} />
+              <Text style={{ fontSize: 9.5, fontWeight: '700', color: colors.accentGold, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {isDark ? 'Crimson Noir' : 'Ivory Studio'}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 11.5, color: colors.textSlate, marginBottom: 10, lineHeight: 16 }}>
+            Toggle between Nagpur sunlight editorial ivory and nocturnal couture noir aesthetics.
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {/* 1. Light Theme Option */}
+            <PressableScale
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setThemeMode('light');
+              }}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                paddingHorizontal: 10,
+                borderRadius: radii.md,
+                backgroundColor: !isDark ? '#FFFFFF' : 'rgba(255, 255, 255, 0.05)',
+                borderWidth: !isDark ? 2 : 1,
+                borderColor: !isDark ? colors.accentCrimson : 'rgba(255, 255, 255, 0.08)',
+                alignItems: 'center',
+                gap: 5,
+                position: 'relative',
+                shadowColor: '#121215',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: !isDark ? 0.08 : 0,
+                shadowRadius: 10,
+                elevation: !isDark ? 3 : 0,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Select Ivory Studio Light Theme"
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: '#FAF9F5',
+                  borderWidth: 1,
+                  borderColor: '#E5E3DC',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MaterialIcons name="light-mode" size={20} color="#B38A2B" />
+              </View>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: !isDark ? '#121215' : colors.textSlate }}>
+                Ivory Studio
+              </Text>
+              <Text style={{ fontSize: 9.5, color: colors.textAsh, textAlign: 'center' }}>
+                Light & Alabaster
+              </Text>
+              {!isDark && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: colors.accentCrimson,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MaterialIcons name="check" size={11} color="#FFFFFF" />
+                </View>
+              )}
+            </PressableScale>
+
+            {/* 2. Dark Theme Option */}
+            <PressableScale
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setThemeMode('dark');
+              }}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                paddingHorizontal: 10,
+                borderRadius: radii.md,
+                backgroundColor: isDark ? '#1E1E22' : 'rgba(0, 0, 0, 0.03)',
+                borderWidth: isDark ? 2 : 1,
+                borderColor: isDark ? colors.accentCrimson : 'rgba(0, 0, 0, 0.08)',
+                alignItems: 'center',
+                gap: 5,
+                position: 'relative',
+                shadowColor: '#000000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: isDark ? 0.3 : 0,
+                shadowRadius: 10,
+                elevation: isDark ? 4 : 0,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Select Royal Crimson & Gold Noir Dark Theme"
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: '#0E0E10',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MaterialIcons name="dark-mode" size={20} color="#C8A24A" />
+              </View>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: isDark ? '#FFFFFF' : colors.textSlate }}>
+                Crimson Noir
+              </Text>
+              <Text style={{ fontSize: 9.5, color: colors.textAsh, textAlign: 'center' }}>
+                Deep Obsidian
+              </Text>
+              {isDark && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: colors.accentCrimson,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MaterialIcons name="check" size={11} color="#FFFFFF" />
+                </View>
+              )}
+            </PressableScale>
+          </View>
+        </View>
+
         {/* Concierge & Preferences Section */}
-        <View style={styles.glassCard}>
-          <Text style={styles.sectionTitle}>Concierge & Preferences</Text>
+        <View
+          style={[
+            styles.glassCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textObsidian }]}>Concierge & Preferences</Text>
 
           {/* Doorstep Try & Buy */}
           <View style={styles.prefRow}>
@@ -416,8 +648,16 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Boutique Partner & Vendor Desk Section */}
-        <View style={styles.glassCard}>
-          <Text style={styles.sectionTitle}>Boutique Partner Desk</Text>
+        <View
+          style={[
+            styles.glassCard,
+            {
+              backgroundColor: isDark ? 'rgba(22, 22, 25, 0.88)' : 'rgba(255, 255, 255, 0.65)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textObsidian }]}>Boutique Partner Desk</Text>
 
           <PressableScale
             onPress={() => {

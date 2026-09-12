@@ -1,15 +1,15 @@
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import PressableScale from './PressableScale';
-import { colors, spacing } from '../theme/colors';
+import { useTheme } from '../theme/useTheme';
 import { SET_ADDRESS_LABEL } from '../utils/deliveryPillLabel';
 
 /**
  * StorefrontAmbientHeader
  *
- * Floating glass capsule: brand · delivery pill · profile avatar/initials.
- * Avatar never uses a hardcoded stock photo — photoURL, initials, or icon.
- * Location pill defaults to prompting for a delivery address, not a fake locality.
+ * Floating glass capsule: brand · delivery pill · theme toggle · profile avatar.
+ * Adheres to Stitch's "Ivory Studio Luxury" and "Royal Crimson & Gold Noir" designs.
  */
 export default function StorefrontAmbientHeader({
   insets,
@@ -21,7 +21,15 @@ export default function StorefrontAmbientHeader({
   initials = '',
   isSignedIn = false,
 }) {
+  const { colors, isDark, toggleTheme } = useTheme();
   const needsAddress = !areaLabel || areaLabel === SET_ADDRESS_LABEL;
+
+  const handleToggleTheme = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    toggleTheme();
+  };
 
   return (
     <View
@@ -31,7 +39,17 @@ export default function StorefrontAmbientHeader({
       ]}
       pointerEvents="box-none"
     >
-      <View style={styles.pillBar} pointerEvents="auto">
+      <View
+        style={[
+          styles.pillBar,
+          {
+            backgroundColor: isDark ? 'rgba(20, 20, 24, 0.85)' : 'rgba(255, 255, 255, 0.65)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
+            shadowColor: isDark ? '#000000' : '#121215',
+          },
+        ]}
+        pointerEvents="auto"
+      >
         <PressableScale
           onPress={onViewStory}
           style={styles.brandGroup}
@@ -39,59 +57,116 @@ export default function StorefrontAmbientHeader({
           accessibilityLabel="View Atelier Story"
         >
           <Image
-            source={require('../../assets/images/icon.png')}
-            style={styles.emblemImage}
+            source={require('../../assets/images/brand-emblem.png')}
+            style={[
+              styles.emblemImage,
+              { borderColor: isDark ? 'rgba(200, 162, 74, 0.4)' : 'rgba(255, 255, 255, 0.80)' },
+            ]}
             resizeMode="cover"
           />
           <View style={styles.brandTextCol}>
-            <Text style={styles.brandTitle}>Kya Pehnu?</Text>
-            <Text style={styles.brandSubtitle}>ATELIER</Text>
+            <Text style={[styles.brandTitle, { color: colors.textObsidian }]}>Kya Pehnu?</Text>
+            <Text style={[styles.brandSubtitle, { color: colors.accentCrimson }]}>ATELIER</Text>
           </View>
         </PressableScale>
 
         <PressableScale
           onPress={onSelectLocation}
-          style={[styles.locationBtn, needsAddress && styles.locationBtnPrompt]}
+          style={[
+            styles.locationBtn,
+            {
+              backgroundColor: isDark
+                ? 'rgba(255, 255, 255, 0.06)'
+                : 'rgba(255, 255, 255, 0.45)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+            },
+            needsAddress && styles.locationBtnPrompt,
+          ]}
           accessibilityRole="button"
           accessibilityLabel={needsAddress ? 'Set delivery address' : 'Change delivery address'}
         >
           <MaterialIcons
             name={needsAddress ? 'add-location-alt' : 'near-me'}
-            size={14}
+            size={13}
             color={needsAddress ? colors.accentCrimson : colors.accentGold}
           />
           <Text
-            style={[styles.locationText, needsAddress && styles.locationTextPrompt]}
+            style={[
+              styles.locationText,
+              { color: colors.textObsidian },
+              needsAddress && styles.locationTextPrompt,
+            ]}
             numberOfLines={1}
           >
             {areaLabel}
           </Text>
-          <MaterialIcons name="expand-more" size={14} color={colors.textAsh} />
+          <MaterialIcons name="expand-more" size={13} color={colors.textAsh} />
         </PressableScale>
 
-        <PressableScale
-          onPress={onOpenProfile}
-          style={styles.avatarBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Profile and settings"
-        >
-          {avatarUri ? (
-            <Image
-              source={{ uri: avatarUri }}
-              style={styles.avatarImage}
-              resizeMode="cover"
+        <View style={styles.rightActionsRow}>
+          {/* Quick Theme Switcher Button */}
+          <PressableScale
+            onPress={handleToggleTheme}
+            style={[
+              styles.themeToggleBtn,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.65)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(18, 18, 20, 0.06)',
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          >
+            <MaterialIcons
+              name={isDark ? 'light-mode' : 'dark-mode'}
+              size={16}
+              color={isDark ? colors.accentGold : colors.textObsidian}
             />
-          ) : initials ? (
-            <View style={styles.avatarInitials}>
-              <Text style={styles.avatarInitialsText}>{initials}</Text>
-            </View>
-          ) : (
-            <View style={styles.avatarInitials}>
-              <MaterialIcons name="person" size={18} color={colors.textObsidian} />
-            </View>
-          )}
-          {isSignedIn ? <View style={styles.crimsonStatusDot} /> : null}
-        </PressableScale>
+          </PressableScale>
+
+          <PressableScale
+            onPress={onOpenProfile}
+            style={styles.avatarBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Profile and settings"
+          >
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={[
+                  styles.avatarImage,
+                  { borderColor: isDark ? 'rgba(200, 162, 74, 0.4)' : 'rgba(255, 255, 255, 0.85)' },
+                ]}
+                resizeMode="cover"
+              />
+            ) : initials ? (
+              <View
+                style={[
+                  styles.avatarInitials,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.75)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.85)',
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarInitialsText, { color: colors.textObsidian }]}>{initials}</Text>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.avatarInitials,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.75)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.85)',
+                  },
+                ]}
+              >
+                <MaterialIcons name="person" size={17} color={colors.textObsidian} />
+              </View>
+            )}
+            {isSignedIn ? <View style={[styles.crimsonStatusDot, { borderColor: colors.groundBase }]} /> : null}
+          </PressableScale>
+        </View>
       </View>
     </View>
   );
@@ -104,50 +179,43 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   pillBar: {
     height: 56,
     borderRadius: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.80)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    shadowColor: '#121215',
+    paddingHorizontal: 14,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.10,
     shadowRadius: 20,
     elevation: 4,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(28px) saturate(200%)',
         WebkitBackdropFilter: 'blur(28px) saturate(200%)',
-        boxShadow:
-          'inset 0 1px 1px 0 rgba(255, 255, 255, 0.9), 0 8px 20px -4px rgba(0, 0, 0, 0.06)',
       },
     }),
   },
   brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
   emblemImage: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.60)',
   },
   brandTextCol: {
     flexDirection: 'column',
     justifyContent: 'center',
   },
   brandTitle: {
-    color: colors.textObsidian,
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: -0.2,
@@ -159,37 +227,48 @@ const styles = StyleSheet.create({
     }),
   },
   brandSubtitle: {
-    color: colors.accentCrimson,
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '700',
-    letterSpacing: 1.8,
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
     marginTop: 1,
   },
   locationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.40)',
+    gap: 4,
     paddingVertical: 5,
-    paddingHorizontal: 11,
+    paddingHorizontal: 9,
     borderRadius: 9999,
-    maxWidth: 180,
+    borderWidth: 1,
+    maxWidth: 155,
   },
   locationBtnPrompt: {
     backgroundColor: 'rgba(196, 36, 58, 0.08)',
   },
   locationText: {
-    color: colors.textObsidian,
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     textTransform: 'uppercase',
   },
   locationTextPrompt: {
-    color: colors.accentCrimson,
+    color: '#C4243A',
     textTransform: 'none',
     letterSpacing: 0.1,
+  },
+  rightActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  themeToggleBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarBtn: {
     position: 'relative',
@@ -203,20 +282,16 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.80)',
   },
   avatarInitials: {
     width: 32,
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.80)',
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitialsText: {
-    color: colors.textObsidian,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -228,8 +303,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.accentCrimson,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    backgroundColor: '#C4243A',
+    borderWidth: 1.5,
   },
 });

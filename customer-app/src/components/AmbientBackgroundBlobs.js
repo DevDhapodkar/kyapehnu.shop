@@ -20,7 +20,12 @@ import Animated, {
  * All 4 orbs smoothly drift, bounce, and pulse using multi-frequency sine wave
  * animations, creating realistic living refraction through the frosted glass cards.
  */
+import { useThemeStore } from '../store/useThemeStore';
+
 export default function AmbientBackgroundBlobs() {
+  const isDark = useThemeStore((state) => state.isDark);
+  const colors = useThemeStore((state) => state.colors);
+
   // 1. Crimson Orb shared values
   const crimsonX = useSharedValue(-20);
   const crimsonY = useSharedValue(0);
@@ -157,25 +162,45 @@ export default function AmbientBackgroundBlobs() {
   }));
 
   return (
-    <View style={styles.container} pointerEvents="none" aria-hidden="true">
+    <View
+      style={[styles.container, { backgroundColor: colors.groundBase }]}
+      pointerEvents="none"
+      aria-hidden="true"
+    >
       {/* 1. Crimson Orb (Top Right) */}
       <Animated.View
-        style={[styles.orb, styles.crimsonOrb, crimsonAnimatedStyle]}
+        style={[
+          styles.orb,
+          isDark ? styles.crimsonOrbDark : styles.crimsonOrb,
+          crimsonAnimatedStyle,
+        ]}
       />
 
       {/* 2. Amber Gold Orb (Mid Left) */}
       <Animated.View
-        style={[styles.orb, styles.amberOrb, amberAnimatedStyle]}
+        style={[
+          styles.orb,
+          isDark ? styles.amberOrbDark : styles.amberOrb,
+          amberAnimatedStyle,
+        ]}
       />
 
       {/* 3. Soft Violet / Magenta Shimmer (Mid Right) */}
       <Animated.View
-        style={[styles.orb, styles.violetOrb, violetAnimatedStyle]}
+        style={[
+          styles.orb,
+          isDark ? styles.violetOrbDark : styles.violetOrb,
+          violetAnimatedStyle,
+        ]}
       />
 
       {/* 4. Warm Champagne Glow (Bottom Left) */}
       <Animated.View
-        style={[styles.orb, styles.champagneOrb, champagneAnimatedStyle]}
+        style={[
+          styles.orb,
+          isDark ? styles.champagneOrbDark : styles.champagneOrb,
+          champagneAnimatedStyle,
+        ]}
       />
     </View>
   );
@@ -266,6 +291,78 @@ const styles = StyleSheet.create({
       },
       default: {
         opacity: 0.6,
+      },
+    }),
+  },
+  crimsonOrbDark: {
+    top: -64,
+    right: -64,
+    width: 360,
+    height: 360,
+    backgroundColor: 'rgba(196, 36, 58, 0.28)',
+    ...Platform.select({
+      web: {
+        filter: 'blur(95px)',
+        WebkitFilter: 'blur(95px)',
+        background:
+          'radial-gradient(circle, rgba(196,36,58,0.40) 0%, rgba(142,27,41,0.25) 55%, transparent 75%)',
+      },
+      default: {
+        opacity: 0.5,
+      },
+    }),
+  },
+  amberOrbDark: {
+    top: 320,
+    left: -80,
+    width: 320,
+    height: 320,
+    backgroundColor: 'rgba(200, 162, 74, 0.20)',
+    ...Platform.select({
+      web: {
+        filter: 'blur(90px)',
+        WebkitFilter: 'blur(90px)',
+        background:
+          'radial-gradient(circle, rgba(200,162,74,0.28) 0%, rgba(148,108,24,0.15) 60%, transparent 80%)',
+      },
+      default: {
+        opacity: 0.4,
+      },
+    }),
+  },
+  violetOrbDark: {
+    top: 768,
+    right: -56,
+    width: 340,
+    height: 340,
+    backgroundColor: 'rgba(142, 27, 41, 0.22)',
+    ...Platform.select({
+      web: {
+        filter: 'blur(95px)',
+        WebkitFilter: 'blur(95px)',
+        background:
+          'radial-gradient(circle, rgba(196,36,58,0.25) 0%, rgba(100,10,25,0.20) 60%, transparent 80%)',
+      },
+      default: {
+        opacity: 0.4,
+      },
+    }),
+  },
+  champagneOrbDark: {
+    bottom: 40,
+    left: 40,
+    width: 340,
+    height: 340,
+    backgroundColor: 'rgba(234, 193, 102, 0.16)',
+    ...Platform.select({
+      web: {
+        filter: 'blur(90px)',
+        WebkitFilter: 'blur(90px)',
+        background:
+          'radial-gradient(circle, rgba(234,193,102,0.22) 0%, rgba(120,90,0,0.12) 60%, transparent 80%)',
+      },
+      default: {
+        opacity: 0.4,
       },
     }),
   },
