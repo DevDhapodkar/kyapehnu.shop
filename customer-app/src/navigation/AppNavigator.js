@@ -17,6 +17,7 @@ import MyOrdersScreen from '../screens/MyOrdersScreen';
 import VendorOrderListScreen from '../screens/vendor/OrderListScreen';
 import VendorOrderDetailScreen from '../screens/vendor/OrderDetailScreen';
 import CatalogManagerScreen from '../screens/vendor/CatalogManagerScreen';
+import ProductIngestionScreen from '../screens/vendor/ProductIngestionScreen';
 import VendorProfileScreen from '../screens/vendor/VendorProfileScreen';
 import VendorAnalyticsScreen from '../screens/vendor/VendorAnalyticsScreen';
 import { useAuthStore, ROLES, selectRole } from '../store/useAuthStore';
@@ -124,6 +125,11 @@ function VendorFlow({ themeColors }) {
       <VendorStack.Screen
         name="CatalogManager"
         component={CatalogManagerScreen}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+      <VendorStack.Screen
+        name="ProductIngestion"
+        component={ProductIngestionScreen}
         options={slideUpOptions(reduced, themeColors, { headerShown: false })}
       />
       <VendorStack.Screen

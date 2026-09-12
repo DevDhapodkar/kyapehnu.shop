@@ -21,11 +21,16 @@ import { useTheme } from '../theme/useTheme';
  * - Top status: Nagpur Express (live pulse) + Heritage Guild (star)
  * - Center: Royal Crimson & Gold Squircle Emblem with 45 min bolt badge
  * - Nagpur Couture Guild eyebrow + Garamond brand title
- * - Narrative description + Corridor chips (Sitabuldi · Dharampeth · Gandhibagh)
  * - Bottom: Connecting Ateliers · Nagpur Live + Verified Heritage Artisans · v2.4
  */
+import StitchSplash from '../stitch/StitchSplash';
+
 export default function SplashScreenView({ onFinish }) {
   const { colors: themeColors, isDark } = useTheme();
+
+  if (Platform.OS === 'web') {
+    return <StitchSplash onFinish={onFinish} />;
+  }
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -303,37 +308,65 @@ export default function SplashScreenView({ onFinish }) {
         </View>
       </Animated.View>
 
-      {/* Bottom Launch Status */}
+      {/* Bottom Launch Status & Atelier Progress Bar */}
       <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
-        <View
-          style={[
-            styles.launchPill,
-            {
-              backgroundColor: isDark ? 'rgba(26, 26, 30, 0.85)' : 'rgba(255, 255, 255, 0.75)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
-            },
-          ]}
-        >
-          <ActivityIndicator size="small" color={themeColors.accentCrimson} />
-          <Text
+        <View style={styles.progressContainer}>
+          {/* Glowing Track */}
+          <View
             style={[
-              styles.launchText,
-              { color: isDark ? '#FAF9F5' : themeColors.textObsidian },
+              styles.progressBarTrack,
+              {
+                backgroundColor: isDark ? '#2A2A2C' : '#E9E8E4',
+              },
             ]}
           >
-            Connecting Ateliers · Nagpur Live
-          </Text>
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  backgroundColor: themeColors.accentCrimson,
+                  width: '85%',
+                },
+              ]}
+            />
+          </View>
+
+          {/* Status Label Row */}
+          <View style={styles.progressLabelRow}>
+            <View style={styles.progressStatusLeft}>
+              <MaterialIcons name="schedule" size={13} color={themeColors.accentGold} />
+              <Text
+                style={[
+                  styles.progressStatusText,
+                  { color: isDark ? '#C9C7C2' : themeColors.textSlate },
+                ]}
+              >
+                Connecting Ateliers
+              </Text>
+            </View>
+            <View style={styles.progressStatusRight}>
+              <View style={[styles.livePulseDot, { backgroundColor: themeColors.accentGold }]} />
+              <Text
+                style={[
+                  styles.liveStatusText,
+                  { color: isDark ? '#EAC166' : themeColors.textAsh },
+                ]}
+              >
+                Nagpur Live
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.provenanceRow}>
-          <MaterialIcons name="verified-user" size={13} color={themeColors.accentGold} />
+          <MaterialIcons name="verified-user" size={12} color={themeColors.accentGold} />
           <Text
             style={[
               styles.provenanceText,
               { color: isDark ? '#7E7C85' : themeColors.textAsh },
             ]}
           >
-            Verified Heritage Artisans · v2.4
+            VERIFIED HERITAGE ARTISANS · V2.4
           </Text>
         </View>
       </Animated.View>
@@ -523,25 +556,51 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     width: '100%',
+    maxWidth: 320,
     gap: 10,
   },
-  launchPill: {
+  progressContainer: {
+    width: '100%',
+    gap: 6,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
   },
-  launchText: {
-    fontSize: 12,
+  progressStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  progressStatusText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  progressStatusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  liveStatusText: {
+    fontSize: 11,
     fontWeight: '600',
-    letterSpacing: 0.2,
   },
   provenanceRow: {
     flexDirection: 'row',
@@ -549,9 +608,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   provenanceText: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
 });

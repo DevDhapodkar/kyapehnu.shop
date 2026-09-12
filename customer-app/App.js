@@ -31,6 +31,17 @@ export default function App() {
     initTheme();
   }, [initTheme]);
 
+  // Sync Tailwind dark mode class with useThemeStore on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [isDark]);
+
   // expo-splash-screen's automatic hide does not fire on this setup, so the
   // launch screen stays over the app forever. Hiding it once the root has
   // mounted is what actually reveals the UI.

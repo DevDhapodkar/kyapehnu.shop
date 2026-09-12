@@ -45,9 +45,162 @@ if (fs.existsSync(indexPath)) {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary': '#a00025',
+              'primary-container': '#c4243a',
+              'primary-fixed': '#ffdad9',
+              'primary-fixed-dim': '#ffb3b3',
+              'on-primary': '#ffffff',
+              'on-primary-fixed': '#400009',
+              'on-primary-fixed-variant': '#920021',
+              'on-primary-container': '#ffdddc',
+              'secondary': '#795900',
+              'secondary-container': '#fece68',
+              'secondary-fixed': '#ffdea1',
+              'secondary-fixed-dim': '#efc05c',
+              'on-secondary': '#ffffff',
+              'on-secondary-fixed': '#261900',
+              'on-secondary-fixed-variant': '#5c4300',
+              'on-secondary-container': '#765600',
+              'tertiary': '#95202d',
+              'tertiary-container': '#b63943',
+              'tertiary-fixed': '#ffdad9',
+              'tertiary-fixed-dim': '#ffb3b3',
+              'on-tertiary': '#ffffff',
+              'on-tertiary-fixed': '#400009',
+              'on-tertiary-fixed-variant': '#8a1827',
+              'on-tertiary-container': '#ffdddc',
+              'error': '#ba1a1a',
+              'error-container': '#ffdad6',
+              'on-error': '#ffffff',
+              'on-error-container': '#93000a',
+              'background': '#faf9f5',
+              'on-background': '#1b1c1a',
+              'surface': '#faf9f5',
+              'on-surface': '#1b1c1a',
+              'surface-variant': '#e3e2df',
+              'on-surface-variant': '#5a4040',
+              'surface-tint': '#b91a33',
+              'surface-dim': '#dbdad6',
+              'surface-bright': '#faf9f5',
+              'surface-container-lowest': '#ffffff',
+              'surface-container-low': '#f4f4f0',
+              'surface-container': '#efeeea',
+              'surface-container-high': '#e9e8e4',
+              'surface-container-highest': '#e3e2df',
+              'inverse-surface': '#2f312e',
+              'inverse-on-surface': '#f2f1ed',
+              'inverse-primary': '#ffb3b3',
+              'outline': '#8e6f6f',
+              'outline-variant': '#e3bebd',
+              'ground-base': '#FAF9F5',
+              'ground-subtle': '#F4F3EE',
+              'surface-porcelain': '#FFFFFF',
+              'surface-glass': 'rgba(255, 255, 255, 0.75)',
+              'border-hairline': '#E5E3DC',
+              'border-hairline-alpha': 'rgba(18, 18, 20, 0.08)',
+              'text-obsidian': '#121215',
+              'text-slate': '#4A4950',
+              'text-ash': '#7E7C85',
+              'accent-crimson': '#C4243A',
+              'accent-crimson-deep': '#8E1B29',
+              'accent-gold': '#B38A2B',
+              'accent-gold-deep': '#946C18',
+              'noir': {
+                'base': '#0e0e10',
+                'surface': '#131315',
+                'card': '#18181b',
+                'elevated': '#202024',
+                'border': 'rgba(255, 255, 255, 0.08)',
+              },
+              'crimson': {
+                'DEFAULT': '#c4243a',
+                'hover': '#a81c2f',
+                'glow': 'rgba(196, 36, 58, 0.35)',
+              },
+              'gold': {
+                'DEFAULT': '#C8A24A',
+                'light': '#DFBF73',
+                'dark': '#9E782F',
+              },
+            },
+            borderRadius: {
+              'DEFAULT': '0.125rem',
+              'lg': '0.25rem',
+              'xl': '0.5rem',
+              'full': '0.75rem',
+            },
+            spacing: {
+              'space-xs': '0.25rem',
+              'space-sm': '0.5rem',
+              'space-md': '1rem',
+              'space-lg': '1.5rem',
+              'space-xl': '2.5rem',
+              'gutter': '1rem',
+              'gutter-xs': '0.375rem',
+              'gutter-sm': '0.75rem',
+              'gutter-md': '1.25rem',
+              'gutter-lg': '2rem',
+              'gutter-xl': '3rem',
+              'margin': '1.25rem',
+              'screen-margin-mobile': '1.25rem',
+              'screen-margin-desktop': '3rem',
+            },
+            fontFamily: {
+              'title-lg': ['ebGaramond', 'EB Garamond', 'serif'],
+              'title-md': ['ebGaramond', 'EB Garamond', 'serif'],
+              'headline-xl': ['ebGaramond', 'EB Garamond', 'serif'],
+              'headline-md': ['ebGaramond', 'EB Garamond', 'serif'],
+              'display-hero': ['ebGaramond', 'EB Garamond', 'serif'],
+              'display-hero-mobile': ['ebGaramond', 'EB Garamond', 'serif'],
+              'serif': ['"EB Garamond"', 'serif'],
+              'body-lg': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'body-md': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'body-sm': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'label-md': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'label-sm': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'tabular-caption': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'tabular-price': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'eyebrow': ['plusJakartaSans', 'Plus Jakarta Sans', 'sans-serif'],
+              'sans': ['"Plus Jakarta Sans"', 'sans-serif'],
+            },
+            fontSize: {
+              'title-lg': ['26px', { lineHeight: '32px', letterSpacing: '-0.25px', fontWeight: '500' }],
+              'tabular-caption': ['12px', { lineHeight: '16px', fontWeight: '500' }],
+              'tabular-price': ['16px', { lineHeight: '20px', letterSpacing: '-0.1px', fontWeight: '600' }],
+              'body-md': ['14px', { lineHeight: '21px', fontWeight: '400' }],
+              'body-sm': ['12px', { lineHeight: '18px', fontWeight: '400' }],
+              'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+              'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.06em', fontWeight: '600' }],
+              'label-sm': ['10px', { lineHeight: '14px', letterSpacing: '0.12em', fontWeight: '700' }],
+              'title-md': ['22px', { lineHeight: '28px', letterSpacing: '-0.2px', fontWeight: '600' }],
+              'headline-md': ['24px', { lineHeight: '32px', letterSpacing: '0em', fontWeight: '500' }],
+              'headline-xl': ['36px', { lineHeight: '44px', letterSpacing: '-0.01em', fontWeight: '400' }],
+              'display-hero-mobile': ['32px', { lineHeight: '38px', letterSpacing: '-0.4px', fontWeight: '400' }],
+              'eyebrow': ['10px', { lineHeight: '14px', letterSpacing: '0.25em', fontWeight: '600' }],
+              'display-hero': ['40px', { lineHeight: '46px', letterSpacing: '-0.5px', fontWeight: '400' }],
+            },
+          },
+        },
+      };
+    </script>
     <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />
     <link rel="manifest" href="/app/manifest.json" />
     <style id="kp-native-app-hardening">
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        vertical-align: middle;
+      }
+      .material-symbols-outlined.fill-1 {
+        font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
       /* Prevent tap highlight flashes and callout menus */
       *, *::before, *::after {
         -webkit-tap-highlight-color: transparent !important;
