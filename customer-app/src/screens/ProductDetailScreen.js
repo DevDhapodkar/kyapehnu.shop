@@ -75,7 +75,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   );
   const [addedToast, setAddedToast] = useState(false);
 
-  const rawColors = useMemo(() => {
+  const normalizedColors = useMemo(() => {
     if (!product) return [{ name: 'Standard', hex: '#121215' }];
     const cols =
       Array.isArray(product.colors) && product.colors.length > 0
@@ -90,7 +90,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   }, [product]);
 
   const [selectedColor, setSelectedColor] = useState(
-    rawColors[0] || { name: 'Standard', hex: '#121215' }
+    normalizedColors[0] || { name: 'Standard', hex: '#121215' }
   );
   const [heroImageFailed, setHeroImageFailed] = useState(false);
 
