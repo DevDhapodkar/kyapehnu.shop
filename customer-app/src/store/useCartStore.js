@@ -19,6 +19,12 @@ const lineKey = (productId, size, color) =>
 
 export const useCartStore = create((set, get) => ({
   cartItems: [],
+  get items() {
+    return get().cartItems;
+  },
+
+  addItem: (product, size = null, color = null, quantity = 1) =>
+    get().addToCart(product, size, color, quantity),
 
   /**
    * Adds a product, merging into an existing line when the id, size, and color match.

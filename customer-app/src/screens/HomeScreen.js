@@ -3,9 +3,14 @@ import { View, StyleSheet, StatusBar } from 'react-native';
 import StitchScreenRenderer from '../components/StitchScreenRenderer';
 import StitchScreenSwitcher from '../components/StitchScreenSwitcher';
 import { useThemeStore } from '../store/useThemeStore';
+import { useStorefrontStore } from '../store/useStorefrontStore';
 
 export default function HomeScreen({ navigation, route }) {
   const isDark = useThemeStore((state) => state.isDark);
+
+  useEffect(() => {
+    useStorefrontStore.getState().load();
+  }, []);
   const [activeScreen, setActiveScreen] = useState(
     isDark ? 'final_theme_dark_Storefront_Home' : 'final_light_theme_Storefront_Home'
   );
