@@ -35,7 +35,7 @@ async function main() {
     await page.goto('https://www.kyapehnu.shop/app', { waitUntil: 'networkidle0', timeout: 35000 });
     await page.waitForFunction(() => Boolean(window.__NAV__ && window.__NAV__.isReady && window.__NAV__.isReady()), { timeout: 20000 });
 
-    const screens = [
+    const lightScreens = [
       { name: '01_light_home', action: () => window.__NAV__.navigate('Home') },
       { name: '02_light_pdp', action: () => window.__NAV__.navigate('ProductDetail', { title: 'Royal Chanderi Zari Set', price: 4750 }) },
       { name: '03_light_bag', action: () => window.__NAV__.navigate('Cart') },
@@ -48,9 +48,11 @@ async function main() {
       { name: '10_light_vendor_register', action: () => window.__NAV__.navigate('VendorRegister') },
       { name: '11_light_catalog_manager', action: () => window.__NAV__.navigate('CatalogManager') },
       { name: '12_light_product_ingestion', action: () => window.__NAV__.navigate('ProductIngestion') },
+      { name: '13_light_vendor_orders', action: () => window.__NAV__.navigate('VendorOrders') },
+      { name: '14_light_vendor_order_detail', action: () => window.__NAV__.navigate('VendorOrderDetail') },
     ];
 
-    for (const scr of screens) {
+    for (const scr of lightScreens) {
       console.log(`📸 Capturing ${scr.name}...`);
       await page.evaluate(scr.action);
       await new Promise(r => setTimeout(r, 1400));
@@ -58,7 +60,40 @@ async function main() {
       await page.screenshot({ path: ssPath, fullPage: false });
     }
 
-    console.log('✅ All screens verified and captured successfully!');
+    console.log('🌙 Switching to Dark Theme Suite...');
+    await page.evaluate(() => {
+      if (window.__THEME_STORE__) {
+        window.__THEME_STORE__.getState().setThemeMode('dark');
+      } else {
+        localStorage.setItem('@kyapehnu/theme_mode', 'dark');
+      }
+    });
+    await new Promise(r => setTimeout(r, 1500));
+
+    const darkScreens = [
+      { name: '01_dark_home', action: () => window.__NAV__.navigate('Home') },
+      { name: '02_dark_pdp', action: () => window.__NAV__.navigate('ProductDetail', { title: 'Royal Chanderi Zari Set', price: 4750 }) },
+      { name: '03_dark_bag', action: () => window.__NAV__.navigate('Cart') },
+      { name: '04_dark_address', action: () => window.__NAV__.navigate('Address') },
+      { name: '05_dark_tracking', action: () => window.__NAV__.navigate('LiveTracking') },
+      { name: '06_dark_orders', action: () => window.__NAV__.navigate('MyOrders') },
+      { name: '07_dark_profile', action: () => window.__NAV__.navigate('Profile') },
+      { name: '08_dark_auth', action: () => window.__NAV__.navigate('Auth') },
+      { name: '09_dark_welcome', action: () => window.__NAV__.navigate('Welcome') },
+      { name: '10_dark_vendor_orders', action: () => window.__NAV__.navigate('VendorOrders') },
+      { name: '11_dark_vendor_order_detail', action: () => window.__NAV__.navigate('VendorOrderDetail') },
+      { name: '12_dark_product_ingestion', action: () => window.__NAV__.navigate('ProductIngestion') },
+    ];
+
+    for (const scr of darkScreens) {
+      console.log(`📸 Capturing ${scr.name}...`);
+      await page.evaluate(scr.action);
+      await new Promise(r => setTimeout(r, 1400));
+      const ssPath = path.join(outDir, `${scr.name}.png`);
+      await page.screenshot({ path: ssPath, fullPage: false });
+    }
+
+    console.log('✅ All light and dark screens verified and captured successfully!');
 
   } catch (err) {
     console.error('❌ Verification error:', err);
@@ -70,3 +105,4 @@ async function main() {
 }
 
 main();
+

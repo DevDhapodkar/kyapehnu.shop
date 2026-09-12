@@ -85,6 +85,14 @@ export default function StitchScreenRenderer({
       }
     }
 
+    // Ensure all logo images use reliable local assets
+    html = html.replace(/<img([^>]*alt="[^"]*(?:Brand Logo|Royal Crest|Kya Pehnu|Crest)[^"]*"[^>]*)>/gi, (match) => {
+      if (!match.includes('onerror')) {
+        return match.replace('<img', '<img onerror="this.src=\'/app/apple-touch-icon.png\';"');
+      }
+      return match;
+    });
+
     return html;
   }, [screenData, cartCount, params, targetKey]);
 
@@ -409,6 +417,7 @@ export default function StitchScreenRenderer({
         btn.textContent &&
         (btn.textContent.includes('Confirm Delivery') ||
           btn.textContent.includes('Confirm Order') ||
+          btn.textContent.includes('Confirm Address') ||
           btn.textContent.includes('Place 45-Min Trial Order') ||
           btn.textContent.includes('Dispatch Courier'))
       ) {

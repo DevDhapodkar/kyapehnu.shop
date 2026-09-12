@@ -195,6 +195,19 @@ if (fs.existsSync(indexPath)) {
     <link rel="manifest" href="/app/manifest.json" />
     <style id="kp-native-app-hardening">
       .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined' !important;
+        font-weight: normal;
+        font-style: normal;
+        display: inline-block;
+        line-height: 1;
+        text-transform: none;
+        letter-spacing: normal;
+        word-wrap: normal;
+        white-space: nowrap;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: 'liga' 1;
         font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         vertical-align: middle;
       }
@@ -354,6 +367,6 @@ if (fs.existsSync(targetDir)) {
   fs.rmSync(targetDir, { recursive: true, force: true });
 }
 fs.mkdirSync(targetDir, { recursive: true });
-execSync(`cp -R "${distWebDir}/"* "${targetDir}/"`, { stdio: 'inherit' });
+fs.cpSync(distWebDir, targetDir, { recursive: true, force: true });
 
 console.log('✅ [4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');

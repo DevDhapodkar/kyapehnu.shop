@@ -45,9 +45,10 @@ async function runAudit() {
         window.__NAV__.navigate('Home');
       }
     });
+    await page.evaluate(() => document.fonts.ready);
   } catch (e) {}
 
-  await new Promise((r) => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1200));
 
   // 2. Storefront Home (Light)
   console.log('📸 [1/11] Capturing Storefront Home (Light)...');
