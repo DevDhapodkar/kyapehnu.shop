@@ -216,6 +216,7 @@ export default function StitchScreenRenderer({
 
         return `
           <div class="bg-surface-porcelain rounded-xl overflow-hidden shadow-sm flex flex-col group cursor-pointer transition-all hover:shadow-md"
+               aria-label="${name}, ₹${price.toLocaleString()}"
                data-action="open-pdp"
                data-id="${p.id}"
                data-title="${encodeURIComponent(name)}"
@@ -233,7 +234,7 @@ export default function StitchScreenRenderer({
                   ${eta}m Express
                 </span>
               </div>
-              <button aria-label="Add to bag"
+              <button aria-label="Quick Add"
                       data-action="quick-add"
                       data-id="${p.id}"
                       data-title="${encodeURIComponent(name)}"
@@ -269,6 +270,8 @@ export default function StitchScreenRenderer({
       if (gridRegex.test(html)) {
         html = html.replace(gridRegex, `$1${liveCardsHtml}$2`);
       }
+      // Ensure no quick-add button collides with PDP Add to Bag accessible name
+      html = html.replace(/aria-label="Add to bag"/gi, 'aria-label="Quick Add" data-action="quick-add"');
     }
 
     // 2. PRODUCT DETAIL: Inject active garment details
@@ -344,6 +347,14 @@ export default function StitchScreenRenderer({
 
       // Update Subtotal & Total
       html = html.replace(/(<span[^>]*class="[^"]*font-tabular-price[^"]*text-text-obsidian font-bold"[^>]*>)₹[\d,]+(<\/span>)/i, `$1₹${grandTotal.toLocaleString()}$2`);
+
+      // Ensure checkout button has accessible role and aria-label
+      html = html.replace(/(<button[^>]*)(>[\s\S]*?(?:Add Delivery Address|Proceed to Delivery|Proceed to Checkout)[\s\S]*?<\/button>)/i, (match, p1, p2) => {
+        let btnTag = p1;
+        if (!btnTag.includes('role=')) btnTag += ' role="button"';
+        if (!btnTag.includes('aria-label=')) btnTag += ' aria-label="Proceed to checkout"';
+        return `${btnTag}${p2}`;
+      });
     }
 
     // 4. MY ORDERS: Inject live recent orders
@@ -642,7 +653,7 @@ export default function StitchScreenRenderer({
       }
 
       // --- 6. STOREFRONT: QUICK ADD TO BAG ("+" button) ---
-      const quickAddBtn = target.closest('[data-action="quick-add"], button[aria-label="Add to bag"]');
+      const quickAddBtn = target.closest('[data-action="quick-add"], button[aria-label*="Quick Add" i]');
       if (quickAddBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -672,17 +683,39 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 7. STOREFRONT: OPEN PDP ON CARD CLICK ---
-      const pdpCard = target.closest('[data-action="open-pdp"], .grid > div');
-      if (pdpCard && !target.closest('button')) {
+      // --- 7. STOREFRONT: OPEN PDP ON CARD OR PRICE ELEMENT CLICK ---
+      const priceElement = target.closest('[aria-label*="₹"]');
+      const pdpCard = target.closest('[data-action="open-pdp"], .grid > div, .bg-cover, [class*="bg-cover"]');
+      const viewPieceBtn = btn && (btn.textContent.includes('View Piece') || btn.textContent.includes('View'));
+
+      if ((priceElement || pdpCard || viewPieceBtn) && !target.closest('[data-action="quick-add"], button[aria-label*="Quick Add" i]')) {
         e.preventDefault();
         e.stopPropagation();
-        const prodId = pdpCard.getAttribute('data-id') || `prod-${Date.now()}`;
-        const title = pdpCard.getAttribute('data-title') ? decodeURIComponent(pdpCard.getAttribute('data-title')) : 'Royal Paithani Silk Set';
-        const price = parseInt(pdpCard.getAttribute('data-price') || '2800', 10);
-        const mrp = parseInt(pdpCard.getAttribute('data-mrp') || '3800', 10);
-        const image = pdpCard.getAttribute('data-image') || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const boutique = pdpCard.getAttribute('data-boutique') ? decodeURIComponent(pdpCard.getAttribute('data-boutique')) : 'Studio Anamika';
+
+        let prodId = `prod-${Date.now()}`;
+        let title = 'Royal Chanderi Zari Set';
+        let price = 4750;
+        let mrp = 6400;
+        let image = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        let boutique = 'Studio Anamika';
+
+        const card = target.closest('[data-action="open-pdp"], [data-id]');
+        if (card) {
+          prodId = card.getAttribute('data-id') || prodId;
+          if (card.getAttribute('data-title')) title = decodeURIComponent(card.getAttribute('data-title'));
+          if (card.getAttribute('data-price')) price = parseInt(card.getAttribute('data-price'), 10);
+          if (card.getAttribute('data-mrp')) mrp = parseInt(card.getAttribute('data-mrp'), 10);
+          if (card.getAttribute('data-image')) image = card.getAttribute('data-image');
+          if (card.getAttribute('data-boutique')) boutique = decodeURIComponent(card.getAttribute('data-boutique'));
+        } else if (priceElement && priceElement.getAttribute('aria-label')) {
+          const aria = priceElement.getAttribute('aria-label');
+          const match = aria.match(/^(.*?),\s*₹([\d,]+)/);
+          if (match) {
+            title = match[1].trim();
+            price = parseInt(match[2].replace(/,/g, ''), 10);
+            mrp = Math.round(price * 1.35);
+          }
+        }
 
         navigation?.navigate?.('ProductDetail', {
           id: prodId,
@@ -824,13 +857,14 @@ export default function StitchScreenRenderer({
 
       // --- 13. CART: PROCEED TO DELIVERY ---
       if (
-        btn &&
-        btn.textContent &&
-        (btn.textContent.includes('Proceed to Nagpur Delivery') ||
-          btn.textContent.includes('Proceed to Delivery') ||
-          btn.textContent.includes('Add Delivery Address') ||
-          btn.textContent.includes('Select Address') ||
-          btn.textContent.includes('Proceed to Checkout'))
+        (btn &&
+          btn.textContent &&
+          (btn.textContent.includes('Proceed to Nagpur Delivery') ||
+            btn.textContent.includes('Proceed to Delivery') ||
+            btn.textContent.includes('Add Delivery Address') ||
+            btn.textContent.includes('Select Address') ||
+            btn.textContent.includes('Proceed to Checkout'))) ||
+        target.closest('[aria-label*="checkout" i], [data-action="proceed-checkout"]')
       ) {
         e.preventDefault();
         e.stopPropagation();
