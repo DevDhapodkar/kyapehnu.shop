@@ -144,12 +144,22 @@ export default function StitchScreenRenderer({
     return [];
   });
 
-  // Load live storefront products if empty
   useEffect(() => {
     if (products.length === 0 && loadStorefront) {
       loadStorefront();
     }
   }, [products.length, loadStorefront]);
+
+  // Global safety handlers for inline Stitch template event handlers
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.handleCheckout = () => {
+        navigateScreen('Address');
+      };
+      window.removeItem = () => {};
+      window.incrementCount = () => {};
+    }
+  }, []);
 
   // Fallback to light or dark equivalent if screenKey doesn't match exactly
   let targetKey = screenKey;
@@ -331,10 +341,13 @@ export default function StitchScreenRenderer({
       const activeBoutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : (fallbackP.brand || fallbackP.storeName || 'STUDIO ANAMIKA');
       const activeImage = params.image || fallbackP.image || fallbackP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
 
-      html = html.replace(/(<h1[^>]*>)[^<]+(<\/h1>)/i, `$1${activeTitle}$2`);
-      html = html.replace(/(<span[^>]*text-accent-crimson[^>]*>)[^<]+(<\/span>)/i, `$1₹${activePrice.toLocaleString()}$2`);
-      html = html.replace(/(<span[^>]*class="[^"]*font-eyebrow[^"]*text-accent-gold[^"]*"[^>]*>)[^<]+(<\/span>)/i, `$1${activeBoutique.toUpperCase()} • DHARAMPETH$2`);
-      html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${activeImage}$2`);
+      html = html.replace(/(<h1[^>]*>)[^<]+(<\/h1>)/i, (m, p1, p2) => `${p1}${activeTitle}${p2}`);
+      html = html.replace(/(<span[^>]*class="[^"]*text-accent-crimson[^"]*font-semibold[^"]*"[^>]*>)\s*₹[\d,]+\s*(<\/span>)/gi, (m, p1, p2) => `${p1}₹${activePrice.toLocaleString()}${p2}`);
+      html = html.replace(/(<span[^>]*class="[^"]*font-headline-md text-on-surface[^"]*"[^>]*>)\s*₹[\d,]+\s*(<\/span>)/gi, (m, p1, p2) => `${p1}₹${activePrice.toLocaleString()}${p2}`);
+      html = html.replace(/₹4,800/g, `₹${activePrice.toLocaleString()}`);
+      html = html.replace(/₹6,499|₹6,400/g, `₹${activeMrp.toLocaleString()}`);
+      html = html.replace(/(<span[^>]*class="[^"]*font-eyebrow[^"]*text-accent-gold[^"]*"[^>]*>)[^<]+(<\/span>)/i, (m, p1, p2) => `${p1}${activeBoutique.toUpperCase()} • DHARAMPETH${p2}`);
+      html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, (m, p1, p2) => `${p1}${activeImage}${p2}`);
     }
 
     // 3. CART SCREEN (Your_Bag): Inject live cart items from store
@@ -465,6 +478,18 @@ export default function StitchScreenRenderer({
           html = html.replace(darkItemsRegex, `$1${cartListHtmlDark}$2`);
         }
       }
+
+      // Update Courier Dispatch fee line item
+      const courierDispatchRegex = /(Courier Dispatch[\s\S]*?<span class="font-tabular-caption[^"]*">)₹\d+(<\/span>)/i;
+      const courierText = subtotal === 0 ? '₹0' : (delivery === 0 ? 'Complimentary' : `₹${delivery}`);
+      if (courierDispatchRegex.test(html)) {
+        html = html.replace(courierDispatchRegex, (m, p1, p2) => `${p1}${courierText}${p2}`);
+      }
+
+      // Sanitize raw inline Stitch template handlers to prevent ReferenceErrors
+      html = html.replace(/onclick="handleCheckout\(\)"/gi, 'data-action="proceed-checkout"');
+      html = html.replace(/onclick="removeItem\([^)]*\)"/gi, '');
+      html = html.replace(/onclick="incrementCount\([^)]*\)"/gi, '');
 
       // Update Light Theme summaries
       html = html.replace(/2 pieces · 2 ateliers/g, `${totalPieces} piece${totalPieces !== 1 ? 's' : ''}`);
