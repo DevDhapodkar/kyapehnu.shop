@@ -219,8 +219,25 @@ export default function StitchScreenRenderer({
       `$1${cartCount}$2`
     );
 
-    // 1. STOREFRONT HOME: Inject live products from MongoDB into grid
+    // 1. STOREFRONT HOME: Inject live products from MongoDB into hero & grid
     if (targetKey.includes('Storefront_Home') && products.length > 0) {
+      // Hero Card Binding to primary database product
+      const heroP = products[0];
+      const heroImg = heroP.image || heroP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+      const heroName = heroP.name || 'Artisanal Nagpur Handloom';
+      const heroPrice = heroP.price || 4750;
+      const heroMrp = heroP.mrp || Math.round(heroPrice * 1.35);
+      const heroBoutique = (heroP.brand || heroP.storeName || 'Dharampeth Handloom').toUpperCase();
+      const heroId = heroP.id || heroP._id || '6a9f987ec93d15e80a649c9b';
+      const heroStoreId = heroP.storeId || (heroP.vendor?._id ? String(heroP.vendor._id) : '6a9f987ec93d15e80a649c9a');
+
+      html = html.replace(/Royal Chanderi Zari Set/g, heroName);
+      html = html.replace(/aria-label="Royal Chanderi Zari Set, ₹4,750"/g, `aria-label="${heroName}, ₹${heroPrice.toLocaleString()}"`);
+      html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth Atelier(<\/span>)/g, `$1${heroBoutique}$2`);
+      html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
+      html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
+      html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
+
       const activeList = products.filter((p) => {
         if (!selectedCategory || selectedCategory === 'ALL') return true;
         const text = `${p.category || ''} ${p.subCategory || ''} ${p.name || ''}`.toUpperCase();
@@ -305,13 +322,14 @@ export default function StitchScreenRenderer({
       html = html.replace(/aria-label="Add to bag"/gi, 'aria-label="Quick Add" data-action="quick-add"');
     }
 
-    // 2. PRODUCT DETAIL: Inject active garment details
+    // 2. PRODUCT DETAIL: Inject active garment details from database
     if (targetKey.includes('Product_Detail')) {
-      const activeTitle = params.title ? decodeURIComponent(params.title) : 'Chanderi Silk Angrakha';
-      const activePrice = params.price || 4800;
-      const activeMrp = params.mrp || Math.round(activePrice * 1.35);
-      const activeBoutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'STUDIO ANAMIKA';
-      const activeImage = params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+      const fallbackP = products[0] || {};
+      const activeTitle = params.title ? decodeURIComponent(params.title) : (fallbackP.name || 'Artisanal Nagpur Handloom Garment');
+      const activePrice = params.price || fallbackP.price || 4800;
+      const activeMrp = params.mrp || fallbackP.mrp || Math.round(activePrice * 1.35);
+      const activeBoutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : (fallbackP.brand || fallbackP.storeName || 'STUDIO ANAMIKA');
+      const activeImage = params.image || fallbackP.image || fallbackP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
 
       html = html.replace(/(<h1[^>]*>)[^<]+(<\/h1>)/i, `$1${activeTitle}$2`);
       html = html.replace(/(<span[^>]*text-accent-crimson[^>]*>)[^<]+(<\/span>)/i, `$1₹${activePrice.toLocaleString()}$2`);
@@ -322,147 +340,370 @@ export default function StitchScreenRenderer({
     // 3. CART SCREEN (Your_Bag): Inject live cart items from store
     if (targetKey.includes('Your_Bag')) {
       const subtotal = cartItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
-      const delivery = subtotal >= 1999 ? 0 : 99;
+      const delivery = subtotal > 0 ? (subtotal >= 1999 ? 0 : 99) : 0;
       const grandTotal = subtotal > 0 ? subtotal + delivery : 0;
+      const totalPieces = cartItems.reduce((sum, it) => sum + (it.quantity || 1), 0);
+
+      // Light Theme Items Container
+      const lightItemsRegex = /(<div class="px-gutter-md flex flex-col gap-3\.5 mt-2">)[\s\S]*?(<\/div>\s*<div class="px-gutter-md mt-4">)/i;
+      // Dark Theme Items Container
+      const darkItemsRegex = /(<section class="px-margin flex flex-col gap-space-md pt-space-xs">)[\s\S]*?(<\/section>)/i;
 
       if (cartItems.length === 0) {
-        const emptyHtml = `
-          <div class="p-8 text-center flex flex-col items-center justify-center gap-3 my-8 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high">
+        const emptyHtmlLight = `
+          <div class="p-8 text-center flex flex-col items-center justify-center gap-3 my-6 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high">
             <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
               <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
             </div>
             <h3 class="font-title-md text-xl text-text-obsidian font-bold">Your Atelier Bag is Empty</h3>
-            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest couture pieces available for instant 45-minute doorstep trial.</p>
+            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest handlooms and couture garments available for 45-minute doorstep trial.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Collection</span>
             </button>
           </div>
         `;
-        html = html.replace(/(<section[^>]*class="[^"]*flex flex-col gap-3[^"]*"[^>]*>)[\s\S]*?(<\/section>)/i, `$1${emptyHtml}$2`);
+
+        const emptyHtmlDark = `
+          <div class="p-8 text-center flex flex-col items-center justify-center gap-3 my-6 bg-surface-container-low rounded-2xl shadow-sm border border-border-hairline">
+            <div class="w-16 h-16 rounded-full bg-secondary/15 flex items-center justify-center text-secondary">
+              <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
+            </div>
+            <h3 class="font-title-md text-xl text-on-surface font-bold">Your Atelier Bag is Empty</h3>
+            <p class="font-body-md text-on-surface-variant max-w-xs">Discover Nagpur's finest handlooms and couture garments available for 45-minute doorstep trial.</p>
+            <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">explore</span>
+              <span>Explore Nagpur Collection</span>
+            </button>
+          </div>
+        `;
+
+        if (lightItemsRegex.test(html)) {
+          html = html.replace(lightItemsRegex, `$1${emptyHtmlLight}$2`);
+        }
+        if (darkItemsRegex.test(html)) {
+          html = html.replace(darkItemsRegex, `$1${emptyHtmlDark}$2`);
+        }
+
+        // Disable checkout button or make it redirect to explore
+        html = html.replace(/(onclick="handleCheckout\(\)")/gi, 'data-action="explore-storefront"');
+        html = html.replace(/Proceed to Delivery/g, 'Bag Empty — Explore Looks');
+        html = html.replace(/Proceed to Checkout/g, 'Bag Empty — Explore Looks');
       } else {
-        const cartListHtml = cartItems.map((item) => `
-          <div class="bg-surface-porcelain rounded-xl p-3.5 shadow-sm border border-surface-container-high flex gap-3 items-center">
-            <img src="${item.image}" alt="${item.name}" class="object-cover rounded-lg shrink-0 bg-surface-container-low" style="width: 72px; height: 88px;" onerror="this.src='/app/apple-touch-icon.png';"/>
-            <div class="flex-1 flex flex-col justify-between min-w-0">
-              <div>
-                <span class="font-eyebrow text-eyebrow uppercase text-accent-gold font-semibold tracking-wider block truncate">
-                  ${(item.storeName || 'STUDIO ANAMIKA').toUpperCase()}
-                </span>
-                <h4 class="font-title-md text-sm text-text-obsidian font-bold truncate mt-0.5">
-                  ${item.name}
-                </h4>
-                <span class="font-tabular-caption text-text-slate text-xs block mt-0.5">
-                  Size: <strong class="text-text-obsidian">${item.size || 'M'}</strong> ${item.color ? `• ${item.color}` : ''}
-                </span>
+        const cartListHtmlLight = cartItems.map((item) => `
+          <div class="relative overflow-hidden rounded-xl bg-surface-porcelain/90 backdrop-blur-md shadow-sm border border-surface-container-high transition-all duration-300">
+            <div class="p-3.5 flex gap-3.5">
+              <div class="w-20 h-28 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-xs">
+                <img alt="${item.name}" class="w-full h-full object-cover" src="${item.image}" onerror="this.src='/app/apple-touch-icon.png';" />
               </div>
-              <div class="flex items-center justify-between mt-2 pt-1 border-t border-surface-container-low">
-                <span class="font-tabular-price text-tabular-price text-accent-crimson font-bold">
-                  ₹${((item.price || 0) * (item.quantity || 1)).toLocaleString()}
-                </span>
-                <div class="flex items-center gap-2 bg-ground-subtle px-2 py-1 rounded-lg border border-surface-container-high">
-                  <button data-action="cart-minus" data-key="${item.key}" class="w-6 h-6 flex items-center justify-center text-text-obsidian font-bold hover:text-accent-crimson active:scale-90">-</button>
-                  <span class="font-tabular-price text-xs font-bold px-1">${item.quantity}</span>
-                  <button data-action="cart-plus" data-key="${item.key}" class="w-6 h-6 flex items-center justify-center text-text-obsidian font-bold hover:text-accent-crimson active:scale-90">+</button>
+              <div class="flex-1 flex flex-col justify-between min-w-0">
+                <div>
+                  <div class="flex items-start justify-between gap-1">
+                    <span class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider font-semibold truncate">
+                      ${(item.storeName || item.boutiqueName || 'STUDIO ANAMIKA').toUpperCase()}
+                    </span>
+                    <button aria-label="Remove item" class="text-text-ash hover:text-accent-crimson p-0.5 transition-colors" data-action="cart-remove" data-key="${item.key}">
+                      <span class="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  </div>
+                  <h2 class="font-title-md text-title-md text-text-obsidian truncate mt-0.5 font-bold">${item.name}</h2>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-ground-subtle text-text-slate font-tabular-caption text-[11px]">Size ${item.size || 'M'}</span>
+                    ${item.color ? `<span class="inline-flex items-center gap-1 font-tabular-caption text-[11px] text-accent-gold-deep"><span class="w-1.5 h-1.5 rounded-full bg-accent-gold"></span>${item.color}</span>` : ''}
+                  </div>
+                </div>
+                <div class="flex items-center justify-between mt-3 pt-2 border-t border-surface-container-low">
+                  <span class="font-tabular-price text-tabular-price text-accent-crimson font-bold">₹${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                  <div class="flex items-center rounded-full bg-ground-subtle p-0.5 border border-surface-container-high">
+                    <button aria-label="Decrease quantity" data-action="cart-minus" data-key="${item.key}" class="w-6 h-6 rounded-full flex items-center justify-center text-text-obsidian hover:bg-surface-porcelain active:scale-90 transition-all font-bold">-</button>
+                    <span class="font-tabular-caption text-xs font-semibold px-2 text-text-obsidian">${item.quantity}</span>
+                    <button aria-label="Increase quantity" data-action="cart-plus" data-key="${item.key}" class="w-6 h-6 rounded-full flex items-center justify-center text-text-obsidian hover:bg-surface-porcelain active:scale-90 transition-all font-bold">+</button>
+                  </div>
                 </div>
               </div>
             </div>
-            <button data-action="cart-remove" data-key="${item.key}" aria-label="Remove item" class="p-1.5 text-text-ash hover:text-accent-crimson active:scale-90 transition-colors">
-              <span class="material-symbols-outlined text-[18px]">delete_outline</span>
-            </button>
           </div>
         `).join('');
 
-        html = html.replace(/(<section[^>]*class="[^"]*flex flex-col gap-3[^"]*"[^>]*>)[\s\S]*?(<\/section>)/i, `$1${cartListHtml}$2`);
-      }
+        if (lightItemsRegex.test(html)) {
+          html = html.replace(lightItemsRegex, `$1${cartListHtmlLight}$2`);
+        }
 
-      // Update Subtotal & Total
-      html = html.replace(/(<span[^>]*class="[^"]*font-tabular-price[^"]*text-text-obsidian font-bold"[^>]*>)₹[\d,]+(<\/span>)/i, `$1₹${grandTotal.toLocaleString()}$2`);
-
-      // Ensure checkout button has accessible role and aria-label
-      html = html.replace(/(<button[^>]*)(>[\s\S]*?(?:Add Delivery Address|Proceed to Delivery|Proceed to Checkout)[\s\S]*?<\/button>)/i, (match, p1, p2) => {
-        let btnTag = p1;
-        if (!btnTag.includes('role=')) btnTag += ' role="button"';
-        if (!btnTag.includes('aria-label=')) btnTag += ' aria-label="Proceed to checkout"';
-        return `${btnTag}${p2}`;
-      });
-    }
-
-    // 4. MY ORDERS: Inject live recent orders
-    if (targetKey.includes('My_Orders') && recentOrders.length > 0) {
-      const liveOrdersHtml = recentOrders.map((ord) => {
-        const idStr = `KP-${(ord.orderId || ord._id || '8291').slice(-6).toUpperCase()}`;
-        const totalStr = `₹${(ord.totalPrice || ord.total || 2800).toLocaleString()}`;
-        const statusStr = ord.status || 'CONFIRMED';
-        const firstItem = ord.items?.[0] || {};
-        const itemName = firstItem.name || 'Paithani Royal Zari Dupatta';
-        const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const itemCount = ord.items?.length || 1;
-
-        return `
-          <div class="bg-surface-porcelain rounded-xl p-4 shadow-sm border border-surface-container-high flex flex-col gap-3 group cursor-pointer hover:shadow-md transition-all"
-               data-action="track-order" data-order-id="${ord.orderId || ord._id}">
-            <div class="flex items-center justify-between border-b border-surface-container-low pb-2.5">
-              <div class="flex items-center gap-2">
-                <span class="font-tabular-price text-sm font-bold text-text-obsidian">${idStr}</span>
-                <span class="text-xs text-text-ash">• Today, 45-Min Trial</span>
+        const cartListHtmlDark = cartItems.map((item) => `
+          <div class="relative overflow-hidden rounded-xl bg-surface-container-low border border-border-hairline p-space-sm transition-all duration-300">
+            <div class="flex gap-space-md items-start">
+              <div class="relative w-20 aspect-[3/4] rounded-lg overflow-hidden bg-surface-container flex-shrink-0">
+                <img alt="${item.name}" class="w-full h-full object-cover" src="${item.image}" onerror="this.src='/app/apple-touch-icon.png';" />
               </div>
-              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase ${
-                statusStr === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
-                statusStr === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
-                'bg-amber-100 text-amber-900 animate-pulse'
-              }">
-                ${statusStr}
-              </span>
-            </div>
-            <div class="flex items-center gap-3">
-              <img src="${itemImg}" alt="${itemName}" class="w-14 h-16 object-cover rounded-lg bg-surface-container-low" onerror="this.src='/app/apple-touch-icon.png';"/>
-              <div class="flex-1 min-w-0">
-                <h4 class="font-title-md text-sm font-bold text-text-obsidian truncate">${itemName}</h4>
-                <span class="font-tabular-caption text-xs text-text-slate block mt-0.5">${itemCount} Garment${itemCount > 1 ? 's' : ''} • Sitabuldi Atelier</span>
-                <span class="font-tabular-price text-sm font-bold text-accent-crimson block mt-1">${totalStr}</span>
+              <div class="flex-1 min-w-0 flex flex-col justify-between h-full">
+                <div class="flex justify-between items-start gap-1">
+                  <div>
+                    <span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest block font-medium truncate">${(item.storeName || item.boutiqueName || 'STUDIO ANAMIKA').toUpperCase()}</span>
+                    <h3 class="font-title-md text-title-md text-on-surface truncate mt-0.5 font-bold">${item.name}</h3>
+                  </div>
+                  <button aria-label="Remove item" class="text-on-surface-variant hover:text-on-surface transition-colors p-1" data-action="cart-remove" data-key="${item.key}">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">Size ${item.size || 'M'}</span>
+                </div>
+                <div class="flex items-center justify-between mt-3 pt-2 border-t border-border-hairline">
+                  <span class="font-headline-sm text-headline-sm text-secondary font-bold">₹${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</span>
+                  <div class="flex items-center bg-surface-container rounded-full px-1 py-0.5 gap-2 border border-border-hairline">
+                    <button data-action="cart-minus" data-key="${item.key}" class="w-6 h-6 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high font-bold">-</button>
+                    <span class="font-label-sm text-label-sm px-1 font-semibold">${item.quantity}</span>
+                    <button data-action="cart-plus" data-key="${item.key}" class="w-6 h-6 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high font-bold">+</button>
+                  </div>
+                </div>
               </div>
-              <button data-action="track-order" data-order-id="${ord.orderId || ord._id}" class="px-3 py-1.5 rounded-full bg-ground-subtle hover:bg-surface-container-high text-xs font-semibold text-text-obsidian border border-surface-container-high flex items-center gap-1">
-                <span>Track</span>
-                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-              </button>
             </div>
           </div>
-        `;
-      }).join('');
+        `).join('');
 
-      html = html.replace(/(<section[^>]*class="[^"]*flex flex-col gap-3[^"]*"[^>]*>)[\s\S]*?(<\/section>)/i, `$1${liveOrdersHtml}$2`);
+        if (darkItemsRegex.test(html)) {
+          html = html.replace(darkItemsRegex, `$1${cartListHtmlDark}$2`);
+        }
+      }
+
+      // Update Light Theme summaries
+      html = html.replace(/2 pieces · 2 ateliers/g, `${totalPieces} piece${totalPieces !== 1 ? 's' : ''}`);
+      html = html.replace(/Items Subtotal \(\d+\)/g, `Items Subtotal (${totalPieces})`);
+      html = html.replace(/(id="subtotal-display">)₹[\d,]+(<\/span>)/g, `$1₹${subtotal.toLocaleString()}$2`);
+      html = html.replace(/(id="total-display">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
+      html = html.replace(/(id="cta-total">· )₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
+      html = html.replace(/₹8,340/g, `₹${grandTotal.toLocaleString()}`);
+
+      // Update Dark Theme summaries
+      html = html.replace(/(id="subtotal-val">)₹[\d,]+(<\/span>)/g, `$1₹${subtotal.toLocaleString()}$2`);
+      html = html.replace(/(id="total-val">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
+      html = html.replace(/(id="cta-price">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
+      html = html.replace(/₹6,300/g, `₹${grandTotal.toLocaleString()}`);
+    }
+
+    // 4. MY ORDERS: Inject live recent orders or empty state
+    if (targetKey.includes('My_Orders')) {
+      const lightOrdersActiveRegex = /(<section class="px-gutter-md pb-6">[\s\S]*?<\/section>)\s*(<section class="px-gutter-md pb-6">[\s\S]*?<\/section>)/i;
+      const darkOrdersActiveRegex = /(<article class="relative flex flex-col rounded-xl bg-surface-container-low shadow-\[0_12px_40px_rgba\(0,0,0,0\.6\)\] overflow-hidden">[\s\S]*?<\/article>)\s*(<section class="flex flex-col space-y-space-md pt-space-xs">[\s\S]*?<\/section>)/i;
+
+      if (recentOrders.length === 0) {
+        const emptyOrdersLight = `
+          <section class="px-gutter-md pb-8">
+            <div class="p-8 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high">
+              <div class="w-16 h-16 rounded-full bg-accent-gold/15 flex items-center justify-center text-accent-gold-deep">
+                <span class="material-symbols-outlined text-[32px]">receipt_long</span>
+              </div>
+              <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Orders Placed Yet</h3>
+              <p class="font-body-md text-text-slate max-w-xs">Your atelier orders and 45-minute doorstep trials will appear here once placed.</p>
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">explore</span>
+                <span>Explore Nagpur Storefront</span>
+              </button>
+            </div>
+          </section>
+        `;
+
+        const emptyOrdersDark = `
+          <section class="px-margin pb-space-lg">
+            <div class="p-space-lg text-center flex flex-col items-center justify-center gap-space-sm bg-surface-container-low rounded-2xl shadow-sm border border-border-hairline">
+              <div class="w-16 h-16 rounded-full bg-secondary/15 flex items-center justify-center text-secondary">
+                <span class="material-symbols-outlined text-[32px]">receipt_long</span>
+              </div>
+              <h3 class="font-title-md text-xl text-on-surface font-bold">No Orders Placed Yet</h3>
+              <p class="font-body-md text-on-surface-variant max-w-xs">Your atelier orders and 45-minute doorstep trials will appear here once placed.</p>
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">explore</span>
+                <span>Explore Nagpur Storefront</span>
+              </button>
+            </div>
+          </section>
+        `;
+
+        if (lightOrdersActiveRegex.test(html)) {
+          html = html.replace(lightOrdersActiveRegex, emptyOrdersLight);
+        }
+        if (darkOrdersActiveRegex.test(html)) {
+          html = html.replace(darkOrdersActiveRegex, emptyOrdersDark);
+        }
+
+        // Update tab badges from 1 / 3 to 0
+        html = html.replace(/Active\s*\(1\)/gi, 'Active (0)');
+        html = html.replace(/All\s*\(3\)/gi, 'All (0)');
+        html = html.replace(/Nagpur Active\s*·\s*1/gi, 'Nagpur Active · 0');
+      } else {
+        const activeOrder = recentOrders[0];
+        const pastOrders = recentOrders.slice(1);
+
+        const activeIdStr = `KP-${(activeOrder.orderId || activeOrder._id || '8291').slice(-6).toUpperCase()}`;
+        const activeTotalStr = `₹${(activeOrder.totalPrice || activeOrder.total || 2800).toLocaleString()}`;
+        const activeStatusStr = activeOrder.status || 'CONFIRMED';
+        const activeFirstItem = activeOrder.items?.[0] || {};
+        const activeItemName = activeFirstItem.name || 'Artisanal Handloom Garment';
+        const activeItemImg = activeFirstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const activeItemCount = activeOrder.items?.length || 1;
+
+        const liveActiveSectionLight = `
+          <section class="px-gutter-md pb-6">
+            <div class="rounded-xl bg-surface-porcelain shadow-md p-4 relative overflow-hidden border border-surface-container-high">
+              <div class="flex items-start justify-between gap-2 relative">
+                <div>
+                  <span class="font-eyebrow text-eyebrow uppercase tracking-widest text-accent-gold font-bold">ACTIVE 45-MIN TRIAL</span>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <h3 class="font-title-lg text-title-lg text-text-obsidian font-bold">#${activeIdStr}</h3>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${
+                      activeStatusStr === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
+                      activeStatusStr === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
+                      'bg-amber-100 text-amber-900 animate-pulse'
+                    }">${activeStatusStr}</span>
+                  </div>
+                </div>
+                <button data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}" class="px-3.5 py-1.5 rounded-full bg-accent-crimson text-white font-semibold text-xs shadow-sm flex items-center gap-1">
+                  <span>Track Live</span>
+                  <span class="material-symbols-outlined text-[14px]">near_me</span>
+                </button>
+              </div>
+              <div class="flex items-center gap-3.5 mt-3 pt-3 border-t border-surface-container-low cursor-pointer" data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}">
+                <img src="${activeItemImg}" alt="${activeItemName}" class="w-16 h-20 object-cover rounded-lg bg-surface-container-low" onerror="this.src='/app/apple-touch-icon.png';"/>
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-title-md text-base font-bold text-text-obsidian truncate">${activeItemName}</h4>
+                  <p class="font-body-sm text-xs text-text-slate mt-0.5">${activeItemCount} Garment${activeItemCount > 1 ? 's' : ''} · Sitabuldi Atelier</p>
+                  <p class="font-tabular-price text-sm font-bold text-accent-crimson mt-1">${activeTotalStr}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+
+        const pastCardsHtml = pastOrders.map((ord) => {
+          const idStr = `KP-${(ord.orderId || ord._id || '8291').slice(-6).toUpperCase()}`;
+          const totalStr = `₹${(ord.totalPrice || ord.total || 2800).toLocaleString()}`;
+          const statusStr = ord.status || 'DELIVERED';
+          const firstItem = ord.items?.[0] || {};
+          const itemName = firstItem.name || 'Artisanal Handloom Garment';
+          const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+          const itemCount = ord.items?.length || 1;
+
+          return `
+            <div class="bg-surface-porcelain rounded-xl p-3.5 shadow-sm border border-surface-container-high flex gap-3 items-center cursor-pointer mb-3" data-action="track-order" data-order-id="${ord.orderId || ord._id}">
+              <img src="${itemImg}" alt="${itemName}" class="w-14 h-16 object-cover rounded-lg bg-surface-container-low" onerror="this.src='/app/apple-touch-icon.png';"/>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-tabular-price text-xs font-bold text-text-obsidian">#${idStr}</span>
+                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">${statusStr}</span>
+                </div>
+                <h4 class="font-title-md text-sm font-bold text-text-obsidian truncate mt-0.5">${itemName}</h4>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="font-tabular-caption text-xs text-text-slate">${itemCount} piece${itemCount > 1 ? 's' : ''}</span>
+                  <span class="font-tabular-price text-xs font-bold text-text-obsidian">${totalStr}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const livePastSectionLight = pastOrders.length > 0 ? `
+          <section class="px-gutter-md pb-6">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-title-lg text-title-lg text-text-obsidian font-bold">Past Orders</h2>
+              <span class="font-tabular-caption text-xs text-text-ash">${pastOrders.length} Completed</span>
+            </div>
+            ${pastCardsHtml}
+          </section>
+        ` : '';
+
+        if (lightOrdersActiveRegex.test(html)) {
+          html = html.replace(lightOrdersActiveRegex, `${liveActiveSectionLight}${livePastSectionLight}`);
+        }
+
+        // Update tab badges
+        html = html.replace(/Active\s*\(\d+\)/gi, 'Active (1)');
+        html = html.replace(/All\s*\(\d+\)/gi, `All (${recentOrders.length})`);
+      }
     }
 
     // 5. LIVE TRACKING: Inject active order ID and items
     if (targetKey.includes('Live_Tracking')) {
-      const activeOrder = (params.orderId && recentOrders.find(o => o.orderId === params.orderId || o._id === params.orderId)) || params.order || recentOrders[0];
-      const activeId = activeOrder?.orderId || activeOrder?._id || params.orderId || '8291';
-      const cleanId = `KP-${String(activeId).slice(-6).toUpperCase()}`;
-      html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, cleanId);
+      const activeOrder = (params.orderId && recentOrders.find(o => o.orderId === params.orderId || o._id === params.orderId)) || params.order || (recentOrders.length > 0 ? recentOrders[0] : null);
 
-      if (activeOrder && activeOrder.items && activeOrder.items.length > 0) {
-        const activeItems = activeOrder.items;
+      if (!activeOrder) {
+        const emptyTrackingHtml = `
+          <div class="px-gutter-md py-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high my-8">
+            <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
+              <span class="material-symbols-outlined text-[32px]">local_shipping</span>
+            </div>
+            <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Active Deliveries</h3>
+            <p class="font-body-md text-text-slate max-w-xs">You do not have any 45-minute doorstep trials currently in progress.</p>
+            <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">explore</span>
+              <span>Explore Nagpur Storefront</span>
+            </button>
+          </div>
+        `;
+        html = html.replace(/(<div class="relative -mt-8 px-gutter-md[\s\S]*?<\/main>)/i, `${emptyTrackingHtml}</main>`);
+        html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, 'NO-ACTIVE-ORDER');
+      } else {
+        const activeId = activeOrder?.orderId || activeOrder?._id || '8291';
+        const cleanId = `KP-${String(activeId).slice(-6).toUpperCase()}`;
+        html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, cleanId);
+
+        const activeItems = activeOrder.items || [];
         const totalAmount = activeOrder.totalPrice || activeOrder.total || activeItems.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 1), 0);
-        
-        // Update garments count and total
+
         html = html.replace(/Garments in Transit \(\d+\)/i, `Garments in Transit (${activeItems.length})`);
         html = html.replace(/₹8,340/g, `₹${Number(totalAmount).toLocaleString()}`);
-        
-        // Construct live items HTML for drawer
-        const itemsDrawerHtml = activeItems.map(it => `
-          <div class="flex items-center gap-3 p-2 rounded-xl bg-ground-subtle">
-            <img class="w-14 h-14 rounded-lg object-cover" alt="${it.name}" src="${it.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'}" onerror="this.src='/app/apple-touch-icon.png';" />
-            <div class="flex-1 min-w-0">
-              <p class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider">${it.boutiqueName || it.storeName || 'Nagpur Atelier'}</p>
-              <h3 class="font-title-md text-[15px] text-text-obsidian truncate">${it.name}</h3>
-              <p class="font-tabular-caption text-tabular-caption text-text-ash">Size ${it.size || 'M'} · Qty ${it.quantity || 1}</p>
-            </div>
-            <span class="font-tabular-price text-tabular-price text-text-obsidian">₹${Number(it.price || 0).toLocaleString()}</span>
-          </div>
-        `).join('');
 
-        html = html.replace(/(<div[^>]*id="order-details-body"[^>]*>)[\s\S]*?(<div[^>]*class="mt-2 p-3 rounded-xl)/i, `$1${itemsDrawerHtml}$2`);
+        if (activeItems.length > 0) {
+          const itemsDrawerHtml = activeItems.map(it => `
+            <div class="flex items-center gap-3 p-2.5 rounded-xl bg-ground-subtle border border-surface-container-low mb-2">
+              <img class="w-14 h-16 rounded-lg object-cover bg-surface-container-low" alt="${it.name}" src="${it.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'}" onerror="this.src='/app/apple-touch-icon.png';" />
+              <div class="flex-1 min-w-0">
+                <p class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider font-semibold truncate">${it.boutiqueName || it.storeName || 'Nagpur Atelier'}</p>
+                <h3 class="font-title-md text-[14px] text-text-obsidian truncate font-bold">${it.name}</h3>
+                <p class="font-tabular-caption text-xs text-text-slate mt-0.5">Size ${it.size || 'M'} · Qty ${it.quantity || 1}</p>
+              </div>
+              <span class="font-tabular-price text-sm text-accent-crimson font-bold">₹${Number((it.price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+            </div>
+          `).join('');
+
+          html = html.replace(/(<div[^>]*id="order-details-body"[^>]*>)[\s\S]*?(<div[^>]*class="mt-2 p-3 rounded-xl)/i, `$1${itemsDrawerHtml}$2`);
+        }
+      }
+    }
+
+    // DELIVERY ADDRESS SCREEN: Dynamic total & pre-fill from user
+    if (targetKey.includes('Delivery_Address')) {
+      const subtotal = cartItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+      const delivery = subtotal > 0 ? (subtotal >= 1999 ? 0 : 99) : 0;
+      const grandTotal = subtotal > 0 ? subtotal + delivery : 0;
+
+      html = html.replace(/₹8,340/g, `₹${grandTotal.toLocaleString()}`);
+
+      if (user?.displayName) {
+        html = html.replace(/id="recipientName"([^>]*)value=""/i, `id="recipientName"$1value="${user.displayName}"`);
+      }
+      if (user?.phoneNumber) {
+        html = html.replace(/id="phoneNumber"([^>]*)value=""/i, `id="phoneNumber"$1value="${user.phoneNumber}"`);
+      }
+    }
+
+    // PROFILE & SETTINGS SCREEN: Live user data
+    if (targetKey.includes('Profile___Settings')) {
+      const displayName = user?.displayName || profile?.name || 'Kya Pehnu Guest';
+      const phoneOrEmail = user?.phoneNumber || user?.email || 'Guest Session (Sitabuldi)';
+
+      html = html.replace(/Radhika Deshmukh/g, displayName);
+      html = html.replace(/\+91 98230 45892/g, phoneOrEmail);
+      html = html.replace(/radhika\.deshmukh@gmail\.com/g, user?.email || 'guest@kyapehnu.shop');
+
+      if (recentOrders.length > 0) {
+        const topOrd = recentOrders[0];
+        const topId = `KP-${String(topOrd.orderId || topOrd._id).slice(-6).toUpperCase()}`;
+        const topItemName = topOrd.items?.[0]?.name || 'Paithani Zari Dupatta';
+        html = html.replace(/Order #KP-8492/g, `Order #${topId}`);
+        html = html.replace(/Zari Paithani Dupatta · Sitabuldi/g, `${topItemName} · Sitabuldi`);
+      } else {
+        html = html.replace(/Order #KP-8492/g, 'No Active Orders');
+        html = html.replace(/Zari Paithani Dupatta · Sitabuldi/g, 'Explore Storefront Collection');
       }
     }
 
@@ -687,8 +928,15 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
         const idInput = el.querySelector('#signin-identifier, #dark-signin-identifier');
         const pwdInput = el.querySelector('#signin-password, #dark-signin-password');
-        const identifier = idInput?.value?.trim() || 'radhika@kyapehnu.shop';
-        const password = pwdInput?.value?.trim() || 'atelier123';
+        const identifier = idInput?.value?.trim();
+        const password = pwdInput?.value?.trim();
+
+        if (!identifier || !password) {
+          showToast('Please enter your mobile/email and password.');
+          if (!identifier) idInput?.focus();
+          else pwdInput?.focus();
+          return;
+        }
 
         const email = identifier.includes('@')
           ? identifier
@@ -697,11 +945,12 @@ export default function StitchScreenRenderer({
         try {
           await useAuthStore.getState().signInWithEmail?.({ email, password });
         } catch {
+          const cleanName = identifier.split('@')[0];
           try {
-            await syncUserProfile({ name: 'Radhika Deshmukh', email, phone: '9823045892' });
+            await syncUserProfile({ name: cleanName, email, phone: identifier.replace(/[^0-9]/g, '') });
           } catch (e) {}
           useAuthStore.setState({
-            user: { email, displayName: 'Radhika Deshmukh', uid: `usr-${Date.now()}` },
+            user: { email, displayName: cleanName, uid: `usr-${Date.now()}` },
             token: 'auth-token-live',
             role: ROLES.CUSTOMER,
           });
@@ -723,10 +972,18 @@ export default function StitchScreenRenderer({
         const emailInput = el.querySelector('#reg-email, #dark-reg-email');
         const pwdInput = el.querySelector('#reg-password, #dark-reg-password');
 
-        const name = nameInput?.value?.trim() || 'Radhika Deshmukh';
-        const phone = (phoneInput?.value || '9823045892').replace(/[^0-9]/g, '');
-        const email = emailInput?.value?.trim() || `${phone}@kyapehnu.shop`;
-        const password = pwdInput?.value?.trim() || 'atelier123';
+        const name = nameInput?.value?.trim();
+        const phone = (phoneInput?.value || '').replace(/[^0-9]/g, '');
+        const email = emailInput?.value?.trim() || (phone ? `${phone}@kyapehnu.shop` : '');
+        const password = pwdInput?.value?.trim();
+
+        if (!name || !phone || phone.length < 10 || !password) {
+          showToast('Please enter your name, 10-digit mobile number, and password.');
+          if (!name) nameInput?.focus();
+          else if (!phone || phone.length < 10) phoneInput?.focus();
+          else pwdInput?.focus();
+          return;
+        }
 
         try {
           await useAuthStore.getState().registerWithEmail?.({ name, phone, email, password });
@@ -755,10 +1012,10 @@ export default function StitchScreenRenderer({
           await useAuthStore.getState().signInWithGoogle?.();
         } catch {
           try {
-            await syncUserProfile({ name: 'Radhika Deshmukh', email: 'radhika@kyapehnu.shop', phone: '9823045892' });
+            await syncUserProfile({ name: 'Atelier Patron', email: 'patron@kyapehnu.shop', phone: '9800000000' });
           } catch (e) {}
           useAuthStore.setState({
-            user: { email: 'radhika@kyapehnu.shop', displayName: 'Radhika Deshmukh', uid: `g-${Date.now()}` },
+            user: { email: 'patron@kyapehnu.shop', displayName: 'Atelier Patron', uid: `g-${Date.now()}` },
             token: 'auth-token-google',
             role: ROLES.CUSTOMER,
           });
@@ -1127,32 +1384,43 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
 
-        const nameInput = el.querySelector('input[placeholder*="Name" i], #addr-name');
-        const phoneInput = el.querySelector('input[type="tel"], #addr-phone');
-        const flatInput = el.querySelector('input[placeholder*="Flat" i], input[placeholder*="House" i], #addr-flat');
-        const areaInput = el.querySelector('input[placeholder*="Area" i], input[placeholder*="Road" i], #addr-area');
+        if (cartItems.length === 0) {
+          showToast('Your atelier bag is empty. Please add garments before checking out.');
+          return;
+        }
+
+        const nameInput = el.querySelector('#recipientName, input[placeholder*="Name" i], #addr-name');
+        const phoneInput = el.querySelector('#phoneNumber, input[type="tel"], #addr-phone');
+        const flatInput = el.querySelector('#flatHouse, input[placeholder*="Flat" i], input[placeholder*="House" i], #addr-flat');
+        const areaInput = el.querySelector('#streetLandmark, input[placeholder*="Street" i], input[placeholder*="Area" i], input[placeholder*="Road" i], #addr-area');
         const pinInput = el.querySelector('input[placeholder*="Pincode" i], input[placeholder*="440" i], #addr-pincode');
 
-        const nameVal = nameInput?.value?.trim() || user?.displayName || 'Radhika Deshmukh';
-        const phoneVal = (phoneInput?.value || user?.phoneNumber || '9823045892').replace(/[^0-9]/g, '');
-        const flatVal = flatInput?.value?.trim() || 'Flat 402, Royal Palms, West High Court Road';
-        const areaVal = areaInput?.value?.trim() || 'Dharampeth';
+        const nameVal = nameInput?.value?.trim() || user?.displayName;
+        const phoneVal = (phoneInput?.value || user?.phoneNumber || '').replace(/[^0-9]/g, '');
+        const flatVal = flatInput?.value?.trim();
+        const areaVal = areaInput?.value?.trim() || 'Sitabuldi';
         const pinVal = pinInput?.value?.trim() || '440010';
 
-        const orderItems = cartItems.length > 0 ? cartItems : [
-          {
-            id: '6aa595aacd776badb31c97f7',
-            productId: '6aa595aacd776badb31c97f7',
-            name: 'Paithani Royal Zari Dupatta',
-            price: 2800,
-            size: 'Free',
-            quantity: 1,
-            storeId: '6aa595a7cd776badb31c97f6',
-            image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
-          },
-        ];
+        if (!nameVal) {
+          showToast('Please enter recipient full name.');
+          nameInput?.focus();
+          return;
+        }
+        if (!phoneVal || phoneVal.length < 10) {
+          showToast('Please enter a valid 10-digit mobile number.');
+          phoneInput?.focus();
+          return;
+        }
+        if (!flatVal) {
+          showToast('Please enter flat/house number and building name.');
+          flatInput?.focus();
+          return;
+        }
 
-        const totalVal = orderItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+        const orderItems = cartItems;
+        const subtotalVal = orderItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+        const deliveryFee = subtotalVal >= 1999 ? 0 : 99;
+        const totalVal = subtotalVal + deliveryFee;
 
         const orderPayload = {
           vendorId: orderItems[0]?.storeId || '6aa595a7cd776badb31c97f6',

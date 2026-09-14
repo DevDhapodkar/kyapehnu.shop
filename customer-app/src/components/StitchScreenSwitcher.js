@@ -32,7 +32,15 @@ export default function StitchScreenSwitcher({ currentScreen, onSelectScreen }) 
       .trim();
   };
 
-  const currentList = activeTab === 'light' ? lightScreens : darkScreens;
+  const isPreviewMode = typeof window !== 'undefined' && (
+    window.location.search.includes('preview=true') ||
+    window.location.search.includes('stitch=true') ||
+    window.localStorage.getItem('kyapehnu_preview') === 'true'
+  );
+
+  if (!isPreviewMode && !isOpen) {
+    return null;
+  }
 
   return (
     <>
