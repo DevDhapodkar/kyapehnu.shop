@@ -15,9 +15,14 @@ import {
   createProduct,
   updateOrderStatus,
   markOrderReady,
+  syncUserProfile,
+  registerVendor,
+  fetchVendorOrders,
 } from '../api/vendorApi';
+import { navigationRef } from '../navigation/AppNavigator';
 
 const DARK_PALETTE_CSS = `
+  .hidden { display: none !important; }
   .stitch-screen-root.dark, .dark .stitch-screen-root, html.dark .stitch-screen-root {
     --color-surface: #131315 !important;
     --color-background: #131315 !important;
@@ -167,6 +172,28 @@ export default function StitchScreenRenderer({
     setTimeout(() => setToastMessage(null), 2800);
   };
 
+  const navigateScreen = (screenName, screenParams) => {
+    try {
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate(screenName, screenParams);
+        return;
+      }
+    } catch (e) {
+      console.warn('[navigateScreen] direct navigation failed:', e);
+    }
+    try {
+      if (navigationRef && navigationRef.isReady && navigationRef.isReady() && typeof navigationRef.navigate === 'function') {
+        navigationRef.navigate(screenName, screenParams);
+        return;
+      }
+    } catch (e) {
+      console.warn('[navigateScreen] ref navigation failed:', e);
+    }
+    if (typeof window !== 'undefined' && window.__NAV__ && window.__NAV__.isReady && window.__NAV__.isReady()) {
+      window.__NAV__.navigate(screenName, screenParams);
+    }
+  };
+
   // Pre-process HTML to inject live dynamic data (products, cart, PDP, orders, tracking)
   const processedHtml = React.useMemo(() => {
     if (!screenData || !screenData.html) return '';
@@ -213,12 +240,15 @@ export default function StitchScreenRenderer({
         const mrp = p.mrp || Math.round(price * 1.35);
         const boutique = (p.brand || p.storeName || 'Studio Anamika').toUpperCase();
         const eta = p.deliveryMinutes || 20;
+        const prodId = p.id || p._id || '6a9f987ec93d15e80a649c9b';
+        const storeId = p.storeId || (p.vendor?._id ? String(p.vendor._id) : '6a9f987ec93d15e80a649c9a');
 
         return `
           <div class="bg-surface-porcelain rounded-xl overflow-hidden shadow-sm flex flex-col group cursor-pointer transition-all hover:shadow-md"
                aria-label="${name}, ₹${price.toLocaleString()}"
                data-action="open-pdp"
-               data-id="${p.id}"
+               data-id="${prodId}"
+               data-store-id="${storeId}"
                data-title="${encodeURIComponent(name)}"
                data-price="${price}"
                data-mrp="${mrp}"
@@ -236,7 +266,8 @@ export default function StitchScreenRenderer({
               </div>
               <button aria-label="Quick Add"
                       data-action="quick-add"
-                      data-id="${p.id}"
+                      data-id="${prodId}"
+                      data-store-id="${storeId}"
                       data-title="${encodeURIComponent(name)}"
                       data-price="${price}"
                       data-image="${img}"
@@ -259,7 +290,7 @@ export default function StitchScreenRenderer({
                   <span class="font-tabular-price text-tabular-price text-text-obsidian font-bold">₹${price.toLocaleString()}</span>
                   <span class="font-tabular-caption text-tabular-caption text-text-ash line-through">₹${mrp.toLocaleString()}</span>
                 </div>
-                <span class="font-tabular-caption text-[11px] text-emerald-600 font-semibold">⚡ Trial</span>
+                <span class="font-tabular-caption text-[11px] text-emerald-600 font-semibold">Trial</span>
               </div>
             </div>
           </div>
@@ -403,11 +434,168 @@ export default function StitchScreenRenderer({
       html = html.replace(/(<section[^>]*class="[^"]*flex flex-col gap-3[^"]*"[^>]*>)[\s\S]*?(<\/section>)/i, `$1${liveOrdersHtml}$2`);
     }
 
-    // 5. LIVE TRACKING: Inject active order ID
+    // 5. LIVE TRACKING: Inject active order ID and items
     if (targetKey.includes('Live_Tracking')) {
-      const activeId = params.orderId || recentOrders[0]?.orderId || recentOrders[0]?._id || '8291';
+      const activeOrder = (params.orderId && recentOrders.find(o => o.orderId === params.orderId || o._id === params.orderId)) || params.order || recentOrders[0];
+      const activeId = activeOrder?.orderId || activeOrder?._id || params.orderId || '8291';
       const cleanId = `KP-${String(activeId).slice(-6).toUpperCase()}`;
       html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, cleanId);
+
+      if (activeOrder && activeOrder.items && activeOrder.items.length > 0) {
+        const activeItems = activeOrder.items;
+        const totalAmount = activeOrder.totalPrice || activeOrder.total || activeItems.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 1), 0);
+        
+        // Update garments count and total
+        html = html.replace(/Garments in Transit \(\d+\)/i, `Garments in Transit (${activeItems.length})`);
+        html = html.replace(/₹8,340/g, `₹${Number(totalAmount).toLocaleString()}`);
+        
+        // Construct live items HTML for drawer
+        const itemsDrawerHtml = activeItems.map(it => `
+          <div class="flex items-center gap-3 p-2 rounded-xl bg-ground-subtle">
+            <img class="w-14 h-14 rounded-lg object-cover" alt="${it.name}" src="${it.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'}" onerror="this.src='/app/apple-touch-icon.png';" />
+            <div class="flex-1 min-w-0">
+              <p class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider">${it.boutiqueName || it.storeName || 'Nagpur Atelier'}</p>
+              <h3 class="font-title-md text-[15px] text-text-obsidian truncate">${it.name}</h3>
+              <p class="font-tabular-caption text-tabular-caption text-text-ash">Size ${it.size || 'M'} · Qty ${it.quantity || 1}</p>
+            </div>
+            <span class="font-tabular-price text-tabular-price text-text-obsidian">₹${Number(it.price || 0).toLocaleString()}</span>
+          </div>
+        `).join('');
+
+        html = html.replace(/(<div[^>]*id="order-details-body"[^>]*>)[\s\S]*?(<div[^>]*class="mt-2 p-3 rounded-xl)/i, `$1${itemsDrawerHtml}$2`);
+      }
+    }
+
+    // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
+    if (targetKey.includes('Catalogue_Manager') && products.length > 0) {
+      html = html.replace(/\d+\s+Curated Pieces Live/gi, `${products.length} Curated Pieces Live`);
+      const liveItemsHtml = products.map((p) => {
+        const img = p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const name = p.name || 'Artisanal Nagpur Garment';
+        const price = p.price || 4800;
+        const mrp = p.mrp || Math.round(price * 1.35);
+        const sku = p.sku || `NGP-KAT-${String(p.id || p._id || '1020').slice(-4).toUpperCase()}`;
+        const isAvail = p.isAvailable !== false;
+        const boutique = (p.brand || p.storeName || 'Dharampeth Handloom').toUpperCase();
+        const category = p.category || 'Atelier Collection';
+
+        return `
+          <div class="relative flex flex-col p-4 rounded-xl bg-surface-porcelain shadow-[0_12px_32px_rgba(18,18,20,0.04)] overflow-hidden transition-all hover:shadow-[0_16px_40px_rgba(18,18,20,0.07)]" data-product-id="${p.id || p._id}">
+            <div class="flex gap-3.5">
+              <div class="relative w-28 h-36 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm">
+                <img class="w-full h-full object-cover" alt="${name}" src="${img}" onerror="this.src='/app/apple-touch-icon.png';" />
+                <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-text-obsidian/80 backdrop-blur-md">
+                  <span class="font-eyebrow text-[8px] uppercase tracking-widest text-surface-porcelain">${category}</span>
+                </div>
+              </div>
+              <div class="flex flex-col justify-between flex-1 min-w-0">
+                <div>
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider truncate">${boutique}</span>
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input type="checkbox" class="sr-only peer status-toggle" data-id="${p.id || p._id}" data-action="toggle-stock" ${isAvail ? 'checked' : ''} />
+                      <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-crimson shadow-inner"></div>
+                    </label>
+                  </div>
+                  <h3 class="font-title-md text-title-md text-text-obsidian tracking-tight leading-snug mt-0.5">${name}</h3>
+                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Couture Handloom Piece'}</p>
+                </div>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-tabular-price text-tabular-price font-bold text-accent-crimson tracking-tight">₹${price.toLocaleString()}</span>
+                  <span class="font-body-sm text-body-sm text-text-ash line-through">₹${mrp.toLocaleString()}</span>
+                  <span class="font-eyebrow text-[10px] uppercase text-text-ash tracking-wider ml-auto">SKU: ${sku}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const catalogContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-4 px-screen-margin-mobile pb-6[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
+      if (catalogContainerRegex.test(html)) {
+        html = html.replace(catalogContainerRegex, `$1${liveItemsHtml}$2`);
+      }
+    }
+
+    // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders
+    if (targetKey.includes('Vendor_Order_Queue') && recentOrders.length > 0) {
+      const liveQueueCardsHtml = recentOrders.map((ord) => {
+        const idStr = `KP-${(ord.orderId || ord._id || '8492').slice(-6).toUpperCase()}`;
+        const totalStr = `₹${(ord.totalPrice || ord.total || 4800).toLocaleString()}`;
+        const statusStr = ord.status || 'CONFIRMED';
+        const firstItem = ord.items?.[0] || {};
+        const itemName = firstItem.name || 'Chanderi Silk Angrakha';
+        const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const itemSize = firstItem.size || 'M';
+        const itemColor = firstItem.color || 'Sindhoor Crimson';
+        const itemCount = ord.items?.length || 1;
+
+        return `
+          <article class="order-card relative flex flex-col rounded-xl bg-surface-container-lowest p-5 shadow-[0_12px_32px_rgba(18,18,20,0.05)] transition-all overflow-hidden" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-crimson via-accent-gold to-accent-crimson"></div>
+            <div class="flex items-start justify-between gap-gutter-sm mb-3.5 pt-1">
+              <div class="flex flex-col min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-eyebrow text-eyebrow uppercase text-accent-crimson font-bold tracking-widest">Doorstep Trial</span>
+                  <span class="text-text-ash text-body-sm">·</span>
+                  <span class="font-tabular-caption text-tabular-caption text-text-ash">Just now</span>
+                </div>
+                <h2 class="font-title-lg text-title-lg text-text-obsidian tracking-tight mt-0.5">Order #${idStr}</h2>
+              </div>
+              <div class="flex items-center gap-1 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500/10' : 'bg-accent-crimson/10'} flex-shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500' : 'bg-accent-crimson'} animate-pulse"></span>
+                <span class="font-eyebrow text-eyebrow ${statusStr === 'ACCEPTED' ? 'text-amber-700' : 'text-accent-crimson'} font-bold uppercase tracking-wider">${statusStr}</span>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2.5 p-3 rounded-lg bg-ground-subtle mb-4">
+              <div class="flex items-center gap-3">
+                <img class="w-12 h-14 object-cover rounded-lg flex-shrink-0 shadow-sm" alt="${itemName}" src="${itemImg}" onerror="this.src='/app/apple-touch-icon.png';" />
+                <div class="flex flex-col min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="font-body-md text-body-md text-text-obsidian font-semibold truncate">${itemName}</p>
+                    <span class="font-tabular-price text-tabular-price text-text-obsidian whitespace-nowrap">${totalStr}</span>
+                  </div>
+                  <p class="font-body-sm text-body-sm text-text-slate truncate">Size ${itemSize} · ${itemColor} · Qty ${itemCount}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1 border-t border-surface-container-low">
+              ${statusStr === 'CONFIRMED' || statusStr === 'PENDING' ? `
+                <button data-action="accept-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-accent-crimson text-surface-porcelain font-semibold text-xs shadow-md active:scale-95 transition-all">
+                  Accept Order
+                </button>
+              ` : `
+                <button data-action="mark-ready" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all">
+                  Dispatch Porter Courier
+                </button>
+              `}
+              <button data-action="view-order-detail" data-order-id="${ord.orderId || ord._id}" class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-obsidian font-semibold text-xs transition-all">
+                View Details
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
+      if (queueContainerRegex.test(html)) {
+        html = html.replace(queueContainerRegex, `$1${liveQueueCardsHtml}$2`);
+      }
+    }
+
+    // 8. VENDOR ORDER DETAIL: Inject active order details
+    if (targetKey.includes('Vendor_Order_Detail')) {
+      const activeOrd = recentOrders.find(o => (o.orderId || o._id) === params.orderId) || recentOrders[0] || {};
+      const idClean = `KP-${String(activeOrd.orderId || activeOrd._id || '8492').slice(-6).toUpperCase()}`;
+      html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, idClean);
+      if (activeOrd.deliveryAddress?.receiverName) {
+        html = html.replace(/Radhika Deshmukh|Mrs\. Sunita Kulkarni/gi, activeOrd.deliveryAddress.receiverName);
+      }
+      if (activeOrd.deliveryAddress?.line1) {
+        html = html.replace(/Flat 402, Royal Palms, West High Court Road/gi, `${activeOrd.deliveryAddress.line1}, ${activeOrd.deliveryAddress.line2 || 'Dharampeth'}`);
+      }
     }
 
     return html;
@@ -488,7 +676,7 @@ export default function StitchScreenRenderer({
       if (target.closest('#btn-forgot-password, #dark-btn-forgot-password')) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('🔑 Password reset OTP sent to registered mobile number!');
+        showToast('Password reset OTP sent to registered mobile number.');
         return;
       }
 
@@ -509,16 +697,19 @@ export default function StitchScreenRenderer({
         try {
           await useAuthStore.getState().signInWithEmail?.({ email, password });
         } catch {
+          try {
+            await syncUserProfile({ name: 'Radhika Deshmukh', email, phone: '9823045892' });
+          } catch (e) {}
           useAuthStore.setState({
             user: { email, displayName: 'Radhika Deshmukh', uid: `usr-${Date.now()}` },
             token: 'auth-token-live',
             role: ROLES.CUSTOMER,
           });
         }
-        showToast('✨ Welcome back to Kya Pehnu Atelier!');
+        showToast('Welcome back to Kya Pehnu Atelier.');
         setTimeout(() => {
-          navigation?.navigate?.('Home');
-        }, 500);
+          navigateScreen('Home');
+        }, 400);
         return;
       }
 
@@ -540,16 +731,19 @@ export default function StitchScreenRenderer({
         try {
           await useAuthStore.getState().registerWithEmail?.({ name, phone, email, password });
         } catch {
+          try {
+            await syncUserProfile({ name, email, phone });
+          } catch (e) {}
           useAuthStore.setState({
             user: { email, displayName: name, phoneNumber: phone, uid: `usr-${Date.now()}` },
             token: 'auth-token-live',
             role: ROLES.CUSTOMER,
           });
         }
-        showToast('✨ Atelier Account Created! Welcome to Kya Pehnu!');
+        showToast('Atelier Account Created. Welcome to Kya Pehnu.');
         setTimeout(() => {
-          navigation?.navigate?.('Home');
-        }, 500);
+          navigateScreen('Home');
+        }, 400);
         return;
       }
 
@@ -560,14 +754,51 @@ export default function StitchScreenRenderer({
         try {
           await useAuthStore.getState().signInWithGoogle?.();
         } catch {
+          try {
+            await syncUserProfile({ name: 'Radhika Deshmukh', email: 'radhika@kyapehnu.shop', phone: '9823045892' });
+          } catch (e) {}
           useAuthStore.setState({
-            user: { email: 'customer@kyapehnu.shop', displayName: 'Google Shopper', uid: `g-${Date.now()}` },
+            user: { email: 'radhika@kyapehnu.shop', displayName: 'Radhika Deshmukh', uid: `g-${Date.now()}` },
             token: 'auth-token-google',
             role: ROLES.CUSTOMER,
           });
         }
-        showToast('✨ Signed in with Google Passport');
-        setTimeout(() => navigation?.navigate?.('Home'), 400);
+        showToast('Signed in with Google Passport.');
+        setTimeout(() => navigateScreen('Home'), 400);
+        return;
+      }
+
+      // --- WELCOME SCREEN CTAS ---
+      if (
+        btn &&
+        (btn.getAttribute('aria-label') === 'Explore Storefront as Guest' ||
+          btn.getAttribute('aria-label') === 'Browse Catalog as guest' ||
+          (btn.textContent &&
+            (btn.textContent.includes('Enter Atelier') ||
+              btn.textContent.includes('Explore Looks') ||
+              btn.textContent.includes('Explore Storefront') ||
+              btn.textContent.includes('Browse Catalog') ||
+              btn.textContent.includes('Explore Prêt') ||
+              btn.textContent.includes('Get Started'))))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('Home');
+        return;
+      }
+
+      if (
+        btn &&
+        btn.textContent &&
+        (btn.textContent.includes('Log In to Your Account') ||
+          btn.textContent.includes('Log In') ||
+          btn.textContent.includes('Sign In to Atelier') ||
+          btn.textContent.includes('Sign In')) &&
+        !btn.closest('#auth-tab-bar, #dark-auth-tab-bar, #panel-signin, #dark-panel-signin, #panel-register, #dark-panel-register')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('Auth');
         return;
       }
 
@@ -582,7 +813,7 @@ export default function StitchScreenRenderer({
         if (navigation?.canGoBack?.()) {
           navigation.goBack();
         } else {
-          navigation?.navigate?.('Home');
+          navigateScreen('Home');
         }
         return;
       }
@@ -596,15 +827,15 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
 
         if (dataPath.includes('storefront') || text.includes('storefront') || text.includes('home')) {
-          navigation?.navigate?.('Home');
+          navigateScreen('Home');
           return;
         }
         if (dataPath.includes('bag') || text.includes('bag')) {
-          navigation?.navigate?.('Cart');
+          navigateScreen('Cart');
           return;
         }
         if (dataPath.includes('orders') || text.includes('orders')) {
-          navigation?.navigate?.('MyOrders');
+          navigateScreen('MyOrders');
           return;
         }
         if (dataPath.includes('search') || text.includes('search') || text.includes('explore')) {
@@ -625,7 +856,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('Profile');
+        navigateScreen('Profile');
         return;
       }
 
@@ -633,7 +864,7 @@ export default function StitchScreenRenderer({
       if (target.closest('[aria-label*="Location" i]') || (btn && btn.textContent && btn.textContent.includes('Sitabuldi, Nagpur'))) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('📍 Delivering to Sitabuldi & Dharampeth, Nagpur (45-Min Active)');
+        showToast('Delivering to Sitabuldi and Dharampeth, Nagpur (45-Min Active)');
         return;
       }
 
@@ -658,9 +889,10 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         const card = quickAddBtn.closest('[data-action="open-pdp"], .group, [class*="rounded-xl"]');
-        const prodId = quickAddBtn.getAttribute('data-id') || card?.getAttribute('data-id') || `item-${Date.now()}`;
-        const title = decodeURIComponent(quickAddBtn.getAttribute('data-title') || card?.getAttribute('data-title') || 'Handcrafted Paithani');
-        const price = parseInt(quickAddBtn.getAttribute('data-price') || card?.getAttribute('data-price') || '2800', 10);
+        const prodId = quickAddBtn.getAttribute('data-id') || card?.getAttribute('data-id') || '6a9f987ec93d15e80a649c9b';
+        const storeId = quickAddBtn.getAttribute('data-store-id') || card?.getAttribute('data-store-id') || '6a9f987ec93d15e80a649c9a';
+        const title = decodeURIComponent(quickAddBtn.getAttribute('data-title') || card?.getAttribute('data-title') || 'Sitabuldi Handloom Zari Kurta');
+        const price = parseInt(quickAddBtn.getAttribute('data-price') || card?.getAttribute('data-price') || '5200', 10);
         const image = quickAddBtn.getAttribute('data-image') || card?.getAttribute('data-image') || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const boutique = decodeURIComponent(quickAddBtn.getAttribute('data-boutique') || card?.getAttribute('data-boutique') || 'Studio Anamika');
 
@@ -672,6 +904,7 @@ export default function StitchScreenRenderer({
             title: title,
             price: price,
             image: image,
+            storeId: storeId,
             storeName: boutique,
             boutiqueName: boutique,
           },
@@ -679,7 +912,7 @@ export default function StitchScreenRenderer({
           'Sindhoor Crimson',
           1
         );
-        showToast(`✨ Added "${title}" to Bag!`);
+        showToast(`Added "${title}" to Bag.`);
         return;
       }
 
@@ -692,16 +925,18 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
 
-        let prodId = `prod-${Date.now()}`;
-        let title = 'Royal Chanderi Zari Set';
-        let price = 4750;
-        let mrp = 6400;
+        let prodId = '6a9f987ec93d15e80a649c9b';
+        let storeId = '6a9f987ec93d15e80a649c9a';
+        let title = 'Sitabuldi Handloom Zari Kurta';
+        let price = 5200;
+        let mrp = 6999;
         let image = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         let boutique = 'Studio Anamika';
 
         const card = target.closest('[data-action="open-pdp"], [data-id]');
         if (card) {
           prodId = card.getAttribute('data-id') || prodId;
+          storeId = card.getAttribute('data-store-id') || storeId;
           if (card.getAttribute('data-title')) title = decodeURIComponent(card.getAttribute('data-title'));
           if (card.getAttribute('data-price')) price = parseInt(card.getAttribute('data-price'), 10);
           if (card.getAttribute('data-mrp')) mrp = parseInt(card.getAttribute('data-mrp'), 10);
@@ -717,8 +952,9 @@ export default function StitchScreenRenderer({
           }
         }
 
-        navigation?.navigate?.('ProductDetail', {
+        navigateScreen('ProductDetail', {
           id: prodId,
+          storeId,
           title,
           price,
           mrp,
@@ -765,19 +1001,22 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Add to Bag') || btn.textContent.includes('Add to Atelier Bag'))) {
         e.preventDefault();
         e.stopPropagation();
-        const title = params.title ? decodeURIComponent(params.title) : 'Chanderi Silk Angrakha';
-        const price = params.price || 4800;
+        const title = params.title ? decodeURIComponent(params.title) : 'Sitabuldi Handloom Zari Kurta';
+        const price = params.price || 5200;
         const boutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika';
         const image = params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const prodId = params.id || '6a9f987ec93d15e80a649c9b';
+        const storeId = params.storeId || '6a9f987ec93d15e80a649c9a';
 
         addToCart(
           {
-            id: params.id || 'garment-selected',
-            productId: params.id || 'garment-selected',
+            id: prodId,
+            productId: prodId,
             name: title,
             title: title,
             price: price,
             image: image,
+            storeId: storeId,
             storeName: boutique,
             boutiqueName: boutique,
           },
@@ -785,7 +1024,7 @@ export default function StitchScreenRenderer({
           selectedColor,
           1
         );
-        showToast('✨ Added to Bag! Tap "Bag" below to review.');
+        showToast('Added to Bag. Tap Bag below to review.');
         return;
       }
 
@@ -793,19 +1032,22 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Try at Home Now') || btn.textContent.includes('15-Min Trial'))) {
         e.preventDefault();
         e.stopPropagation();
-        const title = params.title ? decodeURIComponent(params.title) : 'Chanderi Silk Angrakha';
-        const price = params.price || 4800;
+        const title = params.title ? decodeURIComponent(params.title) : 'Sitabuldi Handloom Zari Kurta';
+        const price = params.price || 5200;
         const boutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika';
         const image = params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const prodId = params.id || '6a9f987ec93d15e80a649c9b';
+        const storeId = params.storeId || '6a9f987ec93d15e80a649c9a';
 
         addToCart(
           {
-            id: params.id || 'garment-selected',
-            productId: params.id || 'garment-selected',
+            id: prodId,
+            productId: prodId,
             name: title,
             title: title,
             price: price,
             image: image,
+            storeId: storeId,
             storeName: boutique,
             boutiqueName: boutique,
           },
@@ -813,7 +1055,7 @@ export default function StitchScreenRenderer({
           selectedColor,
           1
         );
-        navigation?.navigate?.('Cart');
+        navigateScreen('Cart');
         return;
       }
 
@@ -851,7 +1093,7 @@ export default function StitchScreenRenderer({
       if (emptyExplore) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('Home');
+        navigateScreen('Home');
         return;
       }
 
@@ -868,7 +1110,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('Address');
+        navigateScreen('Address');
         return;
       }
 
@@ -970,9 +1212,9 @@ export default function StitchScreenRenderer({
         setRecentOrders(updatedOrders);
 
         clearCart();
-        showToast(`🚀 Order placed! ID: KP-${String(orderIdClean).slice(-6).toUpperCase()}`);
+        showToast(`Order placed! ID: KP-${String(orderIdClean).slice(-6).toUpperCase()}`);
         setTimeout(() => {
-          navigation?.navigate?.('LiveTracking', { orderId: orderIdClean, order: placedOrder });
+          navigateScreen('LiveTracking', { orderId: orderIdClean, order: placedOrder });
         }, 500);
         return;
       }
@@ -983,7 +1225,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         const ordId = trackBtn.getAttribute('data-order-id') || recentOrders[0]?.orderId;
-        navigation?.navigate?.('LiveTracking', { orderId: ordId });
+        navigateScreen('LiveTracking', { orderId: ordId });
         return;
       }
 
@@ -991,7 +1233,7 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Call Courier') || btn.textContent.includes('Call Sunil'))) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('📞 Calling Rider Sunil Kamble (+91 98220 12345)...');
+        showToast('Calling Rider Sunil Kamble (+91 98220 12345)...');
         return;
       }
 
@@ -1016,7 +1258,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         setRole(ROLES.VENDOR);
-        showToast('👑 Switched to Nagpur Vendor & Merchant Flow');
+        showToast('Switched to Nagpur Vendor & Merchant Flow');
         return;
       }
 
@@ -1024,7 +1266,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         setRole(ROLES.CUSTOMER);
-        showToast('🛍️ Switched to Customer Storefront Flow');
+        showToast('Switched to Customer Storefront Flow');
         return;
       }
 
@@ -1032,7 +1274,7 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Catalogue Manager') || btn.textContent.includes('Catalogue'))) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('CatalogManager');
+        navigateScreen('CatalogManager');
         return;
       }
 
@@ -1048,7 +1290,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('ProductIngestion');
+        navigateScreen('ProductIngestion');
         return;
       }
 
@@ -1057,12 +1299,12 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
 
-        const titleInput = el.querySelector('#titleInput, input[placeholder*="Title" i], input[placeholder*="Name" i]');
+        const titleInput = el.querySelector('#productTitle, #titleInput, input[placeholder*="Title" i], input[placeholder*="Name" i]');
         const priceInput = el.querySelector('#sellingPriceInput, input[placeholder*="Price" i]');
         const catSelect = el.querySelector('#categorySelect, select');
 
         const titleVal = titleInput?.value?.trim() || 'Nagpur Zari Chanderi Kurta';
-        const priceVal = parseInt(priceInput?.value || '4500', 10);
+        const priceVal = parseInt(priceInput?.value || '4800', 10);
         const catVal = catSelect?.value || 'WOMEN';
 
         try {
@@ -1075,14 +1317,56 @@ export default function StitchScreenRenderer({
             images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'],
             isAvailable: true,
           });
+          useStorefrontStore.getState().load();
         } catch (prodErr) {
           console.warn('[StitchRenderer] Product creation note:', prodErr?.message);
         }
 
-        showToast('✨ Garment successfully listed in Nagpur Couture Catalog!');
+        showToast('Garment successfully listed in Nagpur Couture Catalog.');
         setTimeout(() => {
-          navigation?.navigate?.('CatalogManager');
+          navigateScreen('CatalogManager');
         }, 600);
+        return;
+      }
+
+      // --- 21b. VENDOR: BOUTIQUE ONBOARDING SUBMISSION ---
+      const submitVendorReg = target.closest('#submit-btn, button[id*="submit-btn"]');
+      if (submitVendorReg && (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        const shopInput = el.querySelector('#shop-name, input[placeholder*="Studio Anamika" i], input[placeholder*="Brand Name" i]');
+        const propInput = el.querySelector('#proprietor-name, input[placeholder*="Anamika Joshi" i], input[placeholder*="Proprietor" i]');
+        const phoneInput = el.querySelector('#whatsapp-contact, input[type="tel"]');
+
+        const storeName = shopInput?.value?.trim() || 'Studio Anamika Handlooms';
+        const proprietorName = propInput?.value?.trim() || 'Anamika Joshi';
+        const phone = (phoneInput?.value || '9822012345').replace(/[^0-9]/g, '');
+
+        try {
+          await registerVendor({
+            storeName,
+            contact: { name: proprietorName, phone },
+            address: { line1: 'Dharampeth Main Road', city: 'Nagpur', pincode: '440010' },
+          });
+        } catch (regErr) {
+          console.warn('[StitchRenderer] Vendor registration note:', regErr?.message);
+        }
+
+        setRole(ROLES.VENDOR);
+        showToast('Atelier Registered. Welcome to Nagpur Vendor Desk.');
+        setTimeout(() => {
+          navigateScreen('CatalogManager');
+        }, 500);
+        return;
+      }
+
+      // --- 21c. VENDOR: VIEW ORDER DETAIL CLICK ---
+      const viewDetailBtn = target.closest('[data-action="view-order-detail"]');
+      if (viewDetailBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ordId = viewDetailBtn.getAttribute('data-order-id');
+        navigateScreen('VendorOrderDetail', { orderId: ordId });
         return;
       }
 
@@ -1099,27 +1383,29 @@ export default function StitchScreenRenderer({
       }
 
       // --- 23. VENDOR: ORDER ACTIONS (Accept / Mark Ready) ---
-      if (btn && btn.textContent && btn.textContent.includes('Accept Order')) {
+      const acceptBtn = target.closest('[data-action="accept-order"]') || (btn && btn.textContent && btn.textContent.includes('Accept Order') ? btn : null);
+      if (acceptBtn) {
         e.preventDefault();
         e.stopPropagation();
-        const ordCard = btn.closest('[data-order-id]');
-        const ordId = ordCard?.getAttribute('data-order-id') || 'ord-live';
+        const ordCard = acceptBtn.closest('[data-order-id]');
+        const ordId = acceptBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
         updateOrderStatus(ordId, 'ACCEPTED').catch(() => {});
-        btn.textContent = 'Order Accepted ✓';
-        btn.disabled = true;
-        showToast('✓ Order Accepted! Packing commenced.');
+        acceptBtn.textContent = 'Order Accepted';
+        acceptBtn.disabled = true;
+        showToast('Order Accepted. Packing commenced.');
         return;
       }
 
-      if (btn && btn.textContent && (btn.textContent.includes('Mark Ready') || btn.textContent.includes('Dispatch'))) {
+      const markReadyBtn = target.closest('[data-action="mark-ready"]') || (btn && btn.textContent && (btn.textContent.includes('Mark Ready') || btn.textContent.includes('Dispatch')) ? btn : null);
+      if (markReadyBtn) {
         e.preventDefault();
         e.stopPropagation();
-        const ordCard = btn.closest('[data-order-id]');
-        const ordId = ordCard?.getAttribute('data-order-id') || 'ord-live';
+        const ordCard = markReadyBtn.closest('[data-order-id]');
+        const ordId = markReadyBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
         markOrderReady(ordId).catch(() => {});
-        btn.textContent = 'Courier Dispatched 🚀';
-        btn.disabled = true;
-        showToast('🚀 Porter rider Sunil Kamble dispatched for pickup!');
+        markReadyBtn.textContent = 'Courier Dispatched';
+        markReadyBtn.disabled = true;
+        showToast('Porter rider Sunil Kamble dispatched for pickup.');
         return;
       }
 
@@ -1137,14 +1423,14 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('Home');
+        navigateScreen('Home');
         return;
       }
 
       if (btn && btn.textContent && (btn.textContent.includes('Log In to Your Account') || btn.textContent.includes('Log In'))) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('Auth');
+        navigateScreen('Auth');
         return;
       }
 
@@ -1152,7 +1438,7 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Register') || btn.textContent.includes('Own a Boutique'))) {
         e.preventDefault();
         e.stopPropagation();
-        navigation?.navigate?.('VendorRegister');
+        navigateScreen('VendorRegister');
         return;
       }
 
@@ -1167,6 +1453,16 @@ export default function StitchScreenRenderer({
       el.removeEventListener('click', handleClick);
     };
   }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile]);
+
+  // Initial Auth Tab Switcher (Split Login vs Register)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || Platform.OS !== 'web') return;
+    if (params?.authMode === 'register' || params?.initialTab === 'register') {
+      const regTab = el.querySelector('#tab-register, #dark-tab-register');
+      if (regTab) regTab.click();
+    }
+  }, [params?.authMode, params?.initialTab, targetKey]);
 
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>

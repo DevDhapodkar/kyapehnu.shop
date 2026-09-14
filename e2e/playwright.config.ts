@@ -28,7 +28,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: WEB_BASE,
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 15000,

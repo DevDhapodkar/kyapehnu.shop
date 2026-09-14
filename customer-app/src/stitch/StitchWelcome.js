@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const VARIANTS = {
   light: {

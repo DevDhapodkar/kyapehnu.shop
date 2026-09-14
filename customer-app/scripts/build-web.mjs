@@ -12,7 +12,7 @@ const distWebDir = path.join(projectRoot, 'dist-web');
 const defaultTargetDir = path.resolve(projectRoot, '../../../kyapehnu website/kya-pehnu-/public/app');
 const targetDir = process.env.NEXT_PUBLIC_APP_DIR || defaultTargetDir;
 
-console.log('🚀 [1/4] Building Expo web distribution for /app...');
+console.log('[1/4] Building Expo web distribution for /app...');
 if (fs.existsSync(distWebDir)) {
   fs.rmSync(distWebDir, { recursive: true, force: true });
 }
@@ -21,7 +21,7 @@ execSync('npx expo export -p web --output-dir dist-web --clear', {
   stdio: 'inherit',
 });
 
-console.log('✨ [2/4] Injecting PWA meta tags and manifest...');
+console.log('[2/4] Injecting PWA meta tags and manifest...');
 const indexPath = path.join(distWebDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
@@ -245,6 +245,9 @@ if (fs.existsSync(indexPath)) {
         -webkit-user-drag: none !important;
         user-drag: none !important;
       }
+      .hidden {
+        display: none !important;
+      }
       /* Stitch Dark Theme Palette Overrides */
       .stitch-screen-root.dark, .dark .stitch-screen-root, html.dark .stitch-screen-root {
         --color-surface: #131315 !important;
@@ -441,4 +444,4 @@ if (fs.existsSync(targetDir)) {
 fs.mkdirSync(targetDir, { recursive: true });
 fs.cpSync(distWebDir, targetDir, { recursive: true, force: true });
 
-console.log('✅ [4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');
+console.log('[4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');

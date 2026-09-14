@@ -122,7 +122,7 @@ export default function VendorProfileScreen({ navigation }) {
             <View style={styles.statusPill}>
               <View style={[styles.statusDot, isApproved && styles.statusDotLive]} />
               <Text style={styles.statusPillText}>
-                {isApproved ? '✓ STORE IS LIVE' : '⏳ ADMIN VERIFICATION IN PROGRESS'}
+                {isApproved ? 'STORE IS LIVE' : 'ADMIN VERIFICATION IN PROGRESS'}
               </Text>
             </View>
             <Text style={styles.cityTag}>Nagpur</Text>

@@ -164,7 +164,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
               </View>
             </View>
             <View style={styles.speedPill}>
-              <Text style={styles.speedPillText}>⚡ 38m Avg</Text>
+              <Text style={styles.speedPillText}>38m Avg</Text>
             </View>
           </View>
 

@@ -153,7 +153,7 @@ export default function StitchScreenSwitcher({ currentScreen, onSelectScreen }) 
                   gap: 6,
                 }}
               >
-                <span>☀️ Light Theme</span>
+                <span>Light Theme</span>
                 <span style={{ fontSize: 10, opacity: 0.7 }}>({lightScreens.length})</span>
               </button>
               <button
@@ -177,7 +177,7 @@ export default function StitchScreenSwitcher({ currentScreen, onSelectScreen }) 
                   gap: 6,
                 }}
               >
-                <span>🌙 Dark Theme</span>
+                <span>Dark Theme</span>
                 <span style={{ fontSize: 10, opacity: 0.7 }}>({darkScreens.length})</span>
               </button>
             </div>

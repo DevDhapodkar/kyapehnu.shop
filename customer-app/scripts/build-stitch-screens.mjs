@@ -32,7 +32,7 @@ const splashLight = loadRaw('final_light_theme_Splash_Screen');
 const splashDark = loadRaw('final_theme_dark_Splash_Screen');
 fs.writeFileSync(path.join(outDir, 'StitchSplash.js'), `
 import React, { useEffect } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(splashLight)};
 const DARK_HTML = ${JSON.stringify(splashDark)};
@@ -69,7 +69,7 @@ const welcomeDarkStandard = loadRaw('final_theme_dark_Welcome_Screen.')
 
 fs.writeFileSync(path.join(outDir, 'StitchWelcome.js'), `
 import React, { useState, useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const VARIANTS = {
   light: {
@@ -198,8 +198,8 @@ const authLight = loadRaw('final_light_theme_Sign_In___Auth');
 const authDark = loadRaw('final_theme_dark_Sign_In___Auth');
 fs.writeFileSync(path.join(outDir, 'StitchAuth.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
-import useAuthStore from '../../store/useAuthStore';
+import { useThemeStore } from '../store/useThemeStore';
+import useAuthStore from '../store/useAuthStore';
 
 const LIGHT_HTML = ${JSON.stringify(authLight)};
 const DARK_HTML = ${JSON.stringify(authDark)};
@@ -292,8 +292,8 @@ homeDark = homeDark.replace(
 
 fs.writeFileSync(path.join(outDir, 'StitchHome.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
-import { useCartStore } from '../../store/useCartStore';
+import { useThemeStore } from '../store/useThemeStore';
+import { useCartStore } from '../store/useCartStore';
 
 const LIGHT_HTML = ${JSON.stringify(homeLight)};
 const DARK_HTML = ${JSON.stringify(homeDark)};
@@ -395,8 +395,8 @@ pdpDark = pdpDark
 
 fs.writeFileSync(path.join(outDir, 'StitchProductDetail.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
-import { useCartStore } from '../../store/useCartStore';
+import { useThemeStore } from '../store/useThemeStore';
+import { useCartStore } from '../store/useCartStore';
 
 const LIGHT_HTML = ${JSON.stringify(pdpLight)};
 const DARK_HTML = ${JSON.stringify(pdpDark)};
@@ -474,7 +474,7 @@ bagDark = bagDark.replace(
 
 fs.writeFileSync(path.join(outDir, 'StitchCart.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(bagLight)};
 const DARK_HTML = ${JSON.stringify(bagDark)};
@@ -539,7 +539,7 @@ addrDark = addrDark.replace(
 
 fs.writeFileSync(path.join(outDir, 'StitchAddress.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(addrLight)};
 const DARK_HTML = ${JSON.stringify(addrDark)};
@@ -597,7 +597,7 @@ const trackDark = loadRaw('final_theme_dark_Live_Tracking');
 
 fs.writeFileSync(path.join(outDir, 'StitchLiveTracking.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(trackLight)};
 const DARK_HTML = ${JSON.stringify(trackDark)};
@@ -651,7 +651,7 @@ const ordersDark = loadRaw('final_theme_dark_My_Orders');
 
 fs.writeFileSync(path.join(outDir, 'StitchMyOrders.js'), `
 import React, { useState, useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const VARIANTS = {
   atelier: ${JSON.stringify(ordersAtelier)},
@@ -737,8 +737,8 @@ const profileDark = loadRaw('final_theme_dark_Profile___Settings');
 
 fs.writeFileSync(path.join(outDir, 'StitchProfile.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import { useThemeStore } from '../store/useThemeStore';
+import useAuthStore, { ROLES } from '../store/useAuthStore';
 
 const LIGHT_HTML = ${JSON.stringify(profileLight)};
 const DARK_HTML = ${JSON.stringify(profileDark)};
@@ -818,7 +818,7 @@ const vendorRegDesk = loadRaw('Register_Your_Shop___Vendor_Desk');
 
 fs.writeFileSync(path.join(outDir, 'StitchVendorRegister.js'), `
 import React, { useState, useEffect, useRef } from 'react';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import useAuthStore, { ROLES } from '../store/useAuthStore';
 
 const VARIANTS = {
   remastered: ${JSON.stringify(vendorRegRemastered)},
@@ -889,7 +889,7 @@ export default function StitchVendorRegister({ navigation }) {
 const catalogueLight = loadRaw('final_light_theme_Catalogue_Manager');
 fs.writeFileSync(path.join(outDir, 'StitchCatalogManager.js'), `
 import React, { useEffect, useRef } from 'react';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import useAuthStore, { ROLES } from '../store/useAuthStore';
 
 const LIGHT_HTML = ${JSON.stringify(catalogueLight)};
 
@@ -940,8 +940,8 @@ const vendorQueueDark = loadRaw('final_theme_dark_Vendor_Order_Queue');
 
 fs.writeFileSync(path.join(outDir, 'StitchVendorQueue.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import { useThemeStore } from '../store/useThemeStore';
+import useAuthStore, { ROLES } from '../store/useAuthStore';
 
 const LIGHT_HTML = ${JSON.stringify(vendorQueueLight)};
 const DARK_HTML = ${JSON.stringify(vendorQueueDark)};
@@ -993,7 +993,7 @@ const vendorDetailDark = loadRaw('final_theme_dark_Vendor_Order_Detail');
 
 fs.writeFileSync(path.join(outDir, 'StitchVendorDetail.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(vendorDetailLight)};
 const DARK_HTML = ${JSON.stringify(vendorDetailDark)};
@@ -1043,7 +1043,7 @@ const ingestionDark = loadRaw('final_theme_dark_Product_Ingestion___Catalog_List
 
 fs.writeFileSync(path.join(outDir, 'StitchProductIngestion.js'), `
 import React, { useEffect, useRef } from 'react';
-import { useThemeStore } from '../../store/useThemeStore';
+import { useThemeStore } from '../store/useThemeStore';
 
 const LIGHT_HTML = ${JSON.stringify(ingestionLight)};
 const DARK_HTML = ${JSON.stringify(ingestionDark)};

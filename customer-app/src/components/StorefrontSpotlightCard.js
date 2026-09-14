@@ -13,7 +13,7 @@ import { colors, radii, spacing } from '../theme/colors';
  *
  * Implements Stitch's Apple Glass Hero Spotlight Garment Card:
  * - 4:5 aspect ratio image with smooth rounded corners
- * - Top-left proximity badge: "⚡ 28 min delivery"
+ * - Top-left proximity badge: "28 min delivery"
  * - Top-right wishlist toggle button
  * - Floating glass atelier banner: "Dharampeth · 1.4 km • Studio Anamika" + "Handcrafted" chip
  * - Tabular pricing architecture: ₹4,800 (strikethrough ₹6,499) + "26% Off Boutique"
