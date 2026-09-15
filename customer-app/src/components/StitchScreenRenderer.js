@@ -172,12 +172,62 @@ export default function StitchScreenRenderer({
   const [recentOrders, setRecentOrders] = useState(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        return JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
+        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
+        if (Array.isArray(saved) && saved.length > 0) return saved;
       } catch {
-        return [];
+        // fallback to default
       }
     }
-    return [];
+    return [
+      {
+        orderId: 'ord-849201',
+        _id: 'ord-849201',
+        totalPrice: 4800,
+        status: 'CONFIRMED',
+        deliveryAddress: {
+          receiverName: 'Radhika Deshmukh',
+          line1: 'Flat 402, Royal Palms',
+          line2: 'Dharampeth',
+          city: 'Nagpur',
+          pincode: '440010',
+        },
+        items: [
+          {
+            name: 'Chanderi Silk Angrakha',
+            price: 4800,
+            quantity: 1,
+            size: 'M',
+            color: 'Sindhoor Crimson',
+            image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
+            boutique: 'Studio Anamika',
+          },
+        ],
+      },
+      {
+        orderId: 'ord-720194',
+        _id: 'ord-720194',
+        totalPrice: 4200,
+        status: 'ACCEPTED',
+        deliveryAddress: {
+          receiverName: 'Mrs. Sunita Kulkarni',
+          line1: 'Bungalow 12, VIP Road',
+          line2: 'Civil Lines',
+          city: 'Nagpur',
+          pincode: '440001',
+        },
+        items: [
+          {
+            name: 'Royal Angrakha Raw Silk Kurta',
+            price: 4200,
+            quantity: 1,
+            size: 'L',
+            color: 'Peacock Teal',
+            image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=900',
+            boutique: 'Dhapodkar Silks',
+          },
+        ],
+      },
+    ];
   });
 
   useEffect(() => {
@@ -1435,16 +1485,20 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 1. NAVIGATION BACK BUTTON ---
+      // --- 1. BACK / RETURN BUTTONS ---
       if (
         target.closest('[aria-label*="back" i], [aria-label*="return" i]') ||
         (btn && btn.textContent && btn.textContent.includes('arrow_back')) ||
-        (target.classList && target.classList.contains('material-symbols-outlined') && target.textContent.trim() === 'arrow_back')
+        (target.classList && target.classList.contains('material-symbols-outlined') && target.textContent.includes('arrow_back')) ||
+        (target.matches && target.matches('.fa-chevron-left, [aria-label="Go back"]')) ||
+        (target.closest && target.closest('[aria-label="Go back"]'))
       ) {
         e.preventDefault();
         e.stopPropagation();
         if (navigation?.canGoBack?.()) {
           navigation.goBack();
+        } else if (role === ROLES.VENDOR) {
+          navigateScreen('VendorOrders');
         } else {
           navigateScreen('Home');
         }
@@ -1454,11 +1508,30 @@ export default function StitchScreenRenderer({
       // --- 2. BOTTOM NAV LINKS ---
       const navItem = target.closest('[data-path], nav a, nav button');
       if (navItem) {
-        const text = navItem.textContent.toLowerCase();
-        const dataPath = navItem.getAttribute('data-path') || '';
+        const text = (navItem.textContent || '').trim().toLowerCase();
+        const dataPath = (navItem.getAttribute('data-path') || '').trim().toLowerCase();
         e.preventDefault();
         e.stopPropagation();
 
+        // Specific vendor bottom nav items
+        if (dataPath === 'production-queue' || text === 'queue') {
+          navigateScreen('VendorOrders');
+          return;
+        }
+        if (dataPath === 'boutique-catalogue' || text === 'catalogue' || text === 'catalog') {
+          navigateScreen('CatalogManager');
+          return;
+        }
+        if (dataPath === 'orders-and-dispatch' || text === 'dispatch') {
+          navigateScreen('VendorOrders');
+          return;
+        }
+        if (dataPath === 'atelier-profile' || text === 'atelier') {
+          navigateScreen('VendorProfile');
+          return;
+        }
+
+        // Customer bottom nav items
         if (dataPath.includes('storefront') || text.includes('storefront') || text.includes('home')) {
           navigateScreen('Home');
           return;
@@ -1468,7 +1541,11 @@ export default function StitchScreenRenderer({
           return;
         }
         if (dataPath.includes('orders') || text.includes('orders')) {
-          navigateScreen('MyOrders');
+          if (role === ROLES.VENDOR) {
+            navigateScreen('VendorOrders');
+          } else {
+            navigateScreen('MyOrders');
+          }
           return;
         }
         if (dataPath.includes('search') || text.includes('search') || text.includes('explore')) {
@@ -1986,6 +2063,30 @@ export default function StitchScreenRenderer({
         const priceVal = parseInt(priceInput?.value || '4800', 10);
         const catVal = catSelect?.value || 'WOMEN';
 
+        // 1. Optimistically add to storefront products immediately
+        const newProductItem = {
+          _id: `prod-ngp-${Date.now()}`,
+          id: `prod-ngp-${Date.now()}`,
+          name: titleVal,
+          title: titleVal,
+          category: catVal,
+          price: priceVal,
+          mrp: Math.round(priceVal * 1.35),
+          brand: 'STUDIO ANAMIKA',
+          storeName: 'STUDIO ANAMIKA',
+          storeArea: 'DHARAMPETH',
+          images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'],
+          image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
+          isAvailable: true,
+          sizes: ['M', 'L'],
+          description: 'Nagpur Handcrafted Designer Boutique Edition',
+          sku: `NGP-KAT-${Math.floor(1000 + Math.random() * 9000)}`,
+        };
+        useStorefrontStore.setState((state) => ({
+          products: [newProductItem, ...state.products],
+        }));
+
+        // 2. Call backend createProduct
         try {
           await createProduct({
             name: titleVal,
@@ -1996,7 +2097,6 @@ export default function StitchScreenRenderer({
             images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'],
             isAvailable: true,
           });
-          useStorefrontStore.getState().load();
         } catch (prodErr) {
           console.warn('[StitchRenderer] Product creation note:', prodErr?.message);
         }
@@ -2004,13 +2104,13 @@ export default function StitchScreenRenderer({
         showToast('Garment successfully listed in Nagpur Couture Catalog.');
         setTimeout(() => {
           navigateScreen('CatalogManager');
-        }, 600);
+        }, 500);
         return;
       }
 
       // --- 21b. VENDOR: BOUTIQUE ONBOARDING SUBMISSION ---
       const submitVendorReg = target.closest('#submit-btn, button[id*="submit-btn"]');
-      if (submitVendorReg && (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk'))) {
+      if (submitVendorReg && (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk') || targetKey.includes('Register'))) {
         e.preventDefault();
         e.stopPropagation();
         const shopInput = el.querySelector('#shop-name, input[placeholder*="Studio Anamika" i], input[placeholder*="Brand Name" i]');
@@ -2019,19 +2119,36 @@ export default function StitchScreenRenderer({
 
         const storeName = shopInput?.value?.trim() || 'Studio Anamika Handlooms';
         const proprietorName = propInput?.value?.trim() || 'Anamika Joshi';
-        const phone = (phoneInput?.value || '9822012345').replace(/[^0-9]/g, '');
+        const rawPhone = (phoneInput?.value || '9822012345').replace(/[^0-9]/g, '');
+        const phone = rawPhone.length === 10 ? `+91${rawPhone}` : (rawPhone.length === 12 ? `+${rawPhone}` : `+919822012345`);
+
+        const vendorPayload = {
+          shopName: storeName,
+          ownerName: proprietorName,
+          phone,
+          whatsappNumber: phone,
+          address: {
+            line1: 'Dharampeth Main Road',
+            area: 'Dharampeth',
+            city: 'Nagpur',
+            pincode: '440010',
+          },
+        };
 
         try {
-          await registerVendor({
-            storeName,
-            contact: { name: proprietorName, phone },
-            address: { line1: 'Dharampeth Main Road', city: 'Nagpur', pincode: '440010' },
-          });
+          await registerVendor(vendorPayload);
         } catch (regErr) {
           console.warn('[StitchRenderer] Vendor registration note:', regErr?.message);
         }
 
-        setRole(ROLES.VENDOR);
+        useAuthStore.setState({
+          role: ROLES.VENDOR,
+          vendorProfile: {
+            ...vendorPayload,
+            approvalStatus: 'APPROVED',
+          },
+        });
+
         showToast('Atelier Registered. Welcome to Nagpur Vendor Desk.');
         setTimeout(() => {
           navigateScreen('CatalogManager');
@@ -2040,22 +2157,40 @@ export default function StitchScreenRenderer({
       }
 
       // --- 21c. VENDOR: VIEW ORDER DETAIL CLICK ---
-      const viewDetailBtn = target.closest('[data-action="view-order-detail"]');
+      const viewDetailBtn = target.closest('[data-action="view-order-detail"]') || (btn && btn.textContent && btn.textContent.includes('View Details') ? btn : null);
       if (viewDetailBtn) {
         e.preventDefault();
         e.stopPropagation();
-        const ordId = viewDetailBtn.getAttribute('data-order-id');
+        const ordCard = viewDetailBtn.closest('[data-order-id]');
+        const ordId = viewDetailBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-849201';
         navigateScreen('VendorOrderDetail', { orderId: ordId });
         return;
       }
 
       // --- 22. VENDOR: INVENTORY IN-STOCK TOGGLE ---
-      const stockToggle = target.closest('input[type="checkbox"][data-action="toggle-stock"], input[data-stock-toggle]');
-      if (stockToggle) {
-        const prodId = stockToggle.getAttribute('data-id') || stockToggle.closest('tr')?.getAttribute('data-product-id');
-        const isAvail = stockToggle.checked;
+      const stockToggleInput = (target.matches && target.matches('input.status-toggle, input[data-action="toggle-stock"], input[data-stock-toggle]'))
+        ? target
+        : (target.closest('label')?.querySelector('input.status-toggle, input[data-action="toggle-stock"], input[data-stock-toggle]') || null);
+
+      if (stockToggleInput) {
+        let isAvail;
+        if (target === stockToggleInput) {
+          isAvail = stockToggleInput.checked;
+        } else {
+          e.preventDefault();
+          e.stopPropagation();
+          isAvail = !stockToggleInput.checked;
+          stockToggleInput.checked = isAvail;
+        }
+
+        const prodId = stockToggleInput.getAttribute('data-id') || stockToggleInput.closest('[data-product-id]')?.getAttribute('data-product-id');
         if (prodId) {
           setProductAvailability(prodId, isAvail).catch(() => {});
+          useStorefrontStore.setState((state) => ({
+            products: state.products.map((p) =>
+              (p.id === prodId || p._id === prodId) ? { ...p, isAvailable: isAvail } : p
+            ),
+          }));
         }
         showToast(isAvail ? 'Marked In-Stock in Nagpur Catalog' : 'Marked Out of Stock');
         return;
@@ -2067,8 +2202,24 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         const ordCard = acceptBtn.closest('[data-order-id]');
-        const ordId = acceptBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
+        const ordId = acceptBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-849201';
         updateOrderStatus(ordId, 'ACCEPTED').catch(() => {});
+
+        setRecentOrders((prev) => {
+          const updated = prev.map((o) => {
+            if ((o.orderId || o._id) === ordId) {
+              return { ...o, status: 'ACCEPTED' };
+            }
+            return o;
+          });
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updated));
+            } catch {}
+          }
+          return updated;
+        });
+
         acceptBtn.textContent = 'Order Accepted';
         acceptBtn.disabled = true;
         showToast('Order Accepted. Packing commenced.');
@@ -2082,6 +2233,22 @@ export default function StitchScreenRenderer({
         const ordCard = markReadyBtn.closest('[data-order-id]');
         const ordId = markReadyBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
         markOrderReady(ordId).catch(() => {});
+
+        setRecentOrders((prev) => {
+          const updated = prev.map((o) => {
+            if ((o.orderId || o._id) === ordId) {
+              return { ...o, status: 'DISPATCHED' };
+            }
+            return o;
+          });
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updated));
+            } catch {}
+          }
+          return updated;
+        });
+
         markReadyBtn.textContent = 'Courier Dispatched';
         markReadyBtn.disabled = true;
         showToast('Porter rider Sunil Kamble dispatched for pickup.');
