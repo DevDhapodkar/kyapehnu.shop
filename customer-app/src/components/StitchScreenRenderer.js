@@ -1111,6 +1111,32 @@ export default function StitchScreenRenderer({
       html = html.replace(/\+91 98230 45892/g, phoneOrEmail);
       html = html.replace(/radhika\.deshmukh@gmail\.com/g, user?.email || 'guest@kyapehnu.shop');
 
+      // If already in vendor role, update toggle button state
+      if (role === ROLES.VENDOR) {
+        html = html.replace(/id="vendorModeToggle"\s+role="switch"/gi, 'id="vendorModeToggle" role="switch" aria-checked="true" class="w-12 h-6 rounded-full bg-accent-crimson transition-colors relative flex items-center p-0.5 shrink-0 active:scale-95"');
+        html = html.replace(/id="vendorToggleKnob"/gi, 'id="vendorToggleKnob" class="w-5 h-5 rounded-full bg-white shadow-sm transition-transform transform translate-x-6"');
+      }
+
+      // Inject "Register Your Boutique" item into Patron Dossier menu
+      const registerItemHtml = `
+        <a class="flex items-center justify-between p-3.5 rounded-xl bg-surface-porcelain shadow-sm active:bg-surface-container transition-colors" data-action="register-vendor" href="#">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson shrink-0">
+              <span class="material-symbols-outlined text-[20px]">storefront</span>
+            </div>
+            <div class="flex flex-col min-w-0">
+              <span class="font-body-md text-body-md font-medium text-text-obsidian">Register Your Boutique</span>
+              <span class="font-body-sm text-body-sm text-text-ash truncate">Onboard your Nagpur atelier in 24 hours</span>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-text-ash text-[18px]">chevron_right</span>
+        </a>
+      `;
+
+      if (!html.includes('data-action="register-vendor"')) {
+        html = html.replace(/(<!-- Item: My Doorstep Orders -->[\s\S]*?<\/a>)/i, `$1${registerItemHtml}`);
+      }
+
       if (recentOrders.length > 0) {
         const topOrd = recentOrders[0];
         const topId = `KP-${String(topOrd.orderId || topOrd._id).slice(-6).toUpperCase()}`;
@@ -2010,7 +2036,11 @@ export default function StitchScreenRenderer({
       }
 
       // --- 18. ROLE TOGGLES (Customer <-> Vendor) ---
-      if (btn && btn.textContent && (btn.textContent.includes('Vendor Desk') || btn.textContent.includes('Merchant Portal'))) {
+      const isVendorModeToggle =
+        target.closest('#vendorModeToggle, [data-action="toggle-vendor-mode"]') ||
+        (btn && (btn.id === 'vendorModeToggle' || (btn.textContent && (btn.textContent.includes('Vendor Atelier') || btn.textContent.includes('Vendor Desk') || btn.textContent.includes('Merchant Portal')))));
+
+      if (isVendorModeToggle) {
         e.preventDefault();
         e.stopPropagation();
         setRole(ROLES.VENDOR);
@@ -2018,7 +2048,7 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      if (btn && btn.textContent && (btn.textContent.includes('Customer Mode') || btn.textContent.includes('Exit Vendor Desk'))) {
+      if (btn && btn.textContent && (btn.textContent.includes('Customer Mode') || btn.textContent.includes('Exit Vendor Desk') || btn.textContent.includes('Switch to Customer Storefront'))) {
         e.preventDefault();
         e.stopPropagation();
         setRole(ROLES.CUSTOMER);
@@ -2282,7 +2312,10 @@ export default function StitchScreenRenderer({
       }
 
       // --- 25. BOUTIQUE REGISTER LINK ---
-      if (btn && btn.textContent && (btn.textContent.includes('Register') || btn.textContent.includes('Own a Boutique'))) {
+      if (
+        target.closest('[data-action="register-vendor"]') ||
+        (btn && (btn.id === 'registerBoutiqueBtn' || (btn.textContent && (btn.textContent.includes('Register Your Boutique') || btn.textContent.includes('Register') || btn.textContent.includes('Own a Boutique')))))
+      ) {
         e.preventDefault();
         e.stopPropagation();
         navigateScreen('VendorRegister');
