@@ -1402,6 +1402,7 @@ export default function StitchScreenRenderer({
 
       // --- WELCOME SCREEN CTAS ---
       if (
+        (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
         btn &&
         (btn.getAttribute('aria-label') === 'Explore Storefront as Guest' ||
           btn.getAttribute('aria-label') === 'Browse Catalog as guest' ||
@@ -2089,6 +2090,7 @@ export default function StitchScreenRenderer({
 
       // --- 24. WELCOME SCREEN CTAS ---
       if (
+        (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
         btn &&
         (btn.getAttribute('aria-label') === 'Explore Storefront as Guest' ||
           (btn.textContent &&
