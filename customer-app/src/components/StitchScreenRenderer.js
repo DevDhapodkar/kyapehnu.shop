@@ -1698,9 +1698,12 @@ export default function StitchScreenRenderer({
       // --- 7. STOREFRONT: OPEN PDP ON CARD OR PRICE ELEMENT CLICK ---
       const priceElement = target.closest('[aria-label*="₹"]');
       const pdpCard = target.closest('[data-action="open-pdp"], .grid > div, .bg-cover, [class*="bg-cover"]');
-      const viewPieceBtn = btn && (btn.textContent.includes('View Piece') || btn.textContent.includes('View'));
+      const viewPieceBtn = btn && (btn.textContent.includes('View Piece') || btn.textContent.includes('VIEW PIECE')) && !btn.textContent.includes('View Details');
 
-      if ((priceElement || pdpCard || viewPieceBtn) && !target.closest('[data-action="quick-add"], button[aria-label*="Quick Add" i]')) {
+      if (
+        (priceElement || pdpCard || viewPieceBtn) &&
+        !target.closest('[data-action="quick-add"], button[aria-label*="Quick Add" i], [data-action="view-order-detail"], [data-action="accept-order"], [data-action="mark-ready"], [data-order-id]')
+      ) {
         e.preventDefault();
         e.stopPropagation();
 
