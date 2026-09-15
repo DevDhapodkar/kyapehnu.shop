@@ -121,14 +121,50 @@ export default function StitchScreenRenderer({
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
 
-  // Storefront live products
+  // Storefront live products & filtering
   const products = useStorefrontStore((state) => state.products || []);
   const loadStorefront = useStorefrontStore((state) => state.load);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedBoutique, setSelectedBoutique] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Active product resolved for PDP
+  const activeProduct = React.useMemo(() => {
+    if (!products || products.length === 0) return null;
+    if (params?.id) {
+      const found = products.find((p) => (p.id || p._id) === params.id);
+      if (found) return found;
+    }
+    if (params?.productId) {
+      const found = products.find((p) => (p.id || p._id) === params.productId);
+      if (found) return found;
+    }
+    if (params?.title) {
+      const decoded = decodeURIComponent(params.title);
+      const found = products.find((p) => p.name === decoded);
+      if (found) return found;
+    }
+    return products[0];
+  }, [products, params]);
 
   // PDP live selections
   const [selectedSize, setSelectedSize] = useState('M');
   const [selectedColor, setSelectedColor] = useState('Sindhoor Crimson');
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Sync selected size/color whenever activeProduct changes
+  useEffect(() => {
+    if (activeProduct) {
+      const firstSize = (activeProduct.sizes && activeProduct.sizes[0]) ||
+        (activeProduct.sizesWithStock && activeProduct.sizesWithStock[0]?.size) || 'M';
+      setSelectedSize(typeof firstSize === 'object' ? firstSize.size : String(firstSize));
+
+      const firstColor = (activeProduct.colors && activeProduct.colors[0]) || null;
+      const colorName = typeof firstColor === 'object' ? firstColor?.name : (firstColor || 'Original');
+      setSelectedColor(colorName);
+      setActiveImageIndex(0);
+    }
+  }, [activeProduct]);
 
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -229,43 +265,169 @@ export default function StitchScreenRenderer({
       `$1${cartCount}$2`
     );
 
-    // 1. STOREFRONT HOME: Inject live products from MongoDB into hero & grid
+    // 1. STOREFRONT HOME: Inject live products from MongoDB into hero, ateliers & grid
     if (targetKey.includes('Storefront_Home') && products.length > 0) {
       // Hero Card Binding to primary database product
       const heroP = products[0];
       const heroImg = heroP.image || heroP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
       const heroName = heroP.name || 'Artisanal Nagpur Handloom';
-      const heroPrice = heroP.price || 4750;
+      const heroPrice = heroP.price || 5200;
       const heroMrp = heroP.mrp || Math.round(heroPrice * 1.35);
-      const heroBoutique = (heroP.brand || heroP.storeName || 'Dharampeth Handloom').toUpperCase();
+      const heroBoutique = (heroP.brand || heroP.storeName || heroP.vendor?.shopName || 'Studio Anamika').toUpperCase();
+      const heroArea = (heroP.storeArea || heroP.vendor?.address?.area || 'Dharampeth').toUpperCase();
       const heroId = heroP.id || heroP._id || '6a9f987ec93d15e80a649c9b';
       const heroStoreId = heroP.storeId || (heroP.vendor?._id ? String(heroP.vendor._id) : '6a9f987ec93d15e80a649c9a');
 
       html = html.replace(/Royal Chanderi Zari Set/g, heroName);
       html = html.replace(/aria-label="Royal Chanderi Zari Set, ₹4,750"/g, `aria-label="${heroName}, ₹${heroPrice.toLocaleString()}"`);
-      html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth Atelier(<\/span>)/g, `$1${heroBoutique}$2`);
+      html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth Atelier(<\/span>)/g, `$1${heroBoutique} • ${heroArea}$2`);
       html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
       html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
 
+      // Filter products based on selected boutique, search query, and category
       const activeList = products.filter((p) => {
+        // Boutique filter
+        if (selectedBoutique) {
+          const bName = (p.brand || p.storeName || p.vendor?.shopName || '').toUpperCase();
+          if (bName !== selectedBoutique.toUpperCase()) return false;
+        }
+
+        // Search query filter
+        if (searchQuery.trim()) {
+          const q = searchQuery.trim().toLowerCase();
+          const searchCorpus = `${p.name || ''} ${p.brand || ''} ${p.material || ''} ${p.category || ''} ${p.subCategory || ''} ${p.description || ''} ${p.storeArea || ''}`.toLowerCase();
+          if (!searchCorpus.includes(q)) return false;
+        }
+
+        // Category filter
         if (!selectedCategory || selectedCategory === 'ALL') return true;
-        const text = `${p.category || ''} ${p.subCategory || ''} ${p.name || ''}`.toUpperCase();
-        if (selectedCategory === 'SILKS') return text.includes('SILK') || text.includes('HANDLOOM') || text.includes('PAITHANI');
-        if (selectedCategory === 'LEHENGAS') return text.includes('LEHENGA') || text.includes('BRIDAL');
-        if (selectedCategory === 'KURTAS') return text.includes('KURTA');
-        if (selectedCategory === 'MENSWEAR') return text.includes('MEN') || text.includes('SHERWANI');
-        if (selectedCategory === 'BRIDAL') return text.includes('BRIDAL') || text.includes('ZARI');
+        const normCat = selectedCategory.trim().toUpperCase();
+        const text = `${p.category || ''} ${p.subCategory || ''} ${p.name || ''} ${p.material || ''}`.toUpperCase();
+
+        if (normCat.includes('SAREE') || normCat.includes('HANDLOOM') || normCat === 'SILKS') {
+          return text.includes('SAREE') || text.includes('HANDLOOM') || text.includes('SILK') || text.includes('CHANDERI') || text.includes('ZARI');
+        }
+        if (normCat.includes('WOMEN') || normCat.includes('PRÊT')) {
+          return (p.category || '').toUpperCase() === 'WOMEN' || text.includes('KURTA') || text.includes('SAREE') || text.includes('ANARKALI');
+        }
+        if (normCat.includes('KURTA') || normCat.includes('SETS')) {
+          return text.includes('KURTA') || text.includes('SET') || text.includes('ANGRAKHA');
+        }
+        if (normCat.includes('MEN') || normCat === 'MENSWEAR') {
+          return (p.category || '').toUpperCase() === 'MEN' || text.includes('SHIRT') || text.includes('SHERWANI') || text.includes('KURTA');
+        }
+        if (normCat.includes('DUPATTA') || normCat.includes('SILK')) {
+          return text.includes('DUPATTA') || text.includes('SILK') || text.includes('HANDLOOM');
+        }
+        if (normCat.includes('JEWELLERY') || normCat.includes('ACCENT')) {
+          return text.includes('JEWEL') || text.includes('ACCENT') || text.includes('ZARI');
+        }
         return true;
       });
 
-      const cardsToRender = activeList.length > 0 ? activeList : products;
-      const liveCardsHtml = cardsToRender.slice(0, 10).map((p) => {
+      // Bind Real Ateliers / Boutiques from database products
+      const uniqueAteliers = [];
+      const seenBoutiques = new Set();
+      for (const p of products) {
+        const bName = p.brand || p.storeName || p.vendor?.shopName;
+        if (!bName || seenBoutiques.has(bName.toUpperCase())) continue;
+        seenBoutiques.add(bName.toUpperCase());
+        uniqueAteliers.push({
+          name: bName,
+          area: p.storeArea || p.vendor?.address?.area || 'Nagpur Central',
+          distanceKm: p.distanceKm || (p.vendor?.location ? 1.4 : 1.2),
+          eta: p.deliveryMinutes || 20,
+          image: p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
+          specialty: p.material ? `${p.material} & ${p.subCategory || p.category}` : 'Nagpur Handloom & Prêt',
+        });
+      }
+
+      // Render Real Ateliers in Light Theme
+      const lightAteliersHtml = uniqueAteliers.map((b) => {
+        const isSel = selectedBoutique && selectedBoutique.toUpperCase() === b.name.toUpperCase();
+        return `
+          <div class="w-64 flex-shrink-0 bg-surface-porcelain rounded-xl overflow-hidden shadow-sm flex flex-col cursor-pointer transition-all hover:shadow-md border ${isSel ? 'border-accent-crimson ring-2 ring-accent-crimson/20' : 'border-surface-container-high'}"
+               data-action="filter-boutique"
+               data-boutique="${encodeURIComponent(b.name)}">
+            <div class="relative h-28 w-full bg-surface-container overflow-hidden">
+              <img class="w-full h-full object-cover transition-transform duration-500 hover:scale-105" alt="${b.name}" src="${b.image}" onerror="this.src='/app/apple-touch-icon.png';" />
+              <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-surface-porcelain/90 backdrop-blur-md text-accent-gold-deep font-eyebrow text-eyebrow uppercase font-bold tracking-wider shadow-sm">
+                ${b.eta} Mins Away
+              </div>
+              ${isSel ? '<span class="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-accent-crimson text-white text-[10px] font-bold">Active</span>' : ''}
+            </div>
+            <div class="p-3 flex flex-col justify-between flex-1 gap-1">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h4 class="font-title-md text-base text-text-obsidian font-bold truncate">${b.name}</h4>
+                  <div class="flex items-center gap-0.5 text-accent-gold-deep text-xs font-semibold">
+                    <span class="material-symbols-outlined text-[14px]">star</span>
+                    <span>4.9</span>
+                  </div>
+                </div>
+                <p class="font-body-sm text-xs text-text-slate truncate mt-0.5">${b.area} · ${b.specialty}</p>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-surface-container-low text-accent-crimson font-eyebrow text-[10px] uppercase font-semibold tracking-wider">
+                <span>${isSel ? 'Clear Filter' : 'Explore Looks'}</span>
+                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const lightAtelierRegex = /(<div[^>]*class="[^"]*flex gap-3 overflow-x-auto[^"]*">)[\s\S]*?(<\/div>\s*<\/section>)/i;
+      if (lightAtelierRegex.test(html) && uniqueAteliers.length > 0) {
+        html = html.replace(lightAtelierRegex, `$1${lightAteliersHtml}$2`);
+      }
+
+      // Render Real Ateliers in Dark Theme
+      const darkAteliersHtml = uniqueAteliers.map((b) => {
+        const isSel = selectedBoutique && selectedBoutique.toUpperCase() === b.name.toUpperCase();
+        return `
+          <div class="w-64 shrink-0 bg-surface-container-low rounded-xl overflow-hidden shadow-lg flex flex-col justify-between cursor-pointer transition-all hover:shadow-xl border ${isSel ? 'border-secondary ring-2 ring-secondary/20' : 'border-border-hairline'}"
+               data-action="filter-boutique"
+               data-boutique="${encodeURIComponent(b.name)}">
+            <div class="relative h-32 w-full bg-surface-container overflow-hidden">
+              <img class="w-full h-full object-cover transition-transform duration-500 hover:scale-105" alt="${b.name}" src="${b.image}" onerror="this.src='/app/apple-touch-icon.png';" />
+              <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-surface-container-lowest/80 backdrop-blur-md text-secondary font-label-sm text-label-sm uppercase font-bold tracking-wider">
+                ${b.eta} Mins Away
+              </div>
+              ${isSel ? '<span class="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-secondary text-surface text-[10px] font-bold">Active</span>' : ''}
+            </div>
+            <div class="p-space-sm flex flex-col justify-between flex-1 gap-1">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h4 class="font-title-md text-base text-on-surface font-bold truncate">${b.name}</h4>
+                  <div class="flex items-center gap-0.5 text-secondary text-xs font-semibold">
+                    <span class="material-symbols-outlined text-[14px]">star</span>
+                    <span>4.9</span>
+                  </div>
+                </div>
+                <p class="font-body-sm text-xs text-on-surface-variant truncate mt-0.5">${b.area} · ${b.specialty}</p>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-border-hairline text-secondary font-label-sm text-[10px] uppercase font-semibold tracking-wider">
+                <span>${isSel ? 'Clear Filter' : 'Explore Looks'}</span>
+                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const darkAtelierRegex = /(<div[^>]*class="[^"]*flex items-stretch gap-space-md[^"]*">)[\s\S]*?(<\/div>\s*<\/div>\s*<\/section>)/i;
+      if (darkAtelierRegex.test(html) && uniqueAteliers.length > 0) {
+        html = html.replace(darkAtelierRegex, `$1${darkAteliersHtml}$2`);
+      }
+
+      // Render Product Cards Grid
+      const liveCardsHtml = activeList.length > 0 ? activeList.map((p) => {
         const img = p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const name = p.name || 'Artisanal Nagpur Garment';
         const price = p.price || 2800;
         const mrp = p.mrp || Math.round(price * 1.35);
-        const boutique = (p.brand || p.storeName || 'Studio Anamika').toUpperCase();
+        const boutique = (p.brand || p.storeName || p.vendor?.shopName || 'Studio Anamika').toUpperCase();
         const eta = p.deliveryMinutes || 20;
         const prodId = p.id || p._id || '6a9f987ec93d15e80a649c9b';
         const storeId = p.storeId || (p.vendor?._id ? String(p.vendor._id) : '6a9f987ec93d15e80a649c9a');
@@ -322,7 +484,16 @@ export default function StitchScreenRenderer({
             </div>
           </div>
         `;
-      }).join('');
+      }).join('') : `
+        <div class="col-span-2 p-8 text-center flex flex-col items-center justify-center gap-3 my-4 bg-surface-porcelain rounded-2xl border border-surface-container-high">
+          <span class="material-symbols-outlined text-[36px] text-text-ash">filter_list_off</span>
+          <h4 class="font-title-md text-lg text-text-obsidian font-bold">No garments match your filters</h4>
+          <p class="font-body-sm text-text-slate text-xs max-w-xs">Try selecting ALL or clearing your search to view all ${products.length} live Nagpur boutique pieces.</p>
+          <button data-action="clear-filters" class="px-5 py-2 rounded-full bg-accent-crimson text-white text-xs font-semibold shadow-sm active:scale-95 transition-transform">
+            Show All Nagpur Looks
+          </button>
+        </div>
+      `;
 
       const gridRegex = /(<div[^>]*class="[^"]*grid grid-cols-2[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/section>)/i;
       if (gridRegex.test(html)) {
@@ -333,21 +504,122 @@ export default function StitchScreenRenderer({
     }
 
     // 2. PRODUCT DETAIL: Inject active garment details from database
-    if (targetKey.includes('Product_Detail')) {
-      const fallbackP = products[0] || {};
-      const activeTitle = params.title ? decodeURIComponent(params.title) : (fallbackP.name || 'Artisanal Nagpur Handloom Garment');
-      const activePrice = params.price || fallbackP.price || 4800;
-      const activeMrp = params.mrp || fallbackP.mrp || Math.round(activePrice * 1.35);
-      const activeBoutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : (fallbackP.brand || fallbackP.storeName || 'STUDIO ANAMIKA');
-      const activeImage = params.image || fallbackP.image || fallbackP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+    if (targetKey.includes('Product_Detail') && activeProduct) {
+      const activeP = activeProduct;
+      const activeTitle = activeP.name || 'Artisanal Nagpur Handloom Garment';
+      const activePrice = activeP.price || 4800;
+      const activeMrp = activeP.mrp || Math.round(activePrice * 1.35);
+      const activeBoutique = (activeP.brand || activeP.storeName || activeP.vendor?.shopName || 'STUDIO ANAMIKA').toUpperCase();
+      const activeArea = (activeP.storeArea || activeP.vendor?.address?.area || 'DHARAMPETH').toUpperCase();
+      const activeImages = (activeP.images && activeP.images.length > 0) ? activeP.images : [activeP.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'];
+      const activeImage = activeImages[activeImageIndex] || activeImages[0];
+      const activeDescription = activeP.description || `Handcrafted in Nagpur with authentic ${activeP.material || 'silk & handloom'} fabrics. Available for 45-minute doorstep trial.`;
+      const activeColors = (activeP.colors && activeP.colors.length > 0)
+        ? activeP.colors.map(c => typeof c === 'object' ? c : { name: String(c), hex: '#121215' })
+        : [{ name: 'Original', hex: '#121215' }];
+      const activeSizes = (activeP.sizes && activeP.sizes.length > 0)
+        ? activeP.sizes.map(s => typeof s === 'object' ? (s.size || String(s)) : String(s))
+        : ['FREE'];
+      const activeCare = activeP.careInstructions || 'Dry clean recommended to preserve fabric luster.';
+      const activeMaterial = activeP.material || 'Pure Handloom Fabric';
+      const activePattern = activeP.pattern || 'Artisanal Weave';
+      const activeFit = activeP.fit || 'Tailored Regular';
+      const activeOccasion = activeP.occasion || 'Festive & Prêt';
+      const currColor = selectedColor || activeColors[0]?.name || 'Original';
+      const currSize = selectedSize || activeSizes[0] || 'FREE';
+      const privilegePct = Math.max(10, Math.round(((activeMrp - activePrice) / activeMrp) * 100));
 
+      // 1. Title & Headings
+      html = html.replace(/Chanderi Silk Angrakha/g, activeTitle);
       html = html.replace(/(<h1[^>]*>)[^<]+(<\/h1>)/i, (m, p1, p2) => `${p1}${activeTitle}${p2}`);
+
+      // 2. Prices & MRP
       html = html.replace(/(<span[^>]*class="[^"]*text-accent-crimson[^"]*font-semibold[^"]*"[^>]*>)\s*₹[\d,]+\s*(<\/span>)/gi, (m, p1, p2) => `${p1}₹${activePrice.toLocaleString()}${p2}`);
       html = html.replace(/(<span[^>]*class="[^"]*font-headline-md text-on-surface[^"]*"[^>]*>)\s*₹[\d,]+\s*(<\/span>)/gi, (m, p1, p2) => `${p1}₹${activePrice.toLocaleString()}${p2}`);
       html = html.replace(/₹4,800/g, `₹${activePrice.toLocaleString()}`);
-      html = html.replace(/₹6,499|₹6,400/g, `₹${activeMrp.toLocaleString()}`);
-      html = html.replace(/(<span[^>]*class="[^"]*font-eyebrow[^"]*text-accent-gold[^"]*"[^>]*>)[^<]+(<\/span>)/i, (m, p1, p2) => `${p1}${activeBoutique.toUpperCase()} • DHARAMPETH${p2}`);
-      html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, (m, p1, p2) => `${p1}${activeImage}${p2}`);
+      html = html.replace(/₹6,499|₹6,400|₹6,300/g, `₹${activeMrp.toLocaleString()}`);
+      html = html.replace(/26%\s*PRIVILEGE|26%\s*Privilege/gi, `${privilegePct}% PRIVILEGE`);
+
+      // 3. Boutique & Location
+      html = html.replace(/Studio Anamika\s*·\s*Dharampeth\s*·\s*1\.4\s*km/gi, `${activeBoutique} · ${activeArea} · 1.2 km`);
+      html = html.replace(/(<span[^>]*class="[^"]*font-eyebrow[^"]*text-accent-gold[^"]*"[^>]*>)[^<]+(<\/span>)/i, (m, p1, p2) => `${p1}${activeBoutique} • ${activeArea}${p2}`);
+
+      // 4. Description
+      html = html.replace(/<p class="font-body-md text-body-md text-text-slate mt-1">[\s\S]*?<\/p>/i, `<p class="font-body-md text-body-md text-text-slate mt-1">${activeDescription}</p>`);
+      html = html.replace(/<p class="font-body-md text-body-md text-on-surface-variant">[\s\S]*?<\/p>/i, `<p class="font-body-md text-body-md text-on-surface-variant">${activeDescription}</p>`);
+
+      // 5. Main Image & Photo Counter
+      html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${activeImage}$2`);
+      html = html.replace(/1\s*\/\s*4/g, `${activeImageIndex + 1} / ${activeImages.length}`);
+
+      // 6. Dynamic Color Selection
+      const colorSubtitleLight = `${currColor} · Atelier Colorway`;
+      html = html.replace(/Sindhoor Crimson\s*·\s*Pure Mulberry Dip/g, colorSubtitleLight);
+      html = html.replace(/id="selected-shade-name">[^<]+<\/span>/i, `id="selected-shade-name">${currColor}</span>`);
+
+      const dynamicColorsLightHtml = `
+        <div class="grid grid-cols-3 gap-2.5" id="color-swatch-container">
+          ${activeColors.map((c) => {
+            const isSel = c.name.toLowerCase() === currColor.toLowerCase();
+            return `
+              <button class="flex items-center gap-2.5 p-2 rounded-xl bg-surface-porcelain shadow-sm border ${isSel ? 'border-accent-gold-deep ring-1 ring-accent-gold' : 'border-transparent hover:border-surface-container-high'} active:scale-95 transition-all text-left" type="button" data-action="select-color" data-color="${encodeURIComponent(c.name)}">
+                <span class="relative flex items-center justify-center w-6 h-6 rounded-full shadow-inner shrink-0" style="background-color: ${c.hex || '#121215'}; border: 1px solid rgba(0,0,0,0.15);">
+                  ${isSel ? '<span class="w-1.5 h-1.5 rounded-full bg-white shadow-xs"></span>' : ''}
+                </span>
+                <div class="flex flex-col min-w-0">
+                  <span class="font-tabular-caption text-tabular-caption ${isSel ? 'font-bold' : ''} text-text-obsidian truncate">${c.name}</span>
+                  <span class="font-eyebrow text-[9px] uppercase tracking-wider ${isSel ? 'text-accent-crimson font-semibold' : 'text-text-ash'}">${isSel ? 'Current' : 'Palette'}</span>
+                </div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+      html = html.replace(/<div class="grid grid-cols-3 gap-2.5">[\s\S]*?<\/div>/i, dynamicColorsLightHtml);
+
+      // 7. Dynamic Sizes
+      const dynamicSizesHtml = `
+        <div class="flex flex-wrap gap-2" id="size-chip-container">
+          ${activeSizes.map((s) => {
+            const isSel = s.toUpperCase() === currSize.toUpperCase();
+            return `
+              <button class="size-chip px-4 py-2.5 rounded-xl ${isSel ? 'bg-accent-crimson text-surface-porcelain font-bold shadow-md' : 'bg-ground-subtle text-text-obsidian hover:bg-surface-container'} font-tabular-caption text-tabular-caption text-center shadow-sm active:scale-95 transition-all" type="button" data-action="select-size" data-size="${s}">
+                ${s}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+      html = html.replace(/<div class="grid grid-cols-5 gap-2" id="size-chip-container">[\s\S]*?<\/div>/i, dynamicSizesHtml);
+
+      // 8. Textile & Artistry Specifications
+      const specsSummary = `Tailored from authentic ${activeMaterial}. Features ${activePattern} pattern with ${activeFit} drape, curated specifically for ${activeOccasion}.`;
+      html = html.replace(/Woven with 70% pure Mulberry Mulberry-Chanderi yarn[\s\S]*?temperatures\./i, specsSummary);
+      html = html.replace(/Extra-weft Zari Buti/g, `${activePattern} (${activeMaterial})`);
+      html = html.replace(/Sindhoor Crimson &amp; Ochre|Sindhoor Crimson & Ochre/g, activeColors.map(c => c.name).join(', '));
+
+      // 9. Studio Dossier
+      const dossierSummary = `Located in ${activeArea}, ${activeBoutique} is part of the Kya Pehnu artisan network, hand-delivering curated local garments to your doorstep in Nagpur in under 45 minutes.`;
+      html = html.replace(/Nestled in Dharampeth, Anamika's studio has revitalized[\s\S]*?weaver colonies\./i, dossierSummary);
+      html = html.replace(/Master Weaved by Devaji/g, `Curated by ${activeBoutique}`);
+      html = html.replace(/38 Years Preserving Vidarbha Loom Heritage/g, `${activeArea} · Nagpur Heritage Guild`);
+
+      // 10. Atelier Care Ritual
+      html = html.replace(/Dry clean only using pure organic solvents\./g, activeCare);
+
+      // 11. Multi-image gallery thumbnails if product has > 1 image
+      if (activeImages.length > 1) {
+        const galleryDotsHtml = `
+          <div class="flex items-center justify-center gap-2 mt-2 px-4 py-1">
+            ${activeImages.map((imgUrl, idx) => `
+              <button data-action="select-gallery-img" data-index="${idx}" class="w-10 h-12 rounded-md overflow-hidden border-2 transition-all ${idx === activeImageIndex ? 'border-accent-crimson scale-105 shadow-sm' : 'border-transparent opacity-60 hover:opacity-100'}">
+                <img src="${imgUrl}" alt="Thumbnail ${idx + 1}" class="w-full h-full object-cover" onerror="this.src='/app/apple-touch-icon.png';" />
+              </button>
+            `).join('')}
+          </div>
+        `;
+        html = html.replace(/(<\/div>\s*<div class="px-gutter-md pt-4">)/i, `${galleryDotsHtml}$1`);
+      }
     }
 
     // 3. CART SCREEN (Your_Bag): Inject live cart items from store
@@ -865,12 +1137,20 @@ export default function StitchScreenRenderer({
     }
 
     return html;
-  }, [screenData, cartCount, params, targetKey, products, selectedCategory, cartItems, recentOrders]);
+  }, [screenData, cartCount, params, targetKey, products, selectedCategory, selectedBoutique, searchQuery, selectedSize, selectedColor, activeImageIndex, activeProduct, cartItems, recentOrders]);
 
-  // Event Delegation for all clicks and user workflows
+  // Event Delegation for all clicks, inputs and user workflows
   useEffect(() => {
     const el = containerRef.current;
     if (!el || Platform.OS !== 'web') return;
+
+    const handleInput = (e) => {
+      const target = e.target;
+      if (target && target.matches && target.matches('input[type="text"], input[placeholder*="Search" i], input[placeholder*="search" i]')) {
+        setSearchQuery(target.value);
+      }
+    };
+    el.addEventListener('input', handleInput);
 
     const handleClick = async (e) => {
       const target = e.target;
@@ -1156,12 +1436,50 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         const rawText = catBtn.textContent.trim().toUpperCase();
-        catBtn.parentElement.querySelectorAll('button').forEach((b) => {
-          b.className = 'px-4 py-2 rounded-full bg-surface-porcelain text-text-obsidian font-eyebrow text-eyebrow uppercase tracking-wider font-medium whitespace-nowrap shadow-sm hover:bg-ground-subtle transition-colors';
-        });
-        catBtn.className = 'px-4 py-2 rounded-full bg-accent-crimson text-surface-porcelain font-eyebrow text-eyebrow uppercase tracking-wider font-semibold whitespace-nowrap shadow-sm';
-        setSelectedCategory(rawText);
-        showToast(`Filtered: ${rawText}`);
+        if (selectedCategory === rawText && rawText !== 'ALL') {
+          setSelectedCategory('ALL');
+          showToast('Showing all categories.');
+        } else {
+          setSelectedCategory(rawText);
+          showToast(`Filtered: ${rawText}`);
+        }
+        return;
+      }
+
+      // --- 5b. ATELIER / BOUTIQUE FILTER IN STOREFRONT ---
+      const boutiqueCard = target.closest('[data-action="filter-boutique"]');
+      if (boutiqueCard) {
+        e.preventDefault();
+        e.stopPropagation();
+        const bName = decodeURIComponent(boutiqueCard.getAttribute('data-boutique') || '');
+        if (selectedBoutique && selectedBoutique.toUpperCase() === bName.toUpperCase()) {
+          setSelectedBoutique(null);
+          showToast('Showing all Nagpur ateliers.');
+        } else {
+          setSelectedBoutique(bName);
+          showToast(`Showing looks from ${bName}`);
+        }
+        return;
+      }
+
+      // --- 5c. CLEAR ALL FILTERS ---
+      if (target.closest('[data-action="clear-filters"]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedCategory('ALL');
+        setSelectedBoutique(null);
+        setSearchQuery('');
+        showToast('All filters cleared.');
+        return;
+      }
+
+      // --- 5d. PDP GALLERY THUMBNAIL SWITCHER ---
+      const galleryBtn = target.closest('[data-action="select-gallery-img"]');
+      if (galleryBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(galleryBtn.getAttribute('data-index') || '0', 10);
+        setActiveImageIndex(idx);
         return;
       }
 
@@ -1173,10 +1491,14 @@ export default function StitchScreenRenderer({
         const card = quickAddBtn.closest('[data-action="open-pdp"], .group, [class*="rounded-xl"]');
         const prodId = quickAddBtn.getAttribute('data-id') || card?.getAttribute('data-id') || '6a9f987ec93d15e80a649c9b';
         const storeId = quickAddBtn.getAttribute('data-store-id') || card?.getAttribute('data-store-id') || '6a9f987ec93d15e80a649c9a';
-        const title = decodeURIComponent(quickAddBtn.getAttribute('data-title') || card?.getAttribute('data-title') || 'Sitabuldi Handloom Zari Kurta');
-        const price = parseInt(quickAddBtn.getAttribute('data-price') || card?.getAttribute('data-price') || '5200', 10);
-        const image = quickAddBtn.getAttribute('data-image') || card?.getAttribute('data-image') || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const boutique = decodeURIComponent(quickAddBtn.getAttribute('data-boutique') || card?.getAttribute('data-boutique') || 'Studio Anamika');
+        const pObj = products.find((p) => (p.id || p._id) === prodId) || {};
+        const title = pObj.name || decodeURIComponent(quickAddBtn.getAttribute('data-title') || card?.getAttribute('data-title') || 'Sitabuldi Handloom Zari Kurta');
+        const price = pObj.price || parseInt(quickAddBtn.getAttribute('data-price') || card?.getAttribute('data-price') || '5200', 10);
+        const image = pObj.image || pObj.images?.[0] || quickAddBtn.getAttribute('data-image') || card?.getAttribute('data-image') || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const boutique = pObj.brand || pObj.storeName || decodeURIComponent(quickAddBtn.getAttribute('data-boutique') || card?.getAttribute('data-boutique') || 'Studio Anamika');
+
+        const defSize = (pObj.sizes && pObj.sizes[0]) ? (typeof pObj.sizes[0] === 'object' ? pObj.sizes[0].size : pObj.sizes[0]) : 'M';
+        const defColor = (pObj.colors && pObj.colors[0]) ? (typeof pObj.colors[0] === 'object' ? pObj.colors[0].name : pObj.colors[0]) : 'Original';
 
         addToCart(
           {
@@ -1190,11 +1512,11 @@ export default function StitchScreenRenderer({
             storeName: boutique,
             boutiqueName: boutique,
           },
-          'M',
-          'Sindhoor Crimson',
+          defSize,
+          defColor,
           1
         );
-        showToast(`Added "${title}" to Bag.`);
+        showToast(`Added "${title}" (${defSize}) to Bag.`);
         return;
       }
 
@@ -1236,6 +1558,7 @@ export default function StitchScreenRenderer({
 
         navigateScreen('ProductDetail', {
           id: prodId,
+          productId: prodId,
           storeId,
           title,
           price,
@@ -1247,33 +1570,22 @@ export default function StitchScreenRenderer({
       }
 
       // --- 8. PDP: SIZE SELECTION ---
-      const sizeChip = target.closest('.size-chip, button');
-      if (sizeChip && sizeChip.textContent && sizeChip.textContent.trim().match(/^(FREE|XS|S|M|L|XL|XXL)$/i)) {
+      const sizeChip = target.closest('[data-action="select-size"], .size-chip, button');
+      if (sizeChip && (sizeChip.getAttribute('data-action') === 'select-size' || (sizeChip.textContent && sizeChip.textContent.trim().match(/^(FREE|XS|S|M|L|XL|XXL)$/i)))) {
         e.preventDefault();
         e.stopPropagation();
-        if (sizeChip.parentElement) {
-          sizeChip.parentElement.querySelectorAll('button').forEach((b) => {
-            b.className = 'size-chip py-2.5 rounded-xl bg-ground-subtle text-text-obsidian font-tabular-caption text-tabular-caption text-center shadow-sm active:scale-95 transition-all';
-          });
-        }
-        sizeChip.className = 'size-chip py-2.5 rounded-xl bg-accent-crimson text-surface-porcelain font-tabular-caption text-tabular-caption font-bold text-center shadow-md active:scale-95 transition-all';
-        setSelectedSize(sizeChip.textContent.trim());
-        showToast(`Selected Size: ${sizeChip.textContent.trim()}`);
+        const sz = sizeChip.getAttribute('data-size') || sizeChip.textContent.trim();
+        setSelectedSize(sz);
+        showToast(`Selected Size: ${sz}`);
         return;
       }
 
       // --- 9. PDP: COLOR SWATCH SELECTION ---
-      const colorBtn = target.closest('.grid-cols-3 button');
+      const colorBtn = target.closest('[data-action="select-color"], .grid-cols-3 button, .color-swatch-btn');
       if (colorBtn) {
         e.preventDefault();
         e.stopPropagation();
-        colorBtn.parentElement.querySelectorAll('button').forEach((b) => {
-          b.classList.remove('border-accent-gold-deep');
-          b.classList.add('border-transparent');
-        });
-        colorBtn.classList.remove('border-transparent');
-        colorBtn.classList.add('border-accent-gold-deep');
-        const colorName = colorBtn.querySelector('span[class*="tabular-caption"]')?.textContent || 'Sindhoor Crimson';
+        const colorName = decodeURIComponent(colorBtn.getAttribute('data-color') || colorBtn.getAttribute('data-shade') || colorBtn.querySelector('span[class*="tabular-caption"]')?.textContent || 'Original');
         setSelectedColor(colorName);
         showToast(`Selected Palette: ${colorName}`);
         return;
@@ -1283,12 +1595,13 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Add to Bag') || btn.textContent.includes('Add to Atelier Bag'))) {
         e.preventDefault();
         e.stopPropagation();
-        const title = params.title ? decodeURIComponent(params.title) : 'Sitabuldi Handloom Zari Kurta';
-        const price = params.price || 5200;
-        const boutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika';
-        const image = params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const prodId = params.id || '6a9f987ec93d15e80a649c9b';
-        const storeId = params.storeId || '6a9f987ec93d15e80a649c9a';
+        const curP = activeProduct || products[0] || {};
+        const title = curP.name || (params.title ? decodeURIComponent(params.title) : 'Artisanal Nagpur Garment');
+        const price = curP.price || params.price || 5200;
+        const boutique = curP.brand || curP.storeName || (params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika');
+        const image = curP.image || curP.images?.[0] || params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const prodId = curP.id || curP._id || params.id || '6a9f987ec93d15e80a649c9b';
+        const storeId = curP.storeId || params.storeId || '6a9f987ec93d15e80a649c9a';
 
         addToCart(
           {
@@ -1306,7 +1619,7 @@ export default function StitchScreenRenderer({
           selectedColor,
           1
         );
-        showToast('Added to Bag. Tap Bag below to review.');
+        showToast(`Added "${title}" (Size ${selectedSize}) to Bag.`);
         return;
       }
 
@@ -1314,12 +1627,13 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && (btn.textContent.includes('Try at Home Now') || btn.textContent.includes('15-Min Trial'))) {
         e.preventDefault();
         e.stopPropagation();
-        const title = params.title ? decodeURIComponent(params.title) : 'Sitabuldi Handloom Zari Kurta';
-        const price = params.price || 5200;
-        const boutique = params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika';
-        const image = params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const prodId = params.id || '6a9f987ec93d15e80a649c9b';
-        const storeId = params.storeId || '6a9f987ec93d15e80a649c9a';
+        const curP = activeProduct || products[0] || {};
+        const title = curP.name || (params.title ? decodeURIComponent(params.title) : 'Artisanal Nagpur Garment');
+        const price = curP.price || params.price || 5200;
+        const boutique = curP.brand || curP.storeName || (params.boutiqueName ? decodeURIComponent(params.boutiqueName) : 'Studio Anamika');
+        const image = curP.image || curP.images?.[0] || params.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+        const prodId = curP.id || curP._id || params.id || '6a9f987ec93d15e80a649c9b';
+        const storeId = curP.storeId || params.storeId || '6a9f987ec93d15e80a649c9a';
 
         addToCart(
           {
@@ -1743,9 +2057,10 @@ export default function StitchScreenRenderer({
 
     el.addEventListener('click', handleClick);
     return () => {
+      el.removeEventListener('input', handleInput);
       el.removeEventListener('click', handleClick);
     };
-  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile]);
+  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory]);
 
   // Initial Auth Tab Switcher (Split Login vs Register)
   useEffect(() => {
