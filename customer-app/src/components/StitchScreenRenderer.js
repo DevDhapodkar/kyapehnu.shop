@@ -285,12 +285,66 @@ export default function StitchScreenRenderer({
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
       html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
 
+      // Render Dynamic Category Pills in Storefront
+      const storefrontCategories = [
+        { id: 'ALL', label: 'All' },
+        { id: 'SAREES', label: 'Sarees & Handlooms' },
+        { id: 'WOMEN', label: "Women's Prêt" },
+        { id: 'KURTA', label: 'Kurtas & Sets' },
+        { id: 'MEN', label: "Men's Heritage" },
+        { id: 'DUPATTA', label: 'Silk Dupattas' },
+        { id: 'JEWELLERY', label: 'Jewellery & Accents' },
+      ];
+
+      const activeCatKey = (selectedCategory || 'ALL').trim().toUpperCase();
+      const isWomenActive = activeCatKey === 'WOMEN' || activeCatKey.includes('PRÊT');
+      const isMenActive = !isWomenActive && (activeCatKey === 'MEN' || activeCatKey.includes('MENSWEAR'));
+      const isSareeActive = activeCatKey === 'SAREES' || activeCatKey.includes('SAREE') || activeCatKey.includes('HANDLOOM');
+      const isKurtaActive = activeCatKey === 'KURTA' || activeCatKey.includes('KURTA') || activeCatKey.includes('SET');
+      const isDupattaActive = activeCatKey === 'DUPATTA';
+      const isJewelleryActive = activeCatKey === 'JEWELLERY';
+
+      const lightCategoryPillsHtml = storefrontCategories.map((c) => {
+        let isMatch = false;
+        if (c.id === 'ALL') {
+          isMatch = !selectedCategory || activeCatKey === 'ALL';
+        } else if (c.id === 'MEN') {
+          isMatch = isMenActive;
+        } else if (c.id === 'WOMEN') {
+          isMatch = isWomenActive;
+        } else if (c.id === 'SAREES') {
+          isMatch = isSareeActive;
+        } else if (c.id === 'KURTA') {
+          isMatch = isKurtaActive;
+        } else if (c.id === 'DUPATTA') {
+          isMatch = isDupattaActive;
+        } else if (c.id === 'JEWELLERY') {
+          isMatch = isJewelleryActive;
+        }
+
+        const cls = isMatch
+          ? 'px-4 py-2 rounded-full bg-accent-crimson text-surface-porcelain font-eyebrow text-eyebrow uppercase tracking-wider font-semibold whitespace-nowrap shadow-sm cursor-pointer'
+          : 'px-4 py-2 rounded-full bg-surface-porcelain text-text-obsidian font-eyebrow text-eyebrow uppercase tracking-wider font-medium whitespace-nowrap shadow-sm hover:bg-ground-subtle transition-colors cursor-pointer';
+
+        return `<button data-action="filter-category" data-cat="${c.id}" data-label="${c.label}" class="${cls}">\n        ${c.label}\n      </button>`;
+      }).join('\n');
+
+      const categoryPillsRegex = /(<div[^>]*class="[^"]*flex items-center gap-2 overflow-x-auto[^"]*no-scrollbar[^"]*">)[\s\S]*?(<\/div>\s*<\/section>)/i;
+      if (categoryPillsRegex.test(html)) {
+        html = html.replace(categoryPillsRegex, `$1\n${lightCategoryPillsHtml}\n$2`);
+      }
+
       // Filter products based on selected boutique, search query, and category
       const activeList = products.filter((p) => {
         // Boutique filter
         if (selectedBoutique) {
-          const bName = (p.brand || p.storeName || p.vendor?.shopName || '').toUpperCase();
-          if (bName !== selectedBoutique.toUpperCase()) return false;
+          const bSel = selectedBoutique.trim().toUpperCase();
+          const pBrand = (p.brand || '').toUpperCase();
+          const pStore = (p.storeName || '').toUpperCase();
+          const pVendor = (p.vendor?.shopName || '').toUpperCase();
+          const matchesBoutique = pBrand.includes(bSel) || pStore.includes(bSel) || pVendor.includes(bSel) ||
+                                  bSel.includes(pBrand) || bSel.includes(pStore) || bSel.includes(pVendor);
+          if (!matchesBoutique) return false;
         }
 
         // Search query filter
@@ -303,25 +357,35 @@ export default function StitchScreenRenderer({
         // Category filter
         if (!selectedCategory || selectedCategory === 'ALL') return true;
         const normCat = selectedCategory.trim().toUpperCase();
-        const text = `${p.category || ''} ${p.subCategory || ''} ${p.name || ''} ${p.material || ''}`.toUpperCase();
+        const pCat = (p.category || '').toUpperCase();
+        const pSub = (p.subCategory || '').toUpperCase();
+        const pName = (p.name || '').toUpperCase();
+        const text = `${pCat} ${pSub} ${pName} ${(p.material || '')}`.toUpperCase();
 
-        if (normCat.includes('SAREE') || normCat.includes('HANDLOOM') || normCat === 'SILKS') {
-          return text.includes('SAREE') || text.includes('HANDLOOM') || text.includes('SILK') || text.includes('CHANDERI') || text.includes('ZARI');
+        const isWomenFilter = normCat === 'WOMEN' || normCat.includes('WOMEN') || normCat.includes('PRÊT');
+        const isMenFilter = !isWomenFilter && (normCat === 'MEN' || normCat.includes('MEN') || normCat === 'MENSWEAR');
+        const isSareeFilter = normCat === 'SAREES' || normCat.includes('SAREE') || normCat.includes('HANDLOOM');
+        const isKurtaFilter = normCat === 'KURTA' || normCat.includes('KURTA') || normCat.includes('SET');
+        const isDupattaFilter = normCat === 'DUPATTA' || normCat.includes('DUPATTA');
+        const isJewelFilter = normCat === 'JEWELLERY' || normCat.includes('JEWEL') || normCat.includes('ACCENT');
+
+        if (isMenFilter) {
+          return pCat === 'MEN';
         }
-        if (normCat.includes('WOMEN') || normCat.includes('PRÊT')) {
-          return (p.category || '').toUpperCase() === 'WOMEN' || text.includes('KURTA') || text.includes('SAREE') || text.includes('ANARKALI');
+        if (isWomenFilter) {
+          return pCat === 'WOMEN';
         }
-        if (normCat.includes('KURTA') || normCat.includes('SETS')) {
-          return text.includes('KURTA') || text.includes('SET') || text.includes('ANGRAKHA');
+        if (isSareeFilter) {
+          return pSub === 'SAREE' || pName.includes('SAREE') || text.includes('HANDLOOM') || text.includes('BANARASI');
         }
-        if (normCat.includes('MEN') || normCat === 'MENSWEAR') {
-          return (p.category || '').toUpperCase() === 'MEN' || text.includes('SHIRT') || text.includes('SHERWANI') || text.includes('KURTA');
+        if (isKurtaFilter) {
+          return pSub === 'KURTA' || pName.includes('KURTA') || pName.includes('ANGRAKHA');
         }
-        if (normCat.includes('DUPATTA') || normCat.includes('SILK')) {
-          return text.includes('DUPATTA') || text.includes('SILK') || text.includes('HANDLOOM');
+        if (isDupattaFilter) {
+          return pSub.includes('DUPATTA') || text.includes('DUPATTA');
         }
-        if (normCat.includes('JEWELLERY') || normCat.includes('ACCENT')) {
-          return text.includes('JEWEL') || text.includes('ACCENT') || text.includes('ZARI');
+        if (isJewelFilter) {
+          return text.includes('JEWEL') || text.includes('ACCENT');
         }
         return true;
       });
@@ -1431,19 +1495,23 @@ export default function StitchScreenRenderer({
       }
 
       // --- 5. CATEGORY PILL FILTER IN STOREFRONT ---
-      const catBtn = target.closest('.no-scrollbar button, [class*="rounded-full"][class*="px-4"]');
-      if (catBtn && catBtn.parentElement && catBtn.parentElement.classList.contains('no-scrollbar')) {
-        e.preventDefault();
-        e.stopPropagation();
-        const rawText = catBtn.textContent.trim().toUpperCase();
-        if (selectedCategory === rawText && rawText !== 'ALL') {
-          setSelectedCategory('ALL');
-          showToast('Showing all categories.');
-        } else {
-          setSelectedCategory(rawText);
-          showToast(`Filtered: ${rawText}`);
+      const catBtn = target.closest('[data-action="filter-category"], .no-scrollbar button, [class*="rounded-full"][class*="px-4"]');
+      if (catBtn) {
+        const isWithinCategoryBar = catBtn.closest('.no-scrollbar') || catBtn.hasAttribute('data-cat');
+        if (isWithinCategoryBar) {
+          e.preventDefault();
+          e.stopPropagation();
+          const catId = catBtn.getAttribute('data-cat') || catBtn.textContent.trim().toUpperCase();
+          const label = catBtn.getAttribute('data-label') || catBtn.textContent.trim();
+          if (selectedCategory === catId && catId !== 'ALL') {
+            setSelectedCategory('ALL');
+            showToast('Showing all categories.');
+          } else {
+            setSelectedCategory(catId);
+            showToast(`Filtered: ${label}`);
+          }
+          return;
         }
-        return;
       }
 
       // --- 5b. ATELIER / BOUTIQUE FILTER IN STOREFRONT ---
