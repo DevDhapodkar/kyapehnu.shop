@@ -1501,23 +1501,20 @@ export default function StitchScreenRenderer({
       }
 
       // --- 5. CATEGORY PILL FILTER IN STOREFRONT ---
-      const catBtn = target.closest('[data-action="filter-category"], .no-scrollbar button, [class*="rounded-full"][class*="px-4"]');
+      const catBtn = target.closest('[data-action="filter-category"]');
       if (catBtn) {
-        const isWithinCategoryBar = catBtn.closest('.no-scrollbar') || catBtn.hasAttribute('data-cat');
-        if (isWithinCategoryBar) {
-          e.preventDefault();
-          e.stopPropagation();
-          const catId = catBtn.getAttribute('data-cat') || catBtn.textContent.trim().toUpperCase();
-          const label = catBtn.getAttribute('data-label') || catBtn.textContent.trim();
-          if (selectedCategory === catId && catId !== 'ALL') {
-            setSelectedCategory('ALL');
-            showToast('Showing all categories.');
-          } else {
-            setSelectedCategory(catId);
-            showToast(`Filtered: ${label}`);
-          }
-          return;
+        e.preventDefault();
+        e.stopPropagation();
+        const catId = catBtn.getAttribute('data-cat') || catBtn.textContent.trim().toUpperCase();
+        const label = catBtn.getAttribute('data-label') || catBtn.textContent.trim();
+        if (selectedCategory === catId && catId !== 'ALL') {
+          setSelectedCategory('ALL');
+          showToast('Showing all categories.');
+        } else {
+          setSelectedCategory(catId);
+          showToast(`Filtered: ${label}`);
         }
+        return;
       }
 
       // --- 5b. ATELIER / BOUTIQUE FILTER IN STOREFRONT ---
