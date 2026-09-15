@@ -284,6 +284,9 @@ export default function StitchScreenRenderer({
       html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
       html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
+      if (searchQuery) {
+        html = html.replace(/(<input[^>]*placeholder="Search designer prêt[^"]*")/i, `$1 value="${searchQuery.replace(/"/g, '&quot;')}"`);
+      }
 
       // Render Dynamic Category Pills in Storefront
       const storefrontCategories = [
@@ -339,11 +342,13 @@ export default function StitchScreenRenderer({
         // Boutique filter
         if (selectedBoutique) {
           const bSel = selectedBoutique.trim().toUpperCase();
-          const pBrand = (p.brand || '').toUpperCase();
-          const pStore = (p.storeName || '').toUpperCase();
-          const pVendor = (p.vendor?.shopName || '').toUpperCase();
-          const matchesBoutique = pBrand.includes(bSel) || pStore.includes(bSel) || pVendor.includes(bSel) ||
-                                  bSel.includes(pBrand) || bSel.includes(pStore) || bSel.includes(pVendor);
+          const pBrand = (p.brand || '').trim().toUpperCase();
+          const pStore = (p.storeName || '').trim().toUpperCase();
+          const pVendor = (p.vendor?.shopName || '').trim().toUpperCase();
+          const matchesBoutique =
+            (pBrand && (pBrand.includes(bSel) || bSel.includes(pBrand))) ||
+            (pStore && (pStore.includes(bSel) || bSel.includes(pStore))) ||
+            (pVendor && (pVendor.includes(bSel) || bSel.includes(pVendor)));
           if (!matchesBoutique) return false;
         }
 
@@ -1215,6 +1220,7 @@ export default function StitchScreenRenderer({
       }
     };
     el.addEventListener('input', handleInput);
+    el.addEventListener('change', handleInput);
 
     const handleClick = async (e) => {
       const target = e.target;
@@ -2126,9 +2132,10 @@ export default function StitchScreenRenderer({
     el.addEventListener('click', handleClick);
     return () => {
       el.removeEventListener('input', handleInput);
+      el.removeEventListener('change', handleInput);
       el.removeEventListener('click', handleClick);
     };
-  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory]);
+  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory, searchQuery]);
 
   // Initial Auth Tab Switcher (Split Login vs Register)
   useEffect(() => {
