@@ -2,6 +2,8 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
+import { LOGO_DATA_URI } from '../src/constants/logoDataUri.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -233,6 +235,7 @@ if (fs.existsSync(indexPath)) {
       input, textarea, select, [contenteditable="true"], .selectable-text {
         -webkit-user-select: text !important;
         user-select: text !important;
+        pointer-events: auto !important;
       }
       /* Prevent iOS Safari 10+ focus auto-zoom on mobile (<16px input font size triggers browser zoom) */
       @media screen and (max-width: 768px) {
@@ -379,7 +382,7 @@ if (fs.existsSync(indexPath)) {
       <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#FAF9F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
         <div style="position:relative;display:flex;align-items:center;justify-content:center;">
           <div style="position:absolute;width:160px;height:160px;border-radius:80px;background:radial-gradient(circle, rgba(245,158,11,0.2) 0%, rgba(244,63,94,0.1) 60%, transparent 70%);filter:blur(20px);"></div>
-          <img src="/app/apple-touch-icon.png" alt="Kya Pehnu" style="width:104px;height:104px;border-radius:28px;box-shadow:0 12px 36px rgba(196,36,58,0.18);position:relative;z-index:2;" />
+          <img src="${LOGO_DATA_URI}" alt="Kya Pehnu" style="width:104px;height:104px;border-radius:28px;box-shadow:0 12px 36px rgba(196,36,58,0.18);position:relative;z-index:2;" />
         </div>
         <div style="margin-top:28px;font-size:26px;font-weight:500;color:#18181B;letter-spacing:-0.5px;font-family:'EB Garamond',Georgia,serif;">Kya Pehnu?</div>
         <div style="margin-top:6px;font-size:12px;color:#71717A;letter-spacing:0.2px;">Nagpur Hyperlocal Couture &bull; Under 60 Minutes</div>
@@ -423,10 +426,13 @@ const manifest = {
 
 fs.writeFileSync(path.join(distWebDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
 
-// Copy apple-touch-icon and favicon
+// Copy optimized apple-touch-icon and favicon
 const iconSource = path.join(projectRoot, 'assets/images/icon.png');
 if (fs.existsSync(iconSource)) {
-  fs.copyFileSync(iconSource, path.join(distWebDir, 'apple-touch-icon.png'));
+  await sharp(iconSource)
+    .resize(192, 192)
+    .png({ compressionLevel: 9, palette: true, quality: 85 })
+    .toFile(path.join(distWebDir, 'apple-touch-icon.png'));
 }
 const faviconSource = path.join(projectRoot, 'assets/images/favicon.png');
 if (fs.existsSync(faviconSource)) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import stitchScreens from '../data/stitchScreens.json';
 import { useThemeStore } from '../store/useThemeStore';
@@ -20,9 +20,15 @@ import {
   fetchVendorOrders,
 } from '../api/vendorApi';
 import { navigationRef } from '../navigation/AppNavigator';
+import { LOGO_DATA_URI } from '../constants/logoDataUri';
 
 const DARK_PALETTE_CSS = `
   .hidden { display: none !important; }
+  input, textarea, select, [contenteditable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    pointer-events: auto !important;
+  }
   .stitch-screen-root.dark, .dark .stitch-screen-root, html.dark .stitch-screen-root {
     --color-surface: #131315 !important;
     --color-background: #131315 !important;
@@ -102,6 +108,78 @@ const DARK_PALETTE_CSS = `
   .stitch-screen-root.dark .from-surface-container-low, .dark .from-surface-container-low { --tw-gradient-from: #1c1b1d var(--tw-gradient-from-position); --tw-gradient-to: rgba(28, 27, 29, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
 `;
 
+const updateTagById = (htmlStr, tagId, updateFn) => {
+  const regex = new RegExp(`(<[a-z0-9]+[^>]*\\bid=["']${tagId}["'][^>]*>)`, 'i');
+  return htmlStr.replace(regex, (match) => updateFn(match));
+};
+
+const makeHidden = (tag) => {
+  if (/class=["'][^"']*["']/i.test(tag)) {
+    return tag.replace(/class=["']([^"']*)["']/i, (m, cls) => {
+      const classes = cls.split(/\s+/).filter(Boolean);
+      if (!classes.includes('hidden')) classes.push('hidden');
+      return `class="${classes.join(' ')}"`;
+    });
+  }
+  return tag.replace(/>$/, ' class="hidden">');
+};
+
+const makeVisible = (tag) => {
+  return tag.replace(/class=["']([^"']*)["']/i, (m, cls) => {
+    const classes = cls.split(/\s+/).filter((c) => c && c !== 'hidden');
+    return `class="${classes.join(' ')}"`;
+  });
+};
+
+const setAriaSelected = (tag, val) => {
+  if (/aria-selected=["'][^"']*["']/i.test(tag)) {
+    return tag.replace(/aria-selected=["'][^"']*["']/i, `aria-selected="${val}"`);
+  }
+  return tag.replace(/>$/, ` aria-selected="${val}">`);
+};
+
+const setTabActive = (tag, active, isDarkTheme) => {
+  tag = setAriaSelected(tag, active ? 'true' : 'false');
+  return tag.replace(/class=["']([^"']*)["']/i, (m, cls) => {
+    let classes = cls.split(/\s+/).filter(Boolean);
+    if (isDarkTheme) {
+      if (active) {
+        classes = classes.filter((c) => c !== 'text-stone-400');
+        if (!classes.includes('text-white')) classes.push('text-white');
+        if (!classes.includes('bg-noir-elevated')) classes.push('bg-noir-elevated');
+      } else {
+        classes = classes.filter((c) => c !== 'text-white' && c !== 'bg-noir-elevated');
+        if (!classes.includes('text-stone-400')) classes.push('text-stone-400');
+      }
+    } else {
+      if (active) {
+        classes = classes.filter((c) => c !== 'text-text-slate');
+        if (!classes.includes('bg-surface-porcelain')) classes.push('bg-surface-porcelain');
+        if (!classes.includes('text-text-obsidian')) classes.push('text-text-obsidian');
+        if (!classes.includes('font-bold')) classes.push('font-bold');
+      } else {
+        classes = classes.filter((c) => c !== 'bg-surface-porcelain' && c !== 'text-text-obsidian' && c !== 'font-bold');
+        if (!classes.includes('text-text-slate')) classes.push('text-text-slate');
+      }
+    }
+    return `class="${classes.join(' ')}"`;
+  });
+};
+
+const StitchHtmlSurface = React.memo(
+  React.forwardRef(function StitchHtmlSurface({ html, bodyClass }, ref) {
+    const innerHtmlObj = React.useMemo(() => ({ __html: html }), [html]);
+    return (
+      <div
+        ref={ref}
+        className={`stitch-screen-container w-full min-h-screen ${bodyClass || ''}`}
+        dangerouslySetInnerHTML={innerHtmlObj}
+      />
+    );
+  }),
+  (prev, next) => prev.html === next.html && prev.bodyClass === next.bodyClass
+);
+
 export default function StitchScreenRenderer({
   screenKey,
   navigation,
@@ -127,6 +205,30 @@ export default function StitchScreenRenderer({
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedBoutique, setSelectedBoutique] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [authTab, setAuthTab] = useState(
+    params?.authMode === 'register' || params?.initialTab === 'register' ? 'register' : 'signin'
+  );
+  const formValuesRef = useRef({});
+  const focusedInputIdRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el || Platform.OS !== 'web') return;
+    Object.entries(formValuesRef.current).forEach(([id, val]) => {
+      const input = el.querySelector(`#${id}`);
+      if (input && input.value !== val) {
+        input.value = val;
+      }
+    });
+    if (focusedInputIdRef.current) {
+      const activeEl = el.querySelector(`#${focusedInputIdRef.current}`);
+      if (activeEl && document.activeElement !== activeEl) {
+        try {
+          activeEl.focus();
+        } catch (e) {}
+      }
+    }
+  });
 
   // Active product resolved for PDP
   const activeProduct = React.useMemo(() => {
@@ -231,10 +333,11 @@ export default function StitchScreenRenderer({
   });
 
   useEffect(() => {
+    if (screenKey.includes('Auth') || screenKey.includes('Sign_In')) return;
     if (products.length === 0 && loadStorefront) {
       loadStorefront();
     }
-  }, [products.length, loadStorefront]);
+  }, [products.length, loadStorefront, screenKey]);
 
   // Global safety handlers for inline Stitch template event handlers
   useEffect(() => {
@@ -298,16 +401,32 @@ export default function StitchScreenRenderer({
     // Sanitize entity artifacts and icon names from Stitch exports
     html = html.replace(/&amp;rupee|&rupee/gi, '₹');
     html = html.replace(/fitbit_push_ups/gi, 'receipt_long');
-    const royalCrestUrl = 'https://lh3.googleusercontent.com/aida/AEtjO1VnExgRV6OGL1IkUJrOwHJCTHcaj3ATm4vhTTU2y-L44Ar2NYsYlBu5ENvh4NFq2sOj1QiK_evlN-eoUkhuG3EfTz050QYCPCKRTQRIoJqEoY-PhYpnzcr-HmCUCfTcvRfAul3QsiqHSguDpuGgScnLRwtgXFqzBfDjDE5HyEsTocDD1dykjDKk2XVh6_Uo9pbafQHgDt7ClzAnspBkb8STruPTbiVM-J63df0Lq1l-zZWrwovDGnuhgnUs';
-    html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/(AOf_eGf|AEtjO1XLru)[a-zA-Z0-9_-]+/g, royalCrestUrl);
+    // Replace broken external Google CDN URLs with instant inlined logo
+    html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/(?:AOf_eGf|AEtjO1)[a-zA-Z0-9_-]+/g, LOGO_DATA_URI);
 
-    // Ensure all logo images use reliable local assets
-    html = html.replace(/<img([^>]*alt="[^"]*(?:Brand Logo|Royal Crest|Kya Pehnu|Crest)[^"]*"[^>]*)>/gi, (match) => {
-      if (!match.includes('onerror')) {
-        return match.replace('<img', '<img onerror="this.src=\'/app/apple-touch-icon.png\';"');
-      }
-      return match;
+    // Ensure all logo images use instantaneous inlined base64 logo (0ms paint, zero network delay or broken image box)
+    html = html.replace(/<img([^>]*alt="[^"]*(?:Brand Logo|Royal Crest|Kya Pehnu|Crest|Emblem|Logo)[^"]*"[^>]*)>/gi, (match) => {
+      return match.replace(/src="[^"]*"/i, `src="${LOGO_DATA_URI}"`);
     });
+    html = html.replace(/src="\/app\/apple-touch-icon\.png"/g, `src="${LOGO_DATA_URI}"`);
+
+    // Auth screens: Strip select-none and hardcoded value attributes so inputs are purely native and typing is never lost
+    if (targetKey.includes('Sign_In') || targetKey.includes('Auth')) {
+      let authHtml = html.replace(/\bselect-none\b/g, '');
+      authHtml = authHtml.replace(/\svalue="[^"]*"/g, '');
+      const initRegister = params?.authMode === 'register' || params?.initialTab === 'register';
+      if (initRegister) {
+        authHtml = updateTagById(authHtml, 'panel-signin', makeHidden);
+        authHtml = updateTagById(authHtml, 'dark-panel-signin', makeHidden);
+        authHtml = updateTagById(authHtml, 'panel-register', makeVisible);
+        authHtml = updateTagById(authHtml, 'dark-panel-register', makeVisible);
+        authHtml = updateTagById(authHtml, 'tab-signin', (t) => setTabActive(t, false, false));
+        authHtml = updateTagById(authHtml, 'dark-tab-signin', (t) => setTabActive(t, false, true));
+        authHtml = updateTagById(authHtml, 'tab-register', (t) => setTabActive(t, true, false));
+        authHtml = updateTagById(authHtml, 'dark-tab-register', (t) => setTabActive(t, true, true));
+      }
+      return authHtml;
+    }
 
     // Update cart badge numbers
     html = html.replace(
@@ -1282,16 +1401,60 @@ export default function StitchScreenRenderer({
     }
 
     return html;
-  }, [screenData, cartCount, params, targetKey, products, selectedCategory, selectedBoutique, searchQuery, selectedSize, selectedColor, activeImageIndex, activeProduct, cartItems, recentOrders]);
+  }, [screenData, cartCount, params, targetKey, products, selectedCategory, selectedBoutique, searchQuery, selectedSize, selectedColor, activeImageIndex, activeProduct, cartItems, recentOrders, authTab]);
 
   // Event Delegation for all clicks, inputs and user workflows
   useEffect(() => {
     const el = containerRef.current;
     if (!el || Platform.OS !== 'web') return;
 
+    const handleFocusIn = (e) => {
+      if (e.target?.id) {
+        focusedInputIdRef.current = e.target.id;
+      }
+    };
+    const handleFocusOut = (e) => {
+      if (e.target?.id === focusedInputIdRef.current) {
+        focusedInputIdRef.current = null;
+      }
+    };
+    el.addEventListener('focusin', handleFocusIn);
+    el.addEventListener('focusout', handleFocusOut);
+
     const handleInput = (e) => {
       const target = e.target;
-      if (target && target.matches && target.matches('input[type="text"], input[placeholder*="Search" i], input[placeholder*="search" i]')) {
+      if (!target || !target.matches) return;
+
+      if (target.id) {
+        formValuesRef.current[target.id] = target.value;
+      }
+
+      // 1. NEVER touch search query if input is in an auth panel, dialog, or form
+      if (target.closest('#panel-signin, #dark-panel-signin, #panel-register, #dark-panel-register, form')) {
+        return;
+      }
+      // 2. NEVER touch search query for credentials, name, email, phone, password inputs
+      const id = (target.id || '').toLowerCase();
+      const name = (target.name || '').toLowerCase();
+      const type = (target.type || '').toLowerCase();
+      if (
+        id.includes('signin') ||
+        id.includes('reg') ||
+        id.includes('password') ||
+        id.includes('identifier') ||
+        id.includes('email') ||
+        id.includes('phone') ||
+        id.includes('name') ||
+        name.includes('password') ||
+        type === 'password' ||
+        type === 'email' ||
+        type === 'tel'
+      ) {
+        return;
+      }
+
+      // 3. Only dedicated storefront search inputs update searchQuery
+      if (target.matches('input[placeholder*="Search" i], input[placeholder*="search" i]')) {
         setSearchQuery(target.value);
       }
     };
@@ -1300,6 +1463,13 @@ export default function StitchScreenRenderer({
 
     const handleClick = async (e) => {
       const target = e.target;
+      if (!target) return;
+
+      // Never intercept native clicks or touches on interactive inputs, selects, textareas
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+      }
+
       const btn = target.closest('button, a, [role="button"], [data-action], .group, input, select');
 
       // --- AUTH: TAB SWITCHING (Sign In vs Register) ---
@@ -1497,6 +1667,8 @@ export default function StitchScreenRenderer({
       }
 
       if (
+        !targetKey.includes('Auth') &&
+        !targetKey.includes('Sign_In') &&
         btn &&
         btn.textContent &&
         (btn.textContent.includes('Log In to Your Account') ||
@@ -2307,7 +2479,13 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      if (btn && btn.textContent && (btn.textContent.includes('Log In to Your Account') || btn.textContent.includes('Log In'))) {
+      if (
+        !targetKey.includes('Auth') &&
+        !targetKey.includes('Sign_In') &&
+        btn &&
+        btn.textContent &&
+        (btn.textContent.includes('Log In to Your Account') || btn.textContent.includes('Log In'))
+      ) {
         e.preventDefault();
         e.stopPropagation();
         navigateScreen('Auth');
@@ -2316,8 +2494,10 @@ export default function StitchScreenRenderer({
 
       // --- 25. BOUTIQUE REGISTER LINK ---
       if (
-        target.closest('[data-action="register-vendor"]') ||
-        (btn && (btn.id === 'registerBoutiqueBtn' || (btn.textContent && (btn.textContent.includes('Register Your Boutique') || btn.textContent.includes('Register') || btn.textContent.includes('Own a Boutique')))))
+        !targetKey.includes('Auth') &&
+        !targetKey.includes('Sign_In') &&
+        (target.closest('[data-action="register-vendor"]') ||
+        (btn && (btn.id === 'registerBoutiqueBtn' || (btn.textContent && (btn.textContent.includes('Register Your Boutique') || btn.textContent.includes('Own a Boutique'))))))
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -2333,6 +2513,8 @@ export default function StitchScreenRenderer({
 
     el.addEventListener('click', handleClick);
     return () => {
+      el.removeEventListener('focusin', handleFocusIn);
+      el.removeEventListener('focusout', handleFocusOut);
       el.removeEventListener('input', handleInput);
       el.removeEventListener('change', handleInput);
       el.removeEventListener('click', handleClick);
@@ -2381,10 +2563,10 @@ export default function StitchScreenRenderer({
       ) : null}
 
       {/* Actual Stitch HTML Surface */}
-      <div
+      <StitchHtmlSurface
         ref={containerRef}
-        className={`stitch-screen-container w-full min-h-screen ${screenData.bodyClass || ''}`}
-        dangerouslySetInnerHTML={{ __html: processedHtml }}
+        bodyClass={screenData.bodyClass}
+        html={processedHtml}
       />
     </div>
   );

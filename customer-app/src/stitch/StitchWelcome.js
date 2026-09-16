@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useThemeStore } from '../store/useThemeStore';
+import { LOGO_DATA_URI } from '../constants/logoDataUri';
 
 const VARIANTS = {
   light: {
@@ -57,9 +58,15 @@ export default function StitchWelcome({ navigation }) {
     return () => el.removeEventListener('click', handleClick);
   }, [navigation]);
 
-  const activeHtml = isDark
+  const rawHtml = isDark
     ? (VARIANTS.dark[variant] || VARIANTS.dark.matched)
     : (VARIANTS.light[variant] || VARIANTS.light.logo_centered);
+
+  const activeHtml = React.useMemo(() => {
+    return rawHtml
+      .replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/[a-zA-Z0-9_-]+/g, LOGO_DATA_URI)
+      .replace(/src="\/app\/apple-touch-icon\.png"/g, `src="${LOGO_DATA_URI}"`);
+  }, [rawHtml]);
 
   return (
     <div className="relative w-full min-h-screen flex flex-col">
