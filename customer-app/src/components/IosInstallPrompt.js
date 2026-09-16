@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { colors } from '../theme/colors';
+import useAuthStore, { ROLES } from '../store/useAuthStore';
 
 export default function IosInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
+  const role = useAuthStore((state) => state.role);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    // Do not show iOS shopping install banner to vendors
+    if (role === ROLES.VENDOR || role === 'vendor') {
+      setShowPrompt(false);
+      return;
+    }
 
     // Check if on iOS device
     const userAgent = window.navigator?.userAgent || '';
@@ -27,10 +35,15 @@ export default function IosInstallPrompt() {
 
     if (isIOS && !isStandalone && !dismissed) {
       // Delay prompt slightly so the app loads first
-      const timer = setTimeout(() => setShowPrompt(true), 1500);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => setShowPrompt(true), 2000);
+      // Auto-dismiss after 10s so it never blocks mobile interactions
+      const autoDismissTimer = setTimeout(() => setShowPrompt(false), 12000);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(autoDismissTimer);
+      };
     }
-  }, []);
+  }, [role]);
 
   const handleDismiss = () => {
     setShowPrompt(false);
@@ -41,10 +54,10 @@ export default function IosInstallPrompt() {
     }
   };
 
-  if (!showPrompt) return null;
+  if (!showPrompt || role === ROLES.VENDOR || role === 'vendor') return null;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <View style={styles.banner}>
         <View style={styles.textContainer}>
           <Text style={styles.title}>INSTALL KYA PEHNU ON IPHONE</Text>

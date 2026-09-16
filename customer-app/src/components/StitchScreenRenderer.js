@@ -208,6 +208,11 @@ export default function StitchScreenRenderer({
   const [authTab, setAuthTab] = useState(
     params?.authMode === 'register' || params?.initialTab === 'register' ? 'register' : 'signin'
   );
+  // Vendor portal dynamic states
+  const [catalogCategory, setCatalogCategory] = useState('ALL');
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [queueFilter, setQueueFilter] = useState('all');
+  const [isAtelierOnline, setIsAtelierOnline] = useState(true);
   const formValuesRef = useRef({});
   const focusedInputIdRef = useRef(null);
 
@@ -339,16 +344,6 @@ export default function StitchScreenRenderer({
     }
   }, [products.length, loadStorefront, screenKey]);
 
-  // Global safety handlers for inline Stitch template event handlers
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.handleCheckout = () => {
-        navigateScreen('Address');
-      };
-      window.removeItem = () => {};
-      window.incrementCount = () => {};
-    }
-  }, []);
 
   // Fallback to light or dark equivalent if screenKey doesn't match exactly
   let targetKey = screenKey;
@@ -392,6 +387,274 @@ export default function StitchScreenRenderer({
       window.__NAV__.navigate(screenName, screenParams);
     }
   };
+
+  // Global safety handlers for inline Stitch template event handlers
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.handleCheckout = () => {
+      navigateScreen('Address');
+    };
+    window.removeItem = () => {};
+    window.incrementCount = () => {};
+
+    // --- Product Ingestion Engine Handlers ---
+    window.scrollToSection = (sectionId) => {
+      const sectionEl = document.getElementById(sectionId);
+      if (sectionEl) {
+        sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      const secMap = {
+        'sec-identity': { num: '1', name: 'Identity' },
+        'sec-pricing': { num: '2', name: 'Pricing' },
+        'sec-inventory': { num: '3', name: 'Inventory' },
+        'sec-color': { num: '4', name: 'Color' },
+        'sec-specs': { num: '5', name: 'Specifications' },
+        'sec-media': { num: '6', name: 'Media' },
+      };
+      const info = secMap[sectionId];
+      if (info) {
+        const numEl = document.getElementById('activeStepNum');
+        const nameEl = document.getElementById('activeStepName');
+        if (numEl) numEl.textContent = info.num;
+        if (nameEl) nameEl.textContent = info.name;
+      }
+      // Update tab pill styles
+      document.querySelectorAll('[id^="tab-sec-"]').forEach((tab) => {
+        if (tab.id === `tab-${sectionId}`) {
+          tab.className = 'px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-all bg-brand-crimson text-white shadow-xs';
+        } else {
+          tab.className = 'px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-all bg-white text-slate-700 border border-brand-borderSubtle hover:bg-slate-50';
+        }
+      });
+    };
+
+    window.selectChip = (chipEl, groupName) => {
+      if (!chipEl) return;
+      const parent = chipEl.parentElement || (groupName ? document.getElementById(groupName) : null);
+      if (!parent) return;
+      const chips = parent.querySelectorAll('button');
+      chips.forEach((btn) => {
+        btn.classList.remove('bg-brand-crimson', 'text-white', 'border-brand-crimson', 'font-bold', 'chip-active', 'bg-[#C4243A]', 'text-[#ffb3b3]');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-brand-borderSubtle', 'font-medium');
+      });
+      chipEl.classList.remove('bg-white', 'text-slate-700', 'border-brand-borderSubtle', 'font-medium');
+      chipEl.classList.add('bg-brand-crimson', 'text-white', 'border-brand-crimson', 'font-bold', 'chip-active');
+    };
+
+    window.calculatePricingLogic = () => {
+      const priceInput = document.getElementById('sellingPriceInput');
+      const val = parseInt(priceInput?.value || '0', 10);
+      const calculatedMrp = val > 0 ? Math.round(val / 0.75) : 0;
+      const customerSavings = calculatedMrp - val;
+      const vendorPayout = Math.round(val * 0.95);
+
+      const dspPrice = document.getElementById('dspSellingPrice');
+      const dspMrp = document.getElementById('dspCalculatedMRP');
+      const dspSavings = document.getElementById('dspCustomerSavings');
+      const dspPayout = document.getElementById('dspVendorPayout');
+
+      if (dspPrice) dspPrice.textContent = `₹${val.toLocaleString()}`;
+      if (dspMrp) dspMrp.textContent = `₹${calculatedMrp.toLocaleString()}`;
+      if (dspSavings) dspSavings.textContent = `₹${customerSavings.toLocaleString()} (25%)`;
+      if (dspPayout) dspPayout.textContent = `₹${vendorPayout.toLocaleString()}`;
+    };
+
+    window.updateTotalStock = () => {
+      const countInputs = document.querySelectorAll('#dynamicSizeRowsContainer input[type="number"]');
+      let total = 0;
+      countInputs.forEach((inp) => {
+        total += parseInt(inp.value || '0', 10);
+      });
+      const badge = document.getElementById('totalPiecesBadge');
+      if (badge) badge.textContent = `Total: ${total} pcs`;
+    };
+
+    window.toggleSize = (size) => {
+      const rowId = `sizerow-${size}`;
+      const existing = document.getElementById(rowId);
+      const pill = document.getElementById(`pill-${size}`);
+      const container = document.getElementById('dynamicSizeRowsContainer');
+
+      if (existing) {
+        existing.remove();
+        if (pill) {
+          pill.className = 'w-11 h-9 rounded-xl font-semibold text-xs border border-brand-borderSubtle bg-white text-slate-700 hover:bg-slate-50 flex items-center justify-center transition-all';
+        }
+      } else {
+        if (pill) {
+          pill.className = 'w-11 h-9 rounded-xl font-bold text-xs border border-brand-crimson bg-brand-crimson text-white shadow-xs flex items-center justify-center transition-all';
+        }
+        if (container) {
+          const labels = {
+            XS: 'Extra Small (Bust 34")',
+            S: 'Small (Bust 36")',
+            M: 'Medium (Bust 38")',
+            L: 'Large (Bust 40")',
+            XL: 'Extra Large (Bust 42")',
+            XXL: 'Double Extra Large (Bust 44")',
+            FS: 'Free Size (One Size Fits All)',
+          };
+          const row = document.createElement('div');
+          row.id = rowId;
+          row.className = 'flex items-center justify-between p-3 rounded-xl bg-brand-surfaceLow border border-brand-borderSubtle animate-fadeIn';
+          row.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">${size}</span>
+              <div>
+                <span class="text-xs font-bold text-slate-900 block">${labels[size] || size}</span>
+                <span class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                  <i class="fa-solid fa-circle-check text-[9px]"></i> Ready for 45-min transit
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-1 shadow-xs">
+              <button type="button" onclick="decrementSizeCount('${size}')" class="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition-all" aria-label="Decrease quantity">
+                <i class="fa-solid fa-minus text-[10px]"></i>
+              </button>
+              <input type="number" id="count-${size}" value="2" min="1" max="99" onchange="updateTotalStock()" class="w-10 text-center text-xs font-bold text-slate-900 focus:outline-none font-mono">
+              <button type="button" onclick="incrementSizeCount('${size}')" class="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition-all" aria-label="Increase quantity">
+                <i class="fa-solid fa-plus text-[10px]"></i>
+              </button>
+            </div>
+          `;
+          container.appendChild(row);
+        }
+      }
+      window.updateTotalStock();
+    };
+
+    window.incrementSizeCount = (size) => {
+      const inp = document.getElementById(`count-${size}`);
+      if (inp) {
+        inp.value = String((parseInt(inp.value || '0', 10) || 0) + 1);
+        window.updateTotalStock();
+      }
+    };
+
+    window.decrementSizeCount = (size) => {
+      const inp = document.getElementById(`count-${size}`);
+      if (inp) {
+        const cur = parseInt(inp.value || '1', 10) || 1;
+        if (cur > 1) {
+          inp.value = String(cur - 1);
+          window.updateTotalStock();
+        }
+      }
+    };
+
+    window.switchColorMode = (mode) => {
+      const popularPanel = document.getElementById('panelPopularShades');
+      const customPanel = document.getElementById('panelCustomTool');
+      const tabPop = document.getElementById('tabModePopular');
+      const tabCust = document.getElementById('tabModeCustom');
+
+      if (mode === 'popular') {
+        if (popularPanel) popularPanel.classList.remove('hidden');
+        if (customPanel) customPanel.classList.add('hidden');
+        if (tabPop) tabPop.className = 'flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center justify-center gap-1.5';
+        if (tabCust) tabCust.className = 'flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5';
+      } else {
+        if (popularPanel) popularPanel.classList.add('hidden');
+        if (customPanel) customPanel.classList.remove('hidden');
+        if (tabCust) tabCust.className = 'flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition-all flex items-center justify-center gap-1.5';
+        if (tabPop) tabPop.className = 'flex-1 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5';
+      }
+    };
+
+    window.addColorPreset = (name, hex, tone) => {
+      const container = document.getElementById('activeColorsContainer');
+      if (!container) return;
+      const cleanId = `chip-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      if (document.getElementById(cleanId)) {
+        showToast(`${name} already selected.`);
+        return;
+      }
+      const chip = document.createElement('span');
+      chip.id = cleanId;
+      chip.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-xs';
+      chip.innerHTML = `
+        <span class="w-3.5 h-3.5 rounded-full border border-black/10" style="background-color: ${hex}"></span>
+        ${name} (${tone})
+        <button type="button" onclick="removeColorChip('${cleanId}')" class="text-slate-400 hover:text-rose-600 ml-0.5" aria-label="Remove ${name}">
+          <i class="fa-solid fa-xmark text-[11px]"></i>
+        </button>
+      `;
+      container.appendChild(chip);
+      const countEl = document.getElementById('activeColorCount');
+      if (countEl) {
+        countEl.textContent = String(container.querySelectorAll('span[id^="chip-"]').length);
+      }
+      showToast(`Added color: ${name}`);
+    };
+
+    window.removeColorChip = (chipId) => {
+      const chip = document.getElementById(chipId);
+      if (chip) {
+        chip.remove();
+        const container = document.getElementById('activeColorsContainer');
+        const countEl = document.getElementById('activeColorCount');
+        if (countEl && container) {
+          countEl.textContent = String(container.querySelectorAll('span[id^="chip-"]').length);
+        }
+      }
+    };
+
+    window.selectModifier = (btn, modText) => {
+      const parent = document.getElementById('modifierGroup');
+      if (parent) {
+        parent.querySelectorAll('button').forEach((b) => {
+          b.className = 'p-2 rounded-lg border border-brand-borderSubtle bg-white text-left text-xs font-medium hover:border-brand-crimson transition-all';
+        });
+      }
+      btn.className = 'p-2 rounded-lg border-2 border-brand-crimson bg-rose-50/50 text-left text-xs font-medium transition-all';
+      const hexSpan = document.getElementById('previewShadeHex');
+      if (hexSpan) {
+        hexSpan.textContent = `#C4243A · ${modText}`;
+      }
+    };
+
+    window.handleHueBarClick = (e) => {
+      const bar = document.getElementById('hueSliderBar');
+      const pointer = document.getElementById('huePointer');
+      const previewBox = document.getElementById('previewShadeBox');
+      const previewName = document.getElementById('previewShadeName');
+      const previewHex = document.getElementById('previewShadeHex');
+
+      if (!bar) return;
+      const rect = bar.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const pct = (x / rect.width) * 100;
+      if (pointer) pointer.style.left = `${pct}%`;
+
+      const hue = Math.round((x / rect.width) * 360);
+      const col = `hsl(${hue}, 80%, 45%)`;
+      if (previewBox) previewBox.style.backgroundColor = col;
+      if (previewName) previewName.textContent = `Atelier Hue ${hue}°`;
+      if (previewHex) previewHex.textContent = `HSL(${hue}, 80%, 45%)`;
+    };
+
+    window.addCustomShade = () => {
+      const nameEl = document.getElementById('previewShadeName');
+      const box = document.getElementById('previewShadeBox');
+      const name = nameEl?.textContent || 'Bespoke Couture Hue';
+      const hex = box?.style?.backgroundColor || '#C4243A';
+      window.addColorPreset(name, hex, 'Custom');
+    };
+
+    window.simulateMediaAction = (action) => {
+      if (action === 'camera') {
+        showToast('Camera active · High-resolution studio daylight snap.');
+      } else {
+        showToast('Lookbook image selected from high-res studio gallery.');
+      }
+    };
+
+    window.handlePublishSubmit = () => {
+      const pubBtn = document.getElementById('publishBtn');
+      if (pubBtn) pubBtn.click();
+    };
+  }, [navigateScreen, showToast]);
 
   // Pre-process HTML to inject live dynamic data (products, cart, PDP, orders, tracking)
   const processedHtml = React.useMemo(() => {
@@ -1270,8 +1533,47 @@ export default function StitchScreenRenderer({
 
     // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
     if (targetKey.includes('Catalogue_Manager') && products.length > 0) {
-      html = html.replace(/\d+\s+Curated Pieces Live/gi, `${products.length} Curated Pieces Live`);
-      const liveItemsHtml = products.map((p) => {
+      let filteredCatalog = products;
+      if (catalogCategory && catalogCategory !== 'ALL') {
+        if (catalogCategory === 'KURTA') {
+          filteredCatalog = filteredCatalog.filter(p => /angrakha|kurta|tunic|dress|set/i.test(p.name || '') || /kurta|women/i.test(p.category || ''));
+        } else if (catalogCategory === 'SAREES') {
+          filteredCatalog = filteredCatalog.filter(p => /saree|drape|paithani|handloom/i.test(p.name || '') || /saree/i.test(p.category || ''));
+        } else if (catalogCategory === 'DUPATTA') {
+          filteredCatalog = filteredCatalog.filter(p => /dupatta|scarf|stole/i.test(p.name || '') || /dupatta/i.test(p.category || ''));
+        }
+      }
+      if (catalogSearchQuery) {
+        const q = catalogSearchQuery.toLowerCase();
+        filteredCatalog = filteredCatalog.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.category || '').toLowerCase().includes(q) ||
+          (p.brand || '').toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q)
+        );
+      }
+
+      html = html.replace(/\d+\s+Curated Pieces Live/gi, `${filteredCatalog.length} Curated Pieces Live`);
+      if (catalogSearchQuery) {
+        html = html.replace(/id="catalogueSearch"\s+placeholder="[^"]*"/i, `id="catalogueSearch" value="${catalogSearchQuery.replace(/"/g, '&quot;')}" placeholder="Search weave, silhouette, SKU..."`);
+      }
+
+      // Update category rail active pill styles
+      html = html.replace(/(<div[^>]*id="categoryRail"[^>]*>)[\s\S]*?(<\/div>)/i, () => {
+        const pills = [
+          { id: 'ALL', label: `All Weaves (${products.length})` },
+          { id: 'KURTA', label: `Angrakhas & Kurtas (${products.filter(p => /angrakha|kurta/i.test(p.name || '')).length || 8})` },
+          { id: 'SAREES', label: `Sarees & Drapes (${products.filter(p => /saree|paithani/i.test(p.name || '')).length || 6})` },
+          { id: 'DUPATTA', label: `Dupattas & Scarves (${products.filter(p => /dupatta|scarf/i.test(p.name || '')).length || 4})` },
+        ];
+        const pillsHtml = pills.map(p => {
+          const isActive = (catalogCategory || 'ALL') === p.id;
+          return `<button class="filter-pill whitespace-nowrap px-4 py-1.5 rounded-full font-tabular-caption text-tabular-caption ${isActive ? 'active font-semibold bg-text-obsidian text-surface-porcelain shadow-sm' : 'font-medium bg-surface-container text-text-slate hover:text-text-obsidian'} transition-all">${p.label}</button>`;
+        }).join('');
+        return `<div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 -mx-screen-margin-mobile px-screen-margin-mobile" id="categoryRail">${pillsHtml}</div>`;
+      });
+
+      const liveItemsHtml = filteredCatalog.map((p) => {
         const img = p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const name = p.name || 'Artisanal Nagpur Garment';
         const price = p.price || 4800;
@@ -1309,19 +1611,61 @@ export default function StitchScreenRenderer({
                 </div>
               </div>
             </div>
+            <div class="mt-3 pt-2.5 flex items-center justify-between bg-surface-container-low/60 -mx-4 -mb-4 px-4 py-2 text-text-slate">
+              <div class="flex items-center gap-1.5">
+                <span class="font-tabular-caption text-[11px]">Avg <strong>28 mins</strong> to Dharampeth &amp; Sitabuldi</span>
+              </div>
+              <button class="p-1 rounded-full text-text-ash hover:text-text-obsidian hover:bg-surface-porcelain transition-colors" data-action="quick-edit-prod" data-product-id="${p.id || p._id}" title="Quick edit piece">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="1"></circle>
+                  <circle cx="19" cy="12" r="1"></circle>
+                  <circle cx="5" cy="12" r="1"></circle>
+                </svg>
+              </button>
+            </div>
           </div>
         `;
       }).join('');
 
       const catalogContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-4 px-screen-margin-mobile pb-6[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
       if (catalogContainerRegex.test(html)) {
-        html = html.replace(catalogContainerRegex, `$1${liveItemsHtml}$2`);
+        html = html.replace(catalogContainerRegex, `$1${liveItemsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No pieces found matching your search.</div>'}$2`);
       }
     }
 
-    // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders
+    // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders with active filtering
     if (targetKey.includes('Vendor_Order_Queue') && recentOrders.length > 0) {
-      const liveQueueCardsHtml = recentOrders.map((ord) => {
+      let filteredQueue = recentOrders;
+      if (queueFilter === 'new') {
+        filteredQueue = recentOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status);
+      } else if (queueFilter === 'packing') {
+        filteredQueue = recentOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING');
+      } else if (queueFilter === 'dispatched') {
+        filteredQueue = recentOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED');
+      }
+
+      // Update active order badge and toggle online button
+      html = html.replace(/\d+\s+Active Orders/gi, `${recentOrders.length} Active Orders`);
+      html = html.replace(/id="toggleAtelierBtn"[^>]*>[\s\S]*?<\/button>/i, `id="toggleAtelierBtn" class="relative inline-flex h-6 w-11 items-center rounded-full ${isAtelierOnline ? 'bg-accent-crimson' : 'bg-stone-400'} transition-colors duration-200 focus:outline-none"><span class="inline-block h-4 w-4 transform rounded-full bg-surface-container-lowest transition duration-200 ${isAtelierOnline ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span></button>`);
+
+      // Update queue tabs with active state
+      const tabs = [
+        { filter: 'all', label: `All (${recentOrders.length})` },
+        { filter: 'new', label: `New Queue (${recentOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length})`, ping: true },
+        { filter: 'packing', label: `Tailoring / Packing (${recentOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
+        { filter: 'dispatched', label: `Dispatched (${recentOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length})` },
+      ];
+      const tabsHtml = tabs.map(t => {
+        const isAct = (queueFilter || 'all') === t.filter;
+        return `<button class="queue-tab ${isAct ? 'active-tab bg-text-obsidian text-surface-porcelain font-semibold' : 'bg-surface-container-low text-text-slate'} px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="${t.filter}">
+          ${t.ping && !isAct ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-crimson animate-ping"></span>' : ''}
+          <span>${t.label}</span>
+        </button>`;
+      }).join('');
+
+      html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${tabsHtml}$2`);
+
+      const liveQueueCardsHtml = filteredQueue.map((ord) => {
         const idStr = `KP-${(ord.orderId || ord._id || '8492').slice(-6).toUpperCase()}`;
         const totalStr = `₹${(ord.totalPrice || ord.total || 4800).toLocaleString()}`;
         const statusStr = ord.status || 'CONFIRMED';
@@ -1333,7 +1677,7 @@ export default function StitchScreenRenderer({
         const itemCount = ord.items?.length || 1;
 
         return `
-          <article class="order-card relative flex flex-col rounded-xl bg-surface-container-lowest p-5 shadow-[0_12px_32px_rgba(18,18,20,0.05)] transition-all overflow-hidden" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
+          <article class="order-card relative flex flex-col rounded-xl bg-surface-container-lowest p-5 shadow-[0_12px_32px_rgba(18,18,20,0.05)] transition-all overflow-hidden cursor-pointer" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-crimson via-accent-gold to-accent-crimson"></div>
             <div class="flex items-start justify-between gap-gutter-sm mb-3.5 pt-1">
               <div class="flex flex-col min-w-0">
@@ -1344,9 +1688,9 @@ export default function StitchScreenRenderer({
                 </div>
                 <h2 class="font-title-lg text-title-lg text-text-obsidian tracking-tight mt-0.5">Order #${idStr}</h2>
               </div>
-              <div class="flex items-center gap-1 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500/10' : 'bg-accent-crimson/10'} flex-shrink-0">
-                <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500' : 'bg-accent-crimson'} animate-pulse"></span>
-                <span class="font-eyebrow text-eyebrow ${statusStr === 'ACCEPTED' ? 'text-amber-700' : 'text-accent-crimson'} font-bold uppercase tracking-wider">${statusStr}</span>
+              <div class="flex items-center gap-1 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500/10' : (statusStr === 'DISPATCHED' ? 'bg-emerald-500/10' : 'bg-accent-crimson/10')} flex-shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500' : (statusStr === 'DISPATCHED' ? 'bg-emerald-600' : 'bg-accent-crimson')} animate-pulse"></span>
+                <span class="font-eyebrow text-eyebrow ${statusStr === 'ACCEPTED' ? 'text-amber-700' : (statusStr === 'DISPATCHED' ? 'text-emerald-700' : 'text-accent-crimson')} font-bold uppercase tracking-wider">${statusStr}</span>
               </div>
             </div>
 
@@ -1368,11 +1712,15 @@ export default function StitchScreenRenderer({
                 <button data-action="accept-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-accent-crimson text-surface-porcelain font-semibold text-xs shadow-md active:scale-95 transition-all">
                   Accept Order
                 </button>
-              ` : `
+              ` : (statusStr === 'ACCEPTED' ? `
                 <button data-action="mark-ready" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all">
                   Dispatch Porter Courier
                 </button>
-              `}
+              ` : `
+                <button data-action="track-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-text-obsidian text-white font-semibold text-xs shadow-md active:scale-95 transition-all">
+                  Track En-Route Porter
+                </button>
+              `)}
               <button data-action="view-order-detail" data-order-id="${ord.orderId || ord._id}" class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-obsidian font-semibold text-xs transition-all">
                 View Details
               </button>
@@ -1383,7 +1731,7 @@ export default function StitchScreenRenderer({
 
       const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
       if (queueContainerRegex.test(html)) {
-        html = html.replace(queueContainerRegex, `$1${liveQueueCardsHtml}$2`);
+        html = html.replace(queueContainerRegex, `$1${liveQueueCardsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No orders in this queue state.</div>'}$2`);
       }
     }
 
@@ -1400,8 +1748,15 @@ export default function StitchScreenRenderer({
       }
     }
 
+    // 9. PRODUCT INGESTION: Visual polish and pristine image fallbacks
+    if (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) {
+      html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/AEtjO1U90ED[a-zA-Z0-9_-]+/g, 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900');
+      html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/AEtjO1UGh-[a-zA-Z0-9_-]+/g, 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=900');
+      html = html.replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/AEtjO1X1g4[a-zA-Z0-9_-]+/g, 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=900');
+    }
+
     return html;
-  }, [screenData, cartCount, params, targetKey, products, selectedCategory, selectedBoutique, searchQuery, selectedSize, selectedColor, activeImageIndex, activeProduct, cartItems, recentOrders, authTab]);
+  }, [screenData, cartCount, params, targetKey, products, selectedCategory, selectedBoutique, searchQuery, selectedSize, selectedColor, activeImageIndex, activeProduct, cartItems, recentOrders, authTab, catalogCategory, catalogSearchQuery, queueFilter, isAtelierOnline]);
 
   // Event Delegation for all clicks, inputs and user workflows
   useEffect(() => {
@@ -1427,6 +1782,19 @@ export default function StitchScreenRenderer({
 
       if (target.id) {
         formValuesRef.current[target.id] = target.value;
+      }
+
+      if (target.id === 'sellingPriceInput') {
+        window.calculatePricingLogic?.();
+        return;
+      }
+      if (target.id === 'catalogueSearch' || target.matches('input[placeholder*="Search weave" i]')) {
+        setCatalogSearchQuery(target.value);
+        return;
+      }
+      if (target.id?.startsWith('count-')) {
+        window.updateTotalStock?.();
+        return;
       }
 
       // 1. NEVER touch search query if input is in an auth panel, dialog, or form
@@ -1685,15 +2053,24 @@ export default function StitchScreenRenderer({
 
       // --- 1. BACK / RETURN BUTTONS ---
       if (
-        target.closest('[aria-label*="back" i], [aria-label*="return" i]') ||
-        (btn && btn.textContent && btn.textContent.includes('arrow_back')) ||
-        (target.classList && target.classList.contains('material-symbols-outlined') && target.textContent.includes('arrow_back')) ||
-        (target.matches && target.matches('.fa-chevron-left, [aria-label="Go back"]')) ||
-        (target.closest && target.closest('[aria-label="Go back"]'))
+        target.closest('[aria-label*="back" i], [aria-label*="return" i], [aria-label="Go back"], .fa-chevron-left, .fa-arrow-left') ||
+        (btn && (
+          (btn.getAttribute('aria-label') || '').toLowerCase().includes('back') ||
+          (btn.getAttribute('aria-label') || '').toLowerCase().includes('return') ||
+          (btn.textContent && (btn.textContent.includes('arrow_back') || btn.textContent.includes('Back') || btn.textContent.includes('Queue'))) ||
+          (btn.querySelector && btn.querySelector('.fa-arrow-left, .fa-chevron-left'))
+        )) ||
+        (target.classList && target.classList.contains('material-symbols-outlined') && target.textContent.includes('arrow_back'))
       ) {
         e.preventDefault();
         e.stopPropagation();
-        if (navigation?.canGoBack?.()) {
+        if (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) {
+          navigateScreen('CatalogManager');
+        } else if (targetKey.includes('Vendor_Order_Detail') || targetKey.includes('Order_Detail')) {
+          navigateScreen('VendorOrders');
+        } else if (targetKey.includes('Catalogue_Manager') || targetKey.includes('Catalog')) {
+          navigateScreen('VendorOrders');
+        } else if (navigation?.canGoBack?.()) {
           navigation.goBack();
         } else if (role === ROLES.VENDOR) {
           navigateScreen('VendorOrders');
@@ -2460,6 +2837,355 @@ export default function StitchScreenRenderer({
         return;
       }
 
+      // --- 23a. VENDOR ORDER QUEUE: TABS ---
+      const queueTabBtn = target.closest('.queue-tab, [data-filter]');
+      if (queueTabBtn && (targetKey.includes('Vendor_Order_Queue') || targetKey.includes('Vendor_Orders') || targetKey.includes('production-queue') || targetKey.includes('queue'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        const filterAttr = queueTabBtn.getAttribute('data-filter');
+        const txt = (queueTabBtn.textContent || '').toUpperCase();
+        const filter = filterAttr || (txt.includes('NEW') ? 'new' : (txt.includes('PACK') || txt.includes('TAILOR')) ? 'packing' : txt.includes('DISPATCH') ? 'dispatched' : 'all');
+        setQueueFilter(filter);
+        showToast(`Order Queue Filter: ${filter.toUpperCase()}`);
+        return;
+      }
+
+      // --- 23b. VENDOR ORDER QUEUE: TOGGLE ATELIER ONLINE ---
+      if (
+        target.closest('#toggleAtelierBtn, [data-action="toggle-atelier"]') ||
+        (btn && (btn.id === 'toggleAtelierBtn' || (btn.getAttribute('aria-label') || '').toLowerCase().includes('online status') || (btn.textContent && (btn.textContent.includes('Online Status') || (btn.textContent.includes('Atelier') && (btn.textContent.includes('Online') || btn.textContent.includes('Offline')))))))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsAtelierOnline((prev) => {
+          const next = !prev;
+          showToast(next ? 'Atelier is now ONLINE · Accepting 45-min orders' : 'Atelier is now PAUSED · Queue halted');
+          return next;
+        });
+        return;
+      }
+
+      // --- 23c. VENDOR ORDER QUEUE: REVIEW SPECS ---
+      if (
+        btn &&
+        (btn.textContent?.includes('Review Tailoring Specs') ||
+          btn.getAttribute('data-action') === 'review-specs' ||
+          btn.getAttribute('aria-label')?.includes('Tailoring Specs'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Nagpur Custom Measurements: Bust 38", Waist 32", Length 44", Raw Silk Chanderi.');
+        return;
+      }
+
+      // --- 23d. VENDOR ORDER QUEUE: NOTIFY PORTER ---
+      if (
+        btn &&
+        (btn.textContent?.includes('Notify Porter Rider') ||
+          btn.getAttribute('data-action') === 'notify-porter' ||
+          btn.getAttribute('aria-label')?.includes('Notify Porter'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Porter Rider Sunil Kamble notified for station pickup at Sitabuldi.');
+        return;
+      }
+
+      // --- 23e. VENDOR ORDER QUEUE: TRACK COURIER ---
+      if (
+        btn &&
+        (btn.textContent?.trim() === 'Track' || btn.getAttribute('data-action') === 'track-courier') &&
+        (targetKey.includes('Vendor_Order_Queue') || targetKey.includes('Vendor_Orders'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('LiveTracking', { orderId: 'KP-8479' });
+        return;
+      }
+
+      // --- 23f. VENDOR ORDER QUEUE: ORDER CARD CLICK ---
+      const queueOrderCard = target.closest('.order-card, [data-order-id], article');
+      if (
+        queueOrderCard &&
+        (targetKey.includes('Vendor_Order_Queue') || targetKey.includes('Vendor_Orders')) &&
+        !target.closest('button, a, input, select, label')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ordId = queueOrderCard.getAttribute('data-order-id') || 'ord-849201';
+        navigateScreen('VendorOrderDetail', { orderId: ordId });
+        return;
+      }
+
+      // --- 23g. VENDOR ORDER DETAIL: PRINT GARMENT TAG ---
+      if (
+        btn &&
+        (btn.id === 'printTagBtn' ||
+          btn.textContent?.includes('Print Garment Tag') ||
+          btn.textContent?.includes('Print Tag') ||
+          btn.getAttribute('data-action') === 'print-tag')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window !== 'undefined' && window.print) {
+          try { window.print(); } catch (e) {}
+        }
+        showToast('Garment Tag & Courier QR sent to thermal printer.');
+        return;
+      }
+
+      // --- 23h. VENDOR ORDER DETAIL: STYLIST DESK ---
+      if (
+        btn &&
+        (btn.id === 'stylistDeskBtn' ||
+          btn.textContent?.includes('Stylist Desk') ||
+          btn.getAttribute('data-action') === 'stylist-desk')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Connecting to Nagpur Senior Stylist Desk (+91 712 254 9900)...');
+        return;
+      }
+
+      // --- 23i. VENDOR ORDER DETAIL: DISPATCH PORTER ---
+      if (
+        btn &&
+        (btn.id === 'dispatchBtn' ||
+          (btn.textContent && (btn.textContent.includes('MARK READY & DISPATCH') || btn.textContent.includes('Mark Ready & Dispatch') || btn.textContent.includes('Dispatch Courier')) && targetKey.includes('Vendor_Order_Detail')))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Porter courier Sunil Kamble assigned and dispatched (45-min SLA).');
+        const toast = el.querySelector('#dispatchToast');
+        if (toast) toast.classList.remove('hidden');
+        return;
+      }
+
+      // --- 23j. CATALOGUE MANAGER: CATEGORY RAIL ---
+      const catRailBtn = target.closest('#categoryRail button, .filter-pill');
+      if (catRailBtn && (targetKey.includes('Catalogue_Manager') || targetKey.includes('Catalog'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        const cat = catRailBtn.getAttribute('data-cat') || catRailBtn.textContent.trim().toUpperCase();
+        setCatalogCategory(cat);
+        showToast(`Catalog Category: ${cat}`);
+        return;
+      }
+
+      // --- 23k. CATALOGUE MANAGER: SCAN SKU QR ---
+      if (
+        btn &&
+        (btn.id === 'scanQrBtn' ||
+          btn.getAttribute('aria-label')?.toLowerCase().includes('scan sku') ||
+          btn.textContent?.includes('Scan SKU') ||
+          btn.querySelector?.('.fa-qrcode, [viewBox*="24 24"]'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('SKU Barcode / QR Scanner active. Camera ready.');
+        return;
+      }
+
+      // --- 23l. CATALOGUE MANAGER: QUICK EDIT ---
+      if (
+        btn &&
+        (btn.getAttribute('title')?.toLowerCase().includes('quick edit') ||
+          btn.getAttribute('aria-label')?.toLowerCase().includes('more') ||
+          btn.textContent?.includes('more_vert') ||
+          btn.querySelector?.('.fa-ellipsis-vertical'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Quick Edit: Studio Anamika SKU configuration.');
+        return;
+      }
+
+      // --- 23m. CATALOGUE MANAGER: WHATSAPP SYNC & BULK STOCK ---
+      if (btn && (btn.id === 'whatsappSyncBtn' || btn.textContent?.includes('WhatsApp Sync'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('WhatsApp Business Inventory sync active. 42 styles refreshed.');
+        return;
+      }
+      if (btn && (btn.id === 'bulkStockBtn' || btn.textContent?.includes('Bulk Stock Audit'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Nagpur Atelier Bulk Stock Audit mode opened.');
+        return;
+      }
+
+      // --- 23n. CATALOGUE MANAGER: SIZE BUTTONS ---
+      if (
+        targetKey.includes('Catalogue_Manager') &&
+        btn &&
+        btn.textContent?.trim().match(/^(XS|S|M|L|XL|XXL|FS)$/)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast(`Available Stock in Nagpur Atelier (${btn.textContent.trim()}): 4 pieces.`);
+        return;
+      }
+
+      // --- 23o. PRODUCT INGESTION: CHIPS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.closest('#deptGroup, #dressCutGroup, #matGroup, #fitGroup, #occGroup, #careGroup') || btn.getAttribute('onclick')?.includes('selectChip'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.selectChip?.(btn);
+        return;
+      }
+
+      // --- 23p. PRODUCT INGESTION: STEPPER TABS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.id?.startsWith('tab-sec-') || btn.getAttribute('data-step') || btn.textContent?.includes('Next') || btn.textContent?.includes('Step') || btn.getAttribute('onclick')?.includes('scrollToSection'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const secId = btn.id?.startsWith('tab-sec-')
+          ? btn.id.replace('tab-', '')
+          : (btn.getAttribute('onclick')?.match(/scrollToSection\('([^']+)'\)/)?.[1] || 'sec-pricing');
+        window.scrollToSection?.(secId);
+        return;
+      }
+
+      // --- 23q. PRODUCT INGESTION: SIZE PILLS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.id?.startsWith('pill-') || btn.closest('#sizeSelectorPills') || btn.getAttribute('onclick')?.includes('toggleSize'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const sz = btn.id ? btn.id.replace('pill-', '') : (btn.getAttribute('onclick')?.match(/toggleSize\('([^']+)'\)/)?.[1] || btn.textContent.trim());
+        window.toggleSize?.(sz);
+        return;
+      }
+
+      // --- 23r. PRODUCT INGESTION: QUANTITY INCREMENT/DECREMENT ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        btn.closest('#dynamicSizeRowsContainer')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = btn.closest('[id^="sizerow-"]');
+        const sz = row ? row.id.replace('sizerow-', '') : 'M';
+        if (btn.querySelector('.fa-plus') || btn.getAttribute('aria-label')?.includes('Increase') || btn.getAttribute('onclick')?.includes('incrementSizeCount')) {
+          window.incrementSizeCount?.(sz);
+        } else if (btn.querySelector('.fa-minus') || btn.getAttribute('aria-label')?.includes('Decrease') || btn.getAttribute('onclick')?.includes('decrementSizeCount')) {
+          window.decrementSizeCount?.(sz);
+        }
+        return;
+      }
+
+      // --- 23s. PRODUCT INGESTION: COLOR PRESETS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.closest('#panelPopularShades') || btn.getAttribute('onclick')?.includes('addColorPreset'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const name = btn.querySelector('span.font-semibold, span.font-bold')?.textContent?.trim() || btn.textContent.trim().split('\n')[0].trim();
+        const colorDot = btn.querySelector('span[style*="background"]');
+        const hex = colorDot?.style?.backgroundColor || '#C4243A';
+        window.addColorPreset?.(name, hex, 'Popular');
+        return;
+      }
+
+      // --- 23t. PRODUCT INGESTION: COLOR MODE SWITCHER ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.id === 'tabModePopular' || btn.id === 'tabModeCustom')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.switchColorMode?.(btn.id === 'tabModePopular' ? 'popular' : 'custom');
+        return;
+      }
+
+      // --- 23u. PRODUCT INGESTION: COLOR MODIFIERS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.closest('#modifierGroup') || btn.getAttribute('onclick')?.includes('selectModifier'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.selectModifier?.(btn, btn.textContent.trim());
+        return;
+      }
+
+      // --- 23v. PRODUCT INGESTION: ADD CUSTOM SHADE ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.id === 'btnSaveCustomShade' || btn.textContent?.includes('Add Custom Shade') || btn.getAttribute('onclick')?.includes('addCustomShade'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.addCustomShade?.();
+        return;
+      }
+
+      // --- 23w. PRODUCT INGESTION: MEDIA ACTIONS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.textContent?.includes('Snap with Camera') ||
+          btn.textContent?.includes('Choose from Gallery') ||
+          btn.querySelector?.('.fa-camera, .fa-images') ||
+          btn.getAttribute('onclick')?.includes('simulateMediaAction'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isCam = btn.querySelector?.('.fa-camera') || btn.textContent?.includes('Camera');
+        window.simulateMediaAction?.(isCam ? 'camera' : 'gallery');
+        return;
+      }
+
+      // --- 23x. PRODUCT INGESTION: HELP & DRAFTS ---
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        (btn.getAttribute('aria-label') === 'Help' || btn.querySelector?.('.fa-circle-question'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Atelier Ingestion Guide: High-res front & back daylight photos required.');
+        return;
+      }
+      if (
+        (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) &&
+        btn &&
+        btn.textContent?.includes('Drafts')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('3 Unpublished drafts saved locally in Nagpur Atelier.');
+        return;
+      }
+
+      // --- 23y. ATELIER PROFILE: BOUTIQUE ANALYTICS ---
+      if (
+        btn &&
+        (btn.getAttribute('aria-label')?.toLowerCase().includes('boutique analytics') ||
+          btn.textContent?.includes('Boutique Analytics') ||
+          btn.textContent?.includes('60-Min Speed'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('VendorAnalytics');
+        return;
+      }
+
       // --- 24. WELCOME SCREEN CTAS ---
       if (
         (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
@@ -2519,7 +3245,7 @@ export default function StitchScreenRenderer({
       el.removeEventListener('change', handleInput);
       el.removeEventListener('click', handleClick);
     };
-  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory, searchQuery]);
+  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory, searchQuery, catalogCategory, catalogSearchQuery, queueFilter, isAtelierOnline]);
 
   // Initial Auth Tab Switcher (Split Login vs Register)
   useEffect(() => {
