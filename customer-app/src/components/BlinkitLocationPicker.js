@@ -125,6 +125,37 @@ export default function BlinkitLocationPicker({
           }
         }, 100);
       }
+
+      // Ensure pin styles are always applied at top stacking layer
+      if (!document.getElementById('blinkit-pin-styles')) {
+        const style = document.createElement('style');
+        style.id = 'blinkit-pin-styles';
+        style.textContent = `
+          #center-pin, .blinkit-center-pin {
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            z-index: 99999 !important;
+            pointer-events: none !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          #pin-shadow, .blinkit-ground-shadow {
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            z-index: 99998 !important;
+            pointer-events: none !important;
+            display: block !important;
+            visibility: visible !important;
+          }
+          #blinkit-locate-btn {
+            z-index: 99999 !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
     });
   }, []);
 
@@ -177,11 +208,22 @@ export default function BlinkitLocationPicker({
           attributionControl: false,
         });
 
-        // 100% Free OpenStreetMap standard tiles (Zero watermark, zero API key required)
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap contributors',
-        }).addTo(map);
+        // Free Google Maps roadmap tiles (Fast CDN, full Nagpur roads, building outlines & landmarks, zero watermark)
+        const googleTileUrl = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+        const osmFallbackUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+        const tileLayer = L.tileLayer(googleTileUrl, {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 20,
+          attribution: '&copy; Google Maps',
+        });
+
+        tileLayer.on('tileerror', function () {
+          // Seamless fallback if Google tile is unreachable
+          tileLayer.setUrl(osmFallbackUrl);
+        });
+
+        tileLayer.addTo(map);
 
         // Blinkit physics: lift center pin when drag/pan starts
         map.on('movestart', () => {
@@ -210,10 +252,10 @@ export default function BlinkitLocationPicker({
         // Initial geocode
         triggerReverseGeocode(initialLat, initialLng);
 
-        // Invalidate map size after animation frame
-        setTimeout(() => {
-          map.invalidateSize();
-        }, 150);
+        // Invalidate map size across animation frames to guarantee full tile paint on mobile Safari
+        setTimeout(() => map.invalidateSize(), 80);
+        setTimeout(() => map.invalidateSize(), 250);
+        setTimeout(() => map.invalidateSize(), 600);
       } catch (err) {
         console.warn('[BlinkitLocationPicker] Leaflet map initialization error:', err);
       }
@@ -328,6 +370,7 @@ export default function BlinkitLocationPicker({
       addressType,
       deliveryInstructions: deliveryInstruction,
       inZone,
+      isDetected: true,
       geocodeFailed: Boolean(resolvedAddress?.geocodeFailed),
     };
 
@@ -446,6 +489,7 @@ export default function BlinkitLocationPicker({
             )}
 
             {/* Center Ground Shadow (shrinks when pin lifts during drag) */}
+            {/* Center Ground Shadow (shrinks when pin lifts during drag) */}
             {Platform.OS === 'web' ? (
               <div
                 id="pin-shadow"
@@ -455,12 +499,15 @@ export default function BlinkitLocationPicker({
                   position: 'absolute',
                   top: '50%',
                   left: '50%',
-                  width: '16px',
-                  height: '6px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(18, 18, 20, 0.38)',
-                  zIndex: 90,
+                  width: '20px',
+                  height: '7px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(18, 18, 20, 0.45)',
+                  zIndex: 9998,
                   pointerEvents: 'none',
+                  transform: isMapMoving ? 'translate3d(-50%, -50%, 0) scale(0.48)' : 'translate3d(-50%, -50%, 0) scale(1)',
+                  opacity: isMapMoving ? 0.25 : 0.85,
+                  transition: 'all 0.18s ease-out',
                 }}
               />
             ) : (
@@ -483,69 +530,65 @@ export default function BlinkitLocationPicker({
                   position: 'absolute',
                   top: '50%',
                   left: '50%',
-                  zIndex: 100,
+                  zIndex: 99999,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   pointerEvents: 'none',
                   userSelect: 'none',
+                  transform: isMapMoving
+                    ? 'translate3d(-50%, -135%, 0) scale(1.08)'
+                    : 'translate3d(-50%, -100%, 0) scale(1)',
+                  transformOrigin: 'bottom center',
+                  transition: 'transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  willChange: 'transform',
                 }}
               >
                 {/* Luxury Tooltip above pin */}
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '42px',
-                    backgroundColor: 'rgba(18, 18, 21, 0.90)',
-                    backdropFilter: 'blur(6px)',
+                    bottom: '48px',
+                    backgroundColor: 'rgba(18, 18, 21, 0.92)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
                     color: '#FAF9F5',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    letterSpacing: '0.2px',
-                    padding: '4px 9px',
-                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.3px',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
                     whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-                    border: '1px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 6px 18px rgba(0,0,0,0.28)',
+                    border: '1px solid rgba(200, 162, 74, 0.4)',
+                    pointerEvents: 'none',
                   }}
                 >
-                  {isMapMoving ? 'Locating...' : 'Order will be delivered here'}
+                  {isMapMoving ? 'Locating Doorstep...' : 'Order will be delivered here'}
                 </div>
 
-                {/* Pin Head */}
-                <div
+                {/* High-Visibility Vector Pin (Red Crimson with White & Gold border) */}
+                <svg
+                  width="38"
+                  height="46"
+                  viewBox="0 0 38 46"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '16px',
-                    backgroundColor: colors.accentCrimson,
-                    border: '3px solid #FFFFFF',
-                    boxShadow: '0 6px 14px rgba(196, 36, 58, 0.45)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    filter: 'drop-shadow(0 6px 12px rgba(196, 36, 58, 0.5))',
+                    display: 'block',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '4px',
-                      backgroundColor: '#FFFFFF',
-                    }}
+                  <path
+                    d="M19 0C8.50659 0 0 8.50659 0 19C0 31.5 19 46 19 46C19 46 38 31.5 38 19C38 8.50659 29.4934 0 19 0Z"
+                    fill="#C4243A"
+                    stroke="#FAF9F5"
+                    strokeWidth="2.5"
                   />
-                </div>
-                {/* Pin Needle Tip */}
-                <div
-                  style={{
-                    width: '4px',
-                    height: '8px',
-                    backgroundColor: colors.accentCrimson,
-                    borderRadius: '2px',
-                    marginTop: '-2px',
-                  }}
-                />
+                  <circle cx="19" cy="18" r="7" fill="#FAF9F5" />
+                  <circle cx="19" cy="18" r="3.5" fill="#C4243A" />
+                </svg>
               </div>
             ) : (
               <View
@@ -558,7 +601,7 @@ export default function BlinkitLocationPicker({
                 {/* Luxury Tooltip above pin */}
                 <View style={styles.pinTooltip}>
                   <Text style={styles.pinTooltipText}>
-                    {isMapMoving ? 'Locating...' : 'Order will be delivered here'}
+                    {isMapMoving ? 'Locating Doorstep...' : 'Order will be delivered here'}
                   </Text>
                 </View>
 
@@ -577,7 +620,7 @@ export default function BlinkitLocationPicker({
               nativeID="blinkit-locate-btn"
               testID="blinkit-locate-btn"
               onPress={handleLocateMe}
-              style={styles.floatingGpsBtn}
+              style={[styles.floatingGpsBtn, { zIndex: 9999 }]}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Locate current position"
@@ -735,11 +778,14 @@ export default function BlinkitLocationPicker({
                 </ScrollView>
               </View>
             </View>
+          </ScrollView>
 
-            {/* Confirm CTA Button */}
+          {/* Sticky Blinkit-Style Bottom Action Bar */}
+          <View style={styles.modalFooter}>
             <PressableScale
               nativeID="confirmDeliveryPinBtn"
               testID="confirmDeliveryPinBtn"
+              id="confirmDeliveryPinBtn"
               onPress={handleFinalConfirm}
               disabled={isGeocoding || !inZone}
               style={[
@@ -763,7 +809,7 @@ export default function BlinkitLocationPicker({
                   : 'Confirm Location & Proceed'}
               </Text>
             </PressableScale>
-          </ScrollView>
+          </View>
         </View>
       </View>
     </Modal>
@@ -781,7 +827,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '94%',
-    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.16,
@@ -943,6 +989,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(18, 18, 20, 0.12)',
     position: 'relative',
     backgroundColor: '#F4EFE7',
+    isolation: 'isolate',
+    zIndex: 1,
   },
   nativeMapPlaceholder: {
     flex: 1,
@@ -1059,13 +1107,13 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   addressSheetScroll: {
-    maxHeight: 340,
-    marginTop: 10,
+    maxHeight: 280,
+    marginTop: 8,
   },
   addressSheetContent: {
     paddingHorizontal: 16,
     gap: 12,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   addressCard: {
     backgroundColor: '#FFFFFF',
@@ -1261,5 +1309,13 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(18, 18, 20, 0.08)',
+    backgroundColor: '#FAF9F5',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import stitchScreens from '../data/stitchScreens.json';
 import { useThemeStore } from '../store/useThemeStore';
@@ -229,17 +229,18 @@ export default function StitchScreenRenderer({
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const saved = JSON.parse(window.localStorage.getItem('kyapehnu_delivery_location') || 'null');
-        if (saved && saved.latitude && saved.longitude) return saved;
+        if (saved && saved.latitude && saved.longitude && saved.isDetected) return saved;
       } catch (e) {}
     }
     return {
       latitude: NAGPUR_CENTER.latitude,
       longitude: NAGPUR_CENTER.longitude,
-      areaName: 'Sitabuldi',
-      road: 'Wardha Rd Corridor',
-      pincode: '440012',
-      formattedAddress: 'Sitabuldi, Nagpur · 440012',
+      areaName: 'Select Location',
+      road: '',
+      pincode: '',
+      formattedAddress: 'Select Location, Nagpur',
       inZone: true,
+      isDetected: false,
     };
   });
   const [isLocating, setIsLocating] = useState(false);
@@ -248,6 +249,8 @@ export default function StitchScreenRenderer({
   const [deliveryInstructions, setDeliveryInstructions] = useState('Leave garment sleeve with concierge desk');
   const [isPrecinctSwitcherOpen, setIsPrecinctSwitcherOpen] = useState(false);
   const [isLiveMapModalOpen, setIsLiveMapModalOpen] = useState(false);
+  const deliveryMiniMapRef = useRef(null);
+  const hasPromptedLocationRef = useRef(false);
 
   const formValuesRef = useRef({});
   const focusedInputIdRef = useRef(null);
@@ -374,6 +377,60 @@ export default function StitchScreenRenderer({
       window.__NAV__.navigate(screenName, screenParams);
     }
   };
+
+  // Immediate location detection upon login / user request
+  const detectAndApplyUserLocation = useCallback((force = false) => {
+    if (isLocating) return;
+    setIsLocating(true);
+    showToast('📍 Requesting your delivery location...');
+
+    getCurrentCoordinates()
+      .then(async (coords) => {
+        let inZone = isWithinNagpur(coords.latitude, coords.longitude);
+        let resolved = null;
+        try {
+          resolved = await reverseGeocodeLocation(coords);
+        } catch (e) {
+          resolved = getClosestNagpurArea(coords.latitude, coords.longitude);
+        }
+
+        const areaName = resolved?.areaName || (inZone ? 'Sitabuldi' : 'Nagpur');
+        const road = resolved?.road || (inZone ? 'Wardha Rd Corridor' : '');
+        const pincode = resolved?.pincode || '440012';
+
+        const newLoc = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          areaName,
+          road,
+          pincode,
+          formattedAddress: resolved?.formattedAddress || `${areaName}, Nagpur · ${pincode}`,
+          inZone,
+          isDetected: true,
+        };
+
+        setDeliveryLocation(newLoc);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+        }
+        showToast(`📍 Location set to ${areaName}, Nagpur`);
+      })
+      .catch((err) => {
+        console.warn('[StitchScreenRenderer] Geolocation notice:', err);
+        showToast('Tap location in header to choose your address.');
+      })
+      .finally(() => {
+        setIsLocating(false);
+      });
+  }, [isLocating]);
+
+  // Ask for location as soon as user logs in (or on active authenticated session if not detected)
+  useEffect(() => {
+    if (user && !deliveryLocation.isDetected && !hasPromptedLocationRef.current) {
+      hasPromptedLocationRef.current = true;
+      detectAndApplyUserLocation(true);
+    }
+  }, [user, deliveryLocation.isDetected, detectAndApplyUserLocation]);
 
   // Global safety handlers for inline Stitch template event handlers
   useEffect(() => {
@@ -1335,6 +1392,13 @@ export default function StitchScreenRenderer({
       html = html.replace(/(id="total-val">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
       html = html.replace(/(id="cta-price">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
       html = html.replace(/₹6,300/g, `₹${grandTotal.toLocaleString()}`);
+
+      // Ensure the sticky Proceed to Delivery CTA container is elevated and never occluded by fixed bottom nav
+      html = html.replace(/sticky bottom-16 z-20/gi, 'sticky bottom-[calc(4rem+env(safe-area-inset-bottom,20px)+8px)] sm:bottom-24 z-40');
+      html = html.replace(/fixed bottom-20 left-0 w-full z-40/gi, 'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,20px))] sm:bottom-24 left-0 w-full z-40');
+      // Ensure main content has generous padding bottom to scroll past the CTA
+      html = html.replace(/(<main[^>]*class="[^"]*pb-)24([^"]*")/i, '$152$2');
+      html = html.replace(/(<main[^>]*class="[^"]*pb-)20([^"]*")/i, '$152$2');
     }
 
     // 4. MY ORDERS: Inject live recent orders or empty state
@@ -1547,16 +1611,29 @@ export default function StitchScreenRenderer({
         html = html.replace(/(Nagpur Atelier Route<\/span>\s*<\/div>)/i, `$1${adjustPinOverlay}`);
       }
 
+      // Replace static background image with live Leaflet mini-map preview container
+      html = html.replace(
+        /<div class="w-full h-full bg-cover bg-center"[^>]*><\/div>/i,
+        '<div id="deliveryMiniMap" class="w-full h-full absolute inset-0" style="pointer-events: none; z-index: 1;"></div>'
+      );
+
+      // Elevate overlay marker above the mini-map tiles
+      html = html.replace(/(class="absolute inset-0 flex items-center justify-center pointer-events-none")/i, '$1 style="z-index: 20;"');
+
       // Update map route badge
       html = html.replace(/Nagpur Atelier Route(?!\s*·)/g, `Nagpur Atelier Route · ${deliveryLocation.areaName}`);
 
       // 2. Detected Locality text
-      const localityFormatted = `${deliveryLocation.areaName}, Nagpur · ${deliveryLocation.pincode}`;
+      const localityFormatted = deliveryLocation.isDetected
+        ? `${deliveryLocation.areaName}, Nagpur · ${deliveryLocation.pincode}`
+        : 'Select delivery address';
       html = html.replace(/Sitabuldi, Nagpur · 440012/g, localityFormatted);
 
       // Update corridor text
       if (deliveryLocation.road) {
         html = html.replace(/Wardha Rd Corridor/g, `${deliveryLocation.road} Corridor`);
+      } else if (!deliveryLocation.isDetected) {
+        html = html.replace(/Wardha Rd Corridor/g, 'Doorstep Pin');
       }
 
       // 3. Locate Me button state
@@ -1606,9 +1683,15 @@ export default function StitchScreenRenderer({
     }
 
     // Global Header Location Badge sync
-    if (deliveryLocation?.areaName) {
+    if (isLocating) {
+      html = html.replace(/Sitabuldi, Nagpur/g, 'Detecting location...');
+      html = html.replace(/SITABULDI, NAGPUR/g, 'DETECTING LOCATION...');
+    } else if (deliveryLocation?.isDetected && deliveryLocation?.areaName && deliveryLocation.areaName !== 'Select Location') {
       html = html.replace(/Sitabuldi, Nagpur/g, `${deliveryLocation.areaName}, Nagpur`);
       html = html.replace(/SITABULDI, NAGPUR/g, `${deliveryLocation.areaName.toUpperCase()}, NAGPUR`);
+    } else {
+      html = html.replace(/Sitabuldi, Nagpur/g, 'Select Location');
+      html = html.replace(/SITABULDI, NAGPUR/g, 'SELECT LOCATION');
     }
 
     // PROFILE & SETTINGS SCREEN: Live user data
@@ -2106,6 +2189,7 @@ export default function StitchScreenRenderer({
         })();
 
         showToast('Welcome back to Kya Pehnu Atelier.');
+        detectAndApplyUserLocation(true);
         setTimeout(() => {
           navigateScreen('Home');
         }, 50);
@@ -2152,6 +2236,7 @@ export default function StitchScreenRenderer({
         })();
 
         showToast(`Welcome to Kya Pehnu, ${name.split(' ')[0]}!`);
+        detectAndApplyUserLocation(true);
         setTimeout(() => {
           navigateScreen('Home');
         }, 50);
@@ -2175,6 +2260,7 @@ export default function StitchScreenRenderer({
           });
         }
         showToast('Signed in with Google Passport.');
+        detectAndApplyUserLocation(true);
         setTimeout(() => navigateScreen('Home'), 400);
         return;
       }
@@ -2364,14 +2450,14 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 4. HEADER LOCATION SELECTOR ---
+      // --- 4. HEADER LOCATION SELECTOR (Open Blinkit Map Engine) ---
       if (
         target.closest('[aria-label*="Location" i]') ||
-        (btn && btn.textContent && (btn.textContent.includes('Nagpur') || btn.textContent.includes('Sitabuldi') || btn.textContent.includes('Dharampeth')) && btn.closest('header'))
+        (btn && btn.textContent && (btn.textContent.includes('Nagpur') || btn.textContent.includes('Sitabuldi') || btn.textContent.includes('Dharampeth') || btn.textContent.includes('Detecting') || btn.textContent.includes('Select Location')) && btn.closest('header'))
       ) {
         e.preventDefault();
         e.stopPropagation();
-        setIsPrecinctSwitcherOpen(true);
+        setIsMapPickerOpen(true);
         return;
       }
 
@@ -3713,6 +3799,106 @@ export default function StitchScreenRenderer({
     }
   }, [params?.authMode, params?.initialTab, targetKey]);
 
+  // Dynamic Leaflet Mini-Map preview on Delivery Address Screen
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !targetKey.includes('Delivery_Address')) {
+      if (deliveryMiniMapRef.current) {
+        try {
+          deliveryMiniMapRef.current.remove();
+        } catch (e) {}
+        deliveryMiniMapRef.current = null;
+      }
+      return;
+    }
+
+    const miniMapEl = containerRef.current?.querySelector('#deliveryMiniMap');
+    if (!miniMapEl) return;
+
+    const lat = Number(deliveryLocation.latitude) || NAGPUR_CENTER.latitude;
+    const lng = Number(deliveryLocation.longitude) || NAGPUR_CENTER.longitude;
+
+    const getLeaflet = () => {
+      if (typeof window !== 'undefined' && window.L) return Promise.resolve(window.L);
+      if (typeof document !== 'undefined') {
+        if (!document.getElementById('leaflet-css')) {
+          const link = document.createElement('link');
+          link.id = 'leaflet-css';
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(link);
+        }
+        if (!document.getElementById('leaflet-js')) {
+          const script = document.createElement('script');
+          script.id = 'leaflet-js';
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          document.head.appendChild(script);
+        }
+      }
+      return new Promise((resolve) => {
+        const check = setInterval(() => {
+          if (typeof window !== 'undefined' && window.L) {
+            clearInterval(check);
+            resolve(window.L);
+          }
+        }, 100);
+      });
+    };
+
+    let active = true;
+    getLeaflet().then((L) => {
+      if (!active || !miniMapEl) return;
+
+      if (deliveryMiniMapRef.current) {
+        try {
+          const c = deliveryMiniMapRef.current.getContainer?.();
+          if (c === miniMapEl) {
+            deliveryMiniMapRef.current.setView([lat, lng], 15);
+            deliveryMiniMapRef.current.invalidateSize();
+            return;
+          }
+          deliveryMiniMapRef.current.remove();
+        } catch (e) {}
+        deliveryMiniMapRef.current = null;
+      }
+
+      try {
+        const map = L.map(miniMapEl, {
+          center: [lat, lng],
+          zoom: 15,
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          touchZoom: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          boxZoom: false,
+          keyboard: false,
+        });
+
+        // Google Maps roadmap tiles with OSM fallback
+        const googleTileUrl = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+        const osmFallbackUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const tiles = L.tileLayer(googleTileUrl, {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 20,
+        });
+        tiles.on('tileerror', () => tiles.setUrl(osmFallbackUrl));
+        tiles.addTo(map);
+
+        deliveryMiniMapRef.current = map;
+
+        setTimeout(() => map && map.invalidateSize(), 150);
+        setTimeout(() => map && map.invalidateSize(), 450);
+      } catch (err) {
+        console.warn('Mini-map init failed:', err);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [targetKey, deliveryLocation.latitude, deliveryLocation.longitude]);
+
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>
       <style dangerouslySetInnerHTML={{ __html: DARK_PALETTE_CSS }} />
@@ -3769,6 +3955,7 @@ export default function StitchScreenRenderer({
             pincode: loc.pincode || '440012',
             formattedAddress: loc.formattedAddress || `${loc.areaName}, Nagpur (${loc.pincode || '440012'})`,
             inZone: loc.inZone,
+            isDetected: true,
           };
           setDeliveryLocation(newLoc);
           if (loc.addressType) {

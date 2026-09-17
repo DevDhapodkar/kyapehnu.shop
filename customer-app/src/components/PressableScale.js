@@ -51,6 +51,7 @@ export default function PressableScale({
   accessibilityState,
   accessibilityHint,
   wrapperStyle,
+  ...restProps
 }) {
   const scale = useSharedValue(1);
 
@@ -84,6 +85,7 @@ export default function PressableScale({
 
   return (
     <Pressable
+      {...restProps}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
