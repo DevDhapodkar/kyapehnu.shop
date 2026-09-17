@@ -82,7 +82,7 @@ export default function IosInstallPrompt() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 86,
+    top: Platform.OS === 'web' ? 18 : 56,
     left: 16,
     right: 16,
     zIndex: 99999,
@@ -90,16 +90,16 @@ const styles = StyleSheet.create({
   banner: {
     backgroundColor: '#131316',
     borderWidth: 1,
-    borderColor: 'rgba(200, 162, 74, 0.35)', // gold accent border
+    borderColor: 'rgba(200, 162, 74, 0.45)', // gold accent border
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
     elevation: 10,
   },
   textContainer: {

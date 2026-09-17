@@ -285,56 +285,7 @@ export default function StitchScreenRenderer({
         // fallback to default
       }
     }
-    return [
-      {
-        orderId: 'ord-849201',
-        _id: 'ord-849201',
-        totalPrice: 4800,
-        status: 'CONFIRMED',
-        deliveryAddress: {
-          receiverName: 'Radhika Deshmukh',
-          line1: 'Flat 402, Royal Palms',
-          line2: 'Dharampeth',
-          city: 'Nagpur',
-          pincode: '440010',
-        },
-        items: [
-          {
-            name: 'Chanderi Silk Angrakha',
-            price: 4800,
-            quantity: 1,
-            size: 'M',
-            color: 'Sindhoor Crimson',
-            image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
-            boutique: 'Studio Anamika',
-          },
-        ],
-      },
-      {
-        orderId: 'ord-720194',
-        _id: 'ord-720194',
-        totalPrice: 4200,
-        status: 'ACCEPTED',
-        deliveryAddress: {
-          receiverName: 'Mrs. Sunita Kulkarni',
-          line1: 'Bungalow 12, VIP Road',
-          line2: 'Civil Lines',
-          city: 'Nagpur',
-          pincode: '440001',
-        },
-        items: [
-          {
-            name: 'Royal Angrakha Raw Silk Kurta',
-            price: 4200,
-            quantity: 1,
-            size: 'L',
-            color: 'Peacock Teal',
-            image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=900',
-            boutique: 'Dhapodkar Silks',
-          },
-        ],
-      },
-    ];
+    return [];
   });
 
   useEffect(() => {
@@ -696,6 +647,32 @@ export default function StitchScreenRenderer({
       /(<span[^>]*class="[^"]*min-w-\[15px\][^"]*"[^>]*>)\d+(<\/span>)/g,
       `$1${cartCount}$2`
     );
+    html = html.replace(
+      /(id="pdp-bag-badge"[^>]*>)\d+(<\/span>)/g,
+      `$1${cartCount}$2`
+    );
+    html = html.replace(
+      /(<span[^>]*class="[^"]*min-w-\[16px\][^"]*"[^>]*>)\d+(<\/span>)/g,
+      `$1${cartCount}$2`
+    );
+
+    // Global Header Profile Avatar: Replace blank / broken profile images with initials monogram disc
+    const userDisplayName = user?.displayName || profile?.name || '';
+    const userInitial = userDisplayName
+      ? userDisplayName.charAt(0).toUpperCase()
+      : (useAuthStore.getState().token ? 'KP' : '');
+    const isUserAuth = Boolean(user || useAuthStore.getState().token);
+
+    const lightAvatarInner = isUserAuth
+      ? `<div data-action="view-profile" aria-label="Profile" role="button" class="w-8 h-8 rounded-full bg-accent-crimson text-surface-porcelain font-serif text-sm font-bold flex items-center justify-center shadow-sm select-none border border-white/20 cursor-pointer">${userInitial}</div>`
+      : `<div data-action="view-profile" aria-label="Profile" role="button" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-text-obsidian shadow-sm select-none cursor-pointer"><span class="material-symbols-outlined text-[18px]">person</span></div>`;
+
+    const darkAvatarInner = isUserAuth
+      ? `<div data-action="view-profile" aria-label="Profile" role="button" class="w-9 h-9 rounded-full bg-[#201f24] border border-gold/40 flex items-center justify-center font-serif text-sm font-bold text-gold shadow-sm select-none cursor-pointer">${userInitial}</div>`
+      : `<div data-action="view-profile" aria-label="Profile" role="button" class="w-9 h-9 rounded-full bg-[#201f24] border border-noir-border flex items-center justify-center text-stone-300 select-none cursor-pointer"><span class="material-symbols-outlined text-[18px]">person</span></div>`;
+
+    html = html.replace(/<img[^>]*alt="Profile"[^>]*src="[^"]*"[^>]*\/?>/gi, lightAvatarInner);
+    html = html.replace(/<div class="w-9 h-9 rounded-full bg-\[#201f24\] border border-noir-border flex items-center justify-center font-serif text-sm font-bold text-gold">\s*VP\s*<\/div>/gi, darkAvatarInner);
 
     // 1. STOREFRONT HOME: Inject live products from MongoDB into hero, ateliers & grid
     if (targetKey.includes('Storefront_Home') && products.length > 0) {
@@ -1171,10 +1148,21 @@ export default function StitchScreenRenderer({
           html = html.replace(darkItemsRegex, `$1${emptyHtmlDark}$2`);
         }
 
-        // Disable checkout button or make it redirect to explore
-        html = html.replace(/(onclick="handleCheckout\(\)")/gi, 'data-action="explore-storefront"');
-        html = html.replace(/Proceed to Delivery/g, 'Bag Empty — Explore Looks');
-        html = html.replace(/Proceed to Checkout/g, 'Bag Empty — Explore Looks');
+        // Replace checkout button with a clean empty state explorer button
+        html = html.replace(
+          /<button[^>]*aria-label="Proceed to checkout"[^>]*>[\s\S]*?<\/button>/gi,
+          `<button role="button" aria-label="Explore Storefront" data-action="explore-storefront" class="group w-full py-3.5 px-6 rounded-full bg-surface-container text-text-obsidian font-tabular-caption text-[14px] tracking-wide uppercase flex items-center justify-center gap-2 shadow-sm border border-surface-container-high active:scale-[0.98] transition-all duration-200">
+            <span class="material-symbols-outlined text-[18px] text-accent-crimson">explore</span>
+            <span class="font-bold">Bag Empty — Explore Looks</span>
+          </button>`
+        );
+        html = html.replace(
+          /<button[^>]*id="checkoutBtn"[^>]*>[\s\S]*?<\/button>/gi,
+          `<button id="checkoutBtn" data-action="explore-storefront" class="w-full py-3.5 rounded-xl bg-noir-card border border-white/10 text-stone-200 font-bold flex items-center justify-center gap-2 shadow active:scale-[0.98] transition-all">
+            <span class="material-symbols-outlined text-[18px] text-gold">explore</span>
+            <span>Bag Empty — Explore Looks</span>
+          </button>`
+        );
       } else {
         const cartListHtmlLight = cartItems.map((item) => `
           <div class="relative overflow-hidden rounded-xl bg-surface-porcelain/90 backdrop-blur-md shadow-sm border border-surface-container-high transition-all duration-300">
@@ -1347,8 +1335,8 @@ export default function StitchScreenRenderer({
                 <div>
                   <span class="font-eyebrow text-eyebrow uppercase tracking-widest text-accent-gold font-bold">ACTIVE 45-MIN TRIAL</span>
                   <div class="flex items-center gap-2 mt-0.5">
-                    <h3 class="font-title-lg text-title-lg text-text-obsidian font-bold">#${activeIdStr}</h3>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${
+                    <h3 class="font-title-lg text-title-lg text-text-obsidian font-bold whitespace-nowrap">#${activeIdStr}</h3>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase whitespace-nowrap ${
                       activeStatusStr === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
                       activeStatusStr === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
                       'bg-amber-100 text-amber-900 animate-pulse'
@@ -1386,8 +1374,8 @@ export default function StitchScreenRenderer({
               <img src="${itemImg}" alt="${itemName}" class="w-14 h-16 object-cover rounded-lg bg-surface-container-low" onerror="this.src='/app/apple-touch-icon.png';"/>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
-                  <span class="font-tabular-price text-xs font-bold text-text-obsidian">#${idStr}</span>
-                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">${statusStr}</span>
+                  <span class="font-tabular-price text-xs font-bold text-text-obsidian whitespace-nowrap">#${idStr}</span>
+                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">${statusStr}</span>
                 </div>
                 <h4 class="font-title-md text-sm font-bold text-text-obsidian truncate mt-0.5">${itemName}</h4>
                 <div class="flex items-center justify-between mt-1">
@@ -1854,12 +1842,20 @@ export default function StitchScreenRenderer({
         if (pRegister) pRegister.classList.add('hidden');
 
         if (tSignIn && tRegister) {
+          const isDarkAuth = Boolean(tSignIn.id && tSignIn.id.includes('dark'));
           tSignIn.setAttribute('aria-selected', 'true');
           tRegister.setAttribute('aria-selected', 'false');
-          tSignIn.classList.add('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
-          tSignIn.classList.remove('text-text-slate', 'text-stone-400');
-          tRegister.classList.remove('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
-          tRegister.classList.add('text-text-slate', 'text-stone-400');
+          if (isDarkAuth) {
+            tSignIn.classList.add('bg-noir-elevated', 'text-white', 'font-semibold', 'shadow');
+            tSignIn.classList.remove('text-stone-400');
+            tRegister.classList.remove('bg-noir-elevated', 'text-white', 'font-semibold', 'shadow');
+            tRegister.classList.add('text-stone-400');
+          } else {
+            tSignIn.classList.add('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold');
+            tSignIn.classList.remove('text-text-slate', 'text-stone-400', 'bg-noir-elevated', 'text-white');
+            tRegister.classList.remove('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
+            tRegister.classList.add('text-text-slate');
+          }
         }
         return;
       }
@@ -1877,12 +1873,20 @@ export default function StitchScreenRenderer({
         if (pRegister) pRegister.classList.remove('hidden');
 
         if (tSignIn && tRegister) {
+          const isDarkAuth = Boolean(tRegister.id && tRegister.id.includes('dark'));
           tRegister.setAttribute('aria-selected', 'true');
           tSignIn.setAttribute('aria-selected', 'false');
-          tRegister.classList.add('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
-          tRegister.classList.remove('text-text-slate', 'text-stone-400');
-          tSignIn.classList.remove('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
-          tSignIn.classList.add('text-text-slate', 'text-stone-400');
+          if (isDarkAuth) {
+            tRegister.classList.add('bg-noir-elevated', 'text-white', 'font-semibold', 'shadow');
+            tRegister.classList.remove('text-stone-400');
+            tSignIn.classList.remove('bg-noir-elevated', 'text-white', 'font-semibold', 'shadow');
+            tSignIn.classList.add('text-stone-400');
+          } else {
+            tRegister.classList.add('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold');
+            tRegister.classList.remove('text-text-slate', 'text-stone-400', 'bg-noir-elevated', 'text-white');
+            tSignIn.classList.remove('bg-surface-porcelain', 'text-text-obsidian', 'shadow-sm', 'font-bold', 'bg-noir-elevated', 'text-white');
+            tSignIn.classList.add('text-text-slate');
+          }
         }
         return;
       }
@@ -2089,25 +2093,35 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
 
         // Specific vendor bottom nav items
-        if (dataPath === 'production-queue' || text === 'queue') {
-          navigateScreen('VendorOrders');
-          return;
-        }
-        if (dataPath === 'boutique-catalogue' || text === 'catalogue' || text === 'catalog') {
-          navigateScreen('CatalogManager');
-          return;
-        }
-        if (dataPath === 'orders-and-dispatch' || text === 'dispatch') {
-          navigateScreen('VendorOrders');
-          return;
-        }
-        if (dataPath === 'atelier-profile' || text === 'atelier') {
-          navigateScreen('VendorProfile');
-          return;
+        if (role === ROLES.VENDOR) {
+          if (dataPath === 'production-queue' || text === 'queue') {
+            navigateScreen('VendorOrders');
+            return;
+          }
+          if (dataPath === 'boutique-catalogue' || text === 'catalogue' || text === 'catalog') {
+            navigateScreen('CatalogManager');
+            return;
+          }
+          if (dataPath === 'orders-and-dispatch' || text === 'dispatch') {
+            navigateScreen('VendorOrders');
+            return;
+          }
+          if (dataPath === 'atelier-profile' || text === 'atelier') {
+            navigateScreen('VendorProfile');
+            return;
+          }
         }
 
         // Customer bottom nav items
-        if (dataPath.includes('storefront') || text.includes('storefront') || text.includes('home')) {
+        if (
+          dataPath.includes('storefront') ||
+          dataPath.includes('couture-catalog') ||
+          dataPath.includes('nagpur-precincts') ||
+          text.includes('storefront') ||
+          text.includes('boutiques') ||
+          text === 'atelier' ||
+          text.includes('home')
+        ) {
           navigateScreen('Home');
           return;
         }
@@ -2115,7 +2129,12 @@ export default function StitchScreenRenderer({
           navigateScreen('Cart');
           return;
         }
-        if (dataPath.includes('orders') || text.includes('orders')) {
+        if (
+          dataPath.includes('orders') ||
+          dataPath.includes('concierge-try-on') ||
+          text.includes('orders') ||
+          text.includes('try-on')
+        ) {
           if (role === ROLES.VENDOR) {
             navigateScreen('VendorOrders');
           } else {
@@ -2123,7 +2142,19 @@ export default function StitchScreenRenderer({
           }
           return;
         }
+        if (dataPath.includes('client-account') || text.includes('account')) {
+          navigateScreen('Profile');
+          return;
+        }
+        if (dataPath.includes('saved-curations') || text.includes('saved')) {
+          showToast('Curated wishlist is saved to your Nagpur patron account.');
+          return;
+        }
         if (dataPath.includes('search') || text.includes('search') || text.includes('explore')) {
+          if (!targetKey.includes('Storefront_Home')) {
+            navigateScreen('Home', { focusSearch: true });
+            return;
+          }
           const searchInput = el.querySelector('input[type="text"]');
           if (searchInput) {
             searchInput.focus();
@@ -2133,9 +2164,36 @@ export default function StitchScreenRenderer({
         }
       }
 
+      // --- 2b. HEADER BACK BUTTON ---
+      const goBackBtn = target.closest('[data-action="go-back"], button[aria-label="Go back" i], button[aria-label="Navigate Back" i]');
+      if (goBackBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (targetKey.includes('Product_Detail') || targetKey.includes('Your_Bag') || targetKey.includes('Profile___Settings') || targetKey.includes('My_Orders')) {
+          navigateScreen('Home');
+        } else if (targetKey.includes('Delivery_Address')) {
+          navigateScreen('Cart');
+        } else if (navigation?.canGoBack && navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigateScreen('Home');
+        }
+        return;
+      }
+
+      // --- 2c. PDP / HEADER BAG BUTTON ---
+      const headerBagBtn = target.closest('button[aria-label="Shopping Bag" i], [data-path="shopping-bag"]');
+      if (headerBagBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('Cart');
+        return;
+      }
+
       // --- 3. HEADER PROFILE & SWITCHER ---
       if (
         target.closest('[aria-label="Profile" i]') ||
+        target.closest('[data-action="view-profile"]') ||
         target.closest('img[alt="Profile" i]') ||
         (btn && btn.querySelector && btn.querySelector('img[alt="Profile" i]'))
       ) {
@@ -2319,7 +2377,12 @@ export default function StitchScreenRenderer({
       }
 
       // --- 10. PDP: ADD TO BAG CTA ---
-      if (btn && btn.textContent && (btn.textContent.includes('Add to Bag') || btn.textContent.includes('Add to Atelier Bag'))) {
+      if (
+        btn &&
+        (btn.id === 'bag-cta' ||
+          target.closest('#bag-cta') ||
+          (btn.textContent && (btn.textContent.includes('Add to Bag') || btn.textContent.includes('Add to Atelier Bag'))))
+      ) {
         e.preventDefault();
         e.stopPropagation();
         const curP = activeProduct || products[0] || {};
@@ -2350,8 +2413,17 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 11. PDP: TRY AT HOME NOW ---
-      if (btn && btn.textContent && (btn.textContent.includes('Try at Home Now') || btn.textContent.includes('15-Min Trial'))) {
+      // --- 11. PDP: ACQUIRE NOW / TRY AT HOME NOW ---
+      if (
+        btn &&
+        (btn.id === 'acquire-cta' ||
+          target.closest('#acquire-cta') ||
+          (btn.textContent && (
+            btn.textContent.includes('Acquire Now') ||
+            btn.textContent.includes('Try at Home Now') ||
+            btn.textContent.includes('15-Min Trial')
+          )))
+      ) {
         e.preventDefault();
         e.stopPropagation();
         const curP = activeProduct || products[0] || {};
@@ -2605,6 +2677,61 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
         setRole(ROLES.CUSTOMER);
         showToast('Switched to Customer Storefront Flow');
+        return;
+      }
+
+      // --- 18b. PROFILE MENU ACTIONS ---
+      const viewOrdersAction = target.closest('[data-action="view-orders"]') || (btn && btn.textContent && btn.textContent.includes('My Doorstep Orders'));
+      if (viewOrdersAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('MyOrders');
+        return;
+      }
+
+      const viewAddressAction = target.closest('[data-action="view-address"]') || (btn && btn.textContent && btn.textContent.includes('Saved Addresses'));
+      if (viewAddressAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('Address');
+        return;
+      }
+
+      const signOutBtn = target.closest('[data-action="sign-out"]') || (btn && btn.textContent && btn.textContent.includes('Sign Out'));
+      if (signOutBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        await useAuthStore.getState().signOut();
+        showToast('Signed out of Kya Pehnu.');
+        navigateScreen('Home');
+        return;
+      }
+
+      const seeAllAteliers = target.closest('[data-action="see-all-ateliers"]');
+      if (seeAllAteliers) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedCategory('ALL');
+        showToast('Displaying all Nagpur ateliers & master weavers.');
+        return;
+      }
+
+      // PDP Share Button
+      if (target.closest('button[aria-label*="Share" i]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText?.(window.location.href);
+        }
+        showToast('Exclusive garment link copied to clipboard!');
+        return;
+      }
+
+      // PDP Measurement Guide
+      if (btn && btn.textContent && btn.textContent.includes('Measurement Guide')) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Nagpur doorstep trial includes 15-min complimentary pin-tailoring.');
         return;
       }
 
