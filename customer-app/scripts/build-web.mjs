@@ -49,6 +49,8 @@ if (fs.existsSync(indexPath)) {
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
@@ -216,6 +218,47 @@ if (fs.existsSync(indexPath)) {
       }
       .material-symbols-outlined.fill-1 {
         font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      /* Blinkit Map Center Pin Lift & Drop Physics */
+      @keyframes blinkitPinLift {
+        0% { transform: translate(-50%, -100%) scale(1); }
+        100% { transform: translate(-50%, -135%) scale(1.08, 0.95); }
+      }
+      @keyframes blinkitPinDrop {
+        0% { transform: translate(-50%, -135%) scale(1.08, 0.95); }
+        45% { transform: translate(-50%, -90%) scale(0.92, 1.08); }
+        70% { transform: translate(-50%, -105%) scale(1.03, 0.97); }
+        88% { transform: translate(-50%, -98%) scale(0.99, 1.01); }
+        100% { transform: translate(-50%, -100%) scale(1, 1); }
+      }
+      @keyframes blinkitRadarPulse {
+        0% { transform: scale(0.85); opacity: 0.9; }
+        50% { transform: scale(1.45); opacity: 0.35; }
+        100% { transform: scale(2.1); opacity: 0; }
+      }
+      .blinkit-pin-lifted {
+        transform: translate(-50%, -135%) scale(1.08, 0.95) !important;
+        transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+      }
+      .blinkit-pin-dropped {
+        animation: blinkitPinDrop 0.44s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+      }
+      .blinkit-shadow-lifted {
+        transform: translate(-50%, -50%) scale(0.5) !important;
+        opacity: 0.25 !important;
+        transition: all 0.16s ease-out;
+      }
+      .blinkit-shadow-dropped {
+        transform: translate(-50%, -50%) scale(1) !important;
+        opacity: 0.8 !important;
+        transition: all 0.28s ease-out;
+      }
+      .blinkit-radar-ring {
+        animation: blinkitRadarPulse 1.8s infinite ease-out;
+      }
+      .leaflet-container {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        background: #F4EFE7 !important;
       }
       /* Prevent tap highlight flashes and callout menus */
       *, *::before, *::after {
