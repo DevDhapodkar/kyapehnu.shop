@@ -2862,7 +2862,11 @@ export default function StitchScreenRenderer({
       }
 
       // --- 16. LIVE TRACKING: MAP & ACTIONS ---
-      if (btn && btn.textContent && btn.textContent.includes('Track on Live Map')) {
+      if (
+        (btn && btn.textContent && (btn.textContent.includes('Track on Live Map') || btn.textContent.includes('Live Map'))) ||
+        target.closest('[data-action="open-live-map"]') ||
+        (targetKey.includes('Live_Tracking') && target.closest('[class*="aspect-"]'))
+      ) {
         e.preventDefault();
         e.stopPropagation();
         setIsLiveMapModalOpen(true);
