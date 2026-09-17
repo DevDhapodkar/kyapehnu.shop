@@ -3758,6 +3758,7 @@ export default function StitchScreenRenderer({
                 </p>
               </div>
               <button
+                id="btnClosePrecinctSwitcher"
                 type="button"
                 onClick={() => setIsPrecinctSwitcherOpen(false)}
                 style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -3768,6 +3769,7 @@ export default function StitchScreenRenderer({
 
             {/* GPS Detection Button */}
             <button
+              id="btnUseCurrentGps"
               type="button"
               onClick={() => {
                 setIsPrecinctSwitcherOpen(false);
@@ -3841,6 +3843,8 @@ export default function StitchScreenRenderer({
                 return (
                   <button
                     key={precinct.name}
+                    id={`precinct-${precinct.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    data-precinct={precinct.name}
                     type="button"
                     onClick={() => {
                       const newLoc = {
