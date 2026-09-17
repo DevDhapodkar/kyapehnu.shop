@@ -426,10 +426,32 @@ export default function InteractiveMapPinPicker({
 
             {!inZone && (
               <View style={styles.warningBanner}>
-                <MaterialIcons name="error-outline" size={17} color="#B91C1C" />
-                <Text style={styles.warningText}>
-                  Outside Delivery Zone: This pin is outside Porter's same-city delivery network in Nagpur (~25km). Kyapehnu currently operates only within Nagpur.
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                  <MaterialIcons name="error-outline" size={17} color="#B91C1C" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.warningText}>
+                      Outside Nagpur Zone (~25km radius). Kya Pehnu operates 90-min courier trials in Nagpur.
+                    </Text>
+                    <PressableScale
+                      onPress={() => {
+                        const sitabuldi = { latitude: NAGPUR_CENTER.latitude, longitude: NAGPUR_CENTER.longitude };
+                        setSelectedCoords(sitabuldi);
+                        updateResolvedAddress(sitabuldi.latitude, sitabuldi.longitude);
+                        if (Platform.OS === 'web' && iframeRef.current?.contentWindow) {
+                          iframeRef.current.contentWindow.postMessage(
+                            { type: 'CENTER_MAP', lat: sitabuldi.latitude, lng: sitabuldi.longitude },
+                            '*'
+                          );
+                        }
+                      }}
+                      style={{ marginTop: 6, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, borderRadius: 8, alignSelf: 'flex-start' }}
+                    >
+                      <Text style={{ color: '#B91C1C', fontSize: 12, fontWeight: '700' }}>
+                        📍 Snap Pin to Nagpur Central (Sitabuldi)
+                      </Text>
+                    </PressableScale>
+                  </View>
+                </View>
               </View>
             )}
 

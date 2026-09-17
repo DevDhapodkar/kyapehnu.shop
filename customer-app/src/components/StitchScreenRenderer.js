@@ -21,6 +21,15 @@ import {
 } from '../api/vendorApi';
 import { navigationRef } from '../navigation/AppNavigator';
 import { LOGO_DATA_URI } from '../constants/logoDataUri';
+import InteractiveMapPinPicker from './InteractiveMapPinPicker';
+import {
+  getCurrentCoordinates,
+  reverseGeocodeLocation,
+  isWithinNagpur,
+  getClosestNagpurArea,
+  NAGPUR_AREAS,
+  NAGPUR_CENTER,
+} from '../utils/geolocation';
 
 const DARK_PALETTE_CSS = `
   .hidden { display: none !important; }
@@ -213,6 +222,32 @@ export default function StitchScreenRenderer({
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [queueFilter, setQueueFilter] = useState('all');
   const [isAtelierOnline, setIsAtelierOnline] = useState(true);
+
+  // Delivery Address & Location Pin States
+  const [deliveryLocation, setDeliveryLocation] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_delivery_location') || 'null');
+        if (saved && saved.latitude && saved.longitude) return saved;
+      } catch (e) {}
+    }
+    return {
+      latitude: NAGPUR_CENTER.latitude,
+      longitude: NAGPUR_CENTER.longitude,
+      areaName: 'Sitabuldi',
+      road: 'Wardha Rd Corridor',
+      pincode: '440012',
+      formattedAddress: 'Sitabuldi, Nagpur · 440012',
+      inZone: true,
+    };
+  });
+  const [isLocating, setIsLocating] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [addressClassification, setAddressClassification] = useState('Home');
+  const [deliveryInstructions, setDeliveryInstructions] = useState('Leave garment sleeve with concierge desk');
+  const [isPrecinctSwitcherOpen, setIsPrecinctSwitcherOpen] = useState(false);
+  const [isLiveMapModalOpen, setIsLiveMapModalOpen] = useState(false);
+
   const formValuesRef = useRef({});
   const focusedInputIdRef = useRef(null);
 
@@ -1456,7 +1491,7 @@ export default function StitchScreenRenderer({
       }
     }
 
-    // DELIVERY ADDRESS SCREEN: Dynamic total & pre-fill from user
+    // DELIVERY ADDRESS SCREEN: Dynamic total, map pin trigger, dynamic locality, & user pre-fill
     if (targetKey.includes('Delivery_Address')) {
       const subtotal = cartItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
       const delivery = subtotal > 0 ? (subtotal >= 1999 ? 0 : 99) : 0;
@@ -1464,12 +1499,81 @@ export default function StitchScreenRenderer({
 
       html = html.replace(/₹8,340/g, `₹${grandTotal.toLocaleString()}`);
 
+      // 1. Map container: make interactive with pointer cursor and "Adjust Pin on Map" button
+      const adjustPinOverlay = `
+        <button type="button" class="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-accent-crimson text-surface-porcelain px-3 py-1.5 rounded-full shadow-lg font-eyebrow text-eyebrow uppercase tracking-wider font-bold active:scale-95 transition-all hover:bg-accent-crimson-deep cursor-pointer" data-action="open-map-picker" id="btnAdjustPin">
+          <span class="material-symbols-outlined text-[16px]">pin_drop</span>
+          <span>Adjust Pin on Map</span>
+        </button>
+      `;
+
+      html = html.replace(/(<div[^>]*class="relative w-full h-(?:52|48) rounded-xl overflow-hidden[^"]*")/i, `$1 id="deliveryMapContainer" data-action="open-map-picker" style="cursor: pointer;"`);
+      if (!html.includes('id="btnAdjustPin"')) {
+        html = html.replace(/(Nagpur Atelier Route<\/span>\s*<\/div>)/i, `$1${adjustPinOverlay}`);
+      }
+
+      // Update map route badge
+      html = html.replace(/Nagpur Atelier Route(?!\s*·)/g, `Nagpur Atelier Route · ${deliveryLocation.areaName}`);
+
+      // 2. Detected Locality text
+      const localityFormatted = `${deliveryLocation.areaName}, Nagpur · ${deliveryLocation.pincode}`;
+      html = html.replace(/Sitabuldi, Nagpur · 440012/g, localityFormatted);
+
+      // Update corridor text
+      if (deliveryLocation.road) {
+        html = html.replace(/Wardha Rd Corridor/g, `${deliveryLocation.road} Corridor`);
+      }
+
+      // 3. Locate Me button state
+      if (isLocating) {
+        html = html.replace(/id="locateMeBtn"[^>]*>[\s\S]*?<\/button>/i, `id="locateMeBtn" class="shrink-0 px-3 py-1.5 rounded-full bg-accent-crimson/10 text-accent-crimson font-eyebrow text-eyebrow uppercase tracking-wider font-semibold shadow-xs flex items-center gap-1.5 cursor-wait"><span class="material-symbols-outlined text-[15px] animate-spin">sync</span> Locating...</button>`);
+        html = html.replace(/id="locateBtn"[^>]*>[\s\S]*?<\/button>/i, `id="locateBtn" class="shrink-0 px-3 py-1.5 rounded-lg bg-primary-container/20 text-secondary flex items-center gap-1.5 font-label-md text-label-md cursor-wait"><span class="material-symbols-outlined text-base animate-spin">sync</span> LOCATING...</button>`);
+      }
+
+      // 4. Address Classification chips active state
+      const chipTypes = ['Home', 'Atelier / Work', 'Other'];
+      chipTypes.forEach((ct) => {
+        const isSel = ct.toLowerCase() === addressClassification.toLowerCase() ||
+          (ct === 'Atelier / Work' && (addressClassification.toLowerCase() === 'work' || addressClassification.toLowerCase() === 'atelier / work'));
+        const activeClass = 'bg-accent-crimson text-surface-porcelain font-eyebrow text-eyebrow tracking-wider uppercase font-semibold text-center transition-all shadow-sm flex items-center justify-center gap-1';
+        const inactiveClass = 'bg-surface-container-low text-text-obsidian font-eyebrow text-eyebrow tracking-wider uppercase font-semibold text-center transition-all shadow-xs flex items-center justify-center gap-1';
+        const reg = new RegExp(`(<button[^>]*data-chip="${ct}"[^>]*class=")[^"]*(")`, 'i');
+        html = html.replace(reg, `$1chip-btn py-2 px-3 rounded-lg ${isSel ? activeClass : inactiveClass}$2`);
+      });
+
+      // Dark mode address classification chips
+      const darkChipTypes = [
+        { type: 'home', label: 'HOME' },
+        { type: 'work', label: 'ATELIER / WORK' },
+        { type: 'other', label: 'OTHER' },
+      ];
+      darkChipTypes.forEach((dct) => {
+        const isSel = dct.type === addressClassification.toLowerCase() ||
+          (dct.type === 'work' && (addressClassification.toLowerCase().includes('work') || addressClassification.toLowerCase().includes('atelier')));
+        const activeDark = 'type-pill px-4 py-2 rounded-lg bg-primary-container text-on-primary-container font-title-md text-title-md flex items-center gap-1.5 shadow-[0_4px_16px_-2px_rgba(196,36,58,0.4)] transition-all';
+        const inactiveDark = 'type-pill px-4 py-2 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest font-title-md text-title-md flex items-center gap-1.5 transition-all';
+        const darkReg = new RegExp(`(<button[^>]*data-type="${dct.type}"[^>]*class=")[^"]*(")`, 'i');
+        html = html.replace(darkReg, `$1${isSel ? activeDark : inactiveDark}$2`);
+      });
+
+      // 5. Delivery instructions text
+      if (deliveryInstructions) {
+        html = html.replace(/Leave garment sleeve with concierge desk/g, deliveryInstructions);
+      }
+
+      // 6. Pre-fill fields from user
       if (user?.displayName) {
         html = html.replace(/id="recipientName"([^>]*)value=""/i, `id="recipientName"$1value="${user.displayName}"`);
       }
       if (user?.phoneNumber) {
         html = html.replace(/id="phoneNumber"([^>]*)value=""/i, `id="phoneNumber"$1value="${user.phoneNumber}"`);
       }
+    }
+
+    // Global Header Location Badge sync
+    if (deliveryLocation?.areaName) {
+      html = html.replace(/Sitabuldi, Nagpur/g, `${deliveryLocation.areaName}, Nagpur`);
+      html = html.replace(/SITABULDI, NAGPUR/g, `${deliveryLocation.areaName.toUpperCase()}, NAGPUR`);
     }
 
     // PROFILE & SETTINGS SCREEN: Live user data
@@ -2204,10 +2308,13 @@ export default function StitchScreenRenderer({
       }
 
       // --- 4. HEADER LOCATION SELECTOR ---
-      if (target.closest('[aria-label*="Location" i]') || (btn && btn.textContent && btn.textContent.includes('Sitabuldi, Nagpur'))) {
+      if (
+        target.closest('[aria-label*="Location" i]') ||
+        (btn && btn.textContent && (btn.textContent.includes('Nagpur') || btn.textContent.includes('Sitabuldi') || btn.textContent.includes('Dharampeth')) && btn.closest('header'))
+      ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Delivering to Sitabuldi and Dharampeth, Nagpur (45-Min Active)');
+        setIsPrecinctSwitcherOpen(true);
         return;
       }
 
@@ -2509,6 +2616,117 @@ export default function StitchScreenRenderer({
         return;
       }
 
+      // --- 13b. DELIVERY ADDRESS: OPEN INTERACTIVE MAP PIN PICKER ---
+      if (
+        target.closest('[data-action="open-map-picker"]') ||
+        target.closest('#deliveryMapContainer') ||
+        (btn && btn.textContent && (btn.textContent.includes('Adjust Pin') || btn.textContent.includes('Move Pin') || btn.textContent.includes('Set Doorstep Pin')))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsMapPickerOpen(true);
+        return;
+      }
+
+      // --- 13c. DELIVERY ADDRESS: LOCATE ME (GPS & REVERSE GEOCODING) ---
+      const locateBtn = target.closest('#locateMeBtn, #locateBtn, [data-action="locate-me"]');
+      if (locateBtn || (btn && btn.textContent && btn.textContent.trim().toUpperCase().includes('LOCATE ME'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isLocating) return;
+
+        setIsLocating(true);
+        showToast('📍 Detecting your precise GPS location...');
+
+        getCurrentCoordinates()
+          .then(async (coords) => {
+            let inZone = isWithinNagpur(coords.latitude, coords.longitude);
+            let resolved = null;
+            try {
+              resolved = await reverseGeocodeLocation(coords);
+            } catch (e) {
+              resolved = getClosestNagpurArea(coords.latitude, coords.longitude);
+            }
+
+            const areaName = resolved?.areaName || (inZone ? 'Sitabuldi' : 'Nagpur West');
+            const road = resolved?.road || (inZone ? 'Wardha Rd Corridor' : '');
+            const pincode = resolved?.pincode || '440012';
+
+            const newLoc = {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              areaName,
+              road,
+              pincode,
+              formattedAddress: resolved?.formattedAddress || `${areaName}, Nagpur · ${pincode}`,
+              inZone,
+            };
+
+            setDeliveryLocation(newLoc);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+            }
+
+            // Pre-fill / update streetLandmark input
+            if (el) {
+              const streetInput = el.querySelector('#streetLandmark');
+              if (streetInput) {
+                streetInput.value = road ? `${road}, ${areaName}` : areaName;
+                formValuesRef.current['streetLandmark'] = streetInput.value;
+              }
+            }
+
+            if (!inZone) {
+              showToast(`📍 GPS: ${areaName}. Note: Express courier pilot operates in Nagpur (~25km radius).`);
+            } else {
+              showToast(`📍 Doorstep detected: ${areaName}, Nagpur (${pincode})`);
+            }
+          })
+          .catch((err) => {
+            console.warn('[StitchRenderer] Geolocation notice:', err?.message);
+            showToast('Could not access GPS. Please tap map to set pin or enter address.');
+          })
+          .finally(() => {
+            setIsLocating(false);
+          });
+
+        return;
+      }
+
+      // --- 13d. DELIVERY ADDRESS: ADDRESS CLASSIFICATION CHIPS ---
+      const chipTarget = target.closest('#chipGroup button, #addressTypeContainer button, [data-chip], [data-type]');
+      if (chipTarget && targetKey.includes('Delivery_Address')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const chipType = chipTarget.getAttribute('data-chip') || chipTarget.getAttribute('data-type') || chipTarget.textContent.trim();
+        const normalizedType = chipType.toLowerCase().includes('work') || chipType.toLowerCase().includes('atelier') ? 'Atelier / Work' : (chipType.toLowerCase().includes('other') ? 'Other' : 'Home');
+        setAddressClassification(normalizedType);
+        showToast(`Address classified as: ${normalizedType}`);
+        return;
+      }
+
+      // --- 13e. DELIVERY ADDRESS: CHANGE DELIVERY INSTRUCTIONS ---
+      const changeInstructBtn = target.closest('button');
+      if (
+        targetKey.includes('Delivery_Address') &&
+        changeInstructBtn &&
+        (changeInstructBtn.textContent.trim() === 'Change' || changeInstructBtn.textContent.trim() === 'CHANGE')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        const presets = [
+          'Leave garment sleeve with concierge desk',
+          'Wait for 15-min doorstep fitting trial & size review',
+          'Call when arriving at apartment entrance/gate',
+          'Handover directly to recipient with garment hanger',
+        ];
+        const nextIndex = (presets.indexOf(deliveryInstructions) + 1) % presets.length;
+        const nextInstruction = presets[nextIndex];
+        setDeliveryInstructions(nextInstruction);
+        showToast(`Instructions: "${nextInstruction}"`);
+        return;
+      }
+
       // --- 14. ADDRESS & CHECKOUT: SUBMIT ORDER TO REAL BACKEND ---
       if (
         btn &&
@@ -2536,8 +2754,8 @@ export default function StitchScreenRenderer({
         const nameVal = nameInput?.value?.trim() || user?.displayName;
         const phoneVal = (phoneInput?.value || user?.phoneNumber || '').replace(/[^0-9]/g, '');
         const flatVal = flatInput?.value?.trim();
-        const areaVal = areaInput?.value?.trim() || 'Sitabuldi';
-        const pinVal = pinInput?.value?.trim() || '440010';
+        const areaVal = areaInput?.value?.trim() || deliveryLocation.areaName || 'Sitabuldi';
+        const pinVal = pinInput?.value?.trim() || deliveryLocation.pincode || '440012';
 
         if (!nameVal) {
           showToast('Please enter recipient full name.');
@@ -2577,15 +2795,23 @@ export default function StitchScreenRenderer({
             pincode: pinVal,
             receiverName: nameVal,
             receiverPhone: phoneVal,
+            addressType: addressClassification,
+            deliveryInstructions: deliveryInstructions,
+            locality: deliveryLocation.areaName,
             location: {
               type: 'Point',
-              coordinates: [79.061, 21.142],
+              coordinates: [
+                Number(deliveryLocation.longitude || 79.0835),
+                Number(deliveryLocation.latitude || 21.1458),
+              ],
             },
           },
           contact: {
             name: nameVal,
             phone: phoneVal,
           },
+          addressType: addressClassification,
+          deliveryInstructions: deliveryInstructions,
           paymentMethod: 'COD',
         };
 
@@ -2635,11 +2861,51 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 16. LIVE TRACKING: CALL COURIER ---
-      if (btn && btn.textContent && (btn.textContent.includes('Call Courier') || btn.textContent.includes('Call Sunil'))) {
+      // --- 16. LIVE TRACKING: MAP & ACTIONS ---
+      if (btn && btn.textContent && btn.textContent.includes('Track on Live Map')) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Calling Rider Sunil Kamble (+91 98220 12345)...');
+        setIsLiveMapModalOpen(true);
+        return;
+      }
+
+      if (btn && (btn.textContent.includes('Share Track') || target.closest('[aria-label="Share Track"]'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        const shareUrl = typeof window !== 'undefined' ? window.location.href : 'https://www.kyapehnu.shop/app';
+        if (typeof navigator !== 'undefined' && navigator.share) {
+          navigator.share({
+            title: 'Kya Pehnu Live Order Tracking',
+            text: `Track my white-glove couture courier in Nagpur`,
+            url: shareUrl,
+          }).catch(() => {});
+        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText(shareUrl);
+          showToast('Tracking link copied to clipboard!');
+        } else {
+          showToast('Tracking active for Nagpur Express Dispatch');
+        }
+        return;
+      }
+
+      if (target.closest('[aria-label*="Call" i]') || (btn && btn.textContent && (btn.textContent.includes('Call Courier') || btn.textContent.includes('Call Sunil') || btn.textContent.includes('Call Dispatch')))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Connecting to Express Courier Partner (+91 98230 44120)...');
+        return;
+      }
+
+      if (target.closest('[aria-label*="Message" i], [aria-label*="WhatsApp" i]') || (btn && btn.textContent && btn.textContent.includes('Chat Concierge'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Opening Concierge Stylist WhatsApp (+91 98230 44120)...');
+        return;
+      }
+
+      if (btn && btn.textContent && btn.textContent.includes('Boutique Stylist Desk')) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Connecting to Nagpur Atelier Stylist Desk...');
         return;
       }
 
@@ -3372,7 +3638,7 @@ export default function StitchScreenRenderer({
       el.removeEventListener('change', handleInput);
       el.removeEventListener('click', handleClick);
     };
-  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory, searchQuery, catalogCategory, catalogSearchQuery, queueFilter, isAtelierOnline]);
+  }, [navigation, addToCart, removeFromCart, clearCart, isDark, setThemeMode, setRole, params, targetKey, cartItems, recentOrders, user, profile, activeProduct, selectedSize, selectedColor, products, selectedBoutique, selectedCategory, searchQuery, catalogCategory, catalogSearchQuery, queueFilter, isAtelierOnline, deliveryLocation, isLocating, addressClassification, deliveryInstructions]);
 
   // Initial Auth Tab Switcher (Split Login vs Register)
   useEffect(() => {
@@ -3421,6 +3687,276 @@ export default function StitchScreenRenderer({
         bodyClass={screenData.bodyClass}
         html={processedHtml}
       />
+
+      {/* Interactive Map Pin Picker Sheet */}
+      <InteractiveMapPinPicker
+        visible={isMapPickerOpen}
+        onClose={() => setIsMapPickerOpen(false)}
+        initialCoordinates={[deliveryLocation.longitude || 79.0835, deliveryLocation.latitude || 21.1458]}
+        onConfirmLocation={(loc) => {
+          const newLoc = {
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            areaName: loc.areaName || 'Sitabuldi',
+            road: loc.road || '',
+            pincode: loc.pincode || '440012',
+            formattedAddress: loc.formattedAddress || `${loc.areaName}, Nagpur`,
+            inZone: loc.inZone,
+          };
+          setDeliveryLocation(newLoc);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+          }
+          const rootEl = containerRef.current;
+          if (rootEl) {
+            const streetInput = rootEl.querySelector('#streetLandmark');
+            if (streetInput) {
+              const roadPart = newLoc.road ? `${newLoc.road}, ` : '';
+              streetInput.value = `${roadPart}${newLoc.areaName}`;
+              formValuesRef.current['streetLandmark'] = streetInput.value;
+            }
+          }
+          showToast(`📍 Doorstep Pin Confirmed: ${newLoc.areaName} (${newLoc.pincode})`);
+          setIsMapPickerOpen(false);
+        }}
+      />
+
+      {/* Nagpur Precinct Switcher Modal */}
+      {isPrecinctSwitcherOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99990,
+            backgroundColor: 'rgba(18, 18, 21, 0.65)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setIsPrecinctSwitcherOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Select Delivery Precinct
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  45-Min Express & Doorstep Trial Active in Nagpur
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPrecinctSwitcherOpen(false)}
+                style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* GPS Detection Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsPrecinctSwitcherOpen(false);
+                setIsLocating(true);
+                showToast('📍 Detecting your precise GPS location...');
+                getCurrentCoordinates()
+                  .then(async (coords) => {
+                    let inZone = isWithinNagpur(coords.latitude, coords.longitude);
+                    let resolved = null;
+                    try {
+                      resolved = await reverseGeocodeLocation(coords);
+                    } catch (e) {
+                      resolved = getClosestNagpurArea(coords.latitude, coords.longitude);
+                    }
+                    const areaName = resolved?.areaName || (inZone ? 'Sitabuldi' : 'Nagpur Central');
+                    const road = resolved?.road || (inZone ? 'Wardha Rd Corridor' : '');
+                    const pincode = resolved?.pincode || '440012';
+                    const newLoc = {
+                      latitude: coords.latitude,
+                      longitude: coords.longitude,
+                      areaName,
+                      road,
+                      pincode,
+                      formattedAddress: resolved?.formattedAddress || `${areaName}, Nagpur · ${pincode}`,
+                      inZone,
+                    };
+                    setDeliveryLocation(newLoc);
+                    if (typeof window !== 'undefined' && window.localStorage) {
+                      window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+                    }
+                    showToast(`📍 Location detected: ${areaName}, Nagpur (${pincode})`);
+                  })
+                  .catch(() => {
+                    showToast('Could not access GPS. Please select a precinct below.');
+                  })
+                  .finally(() => setIsLocating(false));
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 14,
+                backgroundColor: '#C4243A',
+                color: '#FFF',
+                border: 'none',
+                fontWeight: 600,
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                marginBottom: 16,
+                boxShadow: '0 4px 14px rgba(196, 36, 58, 0.35)',
+              }}
+            >
+              <span>📍</span>
+              <span>Use Current GPS Location</span>
+            </button>
+
+            {/* Precinct List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
+              {[
+                { name: 'Sitabuldi', pincode: '440012', desc: 'Central Atelier Hub · 45-Min Hub', lat: 21.1458, lng: 79.0835 },
+                { name: 'Dharampeth', pincode: '440010', desc: 'Heritage Handloom Precinct', lat: 21.1432, lng: 79.0617 },
+                { name: 'Civil Lines', pincode: '440001', desc: 'Designer Boutiques & Studios', lat: 21.1553, lng: 79.0734 },
+                { name: 'Ramdaspeth', pincode: '440010', desc: 'South Couture Corridor', lat: 21.1345, lng: 79.0745 },
+                { name: 'Sadar', pincode: '440001', desc: 'Historic Cantonment Tailors', lat: 21.1633, lng: 79.0818 },
+                { name: 'Wardha Road', pincode: '440015', desc: 'Airport Express Corridor', lat: 21.1105, lng: 79.0685 },
+              ].map((precinct) => {
+                const isSelected = deliveryLocation.areaName === precinct.name;
+                return (
+                  <button
+                    key={precinct.name}
+                    type="button"
+                    onClick={() => {
+                      const newLoc = {
+                        latitude: precinct.lat,
+                        longitude: precinct.lng,
+                        areaName: precinct.name,
+                        road: `${precinct.name} Main Road`,
+                        pincode: precinct.pincode,
+                        formattedAddress: `${precinct.name}, Nagpur · ${precinct.pincode}`,
+                        inZone: true,
+                      };
+                      setDeliveryLocation(newLoc);
+                      if (typeof window !== 'undefined' && window.localStorage) {
+                        window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+                      }
+                      showToast(`Delivering to ${precinct.name}, Nagpur (${precinct.pincode})`);
+                      setIsPrecinctSwitcherOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 14px',
+                      borderRadius: 12,
+                      backgroundColor: isSelected ? (isDark ? '#2D2224' : '#FDF2F2') : (isDark ? '#262528' : '#F5F4F0'),
+                      border: isSelected ? '1px solid #C4243A' : '1px solid transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: isSelected ? '#C4243A' : (isDark ? '#FFF' : '#121215') }}>
+                        {precinct.name}, Nagpur
+                      </div>
+                      <div style={{ fontSize: 11, color: isDark ? '#A8A29E' : '#78716C' }}>
+                        {precinct.desc} · {precinct.pincode}
+                      </div>
+                    </div>
+                    {isSelected ? (
+                      <span style={{ color: '#C4243A', fontWeight: 'bold', fontSize: 16 }}>✓</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Live Map Tracking Modal */}
+      {isLiveMapModalOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99990,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setIsLiveMapModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderRadius: 24,
+              overflow: 'hidden',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#C4243A', display: 'inline-block' }}></span>
+                <span style={{ fontWeight: 700, fontSize: 15, color: isDark ? '#FFF' : '#121215' }}>Live Courier Tracking</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLiveMapModalOpen(false)}
+                style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ height: 280, position: 'relative', backgroundColor: '#F4EFE7' }}>
+              <iframe
+                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><style>body,#map{margin:0;padding:0;width:100%;height:100%;}</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}],14);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);var dest=L.marker([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]).addTo(map).bindPopup('Doorstep Destination').openPopup();var rider=L.marker([${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}]).addTo(map).bindPopup('Porter Rider Rajesh (18 min ETA)');L.polyline([[${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}],[${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]],{color:'#C4243A',weight:4,dashArray:'6, 6'}).addTo(map);</script></body></html>`}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Live Courier GPS Route"
+              />
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isDark ? '#262528' : '#FFF' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: isDark ? '#FFF' : '#121215' }}>
+                  En Route to {deliveryLocation.areaName}, Nagpur
+                </div>
+                <div style={{ fontSize: 12, color: '#C4243A', fontWeight: 600, marginTop: 2 }}>
+                  ~18 Mins · Porter White-Glove Dispatch
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLiveMapModalOpen(false)}
+                style={{ padding: '8px 18px', backgroundColor: '#C4243A', color: '#FFF', borderRadius: 9999, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
