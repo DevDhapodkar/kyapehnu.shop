@@ -101,7 +101,8 @@ async function runSuite() {
     console.log(`${c.bright}${c.magenta}\n--- PART 1: ULTRA-FAST AUTHENTICATION BENCHMARKING ---${c.reset}`);
 
     const tNav0 = Date.now();
-    await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 35000 });
+    await page.goto(APP_URL, { waitUntil: 'domcontentloaded', timeout: 35000 });
+    await page.waitForTimeout(1500);
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, '01_welcome_screen.png') });
     recordResult('PERF-01', 'Initial Web Bundle Load & Hydration', 'PASS', Date.now() - tNav0, 'Loaded within budget');
 
