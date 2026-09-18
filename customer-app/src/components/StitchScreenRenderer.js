@@ -2368,6 +2368,15 @@ export default function StitchScreenRenderer({
       }
 
       // --- WELCOME SCREEN CTAS ---
+      const categoryCard = e.target.closest && e.target.closest('[data-category]');
+      if (categoryCard) {
+        e.preventDefault();
+        e.stopPropagation();
+        const category = categoryCard.getAttribute('data-category');
+        navigateScreen('Home', { selectedCategory: category });
+        return;
+      }
+
       if (
         (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
         btn &&
@@ -2380,6 +2389,7 @@ export default function StitchScreenRenderer({
               btn.textContent.includes('Explore Styles') ||
               btn.textContent.includes('Explore Storefront') ||
               btn.textContent.includes('Browse Catalog') ||
+              btn.textContent.includes('Start Shopping') ||
               btn.textContent.includes('Explore Prêt') ||
               btn.textContent.includes('Get Started'))))
       ) {
@@ -2395,6 +2405,7 @@ export default function StitchScreenRenderer({
         btn &&
         btn.textContent &&
         (btn.textContent.includes('Log In to Your Account') ||
+          btn.textContent.includes('Log In with Mobile') ||
           btn.textContent.includes('Log In') ||
           btn.textContent.includes('Sign In to Store') ||
           btn.textContent.includes('Sign In to Atelier') ||
@@ -3835,6 +3846,15 @@ export default function StitchScreenRenderer({
       }
 
       // --- 24. WELCOME SCREEN CTAS ---
+      const welcomeCategoryCard = e.target.closest && e.target.closest('[data-category]');
+      if (welcomeCategoryCard) {
+        e.preventDefault();
+        e.stopPropagation();
+        const category = welcomeCategoryCard.getAttribute('data-category');
+        navigateScreen('Home', { selectedCategory: category });
+        return;
+      }
+
       if (
         (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
         btn &&
@@ -3844,6 +3864,7 @@ export default function StitchScreenRenderer({
               btn.textContent.includes('Explore Looks') ||
               btn.textContent.includes('Explore Storefront') ||
               btn.textContent.includes('Browse Catalog') ||
+              btn.textContent.includes('Start Shopping') ||
               btn.textContent.includes('Explore Prêt') ||
               btn.textContent.includes('Get Started'))))
       ) {
@@ -3858,7 +3879,9 @@ export default function StitchScreenRenderer({
         !targetKey.includes('Sign_In') &&
         btn &&
         btn.textContent &&
-        (btn.textContent.includes('Log In to Your Account') || btn.textContent.includes('Log In'))
+        (btn.textContent.includes('Log In to Your Account') ||
+          btn.textContent.includes('Log In with Mobile') ||
+          btn.textContent.includes('Log In'))
       ) {
         e.preventDefault();
         e.stopPropagation();

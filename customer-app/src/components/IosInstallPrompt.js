@@ -34,14 +34,24 @@ export default function IosInstallPrompt() {
     }
 
     if (isIOS && !isStandalone && !dismissed) {
-      // Delay prompt slightly so the app loads first
-      const timer = setTimeout(() => setShowPrompt(true), 2000);
-      // Auto-dismiss after 10s so it never blocks mobile interactions
-      const autoDismissTimer = setTimeout(() => setShowPrompt(false), 12000);
-      return () => {
-        clearTimeout(timer);
-        clearTimeout(autoDismissTimer);
+      const checkIsWelcome = () => {
+        if (typeof document === 'undefined') return false;
+        return !!(
+          document.querySelector('#welcomeScreen') ||
+          document.querySelector('[data-screen="welcome"]') ||
+          document.querySelector('[aria-label="Explore Storefront as Guest"]') ||
+          document.body?.innerText?.includes('Start Shopping') ||
+          document.title.toLowerCase().includes('welcome')
+        );
       };
+
+      if (checkIsWelcome()) return;
+
+      // Delay prompt until user is deeply engaged inside the storefront (60s)
+      const timer = setTimeout(() => {
+        if (!checkIsWelcome()) setShowPrompt(true);
+      }, 60000);
+      return () => clearTimeout(timer);
     }
   }, [role]);
 
