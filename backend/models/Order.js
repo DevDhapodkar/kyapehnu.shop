@@ -35,18 +35,25 @@ const orderSchema = new mongoose.Schema(
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
     items: [cartItemSchema],
     totalPrice: { type: Number, required: true },
+    subtotal: { type: Number },
+    deliveryFee: { type: Number, default: 0 },
+    deliveryInstructions: { type: String },
+    addressType: { type: String, default: 'Home' },
     deliveryAddress: {
       // 'Home' | 'Work' | 'Other' — the tag the buyer picked on the map screen.
       label: { type: String, default: 'Home' },
+      addressType: { type: String, default: 'Home' },
       line1: { type: String, required: true },
       // Landmark / area — optional, but the difference between a rider finding
       // the door and calling from the gate.
       line2: { type: String },
+      locality: { type: String },
       city: { type: String, default: 'Nagpur' },
       pincode: { type: String, required: true },
       // Who the rider hands the order to (defaults to the account holder).
       receiverName: { type: String },
       receiverPhone: { type: String },
+      deliveryInstructions: { type: String },
       location: {
         type: { type: String, enum: ['Point'], default: 'Point' },
         coordinates: { type: [Number], required: true },

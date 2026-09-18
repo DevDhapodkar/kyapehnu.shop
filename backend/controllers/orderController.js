@@ -90,9 +90,13 @@ const normalizeOrderItems = (items) =>
     price: i.price,
   }));
 
-const normalizeAddress = (address) => ({
+const normalizeAddress = (address, deliveryInstructions, addressType) => ({
   ...address,
   city: address?.city || 'Nagpur',
+  deliveryInstructions: address?.deliveryInstructions || deliveryInstructions || '',
+  addressType: address?.addressType || address?.label || addressType || 'Home',
+  label: address?.label || address?.addressType || addressType || 'Home',
+  locality: address?.locality || address?.areaName || '',
   location: {
     type: 'Point',
     coordinates:
@@ -118,7 +122,7 @@ const createOrder = async (req, res) => {
     if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
     const normalizedItems = normalizeOrderItems(items);
-    const normalizedAddress = normalizeAddress(deliveryAddress);
+    const normalizedAddress = normalizeAddress(deliveryAddress, req.body.deliveryInstructions, req.body.addressType);
 
     // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
     const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
@@ -161,6 +165,8 @@ const createOrder = async (req, res) => {
       vendor: vendorId,
       items: normalizedItems,
       totalPrice: finalTotalPrice,
+      deliveryInstructions: req.body.deliveryInstructions || normalizedAddress.deliveryInstructions || '',
+      addressType: req.body.addressType || normalizedAddress.addressType || 'Home',
       deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',
@@ -210,7 +216,7 @@ const createGuestOrder = async (req, res) => {
     if (!vendor) return res.status(404).json({ message: 'Shop not found' });
 
     const normalizedItems = normalizeOrderItems(items);
-    const normalizedAddress = normalizeAddress(deliveryAddress);
+    const normalizedAddress = normalizeAddress(deliveryAddress, req.body.deliveryInstructions, req.body.addressType);
 
     // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
     const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
@@ -254,6 +260,8 @@ const createGuestOrder = async (req, res) => {
       vendor: vendorId,
       items: normalizedItems,
       totalPrice: finalTotalPrice,
+      deliveryInstructions: req.body.deliveryInstructions || normalizedAddress.deliveryInstructions || '',
+      addressType: req.body.addressType || normalizedAddress.addressType || 'Home',
       deliveryAddress: normalizedAddress,
       paymentMethod: 'COD',
       paymentStatus: 'PENDING',

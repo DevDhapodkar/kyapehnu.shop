@@ -249,11 +249,25 @@ export default function StitchScreenRenderer({
   const [deliveryInstructions, setDeliveryInstructions] = useState('Leave garment sleeve with concierge desk');
   const [isPrecinctSwitcherOpen, setIsPrecinctSwitcherOpen] = useState(false);
   const [isLiveMapModalOpen, setIsLiveMapModalOpen] = useState(false);
+  const [isCustomInstructionsModalOpen, setIsCustomInstructionsModalOpen] = useState(false);
+  const [customInstructionsDraft, setCustomInstructionsDraft] = useState('');
   const deliveryMiniMapRef = useRef(null);
   const hasPromptedLocationRef = useRef(false);
 
   const formValuesRef = useRef({});
   const focusedInputIdRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__kyapehnu = {
+        useCartStore,
+        setDeliveryLocation,
+        navigationRef,
+        setIsCustomInstructionsModalOpen,
+        setDeliveryInstructions,
+      };
+    }
+  }, [setDeliveryLocation, setIsCustomInstructionsModalOpen, setDeliveryInstructions]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -1614,7 +1628,7 @@ export default function StitchScreenRenderer({
       // Replace static background image with live Leaflet mini-map preview container
       html = html.replace(
         /<div class="w-full h-full bg-cover bg-center"[^>]*><\/div>/i,
-        '<div id="deliveryMiniMap" class="w-full h-full absolute inset-0" style="pointer-events: none; z-index: 1;"></div>'
+        '<div id="deliveryMiniMap" class="w-full h-full absolute inset-0" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; min-height: 208px; pointer-events: none; z-index: 1;"></div>'
       );
 
       // Elevate overlay marker above the mini-map tiles
@@ -1629,9 +1643,28 @@ export default function StitchScreenRenderer({
         : 'Select delivery address';
       html = html.replace(/Sitabuldi, Nagpur · 440012/g, localityFormatted);
 
-      // Update corridor text
+      // 2b. Replace hardcoded "Sitabuldi" / "SITABULDI" badge above Street, Lane & Landmark
+      const activeLocalityBadge = (deliveryLocation?.areaName && deliveryLocation.areaName !== 'Select Location')
+        ? deliveryLocation.areaName.toUpperCase()
+        : 'LOCALITY';
+
+      html = html.replace(
+        /(>Street, Lane\s*(?:&amp;|&)\s*Landmark<\/label>\s*<span[^>]*>)[^<]*(<\/span>)/gi,
+        `$1${activeLocalityBadge}$2`
+      );
+      html = html.replace(
+        /(<label[^>]*for="streetLandmark"[^>]*>Street, Lane\s*(?:&amp;|&)\s*Landmark<\/label>\s*<span[^>]*>)[^<]*(<\/span>)/gi,
+        `$1${activeLocalityBadge}$2`
+      );
+      html = html.replace(
+        /(Street, Lane\s*(?:&amp;|&)\s*Landmark[\s\S]*?<span[^>]*class="[^"]*(?:font-eyebrow|font-label-sm)[^"]*">)(?:Sitabuldi|SITABULDI)(<\/span>)/gi,
+        `$1${activeLocalityBadge}$2`
+      );
+
+      // Update corridor text (clean up any trailing Corridor to prevent "Corridor Corridor")
       if (deliveryLocation.road) {
-        html = html.replace(/Wardha Rd Corridor/g, `${deliveryLocation.road} Corridor`);
+        const cleanRoad = deliveryLocation.road.replace(/\s*Corridor/gi, '').trim();
+        html = html.replace(/Wardha Rd Corridor/g, `${cleanRoad} Corridor`);
       } else if (!deliveryLocation.isDetected) {
         html = html.replace(/Wardha Rd Corridor/g, 'Doorstep Pin');
       }
@@ -1668,8 +1701,25 @@ export default function StitchScreenRenderer({
         html = html.replace(darkReg, `$1${isSel ? activeDark : inactiveDark}$2`);
       });
 
-      // 5. Delivery instructions text
+      // 5. Delivery instructions text & Change button action
+      html = html.replace(
+        /(<button[^>]*>Change<\/button>)/i,
+        '<button class="text-accent-crimson font-eyebrow text-eyebrow uppercase tracking-wider font-semibold cursor-pointer" data-action="change-instructions" type="button">Change</button>'
+      );
+      html = html.replace(
+        /(<button[^>]*>CHANGE<\/button>)/i,
+        '<button class="font-label-md text-label-md text-secondary underline decoration-secondary/50 underline-offset-4 hover:text-on-secondary-container shrink-0 cursor-pointer" data-action="change-instructions" type="button">CHANGE</button>'
+      );
+
       if (deliveryInstructions) {
+        html = html.replace(
+          /(<p class="font-tabular-caption text-tabular-caption text-text-ash">)[^<]*(<\/p>)/gi,
+          `$1${deliveryInstructions}$2`
+        );
+        html = html.replace(
+          /(<p class="font-body-md text-body-md text-on-surface mt-0.5">)[^<]*(<\/p>)/gi,
+          `$1${deliveryInstructions}$2`
+        );
         html = html.replace(/Leave garment sleeve with concierge desk/g, deliveryInstructions);
       }
 
@@ -2850,29 +2900,22 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 13e. DELIVERY ADDRESS: CHANGE DELIVERY INSTRUCTIONS ---
-      const changeInstructBtn = target.closest('button');
+      // --- 13e. DELIVERY ADDRESS: CUSTOM DELIVERY INSTRUCTIONS MODAL ---
+      const changeInstructBtn = target.closest('button, a');
       if (
-        targetKey.includes('Delivery_Address') &&
-        changeInstructBtn &&
-        (changeInstructBtn.textContent.trim() === 'Change' || changeInstructBtn.textContent.trim() === 'CHANGE')
+        (targetKey.includes('Delivery_Address') &&
+          changeInstructBtn &&
+          changeInstructBtn.textContent.trim().toLowerCase() === 'change') ||
+        target.closest('[data-action="change-instructions"]')
       ) {
         e.preventDefault();
         e.stopPropagation();
-        const presets = [
-          'Leave garment sleeve with concierge desk',
-          'Wait for 15-min doorstep fitting trial & size review',
-          'Call when arriving at apartment entrance/gate',
-          'Handover directly to recipient with garment hanger',
-        ];
-        const nextIndex = (presets.indexOf(deliveryInstructions) + 1) % presets.length;
-        const nextInstruction = presets[nextIndex];
-        setDeliveryInstructions(nextInstruction);
-        showToast(`Instructions: "${nextInstruction}"`);
+        setCustomInstructionsDraft(deliveryInstructions || '');
+        setIsCustomInstructionsModalOpen(true);
         return;
       }
 
-      // --- 14. ADDRESS & CHECKOUT: SUBMIT ORDER TO REAL BACKEND ---
+      // --- 14. ADDRESS & CHECKOUT: SUBMIT MULTI-VENDOR ORDER TO REAL BACKEND ---
       if (
         btn &&
         btn.textContent &&
@@ -2890,16 +2933,16 @@ export default function StitchScreenRenderer({
           return;
         }
 
-        const nameInput = el.querySelector('#recipientName, input[placeholder*="Name" i], #addr-name');
-        const phoneInput = el.querySelector('#phoneNumber, input[type="tel"], #addr-phone');
-        const flatInput = el.querySelector('#flatHouse, input[placeholder*="Flat" i], input[placeholder*="House" i], #addr-flat');
-        const areaInput = el.querySelector('#streetLandmark, input[placeholder*="Street" i], input[placeholder*="Area" i], input[placeholder*="Road" i], #addr-area');
-        const pinInput = el.querySelector('input[placeholder*="Pincode" i], input[placeholder*="440" i], #addr-pincode');
+        const flatInput = el.querySelector('#flatHouse') || el.querySelector('#addr-flat') || el.querySelector('input[placeholder*="Flat" i], input[placeholder*="House" i]');
+        const areaInput = el.querySelector('#streetLandmark') || el.querySelector('#addr-area') || el.querySelector('input[placeholder*="Street name" i], input[placeholder*="Landmark" i]');
+        const nameInput = el.querySelector('#recipientName') || el.querySelector('#addr-name') || el.querySelector('input[placeholder*="legal name" i], input[placeholder*="Full name" i]');
+        const phoneInput = el.querySelector('#phoneNumber') || el.querySelector('#addr-phone') || el.querySelector('input[type="tel"], input[placeholder*="mobile" i]');
+        const pinInput = el.querySelector('#pincode') || el.querySelector('#addr-pincode') || el.querySelector('input[placeholder*="Pincode" i], input[placeholder*="440" i]');
 
         const nameVal = nameInput?.value?.trim() || user?.displayName;
         const phoneVal = (phoneInput?.value || user?.phoneNumber || '').replace(/[^0-9]/g, '');
         const flatVal = flatInput?.value?.trim();
-        const areaVal = areaInput?.value?.trim() || deliveryLocation.areaName || 'Sitabuldi';
+        const areaVal = areaInput?.value?.trim() || (deliveryLocation.road ? `${deliveryLocation.road}, ${deliveryLocation.areaName}` : deliveryLocation.areaName) || 'Sitabuldi';
         const pinVal = pinInput?.value?.trim() || deliveryLocation.pincode || '440012';
 
         if (!nameVal) {
@@ -2918,80 +2961,108 @@ export default function StitchScreenRenderer({
           return;
         }
 
-        const orderItems = cartItems;
-        const subtotalVal = orderItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
-        const deliveryFee = subtotalVal >= 1999 ? 0 : 99;
-        const totalVal = subtotalVal + deliveryFee;
-
-        const orderPayload = {
-          vendorId: orderItems[0]?.storeId || '6aa595a7cd776badb31c97f6',
-          items: orderItems.map((it) => ({
-            product: it.productId || it.id || '6aa595aacd776badb31c97f7',
-            name: it.name,
-            size: it.size || 'M',
-            quantity: it.quantity || 1,
-            price: it.price || 2800,
-          })),
-          totalPrice: totalVal,
-          deliveryAddress: {
-            line1: flatVal,
-            line2: areaVal,
-            city: 'Nagpur',
-            pincode: pinVal,
-            receiverName: nameVal,
-            receiverPhone: phoneVal,
-            addressType: addressClassification,
-            deliveryInstructions: deliveryInstructions,
-            locality: deliveryLocation.areaName,
-            location: {
-              type: 'Point',
-              coordinates: [
-                Number(deliveryLocation.longitude || 79.0835),
-                Number(deliveryLocation.latitude || 21.1458),
-              ],
-            },
-          },
-          contact: {
-            name: nameVal,
-            phone: phoneVal,
-          },
-          addressType: addressClassification,
-          deliveryInstructions: deliveryInstructions,
-          paymentMethod: 'COD',
-        };
-
-        let placedOrder = null;
-        try {
-          if (useAuthStore.getState().token) {
-            placedOrder = await placeOrder(orderPayload);
-          } else {
-            placedOrder = await createGuestOrder(orderPayload);
-          }
-        } catch (apiErr) {
-          console.warn('[StitchRenderer] Order API notice:', apiErr?.message);
-          placedOrder = {
-            _id: `KP-${Date.now().toString().slice(-6)}`,
-            orderId: `KP-${Date.now().toString().slice(-6)}`,
-            status: 'CONFIRMED',
-            totalPrice: orderPayload.totalPrice,
-            items: orderItems,
-            deliveryAddress: orderPayload.deliveryAddress,
-            guestContact: orderPayload.contact,
-            createdAt: new Date().toISOString(),
-          };
+        // Group the bag by vendor (storeId) — each vendor receives only their respected articles
+        const byVendor = new Map();
+        for (const item of cartItems) {
+          const storeId = item.storeId || item.vendor?._id || item.vendor || '6a9f987ec93d15e80a649c9a';
+          if (!byVendor.has(storeId)) byVendor.set(storeId, []);
+          byVendor.get(storeId).push(item);
         }
 
-        // Persist order in local history
-        const orderIdClean = placedOrder.orderId || placedOrder._id;
+        const placedOrdersList = [];
+        let primaryOrder = null;
+
+        for (const [vendorId, vendorItems] of byVendor.entries()) {
+          const subtotalVal = vendorItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
+          const deliveryFee = subtotalVal >= 1999 ? 0 : 99;
+          const totalVal = subtotalVal + deliveryFee;
+
+          const orderPayload = {
+            vendorId: vendorId,
+            vendor: vendorId,
+            items: vendorItems.map((it) => ({
+              product: it.productId || it.id || '6aa595aacd776badb31c97f7',
+              name: it.name,
+              size: it.size || 'M',
+              quantity: it.quantity || 1,
+              price: it.price || 2800,
+            })),
+            totalPrice: totalVal,
+            subtotal: subtotalVal,
+            deliveryFee: deliveryFee,
+            deliveryAddress: {
+              line1: flatVal,
+              line2: areaVal,
+              city: 'Nagpur',
+              pincode: pinVal,
+              receiverName: nameVal,
+              receiverPhone: phoneVal,
+              addressType: addressClassification,
+              deliveryInstructions: deliveryInstructions,
+              locality: deliveryLocation.areaName || 'Nagpur',
+              location: {
+                type: 'Point',
+                coordinates: [
+                  Number(deliveryLocation.longitude || 79.0835),
+                  Number(deliveryLocation.latitude || 21.1458),
+                ],
+              },
+            },
+            contact: {
+              name: nameVal,
+              phone: phoneVal,
+            },
+            addressType: addressClassification,
+            deliveryInstructions: deliveryInstructions,
+            paymentMethod: 'COD',
+          };
+
+          let placedOrder = null;
+          try {
+            if (useAuthStore.getState().token) {
+              placedOrder = await placeOrder(orderPayload);
+            } else {
+              placedOrder = await createGuestOrder(orderPayload);
+            }
+          } catch (apiErr) {
+            console.warn('[StitchRenderer] Order API notice for vendor', vendorId, apiErr?.message);
+            placedOrder = {
+              _id: `KP-${Date.now().toString().slice(-6)}`,
+              orderId: `KP-${Date.now().toString().slice(-6)}`,
+              status: 'CONFIRMED',
+              totalPrice: orderPayload.totalPrice,
+              items: vendorItems,
+              deliveryAddress: orderPayload.deliveryAddress,
+              guestContact: orderPayload.contact,
+              createdAt: new Date().toISOString(),
+            };
+          }
+
+          placedOrdersList.push(placedOrder);
+          if (!primaryOrder) primaryOrder = placedOrder;
+        }
+
+        // Persist orders in local history
         const currentOrders = JSON.parse(localStorage.getItem('kyapehnu_recent_orders') || '[]');
-        const updatedOrders = [{ ...placedOrder, orderId: orderIdClean, items: orderItems }, ...currentOrders].slice(0, 10);
+        const updatedOrders = [
+          ...placedOrdersList.map((ord) => ({
+            ...ord,
+            orderId: ord.orderId || ord._id,
+          })),
+          ...currentOrders,
+        ].slice(0, 15);
         localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updatedOrders));
         setRecentOrders(updatedOrders);
 
         clearCart();
-        showToast(`Order placed! ID: KP-${String(orderIdClean).slice(-6).toUpperCase()}`);
+        const primaryId = primaryOrder?.orderId || primaryOrder?._id || `KP-${Date.now().toString().slice(-6)}`;
+        showToast(
+          placedOrdersList.length > 1
+            ? `${placedOrdersList.length} boutique orders confirmed!`
+            : `Order placed! ID: KP-${String(primaryId).slice(-6).toUpperCase()}`
+        );
         setTimeout(() => {
-          navigateScreen('LiveTracking', { orderId: orderIdClean, order: placedOrder });
+          navigateScreen('LiveTracking', { orderId: primaryId, order: primaryOrder });
         }, 500);
         return;
       }
@@ -3811,9 +3882,6 @@ export default function StitchScreenRenderer({
       return;
     }
 
-    const miniMapEl = containerRef.current?.querySelector('#deliveryMiniMap');
-    if (!miniMapEl) return;
-
     const lat = Number(deliveryLocation.latitude) || NAGPUR_CENTER.latitude;
     const lng = Number(deliveryLocation.longitude) || NAGPUR_CENTER.longitude;
 
@@ -3835,30 +3903,54 @@ export default function StitchScreenRenderer({
         }
       }
       return new Promise((resolve) => {
+        let attempts = 0;
         const check = setInterval(() => {
+          attempts++;
           if (typeof window !== 'undefined' && window.L) {
             clearInterval(check);
             resolve(window.L);
+          } else if (attempts > 50) {
+            clearInterval(check);
+            resolve(null);
           }
         }, 100);
       });
     };
 
     let active = true;
-    getLeaflet().then((L) => {
-      if (!active || !miniMapEl) return;
+    let pollTimer = null;
+    let pollCount = 0;
+
+    const mountMiniMap = (L) => {
+      if (!active || !L) return;
+      const miniMapEl = containerRef.current?.querySelector('#deliveryMiniMap');
+      if (!miniMapEl) {
+        if (pollCount < 25) {
+          pollCount++;
+          pollTimer = setTimeout(() => mountMiniMap(L), 100);
+        }
+        return;
+      }
 
       if (deliveryMiniMapRef.current) {
         try {
           const c = deliveryMiniMapRef.current.getContainer?.();
           if (c === miniMapEl) {
             deliveryMiniMapRef.current.setView([lat, lng], 15);
-            deliveryMiniMapRef.current.invalidateSize();
+            deliveryMiniMapRef.current.invalidateSize(true);
             return;
           }
           deliveryMiniMapRef.current.remove();
         } catch (e) {}
         deliveryMiniMapRef.current = null;
+      }
+
+      if (miniMapEl._leaflet_id) {
+        try {
+          delete miniMapEl._leaflet_id;
+        } catch (e) {
+          miniMapEl._leaflet_id = undefined;
+        }
       }
 
       try {
@@ -3875,27 +3967,40 @@ export default function StitchScreenRenderer({
           keyboard: false,
         });
 
-        // Google Maps roadmap tiles with OSM fallback
-        const googleTileUrl = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-        const osmFallbackUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-        const tiles = L.tileLayer(googleTileUrl, {
-          subdomains: ['0', '1', '2', '3'],
-          maxZoom: 20,
+        // Luxury CartoDB Voyager tiles with automatic OpenStreetMap tile fallback
+        const primaryTileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        const tiles = L.tileLayer(primaryTileUrl, {
+          subdomains: 'abcd',
+          maxZoom: 19,
         });
-        tiles.on('tileerror', () => tiles.setUrl(osmFallbackUrl));
+        tiles.on('tileerror', (e) => {
+          if (e?.tile && e?.coords) {
+            e.tile.src = `https://tile.openstreetmap.org/${e.coords.z}/${e.coords.x}/${e.coords.y}.png`;
+          }
+        });
         tiles.addTo(map);
 
         deliveryMiniMapRef.current = map;
 
-        setTimeout(() => map && map.invalidateSize(), 150);
-        setTimeout(() => map && map.invalidateSize(), 450);
+        [80, 200, 450, 900, 1600].forEach((delay) => {
+          setTimeout(() => {
+            if (active && deliveryMiniMapRef.current === map) {
+              map.invalidateSize(true);
+            }
+          }, delay);
+        });
       } catch (err) {
         console.warn('Mini-map init failed:', err);
       }
+    };
+
+    getLeaflet().then((L) => {
+      if (L && active) mountMiniMap(L);
     });
 
     return () => {
       active = false;
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [targetKey, deliveryLocation.latitude, deliveryLocation.longitude]);
 
@@ -4120,6 +4225,7 @@ export default function StitchScreenRenderer({
                         pincode: precinct.pincode,
                         formattedAddress: `${precinct.name}, Nagpur · ${precinct.pincode}`,
                         inZone: true,
+                        isDetected: true,
                       };
                       setDeliveryLocation(newLoc);
                       if (typeof window !== 'undefined' && window.localStorage) {
@@ -4221,6 +4327,183 @@ export default function StitchScreenRenderer({
                 style={{ padding: '8px 18px', backgroundColor: '#C4243A', color: '#FFF', borderRadius: 9999, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Custom Delivery Instructions Modal */}
+      {isCustomInstructionsModalOpen ? (
+        <div
+          id="customInstructionsModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99992,
+            backgroundColor: 'rgba(18, 18, 21, 0.65)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setIsCustomInstructionsModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Delivery Instructions
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Special notes for your Nagpur porter &amp; concierge
+                </p>
+              </div>
+              <button
+                id="btnCloseInstructionsModal"
+                type="button"
+                onClick={() => setIsCustomInstructionsModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick 1-tap suggestion pills */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+              {[
+                'Leave at door',
+                'Call before arrival',
+                "Don't ring bell",
+                'Leave with guard',
+                'Wait for trial fitting',
+              ].map((pill) => (
+                <button
+                  key={pill}
+                  type="button"
+                  onClick={() => {
+                    setCustomInstructionsDraft((prev) => {
+                      if (!prev.trim()) return pill;
+                      if (prev.includes(pill)) return prev;
+                      return `${prev.trim()}, ${pill}`;
+                    });
+                  }}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '6px 10px',
+                    borderRadius: 20,
+                    backgroundColor: isDark ? '#2A292C' : '#F0EFEA',
+                    color: isDark ? '#E5E5E5' : '#333',
+                    border: isDark ? '1px solid #3D3C40' : '1px solid #E2E0D8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + {pill}
+                </button>
+              ))}
+            </div>
+
+            {/* Freeform textarea */}
+            <div style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: isDark ? '#B38A2B' : '#9E721D',
+                  marginBottom: 6,
+                }}
+              >
+                Custom Note for Runner
+              </label>
+              <textarea
+                id="customInstructionsInput"
+                value={customInstructionsDraft}
+                onChange={(e) => setCustomInstructionsDraft(e.target.value)}
+                placeholder="e.g. Call when reaching gate 4, leave with Mr. Sharma..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  backgroundColor: isDark ? '#141315' : '#FFFFFF',
+                  color: isDark ? '#FFFFFF' : '#121215',
+                  border: isDark ? '1px solid #333' : '1px solid #D8D6CD',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  resize: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setIsCustomInstructionsModalOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: isDark ? '#2A292C' : '#E8E7E0',
+                  color: isDark ? '#E5E5E5' : '#444',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                id="saveInstructionsBtn"
+                type="button"
+                onClick={() => {
+                  const finalVal = customInstructionsDraft.trim() || 'Leave garment sleeve with concierge desk';
+                  setDeliveryInstructions(finalVal);
+                  setIsCustomInstructionsModalOpen(false);
+                  showToast(`Instructions saved: "${finalVal}"`);
+                }}
+                style={{
+                  flex: 2,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: '#C4243A',
+                  color: '#FFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Save Instructions
               </button>
             </div>
           </div>
