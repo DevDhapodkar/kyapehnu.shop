@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import path from 'path';
 
 const ARTIFACTS_DIR = '/Users/devdhapodkar/.gemini/antigravity/brain/399e6f6c-3302-4b92-8e46-629b70473717';
-const APP_URL = process.env.TEST_URL || 'https://www.kyapehnu.shop/app';
+const APP_URL = process.env.APP_URL || process.env.TEST_URL || 'https://www.kyapehnu.shop/app';
 
 async function run() {
   console.log('🚀 Starting Verification of Map Pin, Geolocation, and Order Processing...');
@@ -43,7 +43,7 @@ async function run() {
   });
 
   console.log('\n--- Step 1: Navigate to App & Storefront ---');
-  await page.goto(APP_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(APP_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForTimeout(2000);
   await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'feat_01_welcome.png') });
 
@@ -173,10 +173,10 @@ async function run() {
   }
 
   console.log('\n--- Step 7: Test Address Classification Chips & Delivery Instructions ---');
-  // Click Atelier / Work chip
-  const workChip = page.locator('#chip-work:visible, button:has-text("ATELIER / WORK"):visible, button:has-text("Atelier / Work"):visible').first();
+  // Click Office / Work chip
+  const workChip = page.locator('#chip-work:visible, button:has-text("OFFICE / WORK"):visible, button:has-text("Office / Work"):visible, button:has-text("ATELIER / WORK"):visible, button:has-text("Atelier / Work"):visible').first();
   if (await workChip.isVisible()) {
-    console.log('Clicking "Atelier / Work" chip...');
+    console.log('Clicking "Office / Work" chip...');
     await workChip.click({ force: true });
     await page.waitForTimeout(500);
   }

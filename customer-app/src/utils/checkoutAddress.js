@@ -138,7 +138,7 @@ export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
     (profile?.name && String(profile.name).trim()) ||
     (user?.displayName && String(user.displayName).trim()) ||
     '';
-  if (!receiverName || /^nagpur\s+patron$/i.test(receiverName)) {
+  if (!receiverName || /^nagpur\s+(patron|member)$/i.test(receiverName)) {
     return { ok: false, error: 'Receiver name is required before placing the order.' };
   }
 

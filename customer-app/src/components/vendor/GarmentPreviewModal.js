@@ -80,7 +80,7 @@ export default function GarmentPreviewModal({ visible, product, shopName, onClos
                     </Text>
                   </View>
                   <Text style={[styles.storeNameText, { color: colors.textSlate }]}>
-                    {shopName || 'Nagpur Atelier'}
+                    {shopName || 'Nagpur Boutique'}
                   </Text>
                 </View>
                 <Text style={[styles.sheetTitle, { color: colors.textObsidian }]}>
@@ -273,7 +273,7 @@ export default function GarmentPreviewModal({ visible, product, shopName, onClos
               {product.description ? (
                 <View style={styles.sectionBlock}>
                   <Text style={[styles.sectionLabel, { color: colors.textObsidian }]}>
-                    Couture Details
+                    Outfit Details
                   </Text>
                   <Text style={[styles.descriptionText, { color: colors.textSlate }]}>
                     {product.description}

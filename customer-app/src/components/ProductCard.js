@@ -130,7 +130,7 @@ export default function ProductCard({ product, onPress, onQuickAdd }) {
       <View style={styles.infoPane}>
         <View>
           <Text style={styles.category} numberOfLines={1}>
-            {product.category?.toUpperCase() || 'COUTURE'}
+            {product.category?.toUpperCase() || 'DESIGNER'}
           </Text>
           <Text style={styles.name} numberOfLines={1}>
             {product.name}

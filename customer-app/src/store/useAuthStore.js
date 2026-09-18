@@ -177,7 +177,7 @@ export const useAuthStore = create((set, get) => ({
   /** Instant 1-Tap Phone Sign-In (Blinkit style fast customer onboarding) */
   quickPhoneSignIn: async ({ phone, name }) => {
     const cleanPhone = (phone || '9823055443').replace(/[^0-9]/g, '');
-    const cleanName = name || 'Nagpur Patron';
+    const cleanName = name || 'Nagpur Member';
     const email = `${cleanPhone}@kyapehnu.shop`;
     const quickUser = {
       uid: `usr-fast-${cleanPhone}`,

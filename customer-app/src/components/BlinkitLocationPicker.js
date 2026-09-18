@@ -253,9 +253,19 @@ export default function BlinkitLocationPicker({
         triggerReverseGeocode(initialLat, initialLng);
 
         // Invalidate map size across animation frames to guarantee full tile paint on mobile Safari
-        setTimeout(() => map.invalidateSize(), 80);
-        setTimeout(() => map.invalidateSize(), 250);
-        setTimeout(() => map.invalidateSize(), 600);
+        const sizeTimeouts = [80, 250, 600].map((delay) =>
+          setTimeout(() => {
+            try {
+              if (isSubscribed && leafletMapRef.current === map && map._container && map._mapPane) {
+                map.invalidateSize();
+              }
+            } catch (e) {}
+          }, delay)
+        );
+
+        return () => {
+          sizeTimeouts.forEach(clearTimeout);
+        };
       } catch (err) {
         console.warn('[BlinkitLocationPicker] Leaflet map initialization error:', err);
       }
@@ -265,7 +275,9 @@ export default function BlinkitLocationPicker({
       isSubscribed = false;
       if (geocodeTimeoutRef.current) clearTimeout(geocodeTimeoutRef.current);
       if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
+        try {
+          leafletMapRef.current.remove();
+        } catch (e) {}
         leafletMapRef.current = null;
       }
     };
@@ -725,11 +737,11 @@ export default function BlinkitLocationPicker({
                 <View style={styles.typeChipsRow}>
                   {[
                     { id: 'Home', icon: 'home', label: 'Home' },
-                    { id: 'Work', icon: 'apartment', label: 'Work / Atelier' },
+                    { id: 'Work', icon: 'apartment', label: 'Office / Work' },
                     { id: 'Other', icon: 'place', label: 'Other' },
                   ].map((chip) => {
                     const isSelected = addressType.toLowerCase() === chip.id.toLowerCase() ||
-                      (chip.id === 'Work' && (addressType.toLowerCase().includes('work') || addressType.toLowerCase().includes('atelier')));
+                      (chip.id === 'Work' && (addressType.toLowerCase().includes('work') || addressType.toLowerCase().includes('office') || addressType.toLowerCase().includes('atelier')));
                     return (
                       <TouchableOpacity
                         key={chip.id}

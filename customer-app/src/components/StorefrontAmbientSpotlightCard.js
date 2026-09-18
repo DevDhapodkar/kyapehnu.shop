@@ -48,7 +48,7 @@ export default function StorefrontAmbientSpotlightCard({
 
   // Honest data only: never invent a boutique name, locality, distance or ETA
   // when the product record does not carry one.
-  const storeName = item.storeName || 'Atelier';
+  const storeName = item.storeName || 'Boutique';
   const localityLine = [
     item.locality,
     typeof item.distanceKm === 'number' ? `${item.distanceKm} km` : null,

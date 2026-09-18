@@ -54,7 +54,7 @@ export default function StorefrontAmbientHeader({
           onPress={onViewStory}
           style={styles.brandGroup}
           accessibilityRole="button"
-          accessibilityLabel="View Atelier Story"
+          accessibilityLabel="View Store Story"
         >
           <Image
             source={require('../../assets/images/brand-emblem.png')}
@@ -66,7 +66,7 @@ export default function StorefrontAmbientHeader({
           />
           <View style={styles.brandTextCol}>
             <Text style={[styles.brandTitle, { color: colors.textObsidian }]}>Kya Pehnu?</Text>
-            <Text style={[styles.brandSubtitle, { color: colors.accentCrimson }]}>ATELIER</Text>
+            <Text style={[styles.brandSubtitle, { color: colors.accentCrimson }]}>BOUTIQUE</Text>
           </View>
         </PressableScale>
 

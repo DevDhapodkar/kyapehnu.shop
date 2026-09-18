@@ -252,7 +252,7 @@ export default function SplashScreenView({ onFinish }) {
               { color: themeColors.accentGold },
             ]}
           >
-            — NAGPUR COUTURE GUILD —
+            — NAGPUR DESIGNER FASHION —
           </Text>
         </View>
 
@@ -273,7 +273,7 @@ export default function SplashScreenView({ onFinish }) {
             { color: isDark ? '#C9C7C2' : themeColors.textSlate },
           ]}
         >
-          Curated bespoke handlooms & designer ensembles delivered warm to your suite.
+          Curated handcrafted handlooms & designer outfits delivered to your doorstep.
         </Text>
 
         {/* Corridor Chips */}

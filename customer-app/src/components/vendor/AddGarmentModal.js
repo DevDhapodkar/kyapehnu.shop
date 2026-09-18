@@ -121,19 +121,19 @@ const FIT_PRESETS = [
 const OCCASION_PRESETS = [
   'Festive & Wedding',
   'Casual / Daily Wear',
-  'Atelier Special',
+  'Boutique Special',
   'Work & Formal',
   'Party & Night Out',
   'Vacation & Resort',
 ];
 
 const SLEEVE_PRESETS = [
-  'Half Sleeves',
   'Full Sleeves',
-  'Sleeveless',
   'Three-Quarter',
-  'Drop Shoulder',
-  'Puff Sleeves',
+  'Half Sleeves',
+  'Sleeveless',
+  'Cap Sleeves',
+  'Spaghetti Straps',
 ];
 
 const NECK_PRESETS = [
@@ -178,7 +178,7 @@ export default function AddGarmentModal({
   visible,
   onClose,
   onSubmit,
-  shopName = 'Nagpur Atelier',
+  shopName = 'Nagpur Boutique',
 }) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
@@ -673,7 +673,7 @@ export default function AddGarmentModal({
               ]}
             >
               <Text style={[styles.fieldHeaderEyebrow, { color: colors.accentGold || '#B38A2B' }]}>
-                COUTURE IDENTITY
+                GARMENT IDENTITY
               </Text>
               <Text style={[styles.fieldSectionTitle, { color: colors.textObsidian }]}>
                 Garment Silhouette & Details
@@ -698,7 +698,7 @@ export default function AddGarmentModal({
               />
 
               <Text style={[styles.inputLabel, { color: colors.textObsidian }]}>
-                Atelier Brand / Boutique Label
+                Boutique Brand / Store Label
               </Text>
               <TextInput
                 value={brand}
@@ -775,7 +775,7 @@ export default function AddGarmentModal({
               </View>
 
               <Text style={[styles.inputLabel, { color: colors.textObsidian }]}>
-                Atelier Notes & Description
+                Garment Notes & Description
               </Text>
               <TextInput
                 value={description}
@@ -924,7 +924,7 @@ export default function AddGarmentModal({
                 SIZING & MATRIX
               </Text>
               <Text style={[styles.fieldSectionTitle, { color: colors.textObsidian }]}>
-                Atelier Sizing Ledger ({totalStockUnits} Total Units)
+                Size & Stock Guide ({totalStockUnits} Total Units)
               </Text>
 
               <Text style={[styles.inputLabel, { color: colors.textObsidian }]}>
@@ -1031,7 +1031,7 @@ export default function AddGarmentModal({
                 SWATCHES & SHADES
               </Text>
               <Text style={[styles.fieldSectionTitle, { color: colors.textObsidian }]}>
-                Atelier Color Palette
+                Color Palette
               </Text>
 
               <Text style={[styles.inputLabel, { color: colors.textObsidian }]}>
@@ -1061,7 +1061,7 @@ export default function AddGarmentModal({
               </View>
 
               <Text style={[styles.inputLabel, { color: colors.textObsidian, marginTop: 16 }]}>
-                Tap to Add from Atelier Presets
+                Tap to Add from Popular Presets
               </Text>
               <View style={styles.chipsFlowRow}>
                 {COLOR_PALETTE.slice(0, 14).map((p) => {
@@ -1310,7 +1310,7 @@ export default function AddGarmentModal({
                 <View style={styles.uploadingWrap}>
                   <ActivityIndicator color={colors.accentCrimson} size="small" />
                   <Text style={[styles.uploadingText, { color: colors.textAsh }]}>
-                    Uploading media to atelier CDN...
+                    Uploading media to secure CDN...
                   </Text>
                 </View>
               ) : null}

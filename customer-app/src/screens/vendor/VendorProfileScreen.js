@@ -228,7 +228,7 @@ export default function VendorProfileScreen({ navigation }) {
           </View>
           <View style={styles.switchModeTextCol}>
             <Text style={styles.switchModeTitle}>Switch to Customer Storefront</Text>
-            <Text style={styles.switchModeSubtitle}>Browse couture & try-at-doorstep fitting</Text>
+            <Text style={styles.switchModeSubtitle}>Browse designer outfits & try-at-doorstep fitting</Text>
           </View>
           <MaterialIcons name="chevron-right" size={24} color={colors.accentGoldDeep} />
         </PressableScale>

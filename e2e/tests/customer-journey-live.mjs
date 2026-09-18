@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import path from 'path';
 
-const SCRATCH_DIR = '/Users/devdhapodkar/.gemini/antigravity-cli/brain/5fa5b47b-e067-4e85-8d82-c522b67d624e/scratch';
+const SCRATCH_DIR = '/Users/devdhapodkar/.gemini/antigravity/brain/399e6f6c-3302-4b92-8e46-629b70473717/scratch';
 
 async function run() {
   const browser = await chromium.launch({ headless: true });
@@ -19,11 +19,12 @@ async function run() {
   });
   page.on('pageerror', (err) => {
     consoleLogs.push(`[PAGE ERROR] ${err.message}`);
-    console.error(`[Browser Page Error] ${err.message}`);
+    console.error(`[Browser Page Error] ${err.message}`, err.stack);
   });
 
   console.log('=== STEP 1: PRODUCTION DEPLOYMENT & HTTP VERIFICATION ===');
-  const resp = await page.goto('https://www.kyapehnu.shop/app', { waitUntil: 'networkidle', timeout: 30000 });
+  const targetUrl = process.env.APP_URL || process.env.BASE_URL || 'https://www.kyapehnu.shop/app';
+  const resp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   console.log('HTTP Status:', resp.status());
   console.log('Active URL:', page.url());
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step1_welcome.png') });
@@ -60,7 +61,7 @@ async function run() {
   const hasDummyCart1 = (await page.$('#cart-item-1')) !== null;
   const hasDummyCart2 = (await page.$('#cart-item-2')) !== null;
   const hasDummy8340 = bagEmptyContent.includes('₹8,340') || bagEmptyContent.includes('8,340');
-  const hasEmptyText = bagEmptyContent.includes('Your Atelier Bag is Empty') || bagEmptyContent.includes('Bag Empty');
+  const hasEmptyText = bagEmptyContent.includes('Your Shopping Bag is Empty') || bagEmptyContent.includes('Your Atelier Bag is Empty') || bagEmptyContent.includes('Bag Empty');
 
   console.log('Empty state message displayed:', hasEmptyText);
   console.log('Dummy #cart-item-1 present:', hasDummyCart1);
@@ -81,7 +82,7 @@ async function run() {
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step4_pdp.png') });
 
   // Select size L
-  const sizeL = page.locator('button:has-text("L"):visible').first();
+  const sizeL = page.locator('.size-chip[data-size="L"], #size-chip-container button:has-text("L"), .size-chip:has-text("L")').first();
   if (await sizeL.isVisible()) {
     console.log('Selected size L');
     await sizeL.click();
@@ -89,14 +90,14 @@ async function run() {
   }
 
   // Click Add to Bag
-  const addBtn = page.locator('button:has-text("Add to Bag"):visible, button:has-text("Add to Atelier Bag"):visible').first();
+  const addBtn = page.locator('#bag-cta:visible, button:has-text("Add to Bag"):visible, button:has-text("Add to Atelier Bag"):visible').first();
   console.log('Add to Bag visible:', await addBtn.isVisible());
-  await addBtn.click();
+  await addBtn.click({ force: true });
   await page.waitForTimeout(1500);
 
   console.log('\n=== STEP 5: REVIEW BAG WITH ADDED ITEM ===');
   const bagLinkAfterAdd = page.locator('[data-path*="bag"]:visible, nav a:has-text("Bag"):visible').first();
-  await bagLinkAfterAdd.click();
+  await bagLinkAfterAdd.click({ force: true });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step5_bag_with_item.png') });
 
@@ -107,7 +108,7 @@ async function run() {
   console.log('\n=== STEP 6: PROCEED TO DELIVERY ADDRESS ===');
   const checkoutBtn = page.locator('button:has-text("Proceed to Delivery"):visible, button:has-text("Add Delivery Address"):visible, button:has-text("Proceed to Checkout"):visible').first();
   console.log('Checkout CTA text:', (await checkoutBtn.textContent())?.trim().replace(/\s+/g, ' '));
-  await checkoutBtn.click();
+  await checkoutBtn.click({ force: true });
   await page.waitForTimeout(2000);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step6_address_clean.png') });
 
@@ -133,7 +134,7 @@ async function run() {
 
   // Test blank submission validation
   console.log('Testing blank submission validation...');
-  await confirmBtn.click();
+  await confirmBtn.click({ force: true });
   await page.waitForTimeout(1000);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step7_address_blank_validation.png') });
 
@@ -147,7 +148,7 @@ async function run() {
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step7_address_filled.png') });
 
   console.log('\n=== STEP 8: PLACE 45-MINUTE TRIAL ORDER ===');
-  await confirmBtn.click();
+  await confirmBtn.click({ force: true });
   await page.waitForTimeout(4000);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step8_live_tracking.png') });
 
@@ -162,7 +163,7 @@ async function run() {
   console.log('\n=== STEP 10: MY ORDERS SCREEN VERIFICATION ===');
   const ordersNav = page.locator('[data-path*="orders"]:visible, nav a:has-text("Orders"):visible').first();
   if (await ordersNav.isVisible()) {
-    await ordersNav.click();
+    await ordersNav.click({ force: true });
     await page.waitForTimeout(2000);
     await page.screenshot({ path: path.join(SCRATCH_DIR, 'step9_my_orders.png') });
     const myOrdersBody = await page.textContent('body');

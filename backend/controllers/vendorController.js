@@ -57,8 +57,8 @@ const syncProfile = async (req, res) => {
     } else {
       vendor = await Vendor.create({
         firebaseUid: req.firebaseUser.uid,
-        shopName: shopName || 'Nagpur Atelier',
-        ownerName: ownerName || 'Atelier Designer',
+        shopName: shopName || 'Nagpur Boutique',
+        ownerName: ownerName || 'Boutique Designer',
         phone: phone || '+91 712 254 9900',
         whatsappNumber: whatsappNumber || phone || '+91 712 254 9900',
         email: userEmail,

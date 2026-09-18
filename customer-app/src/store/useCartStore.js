@@ -74,7 +74,7 @@ export const useCartStore = create((set, get) => ({
             colorHex,
             colorway: product.colorway || (Array.isArray(product.colors) ? product.colors.join(', ') : ''),
             storeId: product.storeId || product.vendor?._id || product.vendor,
-            storeName: product.storeName || product.vendor?.shopName || 'Local Atelier',
+            storeName: product.storeName || product.vendor?.shopName || 'Local Boutique',
             storeArea: product.storeArea || product.vendor?.area || 'Nagpur',
             storeCoordinates: product.storeCoordinates || product.vendor?.location?.coordinates,
             etaMinutes: product.etaMinutes || 25,

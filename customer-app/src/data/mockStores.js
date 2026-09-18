@@ -50,7 +50,7 @@ export const mockStores = [
         name: 'Royal Chanderi Zari Set',
         category: 'Silks',
         gender: 'Women',
-        subCategory: "Women's Prêt",
+        subCategory: "Women's Wear",
         price: 4750,
         mrp: 6400,
         currency: 'INR',
@@ -103,7 +103,7 @@ export const mockStores = [
   },
   {
     id: 'str_pankh_atelier',
-    name: 'Pankh Atelier',
+    name: 'Pankh Boutique',
     area: 'Sitabuldi',
     addressLine: '42, Residency Road, Sitabuldi, Nagpur 440012',
     coordinates: { latitude: 21.144, longitude: 79.085 },
@@ -319,7 +319,7 @@ export const mockStores = [
     etaMinutes: 15,
     image:
       'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=600&q=80',
-    tagline: "Nagpur's premier bridal couture house and royal zardozi embroideries.",
+    tagline: "Nagpur's premier bridal fashion house and royal zardozi embroideries.",
     products: [
       {
         id: 'prd_zardozi_anarkali',

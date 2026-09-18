@@ -46,10 +46,10 @@ export default class ErrorBoundary extends React.Component {
               <MaterialIcons name="refresh" size={28} color={colors.accentCrimson} />
             </View>
 
-            <Text style={styles.eyebrow}>NAGPUR HYPERLOCAL COUTURE</Text>
+            <Text style={styles.eyebrow}>NAGPUR HYPERLOCAL FASHION</Text>
             <Text style={styles.title}>Session Recovered</Text>
             <Text style={styles.description}>
-              We encountered a temporary display glitch while preparing your atelier view. Tap below to refresh your couture connection.
+              We encountered a temporary display glitch while loading your view. Tap below to refresh your connection.
             </Text>
 
             {this.state.error?.message ? (

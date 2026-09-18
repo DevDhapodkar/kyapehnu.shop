@@ -66,7 +66,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
   // Delivery corridors in Nagpur
   const corridors = [
     { name: 'Sitabuldi Hub', time: '18 mins', speed: 'Superfast', icon: 'bolt', color: '#15803D' },
-    { name: 'Dharampeth Atelier Rail', time: '24 mins', speed: 'Express', icon: 'check-circle', color: '#15803D' },
+    { name: 'Dharampeth Store Express', time: '24 mins', speed: 'Express', icon: 'check-circle', color: '#15803D' },
     { name: 'Ramdaspeth Corridor', time: '22 mins', speed: 'Express', icon: 'check-circle', color: '#15803D' },
     { name: 'Sadar Heritage Lane', time: '28 mins', speed: 'Normal', icon: 'schedule', color: colors.accentGoldDeep },
     { name: 'Itwari Silk Market', time: '34 mins', speed: 'Normal', icon: 'schedule', color: colors.accentGoldDeep },
@@ -243,7 +243,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
                 <MaterialIcons name="checkroom" size={22} color="#FFFFFF" />
               </View>
               <View>
-                <Text style={styles.cardTitle}>Top Selling Couture Styles</Text>
+                <Text style={styles.cardTitle}>Top Selling Designer Styles</Text>
                 <Text style={styles.cardSubtitle}>Based on customer checkout trends</Text>
               </View>
             </View>
@@ -256,7 +256,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
               </View>
               <View style={styles.demandInfo}>
                 <Text style={styles.demandTitle}>Chanderi Silk Anarkali Suit</Text>
-                <Text style={styles.demandSub}>Pure Cotton & Silk · Sitabuldi Atelier</Text>
+                <Text style={styles.demandSub}>Pure Cotton & Silk · Sitabuldi Boutique</Text>
               </View>
               <View style={styles.demandStats}>
                 <Text style={styles.demandPrice}>₹4,999</Text>

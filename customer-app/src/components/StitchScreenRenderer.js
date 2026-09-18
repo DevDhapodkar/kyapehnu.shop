@@ -688,14 +688,14 @@ export default function StitchScreenRenderer({
       const hue = Math.round((x / rect.width) * 360);
       const col = `hsl(${hue}, 80%, 45%)`;
       if (previewBox) previewBox.style.backgroundColor = col;
-      if (previewName) previewName.textContent = `Atelier Hue ${hue}°`;
+      if (previewName) previewName.textContent = `Store Hue ${hue}°`;
       if (previewHex) previewHex.textContent = `HSL(${hue}, 80%, 45%)`;
     };
 
     window.addCustomShade = () => {
       const nameEl = document.getElementById('previewShadeName');
       const box = document.getElementById('previewShadeBox');
-      const name = nameEl?.textContent || 'Bespoke Couture Hue';
+      const name = nameEl?.textContent || 'Custom Designer Hue';
       const hex = box?.style?.backgroundColor || '#C4243A';
       window.addColorPreset(name, hex, 'Custom');
     };
@@ -736,13 +736,13 @@ export default function StitchScreenRenderer({
       let authHtml = html.replace(/\bselect-none\b/g, '');
       authHtml = authHtml.replace(/\svalue="[^"]*"/g, '');
 
-      // Inject 1-Tap Fast Patron Access (Sitabuldi VIP) button into light signin panel
+      // Inject 1-Tap Fast Member Access (Sitabuldi VIP) button into light signin panel
       const fastDemoBtnLight = `
         <button id="btn-fast-demo-signin" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-accent-gold/15 to-amber-600/10 border border-accent-gold/40 text-text-obsidian hover:border-accent-gold font-body-md font-bold flex items-center justify-between shadow-xs active:scale-98 transition-all mb-1 cursor-pointer" type="button">
           <div class="flex items-center gap-2.5">
             <span class="w-7 h-7 rounded-full bg-accent-gold/20 text-accent-gold flex items-center justify-center text-sm font-bold">⚡</span>
             <div class="flex flex-col text-left">
-              <span class="text-xs font-bold text-text-obsidian">1-Tap Fast Patron Access</span>
+              <span class="text-xs font-bold text-text-obsidian">1-Tap Quick Member Login</span>
               <span class="text-[10px] text-text-ash">Instant VIP access • 0ms cold-start lag</span>
             </div>
           </div>
@@ -753,13 +753,13 @@ export default function StitchScreenRenderer({
         authHtml = authHtml.replace(/(id="panel-signin"[^>]*>)/i, `$1\n${fastDemoBtnLight}`);
       }
 
-      // Inject 1-Tap Fast Patron Access button into dark signin panel
+      // Inject 1-Tap Fast Member Access button into dark signin panel
       const fastDemoBtnDark = `
         <button id="dark-btn-fast-demo-signin" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-gold/15 via-gold/25 to-gold/15 border border-gold/40 text-gold-light hover:border-gold font-body-md font-bold flex items-center justify-between shadow-xs active:scale-98 transition-all mb-1 cursor-pointer" type="button">
           <div class="flex items-center gap-2.5">
             <span class="w-7 h-7 rounded-full bg-gold/20 text-gold flex items-center justify-center text-sm font-bold">⚡</span>
             <div class="flex flex-col text-left">
-              <span class="text-xs font-bold text-stone-100">1-Tap Fast Patron Access</span>
+              <span class="text-xs font-bold text-stone-100">1-Tap Quick Member Login</span>
               <span class="text-[10px] text-stone-400">Instant VIP access • 0ms cold-start lag</span>
             </div>
           </div>
@@ -830,19 +830,19 @@ export default function StitchScreenRenderer({
 
       html = html.replace(/Royal Chanderi Zari Set/g, heroName);
       html = html.replace(/aria-label="Royal Chanderi Zari Set, ₹4,750"/g, `aria-label="${heroName}, ₹${heroPrice.toLocaleString()}"`);
-      html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth Atelier(<\/span>)/g, `$1${heroBoutique} • ${heroArea}$2`);
+      html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth (?:Atelier|Boutique)(<\/span>)/g, `$1${heroBoutique} • ${heroArea}$2`);
       html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
       html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
       if (searchQuery) {
-        html = html.replace(/(<input[^>]*placeholder="Search designer prêt[^"]*")/i, `$1 value="${searchQuery.replace(/"/g, '&quot;')}"`);
+        html = html.replace(/(<input[^>]*placeholder="Search (?:designer prêt|designer wear)[^"]*")/i, `$1 value="${searchQuery.replace(/"/g, '&quot;')}"`);
       }
 
       // Render Dynamic Category Pills in Storefront
       const storefrontCategories = [
         { id: 'ALL', label: 'All' },
         { id: 'SAREES', label: 'Sarees & Handlooms' },
-        { id: 'WOMEN', label: "Women's Prêt" },
+        { id: 'WOMEN', label: "Women's Wear" },
         { id: 'KURTA', label: 'Kurtas & Sets' },
         { id: 'MEN', label: "Men's Heritage" },
         { id: 'DUPATTA', label: 'Silk Dupattas' },
@@ -850,7 +850,7 @@ export default function StitchScreenRenderer({
       ];
 
       const activeCatKey = (selectedCategory || 'ALL').trim().toUpperCase();
-      const isWomenActive = activeCatKey === 'WOMEN' || activeCatKey.includes('PRÊT');
+      const isWomenActive = activeCatKey === 'WOMEN' || activeCatKey.includes('PRÊT') || activeCatKey.includes('WEAR');
       const isMenActive = !isWomenActive && (activeCatKey === 'MEN' || activeCatKey.includes('MENSWEAR'));
       const isSareeActive = activeCatKey === 'SAREES' || activeCatKey.includes('SAREE') || activeCatKey.includes('HANDLOOM');
       const isKurtaActive = activeCatKey === 'KURTA' || activeCatKey.includes('KURTA') || activeCatKey.includes('SET');
@@ -917,7 +917,7 @@ export default function StitchScreenRenderer({
         const pName = (p.name || '').toUpperCase();
         const text = `${pCat} ${pSub} ${pName} ${(p.material || '')}`.toUpperCase();
 
-        const isWomenFilter = normCat === 'WOMEN' || normCat.includes('WOMEN') || normCat.includes('PRÊT');
+        const isWomenFilter = normCat === 'WOMEN' || normCat.includes('WOMEN') || normCat.includes('PRÊT') || normCat.includes('WEAR');
         const isMenFilter = !isWomenFilter && (normCat === 'MEN' || normCat.includes('MEN') || normCat === 'MENSWEAR');
         const isSareeFilter = normCat === 'SAREES' || normCat.includes('SAREE') || normCat.includes('HANDLOOM');
         const isKurtaFilter = normCat === 'KURTA' || normCat.includes('KURTA') || normCat.includes('SET');
@@ -958,7 +958,7 @@ export default function StitchScreenRenderer({
           distanceKm: p.distanceKm || (p.vendor?.location ? 1.4 : 1.2),
           eta: p.deliveryMinutes || 20,
           image: p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
-          specialty: p.material ? `${p.material} & ${p.subCategory || p.category}` : 'Nagpur Handloom & Prêt',
+          specialty: p.material ? `${p.material} & ${p.subCategory || p.category}` : 'Nagpur Handloom & Ready Wear',
         });
       }
 
@@ -1143,7 +1143,7 @@ export default function StitchScreenRenderer({
       const activeMaterial = activeP.material || 'Pure Handloom Fabric';
       const activePattern = activeP.pattern || 'Artisanal Weave';
       const activeFit = activeP.fit || 'Tailored Regular';
-      const activeOccasion = activeP.occasion || 'Festive & Prêt';
+      const activeOccasion = activeP.occasion || 'Festive & Daily Wear';
       const currColor = selectedColor || activeColors[0]?.name || 'Original';
       const currSize = selectedSize || activeSizes[0] || 'FREE';
       const privilegePct = Math.max(10, Math.round(((activeMrp - activePrice) / activeMrp) * 100));
@@ -1172,7 +1172,7 @@ export default function StitchScreenRenderer({
       html = html.replace(/1\s*\/\s*4/g, `${activeImageIndex + 1} / ${activeImages.length}`);
 
       // 6. Dynamic Color Selection
-      const colorSubtitleLight = `${currColor} · Atelier Colorway`;
+      const colorSubtitleLight = `${currColor} · Boutique Colorway`;
       html = html.replace(/Sindhoor Crimson\s*·\s*Pure Mulberry Dip/g, colorSubtitleLight);
       html = html.replace(/id="selected-shade-name">[^<]+<\/span>/i, `id="selected-shade-name">${currColor}</span>`);
 
@@ -1259,8 +1259,8 @@ export default function StitchScreenRenderer({
             <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
               <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
             </div>
-            <h3 class="font-title-md text-xl text-text-obsidian font-bold">Your Atelier Bag is Empty</h3>
-            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest handlooms and couture garments available for 45-minute doorstep trial.</p>
+            <h3 class="font-title-md text-xl text-text-obsidian font-bold">Your Shopping Bag is Empty</h3>
+            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute doorstep trial.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Collection</span>
@@ -1273,8 +1273,8 @@ export default function StitchScreenRenderer({
             <div class="w-16 h-16 rounded-full bg-secondary/15 flex items-center justify-center text-secondary">
               <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
             </div>
-            <h3 class="font-title-md text-xl text-on-surface font-bold">Your Atelier Bag is Empty</h3>
-            <p class="font-body-md text-on-surface-variant max-w-xs">Discover Nagpur's finest handlooms and couture garments available for 45-minute doorstep trial.</p>
+            <h3 class="font-title-md text-xl text-on-surface font-bold">Your Shopping Bag is Empty</h3>
+            <p class="font-body-md text-on-surface-variant max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute doorstep trial.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Collection</span>
@@ -1428,7 +1428,7 @@ export default function StitchScreenRenderer({
                 <span class="material-symbols-outlined text-[32px]">receipt_long</span>
               </div>
               <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Orders Placed Yet</h3>
-              <p class="font-body-md text-text-slate max-w-xs">Your atelier orders and 45-minute doorstep trials will appear here once placed.</p>
+              <p class="font-body-md text-text-slate max-w-xs">Your boutique orders and 45-minute doorstep trials will appear here once placed.</p>
               <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
@@ -1444,7 +1444,7 @@ export default function StitchScreenRenderer({
                 <span class="material-symbols-outlined text-[32px]">receipt_long</span>
               </div>
               <h3 class="font-title-md text-xl text-on-surface font-bold">No Orders Placed Yet</h3>
-              <p class="font-body-md text-on-surface-variant max-w-xs">Your atelier orders and 45-minute doorstep trials will appear here once placed.</p>
+              <p class="font-body-md text-on-surface-variant max-w-xs">Your boutique orders and 45-minute doorstep trials will appear here once placed.</p>
               <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
@@ -1500,7 +1500,7 @@ export default function StitchScreenRenderer({
                 <img src="${activeItemImg}" alt="${activeItemName}" class="w-16 h-20 object-cover rounded-lg bg-surface-container-low" onerror="this.src='/app/apple-touch-icon.png';"/>
                 <div class="flex-1 min-w-0">
                   <h4 class="font-title-md text-base font-bold text-text-obsidian truncate">${activeItemName}</h4>
-                  <p class="font-body-sm text-xs text-text-slate mt-0.5">${activeItemCount} Garment${activeItemCount > 1 ? 's' : ''} · Sitabuldi Atelier</p>
+                  <p class="font-body-sm text-xs text-text-slate mt-0.5">${activeItemCount} Garment${activeItemCount > 1 ? 's' : ''} · Sitabuldi Boutique</p>
                   <p class="font-tabular-price text-sm font-bold text-accent-crimson mt-1">${activeTotalStr}</p>
                 </div>
               </div>
@@ -1591,7 +1591,7 @@ export default function StitchScreenRenderer({
             <div class="flex items-center gap-3 p-2.5 rounded-xl bg-ground-subtle border border-surface-container-low mb-2">
               <img class="w-14 h-16 rounded-lg object-cover bg-surface-container-low" alt="${it.name}" src="${it.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'}" onerror="this.src='/app/apple-touch-icon.png';" />
               <div class="flex-1 min-w-0">
-                <p class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider font-semibold truncate">${it.boutiqueName || it.storeName || 'Nagpur Atelier'}</p>
+                <p class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider font-semibold truncate">${it.boutiqueName || it.storeName || 'Nagpur Boutique'}</p>
                 <h3 class="font-title-md text-[14px] text-text-obsidian truncate font-bold">${it.name}</h3>
                 <p class="font-tabular-caption text-xs text-text-slate mt-0.5">Size ${it.size || 'M'} · Qty ${it.quantity || 1}</p>
               </div>
@@ -1622,7 +1622,7 @@ export default function StitchScreenRenderer({
 
       html = html.replace(/(<div[^>]*class="relative w-full h-(?:52|48) rounded-xl overflow-hidden[^"]*")/i, `$1 id="deliveryMapContainer" data-action="open-map-picker" style="cursor: pointer;"`);
       if (!html.includes('id="btnAdjustPin"')) {
-        html = html.replace(/(Nagpur Atelier Route<\/span>\s*<\/div>)/i, `$1${adjustPinOverlay}`);
+        html = html.replace(/(Nagpur (?:Atelier|Delivery) Route<\/span>\s*<\/div>)/i, `$1${adjustPinOverlay}`);
       }
 
       // Replace static background image with live Leaflet mini-map preview container
@@ -1635,7 +1635,7 @@ export default function StitchScreenRenderer({
       html = html.replace(/(class="absolute inset-0 flex items-center justify-center pointer-events-none")/i, '$1 style="z-index: 20;"');
 
       // Update map route badge
-      html = html.replace(/Nagpur Atelier Route(?!\s*·)/g, `Nagpur Atelier Route · ${deliveryLocation.areaName}`);
+      html = html.replace(/Nagpur (?:Atelier|Delivery) Route(?!\s*·)/g, `Nagpur Delivery Route · ${deliveryLocation.areaName}`);
 
       // 2. Detected Locality text
       const localityFormatted = deliveryLocation.isDetected
@@ -1676,10 +1676,10 @@ export default function StitchScreenRenderer({
       }
 
       // 4. Address Classification chips active state
-      const chipTypes = ['Home', 'Atelier / Work', 'Other'];
+      const chipTypes = ['Home', 'Office / Work', 'Atelier / Work', 'Other'];
       chipTypes.forEach((ct) => {
         const isSel = ct.toLowerCase() === addressClassification.toLowerCase() ||
-          (ct === 'Atelier / Work' && (addressClassification.toLowerCase() === 'work' || addressClassification.toLowerCase() === 'atelier / work'));
+          ((ct === 'Office / Work' || ct === 'Atelier / Work') && (addressClassification.toLowerCase().includes('work') || addressClassification.toLowerCase().includes('office') || addressClassification.toLowerCase().includes('atelier')));
         const activeClass = 'bg-accent-crimson text-surface-porcelain font-eyebrow text-eyebrow tracking-wider uppercase font-semibold text-center transition-all shadow-sm flex items-center justify-center gap-1';
         const inactiveClass = 'bg-surface-container-low text-text-obsidian font-eyebrow text-eyebrow tracking-wider uppercase font-semibold text-center transition-all shadow-xs flex items-center justify-center gap-1';
         const reg = new RegExp(`(<button[^>]*data-chip="${ct}"[^>]*class=")[^"]*(")`, 'i');
@@ -1689,12 +1689,12 @@ export default function StitchScreenRenderer({
       // Dark mode address classification chips
       const darkChipTypes = [
         { type: 'home', label: 'HOME' },
-        { type: 'work', label: 'ATELIER / WORK' },
+        { type: 'work', label: 'OFFICE / WORK' },
         { type: 'other', label: 'OTHER' },
       ];
       darkChipTypes.forEach((dct) => {
         const isSel = dct.type === addressClassification.toLowerCase() ||
-          (dct.type === 'work' && (addressClassification.toLowerCase().includes('work') || addressClassification.toLowerCase().includes('atelier')));
+          (dct.type === 'work' && (addressClassification.toLowerCase().includes('work') || addressClassification.toLowerCase().includes('office') || addressClassification.toLowerCase().includes('atelier')));
         const activeDark = 'type-pill px-4 py-2 rounded-lg bg-primary-container text-on-primary-container font-title-md text-title-md flex items-center gap-1.5 shadow-[0_4px_16px_-2px_rgba(196,36,58,0.4)] transition-all';
         const inactiveDark = 'type-pill px-4 py-2 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest font-title-md text-title-md flex items-center gap-1.5 transition-all';
         const darkReg = new RegExp(`(<button[^>]*data-type="${dct.type}"[^>]*class=")[^"]*(")`, 'i');
@@ -1768,7 +1768,7 @@ export default function StitchScreenRenderer({
             </div>
             <div class="flex flex-col min-w-0">
               <span class="font-body-md text-body-md font-medium text-text-obsidian">Register Your Boutique</span>
-              <span class="font-body-sm text-body-sm text-text-ash truncate">Onboard your Nagpur atelier in 24 hours</span>
+              <span class="font-body-sm text-body-sm text-text-ash truncate">Onboard your Nagpur boutique in 24 hours</span>
             </div>
           </div>
           <span class="material-symbols-outlined text-text-ash text-[18px]">chevron_right</span>
@@ -1841,7 +1841,7 @@ export default function StitchScreenRenderer({
         const sku = p.sku || `NGP-KAT-${String(p.id || p._id || '1020').slice(-4).toUpperCase()}`;
         const isAvail = p.isAvailable !== false;
         const boutique = (p.brand || p.storeName || 'Dharampeth Handloom').toUpperCase();
-        const category = p.category || 'Atelier Collection';
+        const category = p.category || 'Boutique Collection';
 
         return `
           <div class="relative flex flex-col p-4 rounded-xl bg-surface-porcelain shadow-[0_12px_32px_rgba(18,18,20,0.04)] overflow-hidden transition-all hover:shadow-[0_16px_40px_rgba(18,18,20,0.07)]" data-product-id="${p.id || p._id}">
@@ -1862,7 +1862,7 @@ export default function StitchScreenRenderer({
                     </label>
                   </div>
                   <h3 class="font-title-md text-title-md text-text-obsidian tracking-tight leading-snug mt-0.5">${name}</h3>
-                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Couture Handloom Piece'}</p>
+                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Designer Handloom Piece'}</p>
                 </div>
                 <div class="flex items-baseline gap-2 mt-1">
                   <span class="font-tabular-price text-tabular-price font-bold text-accent-crimson tracking-tight">₹${price.toLocaleString()}</span>
@@ -2192,7 +2192,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         await useAuthStore.getState().quickPhoneSignIn({ phone: '9823045892', name: 'Radhika Deshmukh' });
-        showToast('⚡ Instant VIP Patron Access Activated');
+        showToast('⚡ Instant VIP Member Access Activated');
         setTimeout(() => {
           navigateScreen('Home');
         }, 120);
@@ -2238,7 +2238,7 @@ export default function StitchScreenRenderer({
           }
         })();
 
-        showToast('Welcome back to Kya Pehnu Atelier.');
+        showToast('Welcome back to Kya Pehnu.');
         detectAndApplyUserLocation(true);
         setTimeout(() => {
           navigateScreen('Home');
@@ -2301,10 +2301,10 @@ export default function StitchScreenRenderer({
           await useAuthStore.getState().signInWithGoogle?.();
         } catch {
           try {
-            await syncUserProfile({ name: 'Atelier Patron', email: 'patron@kyapehnu.shop', phone: '9800000000' });
+            await syncUserProfile({ name: 'Fashion Member', email: 'member@kyapehnu.shop', phone: '9800000000' });
           } catch (e) {}
           useAuthStore.setState({
-            user: { email: 'patron@kyapehnu.shop', displayName: 'Atelier Patron', uid: `g-${Date.now()}` },
+            user: { email: 'member@kyapehnu.shop', displayName: 'Fashion Member', uid: `g-${Date.now()}` },
             token: 'auth-token-google',
             role: ROLES.CUSTOMER,
           });
@@ -2322,8 +2322,10 @@ export default function StitchScreenRenderer({
         (btn.getAttribute('aria-label') === 'Explore Storefront as Guest' ||
           btn.getAttribute('aria-label') === 'Browse Catalog as guest' ||
           (btn.textContent &&
-            (btn.textContent.includes('Enter Atelier') ||
+            (btn.textContent.includes('Enter Store') ||
+              btn.textContent.includes('Enter Atelier') ||
               btn.textContent.includes('Explore Looks') ||
+              btn.textContent.includes('Explore Styles') ||
               btn.textContent.includes('Explore Storefront') ||
               btn.textContent.includes('Browse Catalog') ||
               btn.textContent.includes('Explore Prêt') ||
@@ -2342,6 +2344,7 @@ export default function StitchScreenRenderer({
         btn.textContent &&
         (btn.textContent.includes('Log In to Your Account') ||
           btn.textContent.includes('Log In') ||
+          btn.textContent.includes('Sign In to Store') ||
           btn.textContent.includes('Sign In to Atelier') ||
           btn.textContent.includes('Sign In')) &&
         !btn.closest('#auth-tab-bar, #dark-auth-tab-bar, #panel-signin, #dark-panel-signin, #panel-register, #dark-panel-register')
@@ -2403,7 +2406,7 @@ export default function StitchScreenRenderer({
             navigateScreen('VendorOrders');
             return;
           }
-          if (dataPath === 'atelier-profile' || text === 'atelier') {
+          if (dataPath === 'atelier-profile' || text === 'atelier' || text === 'store' || text === 'boutique') {
             navigateScreen('VendorProfile');
             return;
           }
@@ -2417,6 +2420,8 @@ export default function StitchScreenRenderer({
           text.includes('storefront') ||
           text.includes('boutiques') ||
           text === 'atelier' ||
+          text === 'store' ||
+          text === 'boutique' ||
           text.includes('home')
         ) {
           navigateScreen('Home');
@@ -2444,7 +2449,7 @@ export default function StitchScreenRenderer({
           return;
         }
         if (dataPath.includes('saved-curations') || text.includes('saved')) {
-          showToast('Curated wishlist is saved to your Nagpur patron account.');
+          showToast('Curated wishlist is saved to your Nagpur account.');
           return;
         }
         if (dataPath.includes('search') || text.includes('search') || text.includes('explore')) {
@@ -2536,7 +2541,7 @@ export default function StitchScreenRenderer({
         const bName = decodeURIComponent(boutiqueCard.getAttribute('data-boutique') || '');
         if (selectedBoutique && selectedBoutique.toUpperCase() === bName.toUpperCase()) {
           setSelectedBoutique(null);
-          showToast('Showing all Nagpur ateliers.');
+          showToast('Showing all Nagpur boutiques.');
         } else {
           setSelectedBoutique(bName);
           showToast(`Showing looks from ${bName}`);
@@ -2609,7 +2614,8 @@ export default function StitchScreenRenderer({
 
       if (
         (priceElement || pdpCard || viewPieceBtn) &&
-        !target.closest('#deliveryMapContainer, #btnAdjustPin, [data-action="open-map-picker"], [data-action="quick-add"], button[aria-label*="Quick Add" i], [data-action="view-order-detail"], [data-action="accept-order"], [data-action="mark-ready"], [data-order-id]') &&
+        !target.closest('#deliveryMapContainer, #btnAdjustPin, [data-action="open-map-picker"], [data-action="quick-add"], button[aria-label*="Quick Add" i], [data-action="view-order-detail"], [data-action="accept-order"], [data-action="mark-ready"], [data-order-id], #bag-cta, #acquire-cta') &&
+        !targetKey.includes('Product_Detail') &&
         !targetKey.includes('Delivery_Address') &&
         !targetKey.includes('Live_Tracking')
       ) {
@@ -2929,7 +2935,7 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
 
         if (cartItems.length === 0) {
-          showToast('Your atelier bag is empty. Please add garments before checking out.');
+          showToast('Your shopping bag is empty. Please add garments before checking out.');
           return;
         }
 
@@ -3096,7 +3102,7 @@ export default function StitchScreenRenderer({
         if (typeof navigator !== 'undefined' && navigator.share) {
           navigator.share({
             title: 'Kya Pehnu Live Order Tracking',
-            text: `Track my white-glove couture courier in Nagpur`,
+            text: `Track my express courier in Nagpur`,
             url: shareUrl,
           }).catch(() => {});
         } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -3122,10 +3128,10 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      if (btn && btn.textContent && btn.textContent.includes('Boutique Stylist Desk')) {
+      if (btn && btn.textContent && (btn.textContent.includes('Boutique Stylist Desk') || btn.textContent.includes('Store Support Desk'))) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Connecting to Nagpur Atelier Stylist Desk...');
+        showToast('Connecting to Nagpur Store Support Desk...');
         return;
       }
 
@@ -3141,14 +3147,14 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
         const nextMode = isDark ? 'light' : 'dark';
         setThemeMode(nextMode);
-        showToast(`Switched to ${nextMode.toUpperCase()} Theme Suite!`);
+        showToast(`Switched to ${nextMode.toUpperCase()} Theme!`);
         return;
       }
 
       // --- 18. ROLE TOGGLES (Customer <-> Vendor) ---
       const isVendorModeToggle =
         target.closest('#vendorModeToggle, [data-action="toggle-vendor-mode"]') ||
-        (btn && (btn.id === 'vendorModeToggle' || (btn.textContent && (btn.textContent.includes('Vendor Atelier') || btn.textContent.includes('Vendor Desk') || btn.textContent.includes('Merchant Portal')))));
+        (btn && (btn.id === 'vendorModeToggle' || (btn.textContent && (btn.textContent.includes('Vendor Store') || btn.textContent.includes('Vendor Atelier') || btn.textContent.includes('Vendor Desk') || btn.textContent.includes('Merchant Portal')))));
 
       if (isVendorModeToggle) {
         e.preventDefault();
@@ -3198,7 +3204,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         setSelectedCategory('ALL');
-        showToast('Displaying all Nagpur ateliers & master weavers.');
+        showToast('Displaying all Nagpur boutiques & stores.');
         return;
       }
 
@@ -3296,7 +3302,7 @@ export default function StitchScreenRenderer({
           console.warn('[StitchRenderer] Product creation note:', prodErr?.message);
         }
 
-        showToast('Garment successfully listed in Nagpur Couture Catalog.');
+        showToast('Garment successfully listed in Nagpur Boutique Catalog.');
         setTimeout(() => {
           navigateScreen('CatalogManager');
         }, 500);
@@ -3344,7 +3350,7 @@ export default function StitchScreenRenderer({
           },
         });
 
-        showToast('Atelier Registered. Welcome to Nagpur Vendor Desk.');
+        showToast('Boutique Registered. Welcome to Nagpur Vendor Desk.');
         setTimeout(() => {
           navigateScreen('CatalogManager');
         }, 500);
@@ -3464,15 +3470,22 @@ export default function StitchScreenRenderer({
       }
 
       // --- 23b. VENDOR ORDER QUEUE: TOGGLE ATELIER ONLINE ---
-      if (
+      const isToggleAtelier = Boolean(
         target.closest('#toggleAtelierBtn, [data-action="toggle-atelier"]') ||
-        (btn && (btn.id === 'toggleAtelierBtn' || (btn.getAttribute('aria-label') || '').toLowerCase().includes('online status') || (btn.textContent && (btn.textContent.includes('Online Status') || (btn.textContent.includes('Atelier') && (btn.textContent.includes('Online') || btn.textContent.includes('Offline')))))))
-      ) {
+        (btn && btn.id === 'toggleAtelierBtn') ||
+        (btn && (btn.getAttribute('aria-label') || '').toLowerCase().includes('online status')) ||
+        (btn && btn.textContent && (
+          btn.textContent.includes('Online Status') ||
+          ((btn.textContent.includes('Store') || btn.textContent.includes('Atelier')) &&
+           (btn.textContent.includes('Online') || btn.textContent.includes('Offline')))
+        ))
+      );
+      if (isToggleAtelier) {
         e.preventDefault();
         e.stopPropagation();
         setIsAtelierOnline((prev) => {
           const next = !prev;
-          showToast(next ? 'Atelier is now ONLINE · Accepting 45-min orders' : 'Atelier is now PAUSED · Queue halted');
+          showToast(next ? 'Store is now ONLINE · Accepting 45-min orders' : 'Store is now PAUSED · Queue halted');
           return next;
         });
         return;
@@ -3500,117 +3513,87 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Porter Rider Sunil Kamble notified for station pickup at Sitabuldi.');
+        showToast('Porter Rider Alerted: Station 04 Dispatch ready.');
         return;
       }
 
-      // --- 23e. VENDOR ORDER QUEUE: TRACK COURIER ---
-      if (
-        btn &&
-        (btn.textContent?.trim() === 'Track' || btn.getAttribute('data-action') === 'track-courier') &&
-        (targetKey.includes('Vendor_Order_Queue') || targetKey.includes('Vendor_Orders'))
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        navigateScreen('LiveTracking', { orderId: 'KP-8479' });
+      // --- 23e. VENDOR ORDER QUEUE: TOGGLE AUTO-ACCEPT ---
+      const autoAcceptInput = target.closest('#autoAcceptSwitch, input[name="autoAccept"]');
+      if (autoAcceptInput) {
+        const isChecked = autoAcceptInput.checked;
+        showToast(isChecked ? 'Auto-Accept Enabled (Immediate Handoff)' : 'Auto-Accept Disabled');
         return;
       }
 
-      // --- 23f. VENDOR ORDER QUEUE: ORDER CARD CLICK ---
-      const queueOrderCard = target.closest('.order-card, [data-order-id], article');
-      if (
-        queueOrderCard &&
-        (targetKey.includes('Vendor_Order_Queue') || targetKey.includes('Vendor_Orders')) &&
-        !target.closest('button, a, input, select, label')
-      ) {
+      // --- 23f. VENDOR ORDER QUEUE: DIRECT CALL BUYER ---
+      if (btn && (btn.textContent?.includes('Call Buyer') || btn.getAttribute('aria-label')?.includes('Call Buyer'))) {
         e.preventDefault();
         e.stopPropagation();
-        const ordId = queueOrderCard.getAttribute('data-order-id') || 'ord-849201';
-        navigateScreen('VendorOrderDetail', { orderId: ordId });
+        showToast('Calling Buyer via Masked Line (+91 98230 44100)...');
         return;
       }
 
-      // --- 23g. VENDOR ORDER DETAIL: PRINT GARMENT TAG ---
-      if (
-        btn &&
-        (btn.id === 'printTagBtn' ||
-          btn.textContent?.includes('Print Garment Tag') ||
-          btn.textContent?.includes('Print Tag') ||
-          btn.getAttribute('data-action') === 'print-tag')
-      ) {
+      // --- 23g. VENDOR ORDER QUEUE: DIRECT WHATSAPP BUYER ---
+      if (btn && (btn.textContent?.includes('WhatsApp Buyer') || btn.getAttribute('aria-label')?.includes('WhatsApp Buyer'))) {
         e.preventDefault();
         e.stopPropagation();
-        if (typeof window !== 'undefined' && window.print) {
-          try { window.print(); } catch (e) {}
+        showToast('Opening WhatsApp Chat with Buyer...');
+        return;
+      }
+
+      // --- 23h. VENDOR ORDER QUEUE: PRINT SLIP / INVOICE ---
+      if (btn && (btn.textContent?.includes('Print') || btn.textContent?.includes('Invoice') || btn.getAttribute('aria-label')?.includes('Print'))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Nagpur Courier Manifest & Dispatch Slip Generated.');
+        return;
+      }
+
+      // --- 23i. VENDOR ORDER QUEUE: REJECT / CANCEL ORDER ---
+      if (btn && (btn.textContent?.includes('Reject') || btn.textContent?.includes('Decline') || btn.getAttribute('data-action') === 'reject-order')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ordCard = btn.closest('[data-order-id]');
+        const ordId = btn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
+        updateOrderStatus(ordId, 'CANCELLED').catch(() => {});
+        showToast('Order declined and routed to alternate Nagpur boutique.');
+        return;
+      }
+
+      // --- 23j. VENDOR ORDER DETAIL: STATUS BUTTONS ---
+      if (btn && (targetKey.includes('Vendor_Order_Detail') || targetKey.includes('Order_Detail'))) {
+        if (btn.textContent?.includes('Accept Order')) {
+          e.preventDefault();
+          e.stopPropagation();
+          showToast('Order Accepted · Packing underway.');
+          return;
         }
-        showToast('Garment Tag & Courier QR sent to thermal printer.');
-        return;
+        if (btn.textContent?.includes('Mark Ready') || btn.textContent?.includes('Handover')) {
+          e.preventDefault();
+          e.stopPropagation();
+          showToast('Handover Station confirmed · Courier alerted.');
+          return;
+        }
       }
 
-      // --- 23h. VENDOR ORDER DETAIL: STYLIST DESK ---
-      if (
-        btn &&
-        (btn.id === 'stylistDeskBtn' ||
-          btn.textContent?.includes('Stylist Desk') ||
-          btn.getAttribute('data-action') === 'stylist-desk')
-      ) {
+      // --- 23k. CATALOGUE MANAGER: CATEGORY TABS ---
+      const catTab = target.closest('#categoryRail button, .filter-pill');
+      if (catTab && targetKey.includes('Catalogue_Manager')) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Connecting to Nagpur Senior Stylist Desk (+91 712 254 9900)...');
-        return;
-      }
-
-      // --- 23i. VENDOR ORDER DETAIL: DISPATCH PORTER ---
-      if (
-        btn &&
-        (btn.id === 'dispatchBtn' ||
-          (btn.textContent && (btn.textContent.includes('MARK READY & DISPATCH') || btn.textContent.includes('Mark Ready & Dispatch') || btn.textContent.includes('Dispatch Courier')) && targetKey.includes('Vendor_Order_Detail')))
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        showToast('Porter courier Sunil Kamble assigned and dispatched (45-min SLA).');
-        const toast = el.querySelector('#dispatchToast');
-        if (toast) toast.classList.remove('hidden');
-        return;
-      }
-
-      // --- 23j. CATALOGUE MANAGER: CATEGORY RAIL ---
-      const catRailBtn = target.closest('#categoryRail button, .filter-pill');
-      if (catRailBtn && (targetKey.includes('Catalogue_Manager') || targetKey.includes('Catalog'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        const cat = catRailBtn.getAttribute('data-cat') || catRailBtn.textContent.trim().toUpperCase();
+        const txt = catTab.textContent.trim().toUpperCase();
+        const cat = txt.includes('KURTA') || txt.includes('ANGRAKHA') ? 'KURTA' : txt.includes('SAREE') ? 'SAREES' : txt.includes('DUPATTA') ? 'DUPATTA' : 'ALL';
         setCatalogCategory(cat);
-        showToast(`Catalog Category: ${cat}`);
+        showToast(`Filtered: ${catTab.textContent.trim()}`);
         return;
       }
 
-      // --- 23k. CATALOGUE MANAGER: SCAN SKU QR ---
-      if (
-        btn &&
-        (btn.id === 'scanQrBtn' ||
-          btn.getAttribute('aria-label')?.toLowerCase().includes('scan sku') ||
-          btn.textContent?.includes('Scan SKU') ||
-          btn.querySelector?.('.fa-qrcode, [viewBox*="24 24"]'))
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        showToast('SKU Barcode / QR Scanner active. Camera ready.');
-        return;
-      }
-
-      // --- 23l. CATALOGUE MANAGER: QUICK EDIT ---
-      if (
-        btn &&
-        (btn.getAttribute('title')?.toLowerCase().includes('quick edit') ||
-          btn.getAttribute('aria-label')?.toLowerCase().includes('more') ||
-          btn.textContent?.includes('more_vert') ||
-          btn.querySelector?.('.fa-ellipsis-vertical'))
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        showToast('Quick Edit: Studio Anamika SKU configuration.');
-        return;
+      // --- 23l. CATALOGUE MANAGER: SEARCH INPUT ---
+      const catSearchInput = target.closest('#catalogueSearch');
+      if (catSearchInput) {
+        catSearchInput.addEventListener?.('input', (ie) => {
+          setCatalogSearchQuery(ie.target.value);
+        });
       }
 
       // --- 23m. CATALOGUE MANAGER: WHATSAPP SYNC & BULK STOCK ---
@@ -3623,7 +3606,7 @@ export default function StitchScreenRenderer({
       if (btn && (btn.id === 'bulkStockBtn' || btn.textContent?.includes('Bulk Stock Audit'))) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Nagpur Atelier Bulk Stock Audit mode opened.');
+        showToast('Nagpur Store Bulk Stock Audit mode opened.');
         return;
       }
 
@@ -3635,7 +3618,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast(`Available Stock in Nagpur Atelier (${btn.textContent.trim()}): 4 pieces.`);
+        showToast(`Available Stock in Nagpur Boutique (${btn.textContent.trim()}): 4 pieces.`);
         return;
       }
 
@@ -3772,7 +3755,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Atelier Ingestion Guide: High-res front & back daylight photos required.');
+        showToast('Product Listing Guide: High-res front & back daylight photos required.');
         return;
       }
       if (
@@ -3782,7 +3765,7 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('3 Unpublished drafts saved locally in Nagpur Atelier.');
+        showToast('3 Unpublished drafts saved locally in Nagpur Store.');
         return;
       }
 
@@ -3985,7 +3968,11 @@ export default function StitchScreenRenderer({
         [80, 200, 450, 900, 1600].forEach((delay) => {
           setTimeout(() => {
             if (active && deliveryMiniMapRef.current === map) {
-              map.invalidateSize(true);
+              try {
+                if (map._container && map._mapPane) {
+                  map.invalidateSize(true);
+                }
+              } catch (e) {}
             }
           }, delay);
         });
@@ -4001,6 +3988,12 @@ export default function StitchScreenRenderer({
     return () => {
       active = false;
       if (pollTimer) clearTimeout(pollTimer);
+      if (deliveryMiniMapRef.current) {
+        try {
+          deliveryMiniMapRef.current.remove();
+        } catch (e) {}
+        deliveryMiniMapRef.current = null;
+      }
     };
   }, [targetKey, deliveryLocation.latitude, deliveryLocation.longitude]);
 
@@ -4202,10 +4195,10 @@ export default function StitchScreenRenderer({
             {/* Precinct List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
               {[
-                { name: 'Sitabuldi', pincode: '440012', desc: 'Central Atelier Hub · 45-Min Hub', lat: 21.1458, lng: 79.0835 },
+                { name: 'Sitabuldi', pincode: '440012', desc: 'Central Boutique Hub · 45-Min Hub', lat: 21.1458, lng: 79.0835 },
                 { name: 'Dharampeth', pincode: '440010', desc: 'Heritage Handloom Precinct', lat: 21.1432, lng: 79.0617 },
                 { name: 'Civil Lines', pincode: '440001', desc: 'Designer Boutiques & Studios', lat: 21.1553, lng: 79.0734 },
-                { name: 'Ramdaspeth', pincode: '440010', desc: 'South Couture Corridor', lat: 21.1345, lng: 79.0745 },
+                { name: 'Ramdaspeth', pincode: '440010', desc: 'South Fashion Corridor', lat: 21.1345, lng: 79.0745 },
                 { name: 'Sadar', pincode: '440001', desc: 'Historic Cantonment Tailors', lat: 21.1633, lng: 79.0818 },
                 { name: 'Wardha Road', pincode: '440015', desc: 'Airport Express Corridor', lat: 21.1105, lng: 79.0685 },
               ].map((precinct) => {
@@ -4318,7 +4311,7 @@ export default function StitchScreenRenderer({
                   En Route to {deliveryLocation.areaName}, Nagpur
                 </div>
                 <div style={{ fontSize: 12, color: '#C4243A', fontWeight: 600, marginTop: 2 }}>
-                  ~18 Mins · Porter White-Glove Dispatch
+                  ~18 Mins · Express Doorstep Dispatch
                 </div>
               </div>
               <button

@@ -1,5 +1,5 @@
 /**
- * Indian Couture & Atelier Fashion Color Palette
+ * Indian Designer Wear & Boutique Fashion Color Palette
  * Curated shades inspired by Nagpur silk, khadi, and handloom traditions.
  */
 

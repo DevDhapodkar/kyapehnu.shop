@@ -218,7 +218,7 @@ async function seed() {
         fit: 'Standard 6.2m Draped',
         occasion: 'Wedding & Ceremonial',
         sleeve: 'Unstitched Blouse Piece',
-        neck: 'Bespoke Neckline',
+        neck: 'Designer Neckline',
         careInstructions: 'Dry Clean Only',
         netQuantity: 1,
         countryOfOrigin: 'India',
