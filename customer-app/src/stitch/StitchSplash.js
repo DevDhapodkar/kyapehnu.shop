@@ -3,8 +3,71 @@ import React, { useEffect } from 'react';
 import { useThemeStore } from '../store/useThemeStore';
 import { LOGO_DATA_URI } from '../constants/logoDataUri';
 
-const LIGHT_HTML = "<main class=\"flex-1 flex flex-col w-full bg-ground-base pt-safe pb-safe px-gutter-md\"><div class=\"flex flex-col w-full relative justify-between py-gutter-xl items-center min-h-[85vh] select-none overflow-hidden\">\n<div class=\"absolute inset-0 pointer-events-none flex items-center justify-center -z-10\">\n<div class=\"w-80 h-80 rounded-full bg-accent-crimson/5 blur-3xl transform -translate-y-12\"></div>\n<div class=\"w-64 h-64 rounded-full bg-accent-gold/10 blur-2xl transform translate-y-24\"></div>\n</div>\n<div class=\"w-full flex items-center justify-between px-gutter-xs\">\n<div class=\"flex items-center gap-gutter-xs bg-surface-container-low px-3 py-1 rounded-full shadow-sm\">\n<span class=\"inline-block w-1.5 h-1.5 rounded-full bg-accent-crimson animate-pulse\"></span>\n<span class=\"font-eyebrow text-eyebrow text-text-slate tracking-widest uppercase\">Nagpur Express</span>\n</div>\n<div class=\"flex items-center gap-1 text-accent-gold\">\n<span class=\"material-symbols-outlined text-[15px]\" style=\"font-variation-settings: 'FILL' 1;\">stars</span>\n<span class=\"font-eyebrow text-eyebrow tracking-widest text-accent-gold-deep uppercase\">Trending Fashion</span>\n</div>\n</div>\n<div class=\"flex flex-col items-center justify-center text-center px-gutter-sm my-auto w-full max-w-sm\">\n<div class=\"relative group cursor-pointer transition-transform duration-500 hover:scale-[1.02] active:scale-95 mb-gutter-lg\">\n<div class=\"absolute -inset-2 bg-gradient-to-tr from-accent-gold/20 via-accent-crimson/15 to-transparent rounded-[2.5rem] blur-xl opacity-70\"></div>\n<div class=\"relative w-36 h-36 sm:w-40 sm:h-40 rounded-[2.25rem] bg-gradient-to-b from-accent-crimson to-accent-crimson-deep shadow-2xl p-1 flex items-center justify-center\">\n<div class=\"absolute inset-0 rounded-[2.25rem] bg-gradient-to-br from-accent-gold/40 via-transparent to-black/30 pointer-events-none\"></div>\n<div class=\"w-full h-full rounded-[2rem] overflow-hidden flex items-center justify-center bg-accent-crimson relative shadow-inner\">\n<img alt=\"Kya Pehnu Royal Crimson Emblem\" class=\"w-full h-full object-cover transform scale-105 transition-transform duration-700 hover:rotate-1\" src=\"https://lh3.googleusercontent.com/aida/AEtjO1VnExgRV6OGL1IkUJrOwHJCTHcaj3ATm4vhTTU2y-L44Ar2NYsYlBu5ENvh4NFq2sOj1QiK_evlN-eoUkhuG3EfTz050QYCPCKRTQRIoJqEoY-PhYpnzcr-HmCUCfTcvRfAul3QsiqHSguDpuGgScnLRwtgXFqzBfDjDE5HyEsTocDD1dykjDKk2XVh6_Uo9pbafQHgDt7ClzAnspBkb8STruPTbiVM-J63df0Lq1l-zZWrwovDGnuhgnUs\"/>\n</div>\n</div>\n\n</div>\n<h1 class=\"font-display-hero-mobile text-display-hero-mobile text-text-obsidian tracking-tight mb-2\">\n      Kya Pehnu?\n    </h1>\n<div class=\"inline-flex items-center gap-2 mb-gutter-sm\">\n<span class=\"w-4 h-[1px] bg-accent-gold/60\"></span>\n<span class=\"font-eyebrow text-eyebrow text-accent-gold-deep uppercase tracking-widest\">Nagpur Fashion Network</span>\n<span class=\"w-4 h-[1px] bg-accent-gold/60\"></span>\n</div>\n<p class=\"font-body-sm text-body-sm text-text-ash max-w-[260px] leading-relaxed\">\n      Trending streetwear, party wear, casuals &amp; everyday fits delivered to your doorstep.\n    </p>\n<div class=\"flex items-center justify-center gap-2 mt-gutter-md\"><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Streetwear &amp; Casuals</span><span class=\"text-text-ash/40 text-xs\">•</span><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Party Fits</span><span class=\"text-text-ash/40 text-xs\">•</span><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Across Nagpur</span></div>\n</div>\n<div class=\"w-full flex flex-col items-center gap-gutter-sm max-w-xs px-gutter-sm\">\n<div class=\"w-full flex flex-col gap-1.5 items-center\">\n<div class=\"w-full h-1 bg-surface-container-high rounded-full overflow-hidden relative shadow-inner\">\n<div class=\"h-full bg-gradient-to-r from-accent-gold via-accent-crimson to-accent-gold-deep rounded-full w-2/5 transition-all duration-1000 ease-out\" id=\"atelier-progress\"></div>\n</div>\n<div class=\"w-full flex justify-between items-center text-text-ash pt-0.5\">\n<span class=\"font-tabular-caption text-tabular-caption text-text-slate flex items-center gap-1\">\n<span class=\"material-symbols-outlined text-accent-gold text-xs\" style=\"font-variation-settings: 'FILL' 1;\">nest_clock_farsight_analog</span>\n          Connecting Boutiques\n        </span>\n<span class=\"font-tabular-caption text-tabular-caption text-text-ash\">Nagpur Live</span>\n</div>\n</div>\n<div class=\"flex items-center gap-1 text-text-ash/70 pt-2\">\n<span class=\"material-symbols-outlined text-[13px]\">verified_user</span>\n<span class=\"font-eyebrow text-[9px] tracking-widest uppercase\">Curated Fashion For Men &amp; Women · Nagpur</span>\n</div>\n</div>\n</div>\n</main>";
-const DARK_HTML = "<main class=\"flex-1 flex flex-col relative w-full min-h-screen bg-surface-container-lowest overflow-hidden justify-between\"><div class=\"relative flex flex-col justify-between items-center w-full h-full min-h-screen px-margin py-space-lg select-none\"><div class=\"absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary-container/20 blur-[120px] pointer-events-none\"></div><div class=\"absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-secondary/15 blur-[100px] pointer-events-none\"></div><div class=\"relative z-10 w-full flex items-center justify-between pt-safe px-space-xs\"><div class=\"inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high/80 border border-outline-variant/40 backdrop-blur-md\"><span class=\"w-2 h-2 rounded-full bg-primary animate-ping\"></span><span class=\"font-label-sm text-[11px] text-secondary tracking-widest uppercase font-semibold\">• NAGPUR EXPRESS</span></div><div class=\"inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container-high/80 border border-outline-variant/40 backdrop-blur-md\"><span class=\"font-label-sm text-[11px] text-secondary-fixed tracking-widest uppercase font-semibold\">✪ TRENDING FASHION</span></div></div><div class=\"relative z-10 flex flex-col items-center text-center my-auto w-full max-w-sm px-space-sm\"><div class=\"relative mb-space-lg group\"><div class=\"absolute -inset-3 rounded-full bg-gradient-to-tr from-primary-container/40 via-secondary/25 to-primary-container/10 blur-xl opacity-80\"></div><div class=\"relative w-36 h-36 xs:w-40 xs:h-40 rounded-full bg-surface-container-lowest p-1.5 shadow-2xl flex items-center justify-center border border-outline-variant/50\"><div class=\"w-full h-full rounded-full bg-gradient-to-b from-surface-container-high via-surface-container to-surface-container-lowest flex items-center justify-center p-2.5 overflow-hidden shadow-inner\"><img alt=\"Enlarged gold hanger logo on royal crimson squircle\" class=\"w-full h-full object-contain filter drop-shadow-[0_10px_16px_rgba(0,0,0,0.6)]\" src=\"https://lh3.googleusercontent.com/aida/AEtjO1VnExgRV6OGL1IkUJrOwHJCTHcaj3ATm4vhTTU2y-L44Ar2NYsYlBu5ENvh4NFq2sOj1QiK_evlN-eoUkhuG3EfTz050QYCPCKRTQRIoJqEoY-PhYpnzcr-HmCUCfTcvRfAul3QsiqHSguDpuGgScnLRwtgXFqzBfDjDE5HyEsTocDD1dykjDKk2XVh6_Uo9pbafQHgDt7ClzAnspBkb8STruPTbiVM-J63df0Lq1l-zZWrwovDGnuhgnUs\"></div></div></div><div class=\"flex flex-col items-center space-y-space-xs mt-2\"><p class=\"font-label-sm text-label-sm text-secondary tracking-[0.25em] uppercase font-semibold opacity-90\">— NAGPUR FASHION NETWORK —</p><h1 class=\"font-headline-xl text-[42px] leading-tight text-on-surface tracking-tight mt-1\">Kya Pehnu?</h1><p class=\"font-body-md text-body-md text-on-surface-variant max-w-[280px] leading-relaxed pt-space-xs\">Trending streetwear, party wear, casuals &amp; everyday fits delivered to your doorstep.</p></div><div class=\"flex items-center justify-center gap-2 mt-gutter-md\"><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Streetwear &amp; Casuals</span><span class=\"text-text-ash/40 text-xs\">•</span><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Party Fits</span><span class=\"text-text-ash/40 text-xs\">•</span><span class=\"font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate\">Across Nagpur</span></div></div><div class=\"relative z-10 w-full max-w-xs flex flex-col items-center text-center pb-safe pt-space-md space-y-space-sm\"><div class=\"w-full h-1 bg-surface-container-high rounded-full overflow-hidden relative\"><div class=\"h-full bg-gradient-to-r from-primary-container via-secondary to-secondary-fixed rounded-full w-2/5 transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(234,193,102,0.8)]\" id=\"coutureProgressBar\" style=\"width: 98%;\"></div></div><div class=\"w-full flex items-center justify-between text-on-surface-variant px-0.5\"><div class=\"flex items-center gap-1.5\"><span class=\"text-[12px] opacity-70\">⏱</span><span class=\"font-label-sm text-[11px] text-on-surface-variant tracking-wide\">Connecting Boutiques</span></div><div class=\"flex items-center gap-1\"><span class=\"w-1.5 h-1.5 rounded-full bg-secondary animate-pulse\"></span><span class=\"font-label-sm text-[11px] text-secondary tracking-wide uppercase font-semibold\">Nagpur Live</span></div></div><div class=\"pt-space-xs\"><p class=\"font-label-sm text-[10px] text-outline tracking-[0.16em] uppercase flex items-center gap-1\"><span class=\"\">🛡</span><span class=\"\">Curated Fashion For Men &amp; Women · Nagpur</span></p></div></div></div>\n</main>";
+const LIGHT_HTML = `<main class="fixed inset-0 z-50 w-full h-full flex flex-col justify-between items-center bg-[#FAF9F5] select-none px-6 py-16 overflow-hidden">
+  <!-- Top spacing -->
+  <div class="w-full h-8"></div>
+
+  <!-- Center brand hero -->
+  <div class="flex flex-col items-center text-center my-auto z-10 max-w-sm">
+    <div class="relative mb-6">
+      <div class="absolute -inset-4 bg-gradient-to-tr from-[#C4243A]/15 to-transparent rounded-[36px] blur-2xl"></div>
+      <div class="relative w-24 h-24 rounded-[26px] bg-gradient-to-b from-[#C4243A] to-[#920021] p-1 shadow-2xl flex items-center justify-center border border-white/60">
+        <img src="` + LOGO_DATA_URI + `" alt="Kya Pehnu? Logo" class="w-full h-full object-cover rounded-[22px]" />
+      </div>
+    </div>
+
+    <h1 class="text-3xl font-semibold text-neutral-900 tracking-tight font-sans">
+      Kya Pehnu<span class="text-[#C4243A]">?</span>
+    </h1>
+    <p class="text-[13px] text-neutral-500 font-normal tracking-wide mt-2">
+      Fashion Delivered in 45 Minutes · Nagpur
+    </p>
+  </div>
+
+  <!-- Bottom minimal indicator -->
+  <div class="w-full max-w-xs flex flex-col items-center gap-3 z-10">
+    <div class="w-12 h-1 bg-neutral-200/80 rounded-full overflow-hidden relative">
+      <div class="h-full bg-[#C4243A] rounded-full w-full animate-pulse"></div>
+    </div>
+    <span class="text-[11px] text-neutral-400 font-normal tracking-wider">
+      Nagpur's Fast Fashion App
+    </span>
+  </div>
+</main>`;
+
+const DARK_HTML = `<main class="fixed inset-0 z-50 w-full h-full flex flex-col justify-between items-center bg-[#0E0E10] select-none px-6 py-16 overflow-hidden">
+  <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-[#C4243A]/10 blur-[120px] pointer-events-none"></div>
+
+  <!-- Top spacing -->
+  <div class="w-full h-8"></div>
+
+  <!-- Center brand hero -->
+  <div class="flex flex-col items-center text-center my-auto z-10 max-w-sm">
+    <div class="relative mb-6">
+      <div class="absolute -inset-4 bg-gradient-to-tr from-[#C4243A]/20 to-transparent rounded-[36px] blur-2xl"></div>
+      <div class="relative w-24 h-24 rounded-[26px] bg-gradient-to-b from-[#C4243A] to-[#680016] p-1 shadow-2xl flex items-center justify-center border border-white/10">
+        <img src="` + LOGO_DATA_URI + `" alt="Kya Pehnu? Logo" class="w-full h-full object-cover rounded-[22px]" />
+      </div>
+    </div>
+
+    <h1 class="text-3xl font-semibold text-neutral-50 tracking-tight font-sans">
+      Kya Pehnu<span class="text-rose-400">?</span>
+    </h1>
+    <p class="text-[13px] text-neutral-400 font-normal tracking-wide mt-2">
+      Fashion Delivered in 45 Minutes · Nagpur
+    </p>
+  </div>
+
+  <!-- Bottom minimal indicator -->
+  <div class="w-full max-w-xs flex flex-col items-center gap-3 z-10">
+    <div class="w-12 h-1 bg-neutral-800 rounded-full overflow-hidden relative">
+      <div class="h-full bg-rose-400 rounded-full w-full animate-pulse"></div>
+    </div>
+    <span class="text-[11px] text-neutral-500 font-normal tracking-wider">
+      Nagpur's Fast Fashion App
+    </span>
+  </div>
+</main>`;
 
 export default function StitchSplash({ onFinish }) {
   const isDark = useThemeStore((s) => s.isDark);
@@ -16,18 +79,11 @@ export default function StitchSplash({ onFinish }) {
     return () => clearTimeout(timer);
   }, [onFinish]);
 
-  const activeHtml = React.useMemo(() => {
-    const raw = isDark ? DARK_HTML : LIGHT_HTML;
-    return raw
-      .replace(/https:\/\/lh3\.googleusercontent\.com\/aida\/[a-zA-Z0-9_-]+/g, LOGO_DATA_URI)
-      .replace(/src="\/app\/apple-touch-icon\.png"/g, `src="${LOGO_DATA_URI}"`);
-  }, [isDark]);
-
   return (
     <div
       onClick={onFinish}
       className="fixed inset-0 z-50 w-full h-full cursor-pointer flex flex-col justify-center items-center"
-      dangerouslySetInnerHTML={{ __html: activeHtml }}
+      dangerouslySetInnerHTML={{ __html: isDark ? DARK_HTML : LIGHT_HTML }}
     />
   );
 }

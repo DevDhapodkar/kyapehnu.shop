@@ -30,7 +30,7 @@ async function run() {
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step1_welcome.png') });
 
   // Welcome Screen -> Guest
-  const guestBtn = page.getByRole('button', { name: /(Explore Storefront as Guest|Browse Catalog as guest)/i }).first();
+  const guestBtn = page.getByRole('button', { name: /(Explore Looks|Explore Storefront as Guest|Browse Catalog as guest)/i }).first();
   await guestBtn.waitFor({ state: 'visible', timeout: 15000 });
   await guestBtn.click();
   await page.waitForTimeout(2000);
