@@ -488,10 +488,21 @@ if (fs.existsSync(faviconIcoSource)) {
 }
 
 // Clean target directory and copy fresh build files
+const possibleSymlink = path.join(distWebDir, 'app');
+if (fs.existsSync(possibleSymlink) || fs.lstatSync(possibleSymlink, { throwIfNoEntry: false })) {
+  fs.rmSync(possibleSymlink, { force: true });
+}
+
 if (fs.existsSync(targetDir)) {
   fs.rmSync(targetDir, { recursive: true, force: true });
 }
 fs.mkdirSync(targetDir, { recursive: true });
 fs.cpSync(distWebDir, targetDir, { recursive: true, force: true });
 
+const targetSymlink = path.join(targetDir, 'app');
+if (fs.existsSync(targetSymlink) || fs.lstatSync(targetSymlink, { throwIfNoEntry: false })) {
+  fs.rmSync(targetSymlink, { force: true });
+}
+
 console.log('[4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');
+
