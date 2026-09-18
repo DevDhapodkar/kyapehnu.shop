@@ -22,8 +22,8 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
       </div>
     </div>
 
-    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 leading-tight">
-      Kya Pehnu<span class="text-[#C4243A]">?</span>
+    <h1 class="font-display-hero-mobile text-display-hero-mobile text-text-obsidian tracking-tight mb-2 font-normal text-4xl" style="font-family: 'EB Garamond', Georgia, serif;">
+      Kya Pehnu?
     </h1>
 
     <p class="text-sm sm:text-base font-semibold text-neutral-800 tracking-tight mt-1.5">
@@ -109,8 +109,8 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
       </div>
     </div>
 
-    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-50 leading-tight">
-      Kya Pehnu<span class="text-rose-400">?</span>
+    <h1 class="font-display-hero-mobile text-display-hero-mobile text-[#F5F3EF] tracking-tight mb-2 font-normal text-4xl" style="font-family: 'EB Garamond', Georgia, serif;">
+      Kya Pehnu?
     </h1>
 
     <p class="text-sm sm:text-base font-semibold text-neutral-200 tracking-tight mt-1.5">

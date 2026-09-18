@@ -16,8 +16,8 @@ const LIGHT_HTML = `<main class="fixed inset-0 z-50 w-full h-full flex flex-col 
       </div>
     </div>
 
-    <h1 class="text-3xl font-semibold text-neutral-900 tracking-tight font-sans">
-      Kya Pehnu<span class="text-[#C4243A]">?</span>
+    <h1 class="font-display-hero-mobile text-display-hero-mobile text-text-obsidian tracking-tight mb-2 font-normal text-4xl" style="font-family: 'EB Garamond', Georgia, serif;">
+      Kya Pehnu?
     </h1>
     <p class="text-[13px] text-neutral-500 font-normal tracking-wide mt-2">
       Fashion Delivered in 45 Minutes · Nagpur
@@ -50,8 +50,8 @@ const DARK_HTML = `<main class="fixed inset-0 z-50 w-full h-full flex flex-col j
       </div>
     </div>
 
-    <h1 class="text-3xl font-semibold text-neutral-50 tracking-tight font-sans">
-      Kya Pehnu<span class="text-rose-400">?</span>
+    <h1 class="font-display-hero-mobile text-display-hero-mobile text-[#F5F3EF] tracking-tight mb-2 font-normal text-4xl" style="font-family: 'EB Garamond', Georgia, serif;">
+      Kya Pehnu?
     </h1>
     <p class="text-[13px] text-neutral-400 font-normal tracking-wide mt-2">
       Fashion Delivered in 45 Minutes · Nagpur
