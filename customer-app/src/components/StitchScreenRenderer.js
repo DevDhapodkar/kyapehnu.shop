@@ -4,6 +4,7 @@ import stitchScreens from '../data/stitchScreens.json';
 import { useThemeStore } from '../store/useThemeStore';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore, ROLES } from '../store/useAuthStore';
+import { friendlyAuthError } from '../services/auth';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import {
   createGuestOrder,
@@ -2369,15 +2370,7 @@ export default function StitchScreenRenderer({
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
           btn.innerHTML = origHtml;
-          if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
-            showToast('Google sign-in was cancelled.');
-          } else if (err?.code === 'auth/unauthorized-domain') {
-            showToast('Domain not authorized in Firebase Console settings.');
-          } else if (err?.code === 'auth/popup-blocked') {
-            showToast('Popup was blocked by browser. Please allow popups.');
-          } else {
-            showToast(err?.message || 'Google sign-in failed. Please try again.');
-          }
+          showToast(friendlyAuthError(err));
         }
         return;
       }

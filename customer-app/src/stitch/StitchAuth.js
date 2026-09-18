@@ -27,10 +27,17 @@ export default function StitchAuth({ navigation }) {
       } else if (text.includes('register') || text.includes('boutique') || aria.includes('register')) {
         e.preventDefault();
         navigation.navigate('VendorRegister');
+      } else if (text.includes('google')) {
+        e.preventDefault();
+        try {
+          await useAuthStore.getState().signInWithGoogle?.();
+          navigation.navigate('Home');
+        } catch (err) {
+          console.error('[Google Sign-In Error]', err);
+        }
       } else if (
         text.includes('sign in') ||
         text.includes('create account') ||
-        text.includes('google') ||
         target.id === 'cta-button'
       ) {
         e.preventDefault();

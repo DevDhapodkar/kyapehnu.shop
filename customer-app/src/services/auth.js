@@ -7,7 +7,9 @@ import {
   sendPasswordResetEmail,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
+  browserPopupRedirectResolver,
 } from 'firebase/auth';
 
 import { auth, isFirebaseConfigured } from '../config/firebase';
@@ -38,13 +40,31 @@ export const signInGoogle = async () => {
   const authInstance = ensureAuth();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
+  provider.addScope('email');
+  provider.addScope('profile');
+  const resolver = browserPopupRedirectResolver || undefined;
   try {
-    return await signInWithPopup(authInstance, provider);
+    return await (resolver
+      ? signInWithPopup(authInstance, provider, resolver)
+      : signInWithPopup(authInstance, provider));
   } catch (err) {
     if (err?.code === 'auth/popup-blocked') {
-      return await signInWithRedirect(authInstance, provider);
+      return await (resolver
+        ? signInWithRedirect(authInstance, provider, resolver)
+        : signInWithRedirect(authInstance, provider));
     }
     throw err;
+  }
+};
+
+export const checkRedirectResult = async () => {
+  if (!isFirebaseConfigured || !auth) return null;
+  try {
+    const resolver = browserPopupRedirectResolver || undefined;
+    return await (resolver ? getRedirectResult(auth, resolver) : getRedirectResult(auth));
+  } catch (err) {
+    console.warn('[auth] getRedirectResult check:', err?.message || err);
+    return null;
   }
 };
 
@@ -104,6 +124,10 @@ export const friendlyAuthError = (error) => {
       return 'Browser blocked the sign-in popup. Please allow popups for this site.';
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized in Firebase Auth settings. Add localhost or your domain in Firebase Console.';
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in is not enabled in Firebase Authentication.';
+    case 'auth/argument-error':
+      return 'Authentication configuration error. Please refresh and try again.';
     case 'auth/not-configured':
       return error.message;
     default:

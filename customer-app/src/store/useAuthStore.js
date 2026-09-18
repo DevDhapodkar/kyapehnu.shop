@@ -7,11 +7,13 @@ import {
   fetchVendorProfile,
   registerUserPushToken,
 } from '../api/vendorApi';
+import { Platform } from 'react-native';
 import { registerForPush } from '../services/notifications';
 import {
   signInEmail,
   registerEmail,
   signInGoogle,
+  checkRedirectResult,
   resetPassword,
   signOutFirebase,
   subscribeIdToken,
@@ -77,6 +79,23 @@ export const useAuthStore = create((set, get) => ({
    */
   initAuth: () => {
     if (get()._unsubscribe) return get()._unsubscribe;
+
+    if (Platform.OS === 'web') {
+      checkRedirectResult()
+        .then(async (cred) => {
+          if (cred?.user) {
+            const token = await cred.user.getIdToken();
+            setAuthToken(token);
+            set({ user: cred.user, token, authReady: true });
+            syncUserProfile({
+              name: cred.user.displayName || '',
+              email: cred.user.email,
+              phone: cred.user.phoneNumber || '',
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
 
     const unsubscribe = subscribeIdToken(async (session) => {
       if (!session) {
@@ -205,6 +224,7 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithGoogle: async () => {
     const cred = await signInGoogle();
+    if (!cred || !cred.user) return;
     const token = await cred.user.getIdToken();
     setAuthToken(token);
     set({ user: cred.user, token });
