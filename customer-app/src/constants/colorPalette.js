@@ -1,6 +1,6 @@
 /**
  * Indian Designer Wear & Boutique Fashion Color Palette
- * Curated shades inspired by Nagpur silk, khadi, and handloom traditions.
+ * Curated shades for contemporary menswear, womenswear, and streetwear.
  */
 
 export const COLOR_PALETTE = [
@@ -8,7 +8,7 @@ export const COLOR_PALETTE = [
   { name: 'Pearl Ivory', hex: '#F9F6F0', border: '#D5CEC5' },
   { name: 'Crimson Red', hex: '#C4243A' },
   { name: 'Royal Maroon', hex: '#721B24' },
-  { name: 'Heritage Gold', hex: '#D97706' },
+  { name: 'Warm Gold', hex: '#D97706' },
   { name: 'Amber Ochre', hex: '#F59E0B' },
   { name: 'Peacock Teal', hex: '#0F766E' },
   { name: 'Emerald Green', hex: '#047857' },

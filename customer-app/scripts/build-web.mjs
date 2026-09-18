@@ -429,7 +429,7 @@ if (fs.existsSync(indexPath)) {
           <img src="${LOGO_DATA_URI}" alt="Kya Pehnu" style="width:104px;height:104px;border-radius:28px;box-shadow:0 12px 36px rgba(196,36,58,0.18);position:relative;z-index:2;" />
         </div>
         <div style="margin-top:28px;font-size:26px;font-weight:500;color:#18181B;letter-spacing:-0.5px;font-family:'EB Garamond',Georgia,serif;">Kya Pehnu?</div>
-        <div style="margin-top:6px;font-size:12px;color:#71717A;letter-spacing:0.2px;">Nagpur Hyperlocal Fashion &bull; Under 45 Minutes</div>
+        <div style="margin-top:6px;font-size:12px;color:#71717A;letter-spacing:0.2px;">Nagpur Fast Fashion &bull; Trending Fits Delivered to Your Doorstep</div>
       </div>
     </div>
   `;
@@ -441,9 +441,10 @@ if (fs.existsSync(indexPath)) {
 // Generate manifest.json
 const manifest = {
   short_name: 'Kya Pehnu',
-  name: 'Kya Pehnu? — New Outfit Under 60 Minutes',
-  description: 'Hyper-local 60-minute fashion delivery in Nagpur.',
+  name: 'Kya Pehnu? — Fast Fashion Delivery in Nagpur',
+  description: 'Trending streetwear, casuals, partywear, and everyday fits delivered in Nagpur.',
   icons: [
+
     {
       src: '/app/apple-touch-icon.png',
       sizes: '512x512',

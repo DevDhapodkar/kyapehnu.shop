@@ -46,7 +46,7 @@ export default class ErrorBoundary extends React.Component {
               <MaterialIcons name="refresh" size={28} color={colors.accentCrimson} />
             </View>
 
-            <Text style={styles.eyebrow}>NAGPUR HYPERLOCAL FASHION</Text>
+            <Text style={styles.eyebrow}>NAGPUR FAST FASHION</Text>
             <Text style={styles.title}>Session Recovered</Text>
             <Text style={styles.description}>
               We encountered a temporary display glitch while loading your view. Tap below to refresh your connection.
@@ -67,10 +67,10 @@ export default class ErrorBoundary extends React.Component {
                 pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Reload Nagpur Ateliers"
+              accessibilityLabel="Reload Nagpur Storefront"
             >
               <MaterialIcons name="sync" size={17} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Reload Nagpur Ateliers</Text>
+              <Text style={styles.primaryBtnText}>Reload Nagpur Storefront</Text>
             </Pressable>
 
             <Pressable

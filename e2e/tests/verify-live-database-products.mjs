@@ -53,8 +53,9 @@ async function verifyLiveStorefront() {
     console.log(`[Atelier] "${b}": ${isPresent ? 'FOUND ✓' : 'MISSING ✗'}`);
   }
 
-  console.log('\n--- 3. CATEGORY PILL FILTER: MEN\'S HERITAGE ---');
-  const menCatBtn = page.locator('[data-action="filter-category"][data-cat="MEN"], button:has-text("Men\'s Heritage")').first();
+  console.log('\n--- 3. CATEGORY PILL FILTER: MEN\'S FASHION ---');
+  const menCatBtn = page.locator('[data-action="filter-category"][data-cat="MEN"], button:has-text("Men\'s Fashion"), button:has-text("Men\'s Heritage")').first();
+
   await menCatBtn.click();
   await page.waitForTimeout(1000);
 

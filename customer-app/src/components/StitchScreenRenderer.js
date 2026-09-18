@@ -731,6 +731,46 @@ export default function StitchScreenRenderer({
     });
     html = html.replace(/src="\/app\/apple-touch-icon\.png"/g, `src="${LOGO_DATA_URI}"`);
 
+    // 18-35 Modern Fashion Vision: Cleanse antiquated heritage/guild jargon across all screens
+    html = html.replace(/Heritage\s+Guild/g, 'Trending Fashion');
+    html = html.replace(/HERITAGE\s+GUILD/g, 'TRENDING FASHION');
+    html = html.replace(/Verified\s+Heritage\s+Artisans\s*·\s*(?:v2\.4|Nagpur\s+Network)/gi, 'Curated Fashion For Men &amp; Women · Nagpur');
+    html = html.replace(/VERIFIED\s+HERITAGE\s+ARTISANS\s*·\s*(?:V2\.4|NAGPUR\s+NETWORK)/g, 'CURATED FASHION FOR MEN &amp; WOMEN · NAGPUR');
+    html = html.replace(/Men's\s+Heritage/g, "Men's Fashion");
+    html = html.replace(/Gandhibagh\s+Weaver\s+Guild/g, 'Nagpur Trend Collective');
+    html = html.replace(/Sitabuldi\s+Handloom\s+Guild/g, 'Sitabuldi Fashion Boutique');
+    html = html.replace(/Sadar\s+Heritage(?:\s+Loom)?/g, 'Sadar Trend Studio');
+
+    // Welcome & Splash screens: Remove "45 min" emblem badge & remove area corridor lists
+    if (targetKey.includes('Welcome') || targetKey.includes('Splash') || targetKey.includes('Landing')) {
+      // Remove floating 45-min / 60-min badge over logo emblem across any layout
+      html = html.replace(/<div\s+class="[^"]*absolute[^"]*(?:-bottom-2|-bottom-3|-bottom-2\.5)[^"]*">[\s\S]*?(?:45\s*min|60-Min\s+Doorstep)[\s\S]*?<\/div>/gi, '');
+      html = html.replace(/<div\s+class="[^"]*boltPill[^"]*">[\s\S]*?<\/div>/gi, '');
+
+      // Replace area list with modern value proposition chips across light & dark variants
+      const modernPillsLight = `<div class="flex items-center justify-center gap-2 mt-gutter-md">
+<span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Streetwear &amp; Casuals</span>
+<span class="text-text-ash/40 text-xs">•</span>
+<span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Party Fits</span>
+<span class="text-text-ash/40 text-xs">•</span>
+<span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Across Nagpur</span>
+</div>`;
+
+      html = html.replace(/<div\s+class="[^"]*(?:mt-gutter-md|mt-5|pt-space-md|px-3\s+rounded-full\s+bg-white)[^"]*">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPillsLight);
+      html = html.replace(/<div\s+class="[^"]*flex\s+items-center\s+justify-center[^"]*">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPillsLight);
+
+      // Modernize intro descriptions
+      html = html.replace(
+        /Curated\s+handcrafted\s+handlooms\s*(?:&amp;|&)\s*designer\s+outfits\s+delivered\s+to\s+your\s+doorstep(?:\s+in\s+45\s*mins?)?\.?/gi,
+        'Trending streetwear, party wear, casuals &amp; everyday fits delivered to your doorstep.'
+      );
+      html = html.replace(
+        /Handcrafted\s+silken\s+drapes\s*(?:&amp;|&)\s*designer\s+outfits\s+from\s+Sitabuldi\s*(?:&amp;|&)\s*Dharampeth\s+to\s+your\s+door\s+in\s+an\s+hour\.?/gi,
+        'Trending streetwear, party wear, casuals &amp; everyday fits delivered across Nagpur in minutes.'
+      );
+    }
+
+
     // Auth screens: Strip select-none and hardcoded value attributes so inputs are purely native and typing is never lost
     if (targetKey.includes('Sign_In') || targetKey.includes('Auth')) {
       let authHtml = html.replace(/\bselect-none\b/g, '');
@@ -834,24 +874,27 @@ export default function StitchScreenRenderer({
       html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
       html = html.replace(/(<img[^>]*class="[^"]*w-full h-full object-cover[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroImg}$2`);
+      html = html.replace(/placeholder="Search (?:designer prêt|designer wear|silk sarees)[^"]*"/gi, 'placeholder="Search shirts, dresses, streetwear, kurtas, denim..."');
       if (searchQuery) {
-        html = html.replace(/(<input[^>]*placeholder="Search (?:designer prêt|designer wear)[^"]*")/i, `$1 value="${searchQuery.replace(/"/g, '&quot;')}"`);
+        html = html.replace(/(<input[^>]*placeholder="Search (?:shirts|designer|dresses|streetwear)[^"]*")/i, `$1 value="${searchQuery.replace(/"/g, '&quot;')}"`);
       }
 
-      // Render Dynamic Category Pills in Storefront
+      // Render Dynamic Category Pills in Storefront (18-35 Modern Fashion Focus)
       const storefrontCategories = [
         { id: 'ALL', label: 'All' },
-        { id: 'SAREES', label: 'Sarees & Handlooms' },
+        { id: 'STREETWEAR', label: 'Streetwear & Casuals' },
         { id: 'WOMEN', label: "Women's Wear" },
+        { id: 'MEN', label: "Men's Fashion" },
         { id: 'KURTA', label: 'Kurtas & Sets' },
-        { id: 'MEN', label: "Men's Heritage" },
+        { id: 'SAREES', label: 'Sarees & Handlooms' },
         { id: 'DUPATTA', label: 'Silk Dupattas' },
         { id: 'JEWELLERY', label: 'Jewellery & Accents' },
       ];
 
       const activeCatKey = (selectedCategory || 'ALL').trim().toUpperCase();
       const isWomenActive = activeCatKey === 'WOMEN' || activeCatKey.includes('PRÊT') || activeCatKey.includes('WEAR');
-      const isMenActive = !isWomenActive && (activeCatKey === 'MEN' || activeCatKey.includes('MENSWEAR'));
+      const isMenActive = !isWomenActive && (activeCatKey === 'MEN' || activeCatKey.includes('MENSWEAR') || activeCatKey.includes('HERITAGE'));
+      const isStreetActive = activeCatKey === 'STREETWEAR' || activeCatKey.includes('STREET') || activeCatKey.includes('CASUAL');
       const isSareeActive = activeCatKey === 'SAREES' || activeCatKey.includes('SAREE') || activeCatKey.includes('HANDLOOM');
       const isKurtaActive = activeCatKey === 'KURTA' || activeCatKey.includes('KURTA') || activeCatKey.includes('SET');
       const isDupattaActive = activeCatKey === 'DUPATTA';
@@ -861,10 +904,13 @@ export default function StitchScreenRenderer({
         let isMatch = false;
         if (c.id === 'ALL') {
           isMatch = !selectedCategory || activeCatKey === 'ALL';
+        } else if (c.id === 'STREETWEAR') {
+          isMatch = isStreetActive;
         } else if (c.id === 'MEN') {
           isMatch = isMenActive;
         } else if (c.id === 'WOMEN') {
           isMatch = isWomenActive;
+
         } else if (c.id === 'SAREES') {
           isMatch = isSareeActive;
         } else if (c.id === 'KURTA') {
@@ -918,18 +964,23 @@ export default function StitchScreenRenderer({
         const text = `${pCat} ${pSub} ${pName} ${(p.material || '')}`.toUpperCase();
 
         const isWomenFilter = normCat === 'WOMEN' || normCat.includes('WOMEN') || normCat.includes('PRÊT') || normCat.includes('WEAR');
-        const isMenFilter = !isWomenFilter && (normCat === 'MEN' || normCat.includes('MEN') || normCat === 'MENSWEAR');
+        const isMenFilter = !isWomenFilter && (normCat === 'MEN' || normCat.includes('MEN') || normCat === 'MENSWEAR' || normCat.includes('HERITAGE'));
+        const isStreetFilter = normCat === 'STREETWEAR' || normCat.includes('STREET') || normCat.includes('CASUAL');
         const isSareeFilter = normCat === 'SAREES' || normCat.includes('SAREE') || normCat.includes('HANDLOOM');
         const isKurtaFilter = normCat === 'KURTA' || normCat.includes('KURTA') || normCat.includes('SET');
         const isDupattaFilter = normCat === 'DUPATTA' || normCat.includes('DUPATTA');
         const isJewelFilter = normCat === 'JEWELLERY' || normCat.includes('JEWEL') || normCat.includes('ACCENT');
 
+        if (isStreetFilter) {
+          return pSub.includes('SHIRT') || pSub.includes('TOP') || text.includes('CASUAL') || text.includes('STREET') || text.includes('TSHIRT') || text.includes('DENIM') || text.includes('JACKET') || pCat === 'MEN' || pCat === 'WOMEN';
+        }
         if (isMenFilter) {
           return pCat === 'MEN';
         }
         if (isWomenFilter) {
           return pCat === 'WOMEN';
         }
+
         if (isSareeFilter) {
           return pSub === 'SAREE' || pName.includes('SAREE') || text.includes('HANDLOOM') || text.includes('BANARASI');
         }
@@ -1217,11 +1268,12 @@ export default function StitchScreenRenderer({
       html = html.replace(/Extra-weft Zari Buti/g, `${activePattern} (${activeMaterial})`);
       html = html.replace(/Sindhoor Crimson &amp; Ochre|Sindhoor Crimson & Ochre/g, activeColors.map(c => c.name).join(', '));
 
-      // 9. Studio Dossier
-      const dossierSummary = `Located in ${activeArea}, ${activeBoutique} is part of the Kya Pehnu artisan network, hand-delivering curated local garments to your doorstep in Nagpur in under 45 minutes.`;
+      // 9. Studio Guide
+      const dossierSummary = `Located in ${activeArea}, ${activeBoutique} is part of the Kya Pehnu network, delivering trending outfits & modern fits to your doorstep across Nagpur in under 45 minutes.`;
       html = html.replace(/Nestled in Dharampeth, Anamika's studio has revitalized[\s\S]*?weaver colonies\./i, dossierSummary);
       html = html.replace(/Master Weaved by Devaji/g, `Curated by ${activeBoutique}`);
-      html = html.replace(/38 Years Preserving Vidarbha Loom Heritage/g, `${activeArea} · Nagpur Heritage Guild`);
+      html = html.replace(/(?:38 Years Preserving Vidarbha Loom Heritage|Nagpur Heritage Guild)/g, `${activeArea} · Nagpur Fashion Network`);
+
 
       // 10. Atelier Care Ritual
       html = html.replace(/Dry clean only using pure organic solvents\./g, activeCare);
@@ -4196,7 +4248,8 @@ export default function StitchScreenRenderer({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
               {[
                 { name: 'Sitabuldi', pincode: '440012', desc: 'Central Boutique Hub · 45-Min Hub', lat: 21.1458, lng: 79.0835 },
-                { name: 'Dharampeth', pincode: '440010', desc: 'Heritage Handloom Precinct', lat: 21.1432, lng: 79.0617 },
+                { name: 'Dharampeth', pincode: '440010', desc: 'Fashion & Boutique Precinct', lat: 21.1432, lng: 79.0617 },
+
                 { name: 'Civil Lines', pincode: '440001', desc: 'Designer Boutiques & Studios', lat: 21.1553, lng: 79.0734 },
                 { name: 'Ramdaspeth', pincode: '440010', desc: 'South Fashion Corridor', lat: 21.1345, lng: 79.0745 },
                 { name: 'Sadar', pincode: '440001', desc: 'Historic Cantonment Tailors', lat: 21.1633, lng: 79.0818 },

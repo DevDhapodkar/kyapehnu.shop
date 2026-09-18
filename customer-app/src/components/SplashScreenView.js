@@ -18,10 +18,10 @@ import { useTheme } from '../theme/useTheme';
  * - final_theme_dark Splash Screen (Mobile) [d0443ae1ed74434f85a9822ea1d2de5c]
  *
  * Implements the exact Stitch design elements:
- * - Top status: Nagpur Express (live pulse) + Heritage Guild (star)
- * - Center: Royal Crimson & Gold Squircle Emblem with 45 min bolt badge
- * - Nagpur Couture Guild eyebrow + Garamond brand title
- * - Bottom: Connecting Ateliers · Nagpur Live + Verified Heritage Artisans · v2.4
+ * - Top status: Nagpur Express (live pulse) + Trending Fashion (star)
+ * - Center: Royal Crimson & Gold Squircle Emblem
+ * - Curated Fashion for Men & Women
+ * - Bottom: Connecting Boutiques · Nagpur Live + Curated Fashion · v2.4
  */
 import StitchSplash from '../stitch/StitchSplash';
 
@@ -167,9 +167,9 @@ export default function SplashScreenView({ onFinish }) {
             },
           ]}
         >
-          <MaterialIcons name="stars" size={13} color={themeColors.accentGold} />
+          <MaterialIcons name="local-fire-department" size={13} color={themeColors.accentGold} />
           <Text style={[styles.topPillText, { color: themeColors.accentGoldDeep || themeColors.accentGold }]}>
-            HERITAGE GUILD
+            TRENDING FASHION
           </Text>
         </View>
       </Animated.View>
@@ -203,7 +203,7 @@ export default function SplashScreenView({ onFinish }) {
           ]}
         />
 
-        {/* Frosted Glass Emblem Card with 45-min Bolt Badge */}
+        {/* Frosted Glass Emblem Card */}
         <View style={styles.emblemContainer}>
           <View
             style={[
@@ -221,27 +221,6 @@ export default function SplashScreenView({ onFinish }) {
               resizeMode="cover"
             />
           </View>
-
-          {/* Bolt 45-min Pill Badge */}
-          <View
-            style={[
-              styles.boltPill,
-              {
-                backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF',
-                borderColor: isDark ? 'rgba(200, 162, 74, 0.3)' : 'rgba(18, 18, 20, 0.08)',
-              },
-            ]}
-          >
-            <MaterialIcons name="bolt" size={13} color={themeColors.accentCrimson} />
-            <Text
-              style={[
-                styles.boltText,
-                { color: isDark ? '#FAF9F5' : themeColors.textObsidian },
-              ]}
-            >
-              45 min
-            </Text>
-          </View>
         </View>
 
         {/* Eyebrow */}
@@ -252,7 +231,7 @@ export default function SplashScreenView({ onFinish }) {
               { color: themeColors.accentGold },
             ]}
           >
-            — NAGPUR DESIGNER FASHION —
+            — NAGPUR TRENDING FASHION —
           </Text>
         </View>
 
@@ -273,13 +252,13 @@ export default function SplashScreenView({ onFinish }) {
             { color: isDark ? '#C9C7C2' : themeColors.textSlate },
           ]}
         >
-          Curated handcrafted handlooms & designer outfits delivered to your doorstep.
+          Trending streetwear, party wear, casuals & everyday fits delivered to your doorstep.
         </Text>
 
-        {/* Corridor Chips */}
+        {/* Fashion Feature Chips */}
         <View style={styles.corridorsRow}>
-          {['Sitabuldi', 'Dharampeth', 'Gandhibagh'].map((zone, idx) => (
-            <React.Fragment key={zone}>
+          {['Streetwear & Casuals', 'Party Fits', 'Across Nagpur'].map((tag, idx) => (
+            <React.Fragment key={tag}>
               {idx > 0 && (
                 <Text style={[styles.corridorDot, { color: isDark ? '#5A5854' : '#C4C2BA' }]}>
                   •
@@ -300,7 +279,7 @@ export default function SplashScreenView({ onFinish }) {
                     { color: isDark ? '#E5E1E4' : themeColors.textSlate },
                   ]}
                 >
-                  {zone}
+                  {tag}
                 </Text>
               </View>
             </React.Fragment>
@@ -308,7 +287,7 @@ export default function SplashScreenView({ onFinish }) {
         </View>
       </Animated.View>
 
-      {/* Bottom Launch Status & Atelier Progress Bar */}
+      {/* Bottom Launch Status & Progress Bar */}
       <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
         <View style={styles.progressContainer}>
           {/* Glowing Track */}
@@ -341,7 +320,7 @@ export default function SplashScreenView({ onFinish }) {
                   { color: isDark ? '#C9C7C2' : themeColors.textSlate },
                 ]}
               >
-                Connecting Ateliers
+                Connecting Boutiques
               </Text>
             </View>
             <View style={styles.progressStatusRight}>
@@ -366,7 +345,7 @@ export default function SplashScreenView({ onFinish }) {
               { color: isDark ? '#7E7C85' : themeColors.textAsh },
             ]}
           >
-            VERIFIED HERITAGE ARTISANS · V2.4
+            CURATED FASHION FOR MEN & WOMEN · NAGPUR
           </Text>
         </View>
       </Animated.View>

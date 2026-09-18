@@ -22,6 +22,25 @@ function loadRaw(nameFragment) {
   }
   html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
   html = html.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Modernize branding: remove 45 min logo badges & heritage references, replace welcome area names
+  html = html.replace(/<div class="absolute -bottom-2 -right-2[^"]*">[\s\S]*?45\s*min[\s\S]*?<\/div>/gi, '');
+  html = html.replace(/<div class="absolute -bottom-3\.5[^"]*">[\s\S]*?45\s*min[\s\S]*?<\/div>/gi, '');
+  html = html.replace(/<div class="absolute -bottom-2\.5[^"]*">[\s\S]*?60-Min Doorstep[\s\S]*?<\/div>/gi, '');
+  html = html.replace(/<div class="[^"]*boltPill[^"]*">[\s\S]*?<\/div>/gi, '');
+
+  const modernPills = '<div class="flex items-center justify-center gap-2 mt-gutter-md"><span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Streetwear &amp; Casuals</span><span class="text-text-ash/40 text-xs">•</span><span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Party Fits</span><span class="text-text-ash/40 text-xs">•</span><span class="font-tabular-caption text-tabular-caption px-2.5 py-0.5 rounded-full bg-ground-subtle text-text-slate">Across Nagpur</span></div>';
+  html = html.replace(/<div class="flex items-center justify-center gap-2 mt-gutter-md">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPills);
+  html = html.replace(/<div class="flex items-center justify-center gap-2 mt-5">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPills);
+  html = html.replace(/<div class="flex items-center justify-center gap-1\.5 py-1\.5 px-3 rounded-full bg-white\/\[0\.04\][^"]*">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPills);
+  html = html.replace(/<div class="flex items-center justify-center gap-2 pt-space-md flex-wrap">[\s\S]*?Sitabuldi[\s\S]*?Gandhibagh[\s\S]*?<\/div>/gi, modernPills);
+
+  html = html.replace(/Heritage Guild/gi, 'Trending Fashion');
+  html = html.replace(/Verified Heritage Artisans/gi, 'Curated Fashion For Men & Women');
+  html = html.replace(/Men's Heritage/gi, "Men's Fashion");
+  html = html.replace(/Curated handcrafted handlooms &amp; designer outfits from Nagpur's heritage artisans\./gi, 'Trending streetwear, party wear, casuals &amp; everyday fits delivered to your doorstep.');
+  html = html.replace(/Curated handcrafted handlooms & designer outfits from Nagpur's heritage artisans\./gi, 'Trending streetwear, party wear, casuals & everyday fits delivered to your doorstep.');
+
   return html.trim();
 }
 

@@ -137,7 +137,7 @@ export const mockStores = [
   },
   {
     id: 'str_sadar_loom',
-    name: 'Sadar Heritage Loom',
+    name: 'Sadar Trend Studio',
     area: 'Sadar',
     addressLine: '12, Mount Road Extension, Sadar, Nagpur 440001',
     coordinates: { latitude: 21.161, longitude: 79.082 },
@@ -154,7 +154,7 @@ export const mockStores = [
         name: 'Linen Bundi Jacket',
         category: 'Men',
         gender: 'Men',
-        subCategory: "Men's Heritage",
+        subCategory: "Men's Fashion",
         price: 5200,
         mrp: 6500,
         currency: 'INR',
@@ -194,7 +194,7 @@ export const mockStores = [
         currency: 'INR',
         colorway: 'Midnight Blue & Antique Gold',
         material: 'Handwoven midnight blue tissue silk saree with antique gold zari pallu border',
-        sizes: ['Heritage Weave'],
+        sizes: ['Free Size'],
         deliveryMinutes: 30,
         image:
           'https://lh3.googleusercontent.com/aida-public/AB6AXuCYmUCb6LsHzea-_Hq0at5dFcymwuBhotCd7EH3utfkLwLoZlve9XuimzOWHjp0aHYiJIhSEWsluGpsFvaLPxgthCU8dVghYNhcHC1H0IhAeGtqD2RPcx8uXfqH2-1Y2pt3L0ELokiVTPaA0IFVHi2Ho0WbB9ejtXrSKkpe37cOLPG8QYw_bej_jSX81c-TwkyvOXC1r9L-YMglvksn0WTOWWAbv6OWIEhN7yLeOO3Z6F-YdZF8rF14dA',
@@ -215,7 +215,7 @@ export const mockStores = [
     etaMinutes: 32,
     image:
       'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80',
-    tagline: 'Heritage textile showroom with handwoven silks & artisanal menswear.',
+    tagline: 'Modern fashion studio with trending fits & contemporary menswear.',
     products: [
       {
         id: 'prd_tussar_kurta_set',

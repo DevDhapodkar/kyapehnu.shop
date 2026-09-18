@@ -68,7 +68,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
     { name: 'Sitabuldi Hub', time: '18 mins', speed: 'Superfast', icon: 'bolt', color: '#15803D' },
     { name: 'Dharampeth Store Express', time: '24 mins', speed: 'Express', icon: 'check-circle', color: '#15803D' },
     { name: 'Ramdaspeth Corridor', time: '22 mins', speed: 'Express', icon: 'check-circle', color: '#15803D' },
-    { name: 'Sadar Heritage Lane', time: '28 mins', speed: 'Normal', icon: 'schedule', color: colors.accentGoldDeep },
+    { name: 'Sadar Fashion Lane', time: '28 mins', speed: 'Normal', icon: 'schedule', color: colors.accentGoldDeep },
     { name: 'Itwari Silk Market', time: '34 mins', speed: 'Normal', icon: 'schedule', color: colors.accentGoldDeep },
   ];
 

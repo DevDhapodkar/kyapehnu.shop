@@ -69,7 +69,7 @@ async function run() {
     console.log('Nagpur Precinct Switcher Modal Open:', switcherVisible);
 
     // Select Dharampeth
-    const dharampethBtn = page.locator('#precinct-dharampeth:visible, button:has-text("Heritage Handloom"):visible').first();
+    const dharampethBtn = page.locator('#precinct-dharampeth:visible, button:has-text("Fashion & Boutique"):visible, button:has-text("Heritage Handloom"):visible').first();
     if (await dharampethBtn.isVisible()) {
       console.log('Selecting Dharampeth precinct...');
       await dharampethBtn.click({ force: true });
