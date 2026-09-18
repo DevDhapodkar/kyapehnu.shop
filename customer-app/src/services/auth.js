@@ -122,8 +122,15 @@ export const friendlyAuthError = (error) => {
       return 'Google sign-in request was cancelled.';
     case 'auth/popup-blocked':
       return 'Browser blocked the sign-in popup. Please allow popups for this site.';
-    case 'auth/unauthorized-domain':
-      return 'This domain is not authorized in Firebase Auth settings. Add localhost or your domain in Firebase Console.';
+    case 'auth/unauthorized-domain': {
+      const host = typeof window !== 'undefined' ? window.location?.hostname : '';
+      if (host === '127.0.0.1') {
+        return "Domain '127.0.0.1' is not authorized. Please access via 'localhost' or add 127.0.0.1 in Firebase Console.";
+      }
+      return host
+        ? `Domain '${host}' is not authorized in Firebase. Add it under Authentication → Settings → Authorized domains.`
+        : 'This domain is not authorized in Firebase Auth settings. Add your domain in Firebase Console.';
+    }
     case 'auth/operation-not-allowed':
       return 'Google sign-in is not enabled in Firebase Authentication.';
     case 'auth/argument-error':
