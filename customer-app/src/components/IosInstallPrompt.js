@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import useAuthStore, { ROLES } from '../store/useAuthStore';
 
@@ -81,7 +82,7 @@ export default function IosInstallPrompt() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Dismiss prompt"
         >
-          <Text style={styles.closeText}>✕</Text>
+          <MaterialIcons name="close" size={16} color={colors.textSlate} />
         </TouchableOpacity>
       </View>
     </View>

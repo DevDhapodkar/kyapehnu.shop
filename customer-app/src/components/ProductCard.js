@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -107,9 +108,11 @@ export default function ProductCard({ product, onPress, onQuickAdd }) {
           accessibilityLabel="Wishlist item"
         >
           <Animated.View style={animatedHeartStyle}>
-            <Text style={[styles.favIcon, isWishlisted && styles.favActive]}>
-              {isWishlisted ? '♥' : '♡'}
-            </Text>
+            <MaterialIcons
+              name={isWishlisted ? 'favorite' : 'favorite-border'}
+              size={15}
+              color={isWishlisted ? colors.accentCrimson : colors.textObsidian}
+            />
           </Animated.View>
         </Pressable>
 

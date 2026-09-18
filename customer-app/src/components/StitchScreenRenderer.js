@@ -396,7 +396,7 @@ export default function StitchScreenRenderer({
   const detectAndApplyUserLocation = useCallback((force = false) => {
     if (isLocating) return;
     setIsLocating(true);
-    showToast('📍 Requesting your delivery location...');
+    showToast('Requesting your delivery location...');
 
     getCurrentCoordinates()
       .then(async (coords) => {
@@ -427,7 +427,7 @@ export default function StitchScreenRenderer({
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
         }
-        showToast(`📍 Location set to ${areaName}, Nagpur`);
+        showToast(`Location set to ${areaName}, Nagpur`);
       })
       .catch((err) => {
         console.warn('[StitchScreenRenderer] Geolocation notice:', err);
@@ -780,13 +780,13 @@ export default function StitchScreenRenderer({
       const fastDemoBtnLight = `
         <button id="btn-fast-demo-signin" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-accent-gold/15 to-amber-600/10 border border-accent-gold/40 text-text-obsidian hover:border-accent-gold font-body-md font-bold flex items-center justify-between shadow-xs active:scale-98 transition-all mb-1 cursor-pointer" type="button">
           <div class="flex items-center gap-2.5">
-            <span class="w-7 h-7 rounded-full bg-accent-gold/20 text-accent-gold flex items-center justify-center text-sm font-bold">⚡</span>
+            <span class="w-7 h-7 rounded-full bg-accent-gold/20 text-accent-gold flex items-center justify-center text-sm font-bold"><span class="material-symbols-outlined text-[18px]">bolt</span></span>
             <div class="flex flex-col text-left">
               <span class="text-xs font-bold text-text-obsidian">1-Tap Quick Member Login</span>
               <span class="text-[10px] text-text-ash">Instant VIP access • 0ms cold-start lag</span>
             </div>
           </div>
-          <span class="text-xs font-bold text-accent-crimson flex items-center gap-0.5">Explore ➔</span>
+          <span class="text-xs font-bold text-accent-crimson flex items-center gap-1">Explore <span class="material-symbols-outlined text-[14px]">arrow_forward</span></span>
         </button>
       `;
       if (!authHtml.includes('id="btn-fast-demo-signin"')) {
@@ -797,13 +797,13 @@ export default function StitchScreenRenderer({
       const fastDemoBtnDark = `
         <button id="dark-btn-fast-demo-signin" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-gold/15 via-gold/25 to-gold/15 border border-gold/40 text-gold-light hover:border-gold font-body-md font-bold flex items-center justify-between shadow-xs active:scale-98 transition-all mb-1 cursor-pointer" type="button">
           <div class="flex items-center gap-2.5">
-            <span class="w-7 h-7 rounded-full bg-gold/20 text-gold flex items-center justify-center text-sm font-bold">⚡</span>
+            <span class="w-7 h-7 rounded-full bg-gold/20 text-gold flex items-center justify-center text-sm font-bold"><span class="material-symbols-outlined text-[18px]">bolt</span></span>
             <div class="flex flex-col text-left">
               <span class="text-xs font-bold text-stone-100">1-Tap Quick Member Login</span>
               <span class="text-[10px] text-stone-400">Instant VIP access • 0ms cold-start lag</span>
             </div>
           </div>
-          <span class="text-xs font-bold text-gold flex items-center gap-0.5">Explore ➔</span>
+          <span class="text-xs font-bold text-gold flex items-center gap-1">Explore <span class="material-symbols-outlined text-[14px]">arrow_forward</span></span>
         </button>
       `;
       if (!authHtml.includes('id="dark-btn-fast-demo-signin"')) {
@@ -2244,7 +2244,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         await useAuthStore.getState().quickPhoneSignIn({ phone: '9823045892', name: 'Radhika Deshmukh' });
-        showToast('⚡ Instant VIP Member Access Activated');
+        showToast('Instant VIP Member Access Activated');
         setTimeout(() => {
           navigateScreen('Home');
         }, 120);
@@ -2274,7 +2274,7 @@ export default function StitchScreenRenderer({
 
         const cleanName = identifier.split('@')[0];
 
-        // ⚡ OPTIMISTIC NON-BLOCKING SIGN-IN (<80ms)
+        // OPTIMISTIC NON-BLOCKING SIGN-IN (<80ms)
         useAuthStore.setState({
           user: { email, displayName: cleanName, uid: `usr-${Date.now()}` },
           token: 'auth-token-live',
@@ -2321,7 +2321,7 @@ export default function StitchScreenRenderer({
           return;
         }
 
-        // ⚡ OPTIMISTIC NON-BLOCKING REGISTRATION (<80ms)
+        // OPTIMISTIC NON-BLOCKING REGISTRATION (<80ms)
         useAuthStore.setState({
           user: { email, displayName: name, phoneNumber: phone, uid: `usr-${Date.now()}` },
           token: 'auth-token-live',
@@ -2349,21 +2349,36 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && btn.textContent.includes('Google')) {
         e.preventDefault();
         e.stopPropagation();
+        const origHtml = btn.innerHTML;
         try {
-          await useAuthStore.getState().signInWithGoogle?.();
-        } catch {
-          try {
-            await syncUserProfile({ name: 'Fashion Member', email: 'member@kyapehnu.shop', phone: '9800000000' });
-          } catch (e) {}
-          useAuthStore.setState({
-            user: { email: 'member@kyapehnu.shop', displayName: 'Fashion Member', uid: `g-${Date.now()}` },
-            token: 'auth-token-google',
-            role: ROLES.CUSTOMER,
-          });
+          btn.innerHTML = `
+            <span class="inline-flex items-center justify-center gap-2">
+              <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>Connecting to Google...</span>
+            </span>
+          `;
+          await useAuthStore.getState().signInWithGoogle();
+          const currentUser = useAuthStore.getState().user;
+          const firstName = currentUser?.displayName ? currentUser.displayName.split(' ')[0] : 'Shopper';
+          showToast(`Welcome to Kya Pehnu, ${firstName}!`);
+          detectAndApplyUserLocation(true);
+          setTimeout(() => navigateScreen('Home'), 300);
+        } catch (err) {
+          console.error('[Google Sign-In Error]', err);
+          btn.innerHTML = origHtml;
+          if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            showToast('Google sign-in was cancelled.');
+          } else if (err?.code === 'auth/unauthorized-domain') {
+            showToast('Domain not authorized in Firebase Console settings.');
+          } else if (err?.code === 'auth/popup-blocked') {
+            showToast('Popup was blocked by browser. Please allow popups.');
+          } else {
+            showToast(err?.message || 'Google sign-in failed. Please try again.');
+          }
         }
-        showToast('Signed in with Google Passport.');
-        detectAndApplyUserLocation(true);
-        setTimeout(() => navigateScreen('Home'), 400);
         return;
       }
 
@@ -2557,7 +2572,7 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 4. HEADER LOCATION SELECTOR (Open Blinkit Map Engine) ---
+      // --- 4. HEADER LOCATION SELECTOR (Open Doorstep Map Engine) ---
       if (
         target.closest('[aria-label*="Location" i]') ||
         (btn && btn.textContent && (btn.textContent.includes('Nagpur') || btn.textContent.includes('Sitabuldi') || btn.textContent.includes('Dharampeth') || btn.textContent.includes('Detecting') || btn.textContent.includes('Select Location')) && btn.closest('header'))
@@ -2889,7 +2904,7 @@ export default function StitchScreenRenderer({
         if (isLocating) return;
 
         setIsLocating(true);
-        showToast('📍 Detecting your precise GPS location...');
+        showToast('Detecting your precise GPS location...');
 
         getCurrentCoordinates()
           .then(async (coords) => {
@@ -2930,9 +2945,9 @@ export default function StitchScreenRenderer({
             }
 
             if (!inZone) {
-              showToast(`📍 GPS: ${areaName}. Note: Express courier pilot operates in Nagpur (~25km radius).`);
+              showToast(`GPS: ${areaName}. Note: Express courier pilot operates in Nagpur (~25km radius).`);
             } else {
-              showToast(`📍 Doorstep detected: ${areaName}, Nagpur (${pincode})`);
+              showToast(`Doorstep detected: ${areaName}, Nagpur (${pincode})`);
             }
           })
           .catch((err) => {
@@ -4131,7 +4146,7 @@ export default function StitchScreenRenderer({
               formValuesRef.current['flatHouse'] = loc.houseFlat;
             }
           }
-          showToast(`📍 Doorstep Pin Confirmed: ${newLoc.areaName} (${newLoc.pincode})`);
+          showToast(`Doorstep Pin Confirmed: ${newLoc.areaName} (${newLoc.pincode})`);
           setIsMapPickerOpen(false);
         }}
       />
@@ -4175,10 +4190,11 @@ export default function StitchScreenRenderer({
               <button
                 id="btnClosePrecinctSwitcher"
                 type="button"
+                aria-label="Close"
                 onClick={() => setIsPrecinctSwitcherOpen(false)}
                 style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
               </button>
             </div>
 
@@ -4189,7 +4205,7 @@ export default function StitchScreenRenderer({
               onClick={() => {
                 setIsPrecinctSwitcherOpen(false);
                 setIsLocating(true);
-                showToast('📍 Detecting your precise GPS location...');
+                showToast('Detecting your precise GPS location...');
                 getCurrentCoordinates()
                   .then(async (coords) => {
                     let inZone = isWithinNagpur(coords.latitude, coords.longitude);
@@ -4215,7 +4231,7 @@ export default function StitchScreenRenderer({
                     if (typeof window !== 'undefined' && window.localStorage) {
                       window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
                     }
-                    showToast(`📍 Location detected: ${areaName}, Nagpur (${pincode})`);
+                    showToast(`Location detected: ${areaName}, Nagpur (${pincode})`);
                   })
                   .catch(() => {
                     showToast('Could not access GPS. Please select a precinct below.');
@@ -4240,7 +4256,7 @@ export default function StitchScreenRenderer({
                 boxShadow: '0 4px 14px rgba(196, 36, 58, 0.35)',
               }}
             >
-              <span>📍</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>my_location</span>
               <span>Use Current GPS Location</span>
             </button>
 
@@ -4301,7 +4317,7 @@ export default function StitchScreenRenderer({
                       </div>
                     </div>
                     {isSelected ? (
-                      <span style={{ color: '#C4243A', fontWeight: 'bold', fontSize: 16 }}>✓</span>
+                      <span className="material-symbols-outlined" style={{ color: '#C4243A', fontSize: 18 }}>check</span>
                     ) : null}
                   </button>
                 );
@@ -4345,10 +4361,11 @@ export default function StitchScreenRenderer({
               </div>
               <button
                 type="button"
+                aria-label="Close"
                 onClick={() => setIsLiveMapModalOpen(false)}
-                style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer' }}
+                style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
               </button>
             </div>
             <div style={{ height: 280, position: 'relative', backgroundColor: '#F4EFE7' }}>
@@ -4433,7 +4450,7 @@ export default function StitchScreenRenderer({
                   color: isDark ? '#FFF' : '#121215',
                 }}
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
               </button>
             </div>
 

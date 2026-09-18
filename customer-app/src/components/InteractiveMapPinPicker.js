@@ -444,10 +444,11 @@ export default function InteractiveMapPinPicker({
                           );
                         }
                       }}
-                      style={{ marginTop: 6, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, borderRadius: 8, alignSelf: 'flex-start' }}
+                      style={{ marginTop: 6, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, borderRadius: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     >
+                      <MaterialIcons name="my-location" size={13} color="#B91C1C" />
                       <Text style={{ color: '#B91C1C', fontSize: 12, fontWeight: '700' }}>
-                        📍 Snap Pin to Nagpur Central (Sitabuldi)
+                        Snap Pin to Nagpur Central (Sitabuldi)
                       </Text>
                     </PressableScale>
                   </View>

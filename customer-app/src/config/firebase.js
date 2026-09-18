@@ -14,7 +14,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 import { Platform } from 'react-native';
 
-const firebaseConfig = Constants.expoConfig?.extra?.firebase ?? {};
+const staticFirebaseConfig = {
+  apiKey: 'AIzaSyCfr4q93xlmNSNHp3YTC0pd2bPmoKktPhc',
+  authDomain: 'kyapehnushop.firebaseapp.com',
+  projectId: 'kyapehnushop',
+  storageBucket: 'kyapehnushop.firebasestorage.app',
+  messagingSenderId: '484031497035',
+  appId: '1:484031497035:web:3948943f5af3667eed1ece',
+  measurementId: 'G-2T0YQNEE0X',
+};
+
+const firebaseConfig = {
+  ...staticFirebaseConfig,
+  ...(Constants.expoConfig?.extra?.firebase ?? {}),
+};
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 

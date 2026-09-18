@@ -401,10 +401,6 @@ export default function BlinkitLocationPicker({
             <View style={{ flex: 1 }}>
               <View style={styles.headerTitleRow}>
                 <Text style={styles.headerTitle}>Select Delivery Location</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveBadgeText}>Blinkit Map Engine</Text>
-                </View>
               </View>
               <Text style={styles.headerSubtitle}>
                 Move the map so the pin points exactly to your doorstep
@@ -667,7 +663,8 @@ export default function BlinkitLocationPicker({
                     </Text>
                     {inZone && (
                       <View style={styles.expressBadge}>
-                        <Text style={styles.expressBadgeText}>⚡ 45-MIN TRIAL</Text>
+                        <MaterialIcons name="bolt" size={12} color="#16A34A" />
+                        <Text style={styles.expressBadgeText}>45-MIN TRIAL</Text>
                       </View>
                     )}
                   </View>
@@ -692,7 +689,8 @@ export default function BlinkitLocationPicker({
                       onPress={() => handleSnapToHub(QUICK_HUBS[0])}
                       style={styles.snapBtn}
                     >
-                      <Text style={styles.snapBtnText}>📍 Snap to Central Nagpur (Sitabuldi)</Text>
+                      <MaterialIcons name="my-location" size={13} color="#795900" style={{ marginRight: 4 }} />
+                      <Text style={styles.snapBtnText}>Snap to Central Nagpur (Sitabuldi)</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1156,6 +1154,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   expressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     backgroundColor: 'rgba(22, 163, 74, 0.1)',
     paddingHorizontal: 7,
     paddingVertical: 2,

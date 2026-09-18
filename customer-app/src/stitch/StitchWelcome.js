@@ -9,7 +9,7 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
 
   <div class="w-full flex items-center justify-end z-10 pt-1">
     <button type="button" data-action="toggle-theme" class="text-xs font-medium text-neutral-400 hover:text-neutral-700 px-2.5 py-1 rounded-full bg-black/[0.03] hover:bg-black/[0.06] transition-colors flex items-center gap-1.5 cursor-pointer">
-      <span>🌙</span>
+      <span class="material-symbols-outlined text-[14px]">dark_mode</span>
       <span>Dark</span>
     </button>
   </div>
@@ -35,8 +35,8 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
 
     <div class="w-full max-w-xs mt-6 space-y-3 text-left">
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-black/[0.04] shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-rose-50 text-[#C4243A] flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          ⚡
+        <div class="w-8 h-8 rounded-lg bg-rose-50 text-[#C4243A] flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">bolt</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-900">45-Minute Delivery</div>
@@ -45,8 +45,8 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
       </div>
 
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-black/[0.04] shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          👗
+        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">checkroom</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-900">Free Doorstep Trial</div>
@@ -55,8 +55,8 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
       </div>
 
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white/80 border border-black/[0.04] shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          💳
+        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">payments</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-900">Pay on Delivery</div>
@@ -96,7 +96,7 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
 
   <div class="w-full flex items-center justify-end z-10 pt-1">
     <button type="button" data-action="toggle-theme" class="text-xs font-medium text-neutral-400 hover:text-neutral-200 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition-colors flex items-center gap-1.5 cursor-pointer">
-      <span>☀️</span>
+      <span class="material-symbols-outlined text-[14px]">light_mode</span>
       <span>Light</span>
     </button>
   </div>
@@ -122,8 +122,8 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
 
     <div class="w-full max-w-xs mt-6 space-y-3 text-left">
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-neutral-900/80 border border-white/10 shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-rose-950/60 text-rose-400 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          ⚡
+        <div class="w-8 h-8 rounded-lg bg-rose-950/60 text-rose-400 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">bolt</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-100">45-Minute Delivery</div>
@@ -132,8 +132,8 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
       </div>
 
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-neutral-900/80 border border-white/10 shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-amber-950/60 text-amber-400 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          👗
+        <div class="w-8 h-8 rounded-lg bg-amber-950/60 text-amber-400 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">checkroom</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-100">Free Doorstep Trial</div>
@@ -142,8 +142,8 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
       </div>
 
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-neutral-900/80 border border-white/10 shadow-xs">
-        <div class="w-8 h-8 rounded-lg bg-emerald-950/60 text-emerald-400 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-          💳
+        <div class="w-8 h-8 rounded-lg bg-emerald-950/60 text-emerald-400 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">payments</span>
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-100">Pay on Delivery</div>

@@ -219,7 +219,7 @@ if (fs.existsSync(indexPath)) {
       .material-symbols-outlined.fill-1 {
         font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
       }
-      /* Blinkit Map Center Pin Lift & Drop Physics */
+      /* Doorstep Map Center Pin Lift & Drop Physics */
       @keyframes blinkitPinLift {
         0% { transform: translate(-50%, -100%) scale(1); }
         100% { transform: translate(-50%, -135%) scale(1.08, 0.95); }

@@ -6,6 +6,7 @@ import {
   onIdTokenChanged,
   sendPasswordResetEmail,
   signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
 } from 'firebase/auth';
 
@@ -36,7 +37,15 @@ export const registerEmail = async (email, password, displayName) => {
 export const signInGoogle = async () => {
   const authInstance = ensureAuth();
   const provider = new GoogleAuthProvider();
-  return signInWithPopup(authInstance, provider);
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    return await signInWithPopup(authInstance, provider);
+  } catch (err) {
+    if (err?.code === 'auth/popup-blocked') {
+      return await signInWithRedirect(authInstance, provider);
+    }
+    throw err;
+  }
 };
 
 export const resetPassword = (email) =>
@@ -87,6 +96,14 @@ export const friendlyAuthError = (error) => {
       return 'Network error — check your connection and try again.';
     case 'auth/too-many-requests':
       return 'Too many attempts. Wait a moment and try again.';
+    case 'auth/popup-closed-by-user':
+      return 'Google sign-in popup was closed before finishing.';
+    case 'auth/cancelled-popup-request':
+      return 'Google sign-in request was cancelled.';
+    case 'auth/popup-blocked':
+      return 'Browser blocked the sign-in popup. Please allow popups for this site.';
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized in Firebase Auth settings. Add localhost or your domain in Firebase Console.';
     case 'auth/not-configured':
       return error.message;
     default:

@@ -60,9 +60,12 @@ export default function StitchProfile({ navigation }) {
         <span className="font-semibold text-[11px] tracking-wider uppercase opacity-70">Theme Control</span>
         <button
           onClick={() => useThemeStore.getState().toggleTheme()}
-          className="px-3 py-1 rounded-full text-[11px] font-medium bg-accent-crimson text-white shadow-xs"
+          className="px-3 py-1 rounded-full text-[11px] font-medium bg-accent-crimson text-white shadow-xs inline-flex items-center gap-1.5"
         >
-          {isDark ? '☀️ Switch to Ivory Studio Light' : '🌙 Switch to Royal Crimson Noir'}
+          <span className="material-symbols-outlined text-[14px]">
+            {isDark ? 'light_mode' : 'dark_mode'}
+          </span>
+          <span>{isDark ? 'Switch to Ivory Studio Light' : 'Switch to Royal Crimson Noir'}</span>
         </button>
       </div>
       <div

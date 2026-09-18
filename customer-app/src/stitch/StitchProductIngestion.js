@@ -41,9 +41,10 @@ export default function StitchProductIngestion({ onClose }) {
           <span className="font-semibold text-xs uppercase tracking-wider">Product Ingestion &amp; Catalog Listing Form</span>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-8 h-8 rounded-full bg-surface-container-low dark:bg-white/10 flex items-center justify-center text-sm font-bold"
           >
-            ✕
+            <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
         <div
