@@ -124,7 +124,7 @@ async function run() {
   console.log('Initial Area value:', await areaInput.inputValue());
 
   // Scroll down to see Confirm Order Button
-  const confirmBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Confirm Address"):visible, button:has-text("Confirm Delivery"):visible, button:has-text("Confirm Order"):visible, button:has-text("Place 45-Min Trial Order"):visible').first();
+  const confirmBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Confirm Address"):visible, button:has-text("Confirm Delivery"):visible, button:has-text("Confirm Order"):visible, button:has-text("Place 45-Min Express Order"):visible').first();
   await confirmBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step7_address_scrolled_to_cta.png') });
@@ -147,7 +147,7 @@ async function run() {
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step7_address_filled.png') });
 
-  console.log('\n=== STEP 8: PLACE 45-MINUTE TRIAL ORDER ===');
+  console.log('\n=== STEP 8: PLACE 45-MINUTE EXPRESS ORDER ===');
   await confirmBtn.click({ force: true });
   await page.waitForTimeout(4000);
   await page.screenshot({ path: path.join(SCRATCH_DIR, 'step8_live_tracking.png') });
@@ -158,7 +158,7 @@ async function run() {
   const orderIdMatch = trackingBody.match(/KP-[A-Z0-9]+/i);
   const orderId = orderIdMatch ? orderIdMatch[0] : 'None';
   console.log('Order ID displayed on Tracking:', orderId);
-  console.log('Tracking shows 45-Min Trial / Courier status:', /45-min|trial|courier|dispatch|in transit|confirmed/i.test(trackingBody));
+  console.log('Tracking shows 45-Min Express Delivery / Courier status:', /45-min|trial|courier|dispatch|in transit|confirmed/i.test(trackingBody));
 
   console.log('\n=== STEP 10: MY ORDERS SCREEN VERIFICATION ===');
   const ordersNav = page.locator('[data-path*="orders"]:visible, nav a:has-text("Orders"):visible').first();

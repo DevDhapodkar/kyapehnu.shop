@@ -303,7 +303,7 @@ export default function VendorAnalyticsScreen({ navigation }) {
             </View>
             <View style={styles.trustTextCol}>
               <Text style={styles.trustTitle}>Nagpur Customer Trust Score</Text>
-              <Text style={styles.trustSub}>Based on 128 verified doorstep fittings</Text>
+              <Text style={styles.trustSub}>Based on 128 verified express deliveries</Text>
             </View>
           </View>
 

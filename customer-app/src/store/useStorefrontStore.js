@@ -40,7 +40,7 @@ export const getCuratedProducts = () => {
         care: 'Dry Clean Recommended',
         netQuantity: 1,
         countryOfOrigin: 'India (Nagpur)',
-        returnPolicy: '7-day doorstep return',
+        returnPolicy: '7-day easy return',
         highlights: ['Locally sourced in Nagpur', 'Delivered in under 45 minutes'],
         sku: p.id,
         storeId: store.id,

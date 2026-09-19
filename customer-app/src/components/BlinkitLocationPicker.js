@@ -39,7 +39,7 @@ const DELIVERY_INSTRUCTION_OPTIONS = [
   { id: 'leave_door', label: 'Leave at door', icon: 'door-front' },
   { id: 'call_arrival', label: 'Call on arrival', icon: 'phone-in-talk' },
   { id: 'hanger', label: 'Garment hanger handover', icon: 'checkroom' },
-  { id: 'fitting_trial', label: '15-min trial fitting wait', icon: 'timer' },
+  { id: 'guard_handover', label: 'Leave with security / guard', icon: 'shield' },
 ];
 
 /**
@@ -62,7 +62,7 @@ export default function BlinkitLocationPicker({
   initialHouseFlat = '',
   initialLandmark = '',
   initialAddressType = 'Home',
-  initialDeliveryInstructions = "Wait for 15-min doorstep fitting trial & size review",
+  initialDeliveryInstructions = "Leave garment sleeve with concierge desk",
 }) {
   const [selectedCoords, setSelectedCoords] = useState({
     longitude: initialCoordinates[0] || NAGPUR_CENTER.longitude,
@@ -83,7 +83,7 @@ export default function BlinkitLocationPicker({
   const [landmark, setLandmark] = useState(initialLandmark);
   const [addressType, setAddressType] = useState(initialAddressType || 'Home');
   const [deliveryInstruction, setDeliveryInstruction] = useState(
-    initialDeliveryInstructions || "Wait for 15-min doorstep fitting trial & size review"
+    initialDeliveryInstructions || "Leave garment sleeve with concierge desk"
   );
 
   const searchTimeoutRef = useRef(null);
@@ -664,7 +664,7 @@ export default function BlinkitLocationPicker({
                     {inZone && (
                       <View style={styles.expressBadge}>
                         <MaterialIcons name="bolt" size={12} color="#16A34A" />
-                        <Text style={styles.expressBadgeText}>45-MIN TRIAL</Text>
+                        <Text style={styles.expressBadgeText}>45-MIN EXPRESS</Text>
                       </View>
                     )}
                   </View>

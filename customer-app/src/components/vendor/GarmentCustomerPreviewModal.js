@@ -130,7 +130,7 @@ export default function GarmentCustomerPreviewModal({ visible, product, shopName
                 </View>
                 <View style={styles.trustItem}>
                   <MaterialIcons name="check-circle" size={18} color="#15803D" />
-                  <Text style={styles.trustItemText}>Try At Doorstep</Text>
+                  <Text style={styles.trustItemText}>Easy Exchanges</Text>
                 </View>
               </View>
             </View>

@@ -49,8 +49,8 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
           <span class="material-symbols-outlined text-[18px]">checkroom</span>
         </div>
         <div class="min-w-0">
-          <div class="text-xs font-semibold text-neutral-900">Free Doorstep Trial</div>
-          <div class="text-[11px] text-neutral-500 truncate">Try before you buy, keep what fits</div>
+          <div class="text-xs font-semibold text-neutral-900">Curated Boutique Fashion</div>
+          <div class="text-[11px] text-neutral-500 truncate">Handpicked trending styles & pure silks</div>
         </div>
       </div>
 
@@ -85,7 +85,7 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
     </button>
 
     <div class="text-[11px] text-neutral-400 font-normal tracking-wide text-center pt-1">
-      Free doorstep trial · Pay with cash or UPI
+      Fast 45-min delivery · Pay with cash or UPI
     </div>
   </div>
 </main>`;
@@ -136,8 +136,8 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
           <span class="material-symbols-outlined text-[18px]">checkroom</span>
         </div>
         <div class="min-w-0">
-          <div class="text-xs font-semibold text-neutral-100">Free Doorstep Trial</div>
-          <div class="text-[11px] text-neutral-400 truncate">Try before you buy, keep what fits</div>
+          <div class="text-xs font-semibold text-neutral-100">Curated Boutique Fashion</div>
+          <div class="text-[11px] text-neutral-400 truncate">Handpicked trending styles & pure silks</div>
         </div>
       </div>
 
@@ -172,7 +172,7 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
     </button>
 
     <div class="text-[11px] text-neutral-500 font-normal tracking-wide text-center pt-1">
-      Free doorstep trial · Pay with cash or UPI
+      Fast 45-min delivery · Pay with cash or UPI
     </div>
   </div>
 </main>`;

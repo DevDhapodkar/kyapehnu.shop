@@ -260,7 +260,7 @@ async function audit() {
   await page.screenshot({ path: path.join(SCRATCH_DIR, '13_address_filled.png') });
 
   // 5. Submit Order
-  const placeOrderBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Place 45-Min Trial Order"):visible, button:has-text("Confirm Order"):visible, button:has-text("Confirm Address"):visible, button:has-text("Confirm Delivery"):visible').first();
+  const placeOrderBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Place 45-Min Express Order"):visible, button:has-text("Confirm Order"):visible, button:has-text("Confirm Address"):visible, button:has-text("Confirm Delivery"):visible').first();
   if (await placeOrderBtn.isVisible()) {
     console.log('Clicking Place Order CTA:', (await placeOrderBtn.textContent())?.trim());
     await placeOrderBtn.click();

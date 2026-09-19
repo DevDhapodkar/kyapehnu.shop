@@ -205,7 +205,7 @@ async function run() {
   await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'feat_10_address_filled.png') });
 
   // Confirm Order
-  const confirmOrderBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Confirm Delivery & Try"):visible, button:has-text("Place 45-Min Trial Order"):visible').first();
+  const confirmOrderBtn = page.locator('#confirmOrderBtn:visible, button:has-text("Confirm Express Delivery"):visible, button:has-text("Place 45-Min Express Order"):visible').first();
   await confirmOrderBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(500);
   console.log('Clicking Place Order button...');

@@ -1199,7 +1199,7 @@ export default function StitchScreenRenderer({
                   <span class="font-tabular-price text-tabular-price text-text-obsidian font-bold">₹${price.toLocaleString()}</span>
                   <span class="font-tabular-caption text-tabular-caption text-text-ash line-through">₹${mrp.toLocaleString()}</span>
                 </div>
-                <span class="font-tabular-caption text-[11px] text-emerald-600 font-semibold">Trial</span>
+                <span class="font-tabular-caption text-[11px] text-emerald-600 font-semibold">Express</span>
               </div>
             </div>
           </div>
@@ -1233,7 +1233,7 @@ export default function StitchScreenRenderer({
       const activeArea = (activeP.storeArea || activeP.vendor?.address?.area || 'DHARAMPETH').toUpperCase();
       const activeImages = (activeP.images && activeP.images.length > 0) ? activeP.images : [activeP.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900'];
       const activeImage = activeImages[activeImageIndex] || activeImages[0];
-      const activeDescription = activeP.description || `Handcrafted in Nagpur with authentic ${activeP.material || 'silk & handloom'} fabrics. Available for 45-minute doorstep trial.`;
+      const activeDescription = activeP.description || `Handcrafted in Nagpur with authentic ${activeP.material || 'silk & handloom'} fabrics. Available for 45-minute express delivery.`;
       const activeColors = (activeP.colors && activeP.colors.length > 0)
         ? activeP.colors.map(c => typeof c === 'object' ? c : { name: String(c), hex: '#121215' })
         : [{ name: 'Original', hex: '#121215' }];
@@ -1362,7 +1362,7 @@ export default function StitchScreenRenderer({
               <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
             </div>
             <h3 class="font-title-md text-xl text-text-obsidian font-bold">Your Shopping Bag is Empty</h3>
-            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute doorstep trial.</p>
+            <p class="font-body-md text-text-slate max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute express delivery.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Collection</span>
@@ -1376,7 +1376,7 @@ export default function StitchScreenRenderer({
               <span class="material-symbols-outlined text-[32px]">shopping_bag</span>
             </div>
             <h3 class="font-title-md text-xl text-on-surface font-bold">Your Shopping Bag is Empty</h3>
-            <p class="font-body-md text-on-surface-variant max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute doorstep trial.</p>
+            <p class="font-body-md text-on-surface-variant max-w-xs">Discover Nagpur's finest handlooms and designer garments available for 45-minute express delivery.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Collection</span>
@@ -1530,7 +1530,7 @@ export default function StitchScreenRenderer({
                 <span class="material-symbols-outlined text-[32px]">receipt_long</span>
               </div>
               <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Orders Placed Yet</h3>
-              <p class="font-body-md text-text-slate max-w-xs">Your boutique orders and 45-minute doorstep trials will appear here once placed.</p>
+              <p class="font-body-md text-text-slate max-w-xs">Your boutique orders and express deliveries will appear here once placed.</p>
               <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
@@ -1546,7 +1546,7 @@ export default function StitchScreenRenderer({
                 <span class="material-symbols-outlined text-[32px]">receipt_long</span>
               </div>
               <h3 class="font-title-md text-xl text-on-surface font-bold">No Orders Placed Yet</h3>
-              <p class="font-body-md text-on-surface-variant max-w-xs">Your boutique orders and 45-minute doorstep trials will appear here once placed.</p>
+              <p class="font-body-md text-on-surface-variant max-w-xs">Your boutique orders and express deliveries will appear here once placed.</p>
               <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
@@ -1583,7 +1583,7 @@ export default function StitchScreenRenderer({
             <div class="rounded-xl bg-surface-porcelain shadow-md p-4 relative overflow-hidden border border-surface-container-high">
               <div class="flex items-start justify-between gap-2 relative">
                 <div>
-                  <span class="font-eyebrow text-eyebrow uppercase tracking-widest text-accent-gold font-bold">ACTIVE 45-MIN TRIAL</span>
+                  <span class="font-eyebrow text-eyebrow uppercase tracking-widest text-accent-gold font-bold">ACTIVE 45-MIN DELIVERY</span>
                   <div class="flex items-center gap-2 mt-0.5">
                     <h3 class="font-title-lg text-title-lg text-text-obsidian font-bold whitespace-nowrap">#${activeIdStr}</h3>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase whitespace-nowrap ${
@@ -1668,7 +1668,7 @@ export default function StitchScreenRenderer({
               <span class="material-symbols-outlined text-[32px]">local_shipping</span>
             </div>
             <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Active Deliveries</h3>
-            <p class="font-body-md text-text-slate max-w-xs">You do not have any 45-minute doorstep trials currently in progress.</p>
+            <p class="font-body-md text-text-slate max-w-xs">You do not have any express deliveries currently in progress.</p>
             <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
               <span class="material-symbols-outlined text-[18px]">explore</span>
               <span>Explore Nagpur Storefront</span>
@@ -1936,8 +1936,8 @@ export default function StitchScreenRenderer({
       } else {
         // Customer View: Show Boutique Partnership card instead of dummy Studio Anamika
         html = html.replace(/Vendor (?:Atelier|Store) Mode/g, 'Own a Boutique in Nagpur?');
-        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
-        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
+        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
+        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
         html = html.replace(
           /<label class="relative inline-flex items-center cursor-pointer">[\s\S]*?<\/label>/i,
           '<button class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-gold text-xs font-semibold rounded-lg border border-gold/30 active:scale-95 transition" data-action="register-vendor">Register &rarr;</button>'
@@ -1948,14 +1948,14 @@ export default function StitchScreenRenderer({
         );
       }
 
-      // 6. Active Order Spotlight vs Nagpur 60-Min Trial Discovery Card
+      // 6. Active Order Spotlight vs Nagpur 45-Min Express Discovery Card
       if (recentOrders.length > 0) {
         const topOrd = recentOrders[0];
         const topId = `KP-${String(topOrd.orderId || topOrd._id || '101').slice(-6).toUpperCase()}`;
         const topItemName = topOrd.items?.[0]?.name || 'Paithani Zari Silhouette';
         const topItemSubtitle = topOrd.items?.length > 1
           ? `${topItemName} (+${topOrd.items.length - 1} more)`
-          : `${topItemName} (Try-at-Doorstep)`;
+          : `${topItemName} (Nagpur Express)`;
         const etaText = topOrd.status === 'out_for_delivery'
           ? 'ETA 25 mins'
           : topOrd.status === 'confirmed'
@@ -1963,7 +1963,7 @@ export default function StitchScreenRenderer({
           : 'ETA 38 mins';
 
         html = html.replace(/Order #KP-8492/g, `Order #${topId}`);
-        html = html.replace(/Zari Paithani Drape \(Try-at-Doorstep\)/g, topItemSubtitle);
+        html = html.replace(/Zari Paithani Drape \(Nagpur Express\)/g, topItemSubtitle);
         html = html.replace(/ETA 38 mins/g, etaText);
 
         // Make Track button active
@@ -1975,20 +1975,20 @@ export default function StitchScreenRenderer({
           }
         );
       } else {
-        // No active order: Show discovery card for 60-min trials
+        // No active order: Show discovery card for 45-min express delivery
         const darkDiscovery = `
           <article class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 via-[#1c1316] to-[#251216] border border-gold/30 p-4 shadow-lg">
             <div class="flex items-center justify-between text-xs mb-1.5">
               <div class="flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-gold shadow-[0_0_8px_#c8a24a]"></span>
-                <span class="text-[11px] font-bold tracking-wider text-gold uppercase">Nagpur 60-Minute Trials</span>
+                <span class="text-[11px] font-bold tracking-wider text-gold uppercase">Nagpur 45-Minute Express Delivery</span>
               </div>
-              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gold/15 text-gold border border-gold/30">Free Doorstep Try-On</span>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gold/15 text-gold border border-gold/30">Nagpur Express Courier</span>
             </div>
             <div class="flex items-end justify-between mt-2">
               <div>
                 <h4 class="font-garamond text-lg font-bold text-white tracking-normal">Experience Luxury Silk at Home</h4>
-                <p class="text-xs text-neutral-300 mt-0.5">Try Paithanis &amp; Angrakhas before you pay</p>
+                <p class="text-xs text-neutral-300 mt-0.5">Authentic Paithanis &amp; Angrakhas delivered in 45 mins</p>
               </div>
               <button class="flex items-center space-x-1 px-3 py-1.5 bg-crimson hover:bg-crimson-dark active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition" data-action="explore-store">
                 <span>Explore</span>
@@ -2002,14 +2002,14 @@ export default function StitchScreenRenderer({
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-accent-gold"></span>
-                <span class="font-eyebrow text-eyebrow uppercase text-accent-gold tracking-widest">Nagpur 60-Minute Trials</span>
+                <span class="font-eyebrow text-eyebrow uppercase text-accent-gold tracking-widest">Nagpur 45-Minute Express Delivery</span>
               </div>
-              <span class="font-tabular-caption text-tabular-caption text-accent-gold font-medium bg-accent-gold/15 px-2 py-0.5 rounded-full">Free Doorstep Try-On</span>
+              <span class="font-tabular-caption text-tabular-caption text-accent-gold font-medium bg-accent-gold/15 px-2 py-0.5 rounded-full">Nagpur Express Courier</span>
             </div>
             <div class="flex items-center justify-between mt-1">
               <div class="flex flex-col">
                 <span class="font-body-lg text-body-lg font-semibold text-text-obsidian">Experience Luxury Silk at Home</span>
-                <span class="font-body-sm text-body-sm text-text-slate">Try Paithanis &amp; Angrakhas before you pay</span>
+                <span class="font-body-sm text-body-sm text-text-slate">Authentic Paithanis &amp; Angrakhas delivered in 45 mins</span>
               </div>
               <button class="px-3 py-1.5 rounded-full bg-accent-crimson text-on-primary font-tabular-caption text-tabular-caption active:scale-95 transition-transform flex items-center gap-1" data-action="explore-store" type="button">
                 Explore
@@ -2234,7 +2234,7 @@ export default function StitchScreenRenderer({
             <div class="flex items-start justify-between gap-gutter-sm mb-3.5 pt-1">
               <div class="flex flex-col min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="font-eyebrow text-eyebrow uppercase text-accent-crimson font-bold tracking-widest">Doorstep Trial</span>
+                  <span class="font-eyebrow text-eyebrow uppercase text-accent-crimson font-bold tracking-widest">Express Delivery</span>
                   <span class="text-text-ash text-body-sm">·</span>
                   <span class="font-tabular-caption text-tabular-caption text-text-ash">Just now</span>
                 </div>
@@ -2732,9 +2732,7 @@ export default function StitchScreenRenderer({
         }
         if (
           dataPath.includes('orders') ||
-          dataPath.includes('concierge-try-on') ||
-          text.includes('orders') ||
-          text.includes('try-on')
+          text.includes('orders')
         ) {
           if (role === ROLES.VENDOR) {
             navigateScreen('VendorOrders');
@@ -3020,15 +3018,15 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 11. PDP: ACQUIRE NOW / TRY AT HOME NOW ---
+      // --- 11. PDP: ACQUIRE NOW / EXPRESS ORDER ---
       if (
         btn &&
         (btn.id === 'acquire-cta' ||
           target.closest('#acquire-cta') ||
           (btn.textContent && (
             btn.textContent.includes('Acquire Now') ||
-            btn.textContent.includes('Try at Home Now') ||
-            btn.textContent.includes('15-Min Trial')
+            btn.textContent.includes('Order Now') ||
+            btn.textContent.includes('Express Checkout')
           )))
       ) {
         e.preventDefault();
@@ -3227,7 +3225,8 @@ export default function StitchScreenRenderer({
         (btn.textContent.includes('Confirm Delivery') ||
           btn.textContent.includes('Confirm Order') ||
           btn.textContent.includes('Confirm Address') ||
-          btn.textContent.includes('Place 45-Min Trial Order') ||
+          btn.textContent.includes('Place Express Order') ||
+          btn.textContent.includes('Place 45-Min Express Order') ||
           btn.textContent.includes('Dispatch Courier'))
       ) {
         e.preventDefault();
@@ -3606,7 +3605,7 @@ export default function StitchScreenRenderer({
       if (btn && btn.textContent && btn.textContent.includes('Measurement Guide')) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Nagpur doorstep trial includes 15-min complimentary pin-tailoring.');
+        showToast('Nagpur express orders include complimentary size exchange assistance.');
         return;
       }
 
@@ -4500,7 +4499,7 @@ export default function StitchScreenRenderer({
                   Select Delivery Precinct
                 </h3>
                 <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
-                  45-Min Express & Doorstep Trial Active in Nagpur
+                  Nagpur 45-Min Hyperlocal Express Delivery Active
                 </p>
               </div>
               <button
@@ -4777,7 +4776,7 @@ export default function StitchScreenRenderer({
                 'Call before arrival',
                 "Don't ring bell",
                 'Leave with guard',
-                'Wait for trial fitting',
+                'Handover to recipient',
               ].map((pill) => (
                 <button
                   key={pill}
@@ -5125,7 +5124,7 @@ export default function StitchScreenRenderer({
                   Bespoke Measurements
                 </h3>
                 <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
-                  Personalized fit profile for 60-min doorstep trials
+                  Personalized fit profile for tailored Nagpur fashion
                 </p>
               </div>
               <button
@@ -5302,10 +5301,10 @@ export default function StitchScreenRenderer({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
-                  Nagpur Concierge &amp; Valet
+                  Nagpur Concierge Desk
                 </h3>
                 <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
-                  Complimentary 15-Minute Doorstep Trial Service
+                  Hyperlocal 45-Minute Express Delivery &amp; Styling
                 </p>
               </div>
               <button
@@ -5331,28 +5330,28 @@ export default function StitchScreenRenderer({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
-                  Doorstep Fitting Mirrors &amp; Pin-Tailoring
+                  Velvet Garment Sleeve Protection
                 </div>
                 <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
-                  Our valet brings full-length trial mirrors and complimentary tailor pins for 15-minute home trials before you pay.
+                  Dedicated express riders deliver your garments in protective velvet garment sleeves directly to your door.
                 </div>
               </div>
 
               <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
-                  Evening Trial Slots (18:00 – 21:00)
+                  Evening Express Slots (18:00 – 21:00)
                 </div>
                 <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
-                  Convenient after-work trial hours across Sitabuldi, Dharampeth, Sadar &amp; Civil Lines.
+                  Convenient after-work express delivery across Sitabuldi, Dharampeth, Sadar &amp; Civil Lines.
                 </div>
               </div>
 
               <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
-                  Zero Upfront Payment
+                  Pay on Delivery &amp; Easy Returns
                 </div>
                 <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
-                  Try up to 3 ensembles in your living room. Pay only for the pieces you decide to keep.
+                  Pay with Cash or UPI upon delivery. Enjoy hassle-free 7-day returns and size exchanges.
                 </div>
               </div>
             </div>
@@ -5379,7 +5378,7 @@ export default function StitchScreenRenderer({
                 type="button"
                 onClick={() => {
                   if (typeof window !== 'undefined') {
-                    window.open('https://wa.me/919823045892?text=Hello%20Valet%20Concierge%2C%20I%20would%20like%20to%20schedule%20a%20doorstep%20trial.', '_blank');
+                    window.open('https://wa.me/919823045892?text=Hello%20Nagpur%20Concierge%2C%20I%20have%20an%20order%20inquiry.', '_blank');
                   }
                 }}
                 style={{
@@ -5574,7 +5573,7 @@ export default function StitchScreenRenderer({
                   <span style={{ fontSize: 10, color: '#C4243A', fontWeight: 600 }}>LIVE</span>
                 </div>
                 <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666' }}>
-                  Nagpur trial runners are currently active in Sitabuldi, Dharampeth &amp; Sadar.
+                  Nagpur express riders are currently active in Sitabuldi, Dharampeth &amp; Sadar.
                 </div>
               </div>
 
@@ -5590,11 +5589,11 @@ export default function StitchScreenRenderer({
 
               <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215' }}>Doorstep Fitting Valet</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215' }}>Express Garment Care</span>
                   <span style={{ fontSize: 10, color: isDark ? '#A8A29E' : '#78716C' }}>POLICY</span>
                 </div>
                 <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666' }}>
-                  Enjoy complimentary 15-min styling assistance &amp; trial mirrors with every order.
+                  Enjoy protective velvet garment packaging &amp; complimentary size exchange assistance with every order.
                 </div>
               </div>
             </div>
