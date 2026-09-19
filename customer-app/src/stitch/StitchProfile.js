@@ -8,7 +8,74 @@ const DARK_HTML = "<header class=\"sticky top-0 z-40 bg-noir-base/95 backdrop-bl
 
 export default function StitchProfile({ navigation }) {
   const isDark = useThemeStore((s) => s.isDark);
+  const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
+  const role = useAuthStore((s) => s.role);
+  const vendorProfile = useAuthStore((s) => s.vendorProfile);
   const containerRef = useRef(null);
+
+  const displayName = user?.displayName || profile?.name || 'Meena Dhapodkar';
+  const phoneOrEmail = user?.phoneNumber || user?.email || '+91 98230 45892';
+  const userEmail = user?.email || 'meenadhapodkar7@gmail.com';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0].toUpperCase())
+    .slice(0, 2)
+    .join('') || 'MD';
+
+  let rawHtml = isDark ? DARK_HTML : LIGHT_HTML;
+
+  // 1. Name & Contacts
+  rawHtml = rawHtml.replace(/Radhika Deshmukh/g, displayName);
+  rawHtml = rawHtml.replace(/\+91 98230 45892/g, phoneOrEmail);
+  rawHtml = rawHtml.replace(/radhika\.deshmukh@gmail\.com/g, userEmail);
+
+  // 2. Avatar
+  const stockDarkAvatarHero = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBxfpv6WDmrs_tKj4KXTXwwA51qdG1qEeX2pwR4bJFsrh2bVHS93ahrkjUlWoSAalCigrqFAGHc8w0Nn1D8b7npHwOGrwtktZiscujV7v1ZUMTXUgwam-7N7Qxueh2x_w_sPXO82hho-pShQXhtggwZtN_xLWztl1Y8qLRQxr00YlHE7HQ6kZxYxExu5REyqvnNoDtG_WccdkHz3ekYSnTglZlQZcmUsNSOedwnqctq6v02uiwM_UH_yA';
+  const stockDarkAvatarMini = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAHnFyDw4XOuVR1ShYJNMDRyhzzt6rXWo4_piL1hdI58ypSQWFgonEdN_EtjrRGOyEkJ0BNiE6G2k985tT5xatws1RjKHK2hqZfe0Poza3H8w5Wpa0x1N4BHPCd74eKhKPrHYJJQSEbLDJ_ISmuce5DAB_ThAMS4a6haBOVyU1SrwPX1B6EEtHeRljKnGpHXtjOwb3BoDswgCFKKWJOW2VkEhfEt78EsaRpvwTRaLImO_AADhe0ZUrCdg';
+  const stockLightAvatar = 'https://lh3.googleusercontent.com/aida/AEtjO1XCMJIUfRNKwRMMwniq41oBO94C7w6JZyCPXS6UIphp410MwUxOSG8-7lAeUDfC-DM34oF6AjyG5lAduiVEY7gz5HmuwRX5c6k3Eod4dzP9jGeoRGGtvtT_SaCg6iHOHHq5OsOn5fbHaWQqoyPEya7Kjq5vlM_kjeJz-ibClV80UnlUuj1_zG-aSFTvopM_Q80INwOJdminq_GxdUD5nPIJGjlW1rORWLPrVIZBsS29oTk4D1llxVibIFA';
+
+  if (user?.photoURL) {
+    rawHtml = rawHtml.split(stockDarkAvatarHero).join(user.photoURL);
+    rawHtml = rawHtml.split(stockDarkAvatarMini).join(user.photoURL);
+    rawHtml = rawHtml.split(stockLightAvatar).join(user.photoURL);
+  } else {
+    const heroMonogram = `<div class="w-full h-full bg-gradient-to-br from-[#8E1B29] to-[#C4243A] flex items-center justify-center text-white font-serif font-bold text-2xl tracking-wider select-none shadow-inner">${initials}</div>`;
+    const miniMonogram = `<div class="w-full h-full bg-[#C4243A] rounded-full flex items-center justify-center text-white font-bold text-xs select-none shadow-xs">${initials}</div>`;
+
+    rawHtml = rawHtml.replace(`<img alt="Radhika Deshmukh" class="w-full h-full object-cover" src="${stockDarkAvatarHero}"/>`, heroMonogram);
+    rawHtml = rawHtml.replace(`<img alt="${displayName}" class="w-full h-full object-cover" src="${stockDarkAvatarHero}"/>`, heroMonogram);
+    rawHtml = rawHtml.replace(`<img alt="Radhika Deshmukh thumbnail" class="w-full h-full object-cover rounded-full" src="${stockDarkAvatarMini}"/>`, miniMonogram);
+    rawHtml = rawHtml.replace(`<img alt="${displayName} thumbnail" class="w-full h-full object-cover rounded-full" src="${stockDarkAvatarMini}"/>`, miniMonogram);
+    rawHtml = rawHtml.replace(`<img alt="Radhika Deshmukh profile portrait" class="w-16 h-16 rounded-full object-cover ring-2 ring-accent-gold/30" src="${stockLightAvatar}"/>`, `<div class="w-16 h-16 rounded-full ring-2 ring-accent-gold/30 overflow-hidden flex items-center justify-center">${heroMonogram}</div>`);
+    rawHtml = rawHtml.replace(`<img alt="${displayName} profile portrait" class="w-16 h-16 rounded-full object-cover ring-2 ring-accent-gold/30" src="${stockLightAvatar}"/>`, `<div class="w-16 h-16 rounded-full ring-2 ring-accent-gold/30 overflow-hidden flex items-center justify-center">${heroMonogram}</div>`);
+    rawHtml = rawHtml.replace(`<img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="${stockLightAvatar}"/>`, miniMonogram);
+  }
+
+  // 3. Orders & Tier
+  rawHtml = rawHtml.replace(/4 Orders Completed/g, '0 Orders Placed');
+  rawHtml = rawHtml.replace(/Fashion Member/g, 'Silver Patron');
+  rawHtml = rawHtml.replace(/Couture Patron/g, 'Silver Patron');
+
+  // 4. Vendor Mode Card vs Customer Boutique Partnership Card
+  if (role === ROLES.VENDOR) {
+    const boutiqueName = vendorProfile?.storeName || 'My Nagpur Boutique';
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp;\.\.\./g, `Manage ${boutiqueName} inventory`);
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, `Manage ${boutiqueName} inventory & queue`);
+  } else {
+    rawHtml = rawHtml.replace(/Vendor (?:Atelier|Store) Mode/g, 'Own a Boutique in Nagpur?');
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
+  }
+
+  // 5. Active Order vs Discovery Card
+  rawHtml = rawHtml.replace(/Order #KP-8492/g, 'Nagpur 60-Min Doorstep Trials');
+  rawHtml = rawHtml.replace(/Zari Paithani Drape \(Try-at-Doorstep\)/g, 'Experience Paithanis & Kurtas at home');
+
+  // 6. Preferences Rows
+  rawHtml = rawHtml.replace(/Home \(Sitabuldi\), Studio \(Dharampeth\)/g, 'Add doorstep delivery address & landmark');
+  rawHtml = rawHtml.replace(/Blouse 34", Angrakha 38", Kurta M/g, 'Kurta M, Blouse 34", Regular Fit');
 
   useEffect(() => {
     const el = containerRef.current;
@@ -31,7 +98,7 @@ export default function StitchProfile({ navigation }) {
       } else if (text.includes('vendor mode') || text.includes('merchant desk') || text.includes('vendor desk')) {
         e.preventDefault();
         useAuthStore.getState().setRole(ROLES.VENDOR);
-      } else if (text.includes('register your shop') || text.includes('own a boutique')) {
+      } else if (text.includes('register your shop') || text.includes('own a boutique') || text.includes('register boutique')) {
         e.preventDefault();
         navigation.navigate('VendorRegister');
       } else if (text.includes('log out') || text.includes('sign out')) {
@@ -44,9 +111,15 @@ export default function StitchProfile({ navigation }) {
       } else if (path === 'shopping-bag') {
         e.preventDefault();
         navigation.navigate('Cart');
-      } else if (path === 'orders-track') {
+      } else if (path === 'orders-track' || text.includes('track')) {
+        e.preventDefault();
+        navigation.navigate('LiveTracking');
+      } else if (text.includes('orders') || text.includes('my doorstep orders')) {
         e.preventDefault();
         navigation.navigate('MyOrders');
+      } else if (text.includes('address') || text.includes('saved addresses')) {
+        e.preventDefault();
+        navigation.navigate('Address');
       }
     };
 
@@ -71,7 +144,7 @@ export default function StitchProfile({ navigation }) {
       <div
         ref={containerRef}
         className="w-full flex-1 flex flex-col"
-        dangerouslySetInnerHTML={{ __html: isDark ? DARK_HTML : LIGHT_HTML }}
+        dangerouslySetInnerHTML={{ __html: rawHtml }}
       />
     </div>
   );

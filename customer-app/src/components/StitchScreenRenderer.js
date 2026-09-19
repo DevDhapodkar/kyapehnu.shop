@@ -209,6 +209,7 @@ export default function StitchScreenRenderer({
   const setRole = useAuthStore((state) => state.setRole);
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
+  const vendorProfile = useAuthStore((state) => state.vendorProfile);
 
   // Storefront live products & filtering
   const products = useStorefrontStore((state) => state.products || []);
@@ -252,6 +253,28 @@ export default function StitchScreenRenderer({
   const [isLiveMapModalOpen, setIsLiveMapModalOpen] = useState(false);
   const [isCustomInstructionsModalOpen, setIsCustomInstructionsModalOpen] = useState(false);
   const [customInstructionsDraft, setCustomInstructionsDraft] = useState('');
+
+  // Profile modals & user settings
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [isMeasurementsModalOpen, setIsMeasurementsModalOpen] = useState(false);
+  const [isConciergeModalOpen, setIsConciergeModalOpen] = useState(false);
+  const [isAuthenticityModalOpen, setIsAuthenticityModalOpen] = useState(false);
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [userMeasurements, setUserMeasurements] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_user_measurements') || 'null');
+        if (saved && saved.kurta) return saved;
+      } catch {}
+    }
+    return { kurta: 'M', blouse: '34"', fitStyle: 'Regular' };
+  });
+  const [editProfileDraft, setEditProfileDraft] = useState({
+    name: '',
+    phone: '',
+    area: 'Sitabuldi',
+  });
+
   const deliveryMiniMapRef = useRef(null);
   const hasPromptedLocationRef = useRef(false);
 
@@ -348,6 +371,32 @@ export default function StitchScreenRenderer({
       loadStorefront();
     }
   }, [products.length, loadStorefront, screenKey]);
+
+  useEffect(() => {
+    if (useAuthStore.getState().token) {
+      fetchMyOrders()
+        .then((orders) => {
+          if (Array.isArray(orders) && orders.length > 0) {
+            setRecentOrders((prev) => {
+              const ids = new Set(orders.map((o) => String(o.orderId || o._id)));
+              const merged = [...orders];
+              prev.forEach((p) => {
+                if (!ids.has(String(p.orderId || p._id))) {
+                  merged.push(p);
+                }
+              });
+              if (typeof window !== 'undefined' && window.localStorage) {
+                try {
+                  window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(merged));
+                } catch {}
+              }
+              return merged;
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
 
   // Fallback to light or dark equivalent if screenKey doesn't match exactly
@@ -1799,49 +1848,239 @@ export default function StitchScreenRenderer({
 
     // PROFILE & SETTINGS SCREEN: Live user data
     if (targetKey.includes('Profile___Settings')) {
-      const displayName = user?.displayName || profile?.name || 'Kya Pehnu Guest';
-      const phoneOrEmail = user?.phoneNumber || user?.email || 'Guest Session (Sitabuldi)';
+      const displayName = user?.displayName || profile?.name || 'Meena Dhapodkar';
+      const phoneOrEmail = user?.phoneNumber || user?.email || '+91 98230 45892';
+      const userEmail = user?.email || 'meenadhapodkar7@gmail.com';
+      const initials = displayName
+        .split(' ')
+        .filter(Boolean)
+        .map((p) => p[0].toUpperCase())
+        .slice(0, 2)
+        .join('') || 'MD';
 
+      // 1. User Name, Phone & Email
       html = html.replace(/Radhika Deshmukh/g, displayName);
       html = html.replace(/\+91 98230 45892/g, phoneOrEmail);
-      html = html.replace(/radhika\.deshmukh@gmail\.com/g, user?.email || 'guest@kyapehnu.shop');
+      html = html.replace(/radhika\.deshmukh@gmail\.com/g, userEmail);
 
-      // If already in vendor role, update toggle button state
+      // 2. User Avatar & Mini Header Avatar:
+      // Replace hardcoded stock image URLs (both light and dark template URLs)
+      const stockDarkAvatarHero = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBxfpv6WDmrs_tKj4KXTXwwA51qdG1qEeX2pwR4bJFsrh2bVHS93ahrkjUlWoSAalCigrqFAGHc8w0Nn1D8b7npHwOGrwtktZiscujV7v1ZUMTXUgwam-7N7Qxueh2x_w_sPXO82hho-pShQXhtggwZtN_xLWztl1Y8qLRQxr00YlHE7HQ6kZxYxExu5REyqvnNoDtG_WccdkHz3ekYSnTglZlQZcmUsNSOedwnqctq6v02uiwM_UH_yA';
+      const stockDarkAvatarMini = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAHnFyDw4XOuVR1ShYJNMDRyhzzt6rXWo4_piL1hdI58ypSQWFgonEdN_EtjrRGOyEkJ0BNiE6G2k985tT5xatws1RjKHK2hqZfe0Poza3H8w5Wpa0x1N4BHPCd74eKhKPrHYJJQSEbLDJ_ISmuce5DAB_ThAMS4a6haBOVyU1SrwPX1B6EEtHeRljKnGpHXtjOwb3BoDswgCFKKWJOW2VkEhfEt78EsaRpvwTRaLImO_AADhe0ZUrCdg';
+      const stockLightAvatar = 'https://lh3.googleusercontent.com/aida/AEtjO1XCMJIUfRNKwRMMwniq41oBO94C7w6JZyCPXS6UIphp410MwUxOSG8-7lAeUDfC-DM34oF6AjyG5lAduiVEY7gz5HmuwRX5c6k3Eod4dzP9jGeoRGGtvtT_SaCg6iHOHHq5OsOn5fbHaWQqoyPEya7Kjq5vlM_kjeJz-ibClV80UnlUuj1_zG-aSFTvopM_Q80INwOJdminq_GxdUD5nPIJGjlW1rORWLPrVIZBsS29oTk4D1llxVibIFA';
+
+      if (user?.photoURL) {
+        html = html.split(stockDarkAvatarHero).join(user.photoURL);
+        html = html.split(stockDarkAvatarMini).join(user.photoURL);
+        html = html.split(stockLightAvatar).join(user.photoURL);
+      } else {
+        // Replace Hero image with luxury gold/crimson monogram avatar disc
+        const heroMonogram = `<div class="w-full h-full bg-gradient-to-br from-[#8E1B29] to-[#C4243A] flex items-center justify-center text-white font-serif font-bold text-2xl tracking-wider select-none shadow-inner">${initials}</div>`;
+        const miniMonogram = `<div class="w-full h-full bg-[#C4243A] rounded-full flex items-center justify-center text-white font-bold text-xs select-none shadow-xs">${initials}</div>`;
+
+        // In Dark:
+        html = html.replace(
+          `<img alt="Radhika Deshmukh" class="w-full h-full object-cover" src="${stockDarkAvatarHero}"/>`,
+          heroMonogram
+        );
+        html = html.replace(
+          `<img alt="${displayName}" class="w-full h-full object-cover" src="${stockDarkAvatarHero}"/>`,
+          heroMonogram
+        );
+        html = html.replace(
+          `<img alt="Radhika Deshmukh thumbnail" class="w-full h-full object-cover rounded-full" src="${stockDarkAvatarMini}"/>`,
+          miniMonogram
+        );
+        html = html.replace(
+          `<img alt="${displayName} thumbnail" class="w-full h-full object-cover rounded-full" src="${stockDarkAvatarMini}"/>`,
+          miniMonogram
+        );
+
+        // In Light:
+        html = html.replace(
+          `<img alt="Radhika Deshmukh profile portrait" class="w-16 h-16 rounded-full object-cover ring-2 ring-accent-gold/30" src="${stockLightAvatar}"/>`,
+          `<div class="w-16 h-16 rounded-full ring-2 ring-accent-gold/30 overflow-hidden flex items-center justify-center">${heroMonogram}</div>`
+        );
+        html = html.replace(
+          `<img alt="${displayName} profile portrait" class="w-16 h-16 rounded-full object-cover ring-2 ring-accent-gold/30" src="${stockLightAvatar}"/>`,
+          `<div class="w-16 h-16 rounded-full ring-2 ring-accent-gold/30 overflow-hidden flex items-center justify-center">${heroMonogram}</div>`
+        );
+        html = html.replace(
+          `<img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="${stockLightAvatar}"/>`,
+          miniMonogram
+        );
+      }
+
+      // 3. User Location
+      const currentArea = deliveryLocation?.areaName && deliveryLocation.areaName !== 'Select Location'
+        ? `${deliveryLocation.areaName}, Nagpur`
+        : 'Sitabuldi, Nagpur';
+      html = html.replace(/<span>Sitabuldi, Nagpur<\/span>/g, `<span>${currentArea}</span>`);
+
+      // 4. Patron Tier & Real Order Count
+      const orderCount = recentOrders.length;
+      const orderCountText = `${orderCount} ${orderCount === 1 ? 'Order' : 'Orders'} Completed`;
+      const tierTitle = orderCount >= 3 ? 'Couture Patron' : orderCount >= 1 ? 'Heritage Patron' : 'Silver Patron';
+
+      html = html.replace(/4 Orders Completed/g, orderCountText);
+      html = html.replace(/Fashion Member/g, tierTitle);
+      html = html.replace(/Couture Patron/g, tierTitle);
+
+      // 5. Vendor Mode Card vs Customer Boutique Partnership Card
       if (role === ROLES.VENDOR) {
+        const boutiqueName = vendorProfile?.storeName || 'My Nagpur Boutique';
+        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, `Manage ${boutiqueName} inventory`);
+        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, `Manage ${boutiqueName} inventory & queue`);
         html = html.replace(/id="vendorModeToggle"\s+role="switch"/gi, 'id="vendorModeToggle" role="switch" aria-checked="true" class="w-12 h-6 rounded-full bg-accent-crimson transition-colors relative flex items-center p-0.5 shrink-0 active:scale-95"');
         html = html.replace(/id="vendorToggleKnob"/gi, 'id="vendorToggleKnob" class="w-5 h-5 rounded-full bg-white shadow-sm transition-transform transform translate-x-6"');
+      } else {
+        // Customer View: Show Boutique Partnership card instead of dummy Studio Anamika
+        html = html.replace(/Vendor (?:Atelier|Store) Mode/g, 'Own a Boutique in Nagpur?');
+        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
+        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 60-min trial network');
+        html = html.replace(
+          /<label class="relative inline-flex items-center cursor-pointer">[\s\S]*?<\/label>/i,
+          '<button class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-gold text-xs font-semibold rounded-lg border border-gold/30 active:scale-95 transition" data-action="register-vendor">Register &rarr;</button>'
+        );
+        html = html.replace(
+          /<button aria-checked="false" class="w-12 h-6 rounded-full bg-surface-container-highest[^"]*" id="vendorModeToggle"[\s\S]*?<\/button>/i,
+          '<button class="px-3 py-1.5 rounded-full bg-ground-subtle border border-accent-gold/40 text-accent-gold font-tabular-caption text-tabular-caption font-semibold active:scale-95 transition-transform" data-action="register-vendor" type="button">Register &rarr;</button>'
+        );
       }
 
-      // Inject "Register Your Boutique" item into Patron Dossier menu
-      const registerItemHtml = `
-        <a class="flex items-center justify-between p-3.5 rounded-xl bg-surface-porcelain shadow-sm active:bg-surface-container transition-colors" data-action="register-vendor" href="#">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson shrink-0">
-              <span class="material-symbols-outlined text-[20px]">storefront</span>
-            </div>
-            <div class="flex flex-col min-w-0">
-              <span class="font-body-md text-body-md font-medium text-text-obsidian">Register Your Boutique</span>
-              <span class="font-body-sm text-body-sm text-text-ash truncate">Onboard your Nagpur boutique in 24 hours</span>
-            </div>
-          </div>
-          <span class="material-symbols-outlined text-text-ash text-[18px]">chevron_right</span>
-        </a>
-      `;
-
-      if (!html.includes('data-action="register-vendor"')) {
-        html = html.replace(/(<!-- Item: My Doorstep Orders -->[\s\S]*?<\/a>)/i, `$1${registerItemHtml}`);
-      }
-
+      // 6. Active Order Spotlight vs Nagpur 60-Min Trial Discovery Card
       if (recentOrders.length > 0) {
         const topOrd = recentOrders[0];
-        const topId = `KP-${String(topOrd.orderId || topOrd._id).slice(-6).toUpperCase()}`;
-        const topItemName = topOrd.items?.[0]?.name || 'Paithani Zari Dupatta';
+        const topId = `KP-${String(topOrd.orderId || topOrd._id || '101').slice(-6).toUpperCase()}`;
+        const topItemName = topOrd.items?.[0]?.name || 'Paithani Zari Silhouette';
+        const topItemSubtitle = topOrd.items?.length > 1
+          ? `${topItemName} (+${topOrd.items.length - 1} more)`
+          : `${topItemName} (Try-at-Doorstep)`;
+        const etaText = topOrd.status === 'out_for_delivery'
+          ? 'ETA 25 mins'
+          : topOrd.status === 'confirmed'
+          ? 'ETA 45 mins'
+          : 'ETA 38 mins';
+
         html = html.replace(/Order #KP-8492/g, `Order #${topId}`);
-        html = html.replace(/Zari Paithani Dupatta · Sitabuldi/g, `${topItemName} · Sitabuldi`);
+        html = html.replace(/Zari Paithani Drape \(Try-at-Doorstep\)/g, topItemSubtitle);
+        html = html.replace(/ETA 38 mins/g, etaText);
+
+        // Make Track button active
+        html = html.replace(
+          /(<button[^>]*class="[^"]*(?:bg-crimson|accent-crimson)[^"]*"[^>]*>[\s\S]*?Track[\s\S]*?<\/button>)/i,
+          (match) => {
+            if (match.includes('data-action="track-order"')) return match;
+            return match.replace('<button', `<button data-action="track-order" data-order-id="${topOrd.orderId || topOrd._id}"`);
+          }
+        );
       } else {
-        html = html.replace(/Order #KP-8492/g, 'No Active Orders');
-        html = html.replace(/Zari Paithani Dupatta · Sitabuldi/g, 'Explore Storefront Collection');
+        // No active order: Show discovery card for 60-min trials
+        const darkDiscovery = `
+          <article class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 via-[#1c1316] to-[#251216] border border-gold/30 p-4 shadow-lg">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-gold shadow-[0_0_8px_#c8a24a]"></span>
+                <span class="text-[11px] font-bold tracking-wider text-gold uppercase">Nagpur 60-Minute Trials</span>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gold/15 text-gold border border-gold/30">Free Doorstep Try-On</span>
+            </div>
+            <div class="flex items-end justify-between mt-2">
+              <div>
+                <h4 class="font-garamond text-lg font-bold text-white tracking-normal">Experience Luxury Silk at Home</h4>
+                <p class="text-xs text-neutral-300 mt-0.5">Try Paithanis &amp; Angrakhas before you pay</p>
+              </div>
+              <button class="flex items-center space-x-1 px-3 py-1.5 bg-crimson hover:bg-crimson-dark active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition" data-action="explore-store">
+                <span>Explore</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              </button>
+            </div>
+          </article>
+        `;
+        const lightDiscovery = `
+          <div class="rounded-xl bg-gradient-to-r from-accent-gold/10 via-surface-porcelain to-surface-porcelain p-4 shadow-sm flex flex-col gap-2 relative overflow-hidden border border-accent-gold/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-accent-gold"></span>
+                <span class="font-eyebrow text-eyebrow uppercase text-accent-gold tracking-widest">Nagpur 60-Minute Trials</span>
+              </div>
+              <span class="font-tabular-caption text-tabular-caption text-accent-gold font-medium bg-accent-gold/15 px-2 py-0.5 rounded-full">Free Doorstep Try-On</span>
+            </div>
+            <div class="flex items-center justify-between mt-1">
+              <div class="flex flex-col">
+                <span class="font-body-lg text-body-lg font-semibold text-text-obsidian">Experience Luxury Silk at Home</span>
+                <span class="font-body-sm text-body-sm text-text-slate">Try Paithanis &amp; Angrakhas before you pay</span>
+              </div>
+              <button class="px-3 py-1.5 rounded-full bg-accent-crimson text-on-primary font-tabular-caption text-tabular-caption active:scale-95 transition-transform flex items-center gap-1" data-action="explore-store" type="button">
+                Explore
+                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        `;
+
+        html = html.replace(/<!-- BEGIN: ActiveDispatchBanner -->[\s\S]*?<!-- END: ActiveDispatchBanner -->/i, `<!-- BEGIN: ActiveDispatchBanner -->${darkDiscovery}<!-- END: ActiveDispatchBanner -->`);
+        html = html.replace(/<!-- Active Express Order Spotlight -->[\s\S]*?(?=<!-- Account Hub Navigation Section -->)/i, `<!-- Active Express Order Spotlight -->${lightDiscovery}\n`);
       }
+
+      // 7. Preferences Rows: Dynamic Data & Interactive Click Handlers
+      // Row 1: My Doorstep Orders
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?My Doorstep Orders)/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="view-orders">${p2}`;
+      });
+
+      // Row 2: Saved Addresses
+      const addressSummary = deliveryLocation?.fullAddress
+        ? (deliveryLocation.fullAddress.length > 38 ? deliveryLocation.fullAddress.slice(0, 38) + '…' : deliveryLocation.fullAddress)
+        : (deliveryLocation?.areaName && deliveryLocation.areaName !== 'Select Location' ? `${deliveryLocation.areaName}, Nagpur` : 'Add doorstep delivery address & landmark');
+      html = html.replace(/Home \(Sitabuldi\), Studio \(Dharampeth\)/g, addressSummary);
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?Saved Addresses)/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="view-address">${p2}`;
+      });
+
+      // Row 3: Saved Fit & Measurements / Bespoke Measurements Dossier
+      const measurementsSummary = `Kurta ${userMeasurements.kurta}, Blouse ${userMeasurements.blouse}, ${userMeasurements.fitStyle} Fit`;
+      html = html.replace(/Blouse 34", Angrakha 38", Kurta M/g, measurementsSummary);
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?(?:Saved Fit &amp; Measurements|Saved Fit & Measurements|Bespoke Measurements Dossier))/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="open-measurements">${p2}`;
+      });
+
+      // Row 4: Nagpur Concierge & Valet
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?Nagpur Concierge &amp; Valet)/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="open-concierge">${p2}`;
+      });
+
+      // Row 5: Silk Mark & Authenticity
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?Silk Mark &amp; Authenticity)/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="open-authenticity">${p2}`;
+      });
+
+      // Row 6: Stylist Concierge Desk
+      html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?Stylist Concierge Desk)/i, (m, p1, p2) => {
+        if (p1.includes('data-action')) return m;
+        return `<a${p1} data-action="open-whatsapp-stylist">${p2}`;
+      });
+
+      // Row 7: Sign Out Button
+      html = html.replace(/(<button[^>]*>[\s\S]*?Sign Out of Kya Pehnu[\s\S]*?<\/button>)/i, (m) => {
+        if (m.includes('data-action="sign-out"')) return m;
+        return m.replace('<button', '<button data-action="sign-out"');
+      });
+
+      // Header Buttons: Notifications & Edit Profile
+      html = html.replace(/(<button[^>]*aria-label="Notifications"[^>]*>)/i, (m) => {
+        if (m.includes('data-action')) return m;
+        return m.replace('<button', '<button data-action="view-notifications"');
+      });
+      html = html.replace(/(<button[^>]*aria-label="Edit Profile"[^>]*>)/i, (m) => {
+        if (m.includes('data-action')) return m;
+        return m.replace('<button', '<button data-action="edit-profile"');
+      });
     }
 
     // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
@@ -3249,6 +3488,90 @@ export default function StitchScreenRenderer({
         return;
       }
 
+      // --- Profile Actions & Modals ---
+      const trackOrderAction = target.closest('[data-action="track-order"]');
+      if (trackOrderAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ordId = trackOrderAction.getAttribute('data-order-id') || recentOrders[0]?.orderId || recentOrders[0]?._id;
+        if (ordId) {
+          setActiveOrderId(ordId);
+        }
+        navigateScreen('LiveTracking');
+        return;
+      }
+
+      const exploreStoreAction = target.closest('[data-action="explore-store"]');
+      if (exploreStoreAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('Home');
+        return;
+      }
+
+      const registerVendorAction = target.closest('[data-action="register-vendor"]');
+      if (registerVendorAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateScreen('VendorRegister');
+        return;
+      }
+
+      const measurementsAction = target.closest('[data-action="open-measurements"]') || (btn && btn.textContent && (btn.textContent.includes('Measurements Dossier') || btn.textContent.includes('Fit & Measurements')));
+      if (measurementsAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsMeasurementsModalOpen(true);
+        return;
+      }
+
+      const conciergeAction = target.closest('[data-action="open-concierge"]') || (btn && btn.textContent && btn.textContent.includes('Concierge & Valet'));
+      if (conciergeAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsConciergeModalOpen(true);
+        return;
+      }
+
+      const authenticityAction = target.closest('[data-action="open-authenticity"]') || (btn && btn.textContent && btn.textContent.includes('Silk Mark & Authenticity'));
+      if (authenticityAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsAuthenticityModalOpen(true);
+        return;
+      }
+
+      const stylistAction = target.closest('[data-action="open-whatsapp-stylist"]') || (btn && btn.textContent && btn.textContent.includes('Stylist Concierge Desk'));
+      if (stylistAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window !== 'undefined') {
+          window.open('https://wa.me/919823045892?text=Hello%20Kya%20Pehnu%20Concierge%2C%20I%20need%20styling%20assistance%20in%20Nagpur.', '_blank');
+        }
+        return;
+      }
+
+      const editProfileAction = target.closest('[data-action="edit-profile"]') || (btn && (btn.getAttribute('aria-label') === 'Edit Profile' || (btn.querySelector && btn.querySelector('[class*="edit"]'))));
+      if (editProfileAction && targetKey.includes('Profile___Settings')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setEditProfileDraft({
+          name: user?.displayName || profile?.name || 'Meena Dhapodkar',
+          phone: user?.phoneNumber || user?.email || '+91 98230 45892',
+          area: deliveryLocation?.areaName && deliveryLocation.areaName !== 'Select Location' ? deliveryLocation.areaName : 'Sitabuldi',
+        });
+        setIsEditProfileModalOpen(true);
+        return;
+      }
+
+      const notifAction = target.closest('[data-action="view-notifications"]') || (btn && (btn.getAttribute('aria-label') === 'Notifications' || (btn.querySelector && btn.querySelector('[class*="notifications"]'))));
+      if (notifAction && targetKey.includes('Profile___Settings')) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsNotificationsModalOpen(true);
+        return;
+      }
+
       const signOutBtn = target.closest('[data-action="sign-out"]') || (btn && btn.textContent && btn.textContent.includes('Sign Out'));
       if (signOutBtn) {
         e.preventDefault();
@@ -4562,6 +4885,738 @@ export default function StitchScreenRenderer({
                 Save Instructions
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 1. Edit Profile Modal */}
+      {isEditProfileModalOpen ? (
+        <div
+          id="editProfileModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99993,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setIsEditProfileModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Edit Patron Profile
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Nagpur Couture Member Details
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 6 }}>
+                  Full Name
+                </label>
+                <input
+                  id="profileNameInput"
+                  type="text"
+                  value={editProfileDraft.name}
+                  onChange={(e) => setEditProfileDraft((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. Meena Dhapodkar"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    backgroundColor: isDark ? '#141315' : '#FFFFFF',
+                    color: isDark ? '#FFFFFF' : '#121215',
+                    border: isDark ? '1px solid #333' : '1px solid #D8D6CD',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 6 }}>
+                  Phone / WhatsApp
+                </label>
+                <input
+                  id="profilePhoneInput"
+                  type="tel"
+                  value={editProfileDraft.phone}
+                  onChange={(e) => setEditProfileDraft((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="e.g. +91 98230 45892"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    backgroundColor: isDark ? '#141315' : '#FFFFFF',
+                    color: isDark ? '#FFFFFF' : '#121215',
+                    border: isDark ? '1px solid #333' : '1px solid #D8D6CD',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 6 }}>
+                  Nagpur Delivery Precinct
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {['Sitabuldi', 'Dharampeth', 'Ramdaspeth', 'Civil Lines', 'Sadar', 'Gandhibagh'].map((area) => {
+                    const isSelected = editProfileDraft.area === area;
+                    return (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => setEditProfileDraft((p) => ({ ...p, area }))}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: '6px 12px',
+                          borderRadius: 20,
+                          backgroundColor: isSelected ? '#C4243A' : isDark ? '#2A292C' : '#F0EFEA',
+                          color: isSelected ? '#FFF' : isDark ? '#E5E5E5' : '#333',
+                          border: isSelected ? '1px solid #C4243A' : isDark ? '1px solid #3D3C40' : '1px solid #E2E0D8',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {area}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: isDark ? '#2A292C' : '#E8E7E0',
+                  color: isDark ? '#E5E5E5' : '#444',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                id="saveProfileBtn"
+                type="button"
+                onClick={() => {
+                  const updatedName = editProfileDraft.name.trim() || 'Meena Dhapodkar';
+                  const updatedPhone = editProfileDraft.phone.trim() || '+91 98230 45892';
+                  const updatedArea = editProfileDraft.area || 'Sitabuldi';
+
+                  if (user) {
+                    user.displayName = updatedName;
+                  }
+                  if (profile) {
+                    profile.name = updatedName;
+                    profile.phone = updatedPhone;
+                  }
+                  setDeliveryLocation((prev) => ({
+                    ...prev,
+                    areaName: updatedArea,
+                  }));
+                  syncUserProfile({
+                    name: updatedName,
+                    phone: updatedPhone,
+                    area: updatedArea,
+                  }).catch(() => {});
+                  setIsEditProfileModalOpen(false);
+                  showToast('Patron profile updated successfully!');
+                }}
+                style={{
+                  flex: 2,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: '#C4243A',
+                  color: '#FFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Save Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 2. Measurements Dossier Modal */}
+      {isMeasurementsModalOpen ? (
+        <div
+          id="measurementsModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99993,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setIsMeasurementsModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Bespoke Measurements
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Personalized fit profile for 60-min doorstep trials
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMeasurementsModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 8 }}>
+                  Kurta / Silhouette Size
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
+                    const isSelected = userMeasurements.kurta === sz;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setUserMeasurements((m) => ({ ...m, kurta: sz }))}
+                        style={{
+                          width: 44,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#C4243A' : isDark ? '#2A292C' : '#F0EFEA',
+                          color: isSelected ? '#FFF' : isDark ? '#E5E5E5' : '#333',
+                          border: isSelected ? '1px solid #C4243A' : isDark ? '1px solid #3D3C40' : '1px solid #E2E0D8',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 8 }}>
+                  Blouse / Chest Bust
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['32"', '34"', '36"', '38"', '40"', '42"'].map((bl) => {
+                    const isSelected = userMeasurements.blouse === bl;
+                    return (
+                      <button
+                        key={bl}
+                        type="button"
+                        onClick={() => setUserMeasurements((m) => ({ ...m, blouse: bl }))}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#C4243A' : isDark ? '#2A292C' : '#F0EFEA',
+                          color: isSelected ? '#FFF' : isDark ? '#E5E5E5' : '#333',
+                          border: isSelected ? '1px solid #C4243A' : isDark ? '1px solid #3D3C40' : '1px solid #E2E0D8',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {bl}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 8 }}>
+                  Fit Style Preference
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['Relaxed', 'Regular', 'Tailored'].map((fit) => {
+                    const isSelected = userMeasurements.fitStyle === fit;
+                    return (
+                      <button
+                        key={fit}
+                        type="button"
+                        onClick={() => setUserMeasurements((m) => ({ ...m, fitStyle: fit }))}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#C4243A' : isDark ? '#2A292C' : '#F0EFEA',
+                          color: isSelected ? '#FFF' : isDark ? '#E5E5E5' : '#333',
+                          border: isSelected ? '1px solid #C4243A' : isDark ? '1px solid #3D3C40' : '1px solid #E2E0D8',
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {fit}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <button
+              id="saveMeasurementsBtn"
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  window.localStorage.setItem('kyapehnu_user_measurements', JSON.stringify(userMeasurements));
+                }
+                setIsMeasurementsModalOpen(false);
+                showToast(`Measurements saved: Kurta ${userMeasurements.kurta}, Blouse ${userMeasurements.blouse}!`);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 24,
+                backgroundColor: '#C4243A',
+                color: '#FFF',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Save Measurements Dossier
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 3. Concierge & Valet Modal */}
+      {isConciergeModalOpen ? (
+        <div
+          id="conciergeModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99993,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setIsConciergeModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Nagpur Concierge &amp; Valet
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Complimentary 15-Minute Doorstep Trial Service
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConciergeModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
+                  Doorstep Fitting Mirrors &amp; Pin-Tailoring
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  Our valet brings full-length trial mirrors and complimentary tailor pins for 15-minute home trials before you pay.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
+                  Evening Trial Slots (18:00 – 21:00)
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  Convenient after-work trial hours across Sitabuldi, Dharampeth, Sadar &amp; Civil Lines.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215', marginBottom: 3 }}>
+                  Zero Upfront Payment
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  Try up to 3 ensembles in your living room. Pay only for the pieces you decide to keep.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setIsConciergeModalOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: isDark ? '#2A292C' : '#E8E7E0',
+                  color: isDark ? '#E5E5E5' : '#444',
+                  border: 'none',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.open('https://wa.me/919823045892?text=Hello%20Valet%20Concierge%2C%20I%20would%20like%20to%20schedule%20a%20doorstep%20trial.', '_blank');
+                  }
+                }}
+                style={{
+                  flex: 2,
+                  padding: '12px 16px',
+                  borderRadius: 24,
+                  backgroundColor: '#C4243A',
+                  color: '#FFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Chat with Valet
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 4. Silk Mark & Authenticity Modal */}
+      {isAuthenticityModalOpen ? (
+        <div
+          id="authenticityModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99993,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setIsAuthenticityModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Silk Mark &amp; Authenticity
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Certified Handlooms of Gandhibagh &amp; Paithan
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAuthenticityModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#C8A24A', marginBottom: 3 }}>
+                  Silk Mark India Certified
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  100% natural mulberry silk authenticated by Central Silk Board of India. Every drape includes an individual QR verification tag.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#C8A24A', marginBottom: 3 }}>
+                  Pure Gold &amp; Silver Zari Guarantee
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  Tested and verified electroplated zari threads that preserve their lustrous sheen across generations.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#C8A24A', marginBottom: 3 }}>
+                  Direct Weaver Provenance
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666', lineHeight: 1.4 }}>
+                  Sourced straight from certified handloom clusters in Gandhibagh and Yeola-Paithan with zero intermediaries.
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAuthenticityModalOpen(false)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 24,
+                backgroundColor: '#C4243A',
+                color: '#FFF',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Close Dossier
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 5. Notifications Modal */}
+      {isNotificationsModalOpen ? (
+        <div
+          id="notificationsModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99993,
+            backgroundColor: 'rgba(18, 18, 21, 0.7)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={() => setIsNotificationsModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: '24px 20px 36px 20px',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215', fontFamily: 'serif' }}>
+                  Nagpur Dossier Alerts
+                </h3>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', marginTop: 2 }}>
+                  Live dispatch &amp; collection announcements
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNotificationsModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isDark ? '#FFF' : '#121215',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215' }}>60-Min Express Dispatch Active</span>
+                  <span style={{ fontSize: 10, color: '#C4243A', fontWeight: 600 }}>LIVE</span>
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666' }}>
+                  Nagpur trial runners are currently active in Sitabuldi, Dharampeth &amp; Sadar.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215' }}>New Paithani Collection Drop</span>
+                  <span style={{ fontSize: 10, color: '#C8A24A', fontWeight: 600 }}>JUST NOW</span>
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666' }}>
+                  Nagpur Heritage weavers added 8 handcrafted zari drapes to the catalog.
+                </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, backgroundColor: isDark ? '#151518' : '#FFF', border: isDark ? '1px solid #333' : '1px solid #E5E3DC' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: isDark ? '#FFF' : '#121215' }}>Doorstep Fitting Valet</span>
+                  <span style={{ fontSize: 10, color: isDark ? '#A8A29E' : '#78716C' }}>POLICY</span>
+                </div>
+                <div style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#666' }}>
+                  Enjoy complimentary 15-min styling assistance &amp; trial mirrors with every order.
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsNotificationsModalOpen(false)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 24,
+                backgroundColor: '#C4243A',
+                color: '#FFF',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Dismiss Alerts
+            </button>
           </div>
         </div>
       ) : null}
