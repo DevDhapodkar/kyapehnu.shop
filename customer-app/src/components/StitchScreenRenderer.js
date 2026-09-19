@@ -225,6 +225,11 @@ export default function StitchScreenRenderer({
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [queueFilter, setQueueFilter] = useState('all');
   const [isAtelierOnline, setIsAtelierOnline] = useState(true);
+  const [vendorRegStep, setVendorRegStep] = useState(1);
+  const vendorRegStepRef = useRef(1);
+  const vendorCoordsRef = useRef({ latitude: 21.1458, longitude: 79.0882 });
+  const vendorMapRef = useRef(null);
+  const vendorMarkerRef = useRef(null);
 
   // Delivery Address & Location Pin States
   const [deliveryLocation, setDeliveryLocation] = useState(() => {
@@ -357,13 +362,43 @@ export default function StitchScreenRenderer({
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const saved = JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
-        if (Array.isArray(saved) && saved.length > 0) return saved;
+        if (Array.isArray(saved) && saved.length > 0) {
+          const cleaned = saved.filter(o => {
+            const name = (o.items?.[0]?.name || o.title || '').toLowerCase();
+            const id = (o.orderId || o._id || '').toUpperCase();
+            return !name.includes('shirt black') && !id.includes('40E483');
+          });
+          if (cleaned.length !== saved.length) {
+            window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(cleaned));
+          }
+          return cleaned;
+        }
       } catch {
         // fallback to default
       }
     }
     return [];
   });
+
+  // Startup cleanup for stale test orders from deleted accounts
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
+        if (Array.isArray(saved) && saved.length > 0) {
+          const cleaned = saved.filter(o => {
+            const name = (o.items?.[0]?.name || o.title || '').toLowerCase();
+            const id = (o.orderId || o._id || '').toUpperCase();
+            return !name.includes('shirt black') && !id.includes('40E483');
+          });
+          if (cleaned.length !== saved.length) {
+            window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(cleaned));
+            setRecentOrders(cleaned);
+          }
+        }
+      } catch (e) {}
+    }
+  }, []);
 
   useEffect(() => {
     if (screenKey.includes('Auth') || screenKey.includes('Sign_In')) return;
@@ -2357,42 +2392,51 @@ export default function StitchScreenRenderer({
 
     // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders with active filtering
     if (targetKey.includes('Vendor_Order_Queue')) {
-      if (recentOrders.length === 0) {
+      const currentVendorId = profile?.vendorId || user?.uid || (vendorProfile && (vendorProfile._id || vendorProfile.id));
+      const currentShopName = (vendorProfile?.shopName || '').toLowerCase().trim();
+      const vendorQueueOrders = recentOrders.filter(o => {
+        if (!currentVendorId && !currentShopName) return false;
+        const matchesId = o.vendorId && (o.vendorId === currentVendorId);
+        const matchesShop = currentShopName && o.shopName && (o.shopName.toLowerCase().trim() === currentShopName);
+        return Boolean(matchesId || matchesShop);
+      });
+
+      if (vendorQueueOrders.length === 0) {
         html = html.replace(/\d+\s+Active Orders/gi, '0 Active Orders');
         const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
         if (queueContainerRegex.test(html)) {
           html = html.replace(queueContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container-low my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inbox</span><h3 class="font-title-md text-base text-text-obsidian font-bold">No Incoming Orders</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">You have no active orders in your queue right now.</p></div>$2`);
         }
       } else {
-        let filteredQueue = recentOrders;
-      if (queueFilter === 'new') {
-        filteredQueue = recentOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status);
-      } else if (queueFilter === 'packing') {
-        filteredQueue = recentOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING');
-      } else if (queueFilter === 'dispatched') {
-        filteredQueue = recentOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED');
-      }
+        let filteredQueue = vendorQueueOrders;
+        if (queueFilter === 'new') {
+          filteredQueue = vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status);
+        } else if (queueFilter === 'packing') {
+          filteredQueue = vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING');
+        } else if (queueFilter === 'dispatched') {
+          filteredQueue = vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED');
+        }
 
-      // Update active order badge and toggle online button
-      html = html.replace(/\d+\s+Active Orders/gi, `${recentOrders.length} Active Orders`);
-      html = html.replace(/id="toggleAtelierBtn"[^>]*>[\s\S]*?<\/button>/i, `id="toggleAtelierBtn" class="relative inline-flex h-6 w-11 items-center rounded-full ${isAtelierOnline ? 'bg-accent-crimson' : 'bg-stone-400'} transition-colors duration-200 focus:outline-none"><span class="inline-block h-4 w-4 transform rounded-full bg-surface-container-lowest transition duration-200 ${isAtelierOnline ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span></button>`);
+        // Update active order badge and toggle online button
+        html = html.replace(/\d+\s+Active Orders/gi, `${vendorQueueOrders.length} Active Orders`);
+        html = html.replace(/id="toggleAtelierBtn"[^>]*>[\s\S]*?<\/button>/i, `id="toggleAtelierBtn" class="relative inline-flex h-6 w-11 items-center rounded-full ${isAtelierOnline ? 'bg-accent-crimson' : 'bg-stone-400'} transition-colors duration-200 focus:outline-none"><span class="inline-block h-4 w-4 transform rounded-full bg-surface-container-lowest transition duration-200 ${isAtelierOnline ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span></button>`);
 
-      // Update queue tabs with active state
-      const tabs = [
-        { filter: 'all', label: `All (${recentOrders.length})` },
-        { filter: 'new', label: `New Queue (${recentOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length})`, ping: true },
-        { filter: 'packing', label: `Tailoring / Packing (${recentOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
-        { filter: 'dispatched', label: `Dispatched (${recentOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length})` },
-      ];
-      const tabsHtml = tabs.map(t => {
-        const isAct = (queueFilter || 'all') === t.filter;
-        return `<button class="queue-tab ${isAct ? 'active-tab bg-text-obsidian text-surface-porcelain font-semibold' : 'bg-surface-container-low text-text-slate'} px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="${t.filter}">
-          ${t.ping && !isAct ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-crimson animate-ping"></span>' : ''}
-          <span>${t.label}</span>
-        </button>`;
-      }).join('');
+        // Update queue tabs with active state
+        const tabs = [
+          { filter: 'all', label: `All (${vendorQueueOrders.length})` },
+          { filter: 'new', label: `New Queue (${vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length})`, ping: true },
+          { filter: 'packing', label: `Tailoring / Packing (${vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
+          { filter: 'dispatched', label: `Dispatched (${vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length})` },
+        ];
+        const tabsHtml = tabs.map(t => {
+          const isAct = (queueFilter || 'all') === t.filter;
+          return `<button class="queue-tab ${isAct ? 'active-tab bg-text-obsidian text-surface-porcelain font-semibold' : 'bg-surface-container-low text-text-slate'} px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="${t.filter}">
+            ${t.ping && !isAct ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-crimson animate-ping"></span>' : ''}
+            <span>${t.label}</span>
+          </button>`;
+        }).join('');
 
-      html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${tabsHtml}$2`);
+        html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${tabsHtml}$2`);
 
       const liveQueueCardsHtml = filteredQueue.map((ord) => {
         const idStr = `KP-${(ord.orderId || ord._id || '8492').slice(-6).toUpperCase()}`;
@@ -2834,7 +2878,7 @@ export default function StitchScreenRenderer({
 
       // --- 1. BACK / RETURN BUTTONS ---
       if (
-        target.closest('[aria-label*="back" i], [aria-label*="return" i], [aria-label="Go back"], .fa-chevron-left, .fa-arrow-left') ||
+        target.closest('[data-action="go-back"], [aria-label*="back" i], [aria-label*="return" i], [aria-label="Go back"], .fa-chevron-left, .fa-arrow-left') ||
         (btn && (
           (btn.getAttribute('aria-label') || '').toLowerCase().includes('back') ||
           (btn.getAttribute('aria-label') || '').toLowerCase().includes('return') ||
@@ -2845,12 +2889,97 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
+
+        if (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk') || targetKey.includes('Register')) {
+          const step1Panel = el.querySelector('#vendor-step-1-panel');
+          const step2Panel = el.querySelector('#vendor-step-2-panel');
+          const step3Panel = el.querySelector('#vendor-step-3-panel');
+
+          const currentStep = vendorRegStepRef.current || ((step3Panel && !step3Panel.classList.contains('hidden'))
+            ? 3
+            : (step2Panel && !step2Panel.classList.contains('hidden'))
+              ? 2
+              : 1);
+
+          if (currentStep === 3) {
+            vendorRegStepRef.current = 2;
+            setVendorRegStep(2);
+            if (step1Panel) step1Panel.classList.add('hidden');
+            if (step2Panel) step2Panel.classList.remove('hidden');
+            if (step3Panel) step3Panel.classList.add('hidden');
+
+            const stepIndicator = el.querySelector('#vendor-step-indicator');
+            const stepTitle = el.querySelector('#vendor-step-title');
+            const stepStatus = el.querySelector('#vendor-step-status');
+            const stepBar3 = el.querySelector('#step-bar-3');
+            const stepLabel3 = el.querySelector('#step-label-3');
+            const submitBtnText = el.querySelector('#submit-btn-text');
+
+            if (stepIndicator) stepIndicator.textContent = 'Step 2';
+            if (stepTitle) stepTitle.textContent = 'Storefront & Location';
+            if (stepStatus) stepStatus.textContent = 'Step 2 of 3';
+            if (stepBar3) {
+              stepBar3.classList.add('bg-black/[0.08]', 'bg-white/10');
+              stepBar3.classList.remove('bg-accent-crimson', 'dark:bg-crimson');
+            }
+            if (stepLabel3) {
+              stepLabel3.classList.remove('font-semibold', 'text-accent-crimson', 'dark:text-crimson');
+            }
+            if (submitBtnText) submitBtnText.textContent = 'Continue to Step 3 — Credentials';
+
+            setTimeout(() => {
+              if (vendorMapRef.current) {
+                vendorMapRef.current.invalidateSize(true);
+                const lat = vendorCoordsRef.current?.latitude || 21.1458;
+                const lng = vendorCoordsRef.current?.longitude || 79.0882;
+                vendorMapRef.current.setView([lat, lng], 15, { animate: false });
+                if (vendorMarkerRef.current) {
+                  vendorMarkerRef.current.setLatLng([lat, lng]);
+                }
+              }
+            }, 150);
+            return;
+          }
+
+          if (currentStep === 2) {
+            vendorRegStepRef.current = 1;
+            setVendorRegStep(1);
+            if (step1Panel) step1Panel.classList.remove('hidden');
+            if (step2Panel) step2Panel.classList.add('hidden');
+            if (step3Panel) step3Panel.classList.add('hidden');
+
+            const stepIndicator = el.querySelector('#vendor-step-indicator');
+            const stepTitle = el.querySelector('#vendor-step-title');
+            const stepStatus = el.querySelector('#vendor-step-status');
+            const stepBar2 = el.querySelector('#step-bar-2');
+            const stepLabel2 = el.querySelector('#step-label-2');
+            const submitBtnText = el.querySelector('#submit-btn-text');
+
+            if (stepIndicator) stepIndicator.textContent = 'Step 1';
+            if (stepTitle) stepTitle.textContent = 'Store Profile & Details';
+            if (stepStatus) stepStatus.textContent = 'In Progress';
+            if (stepBar2) {
+              stepBar2.classList.add('bg-black/[0.08]', 'bg-white/10');
+              stepBar2.classList.remove('bg-accent-crimson', 'dark:bg-crimson');
+            }
+            if (stepLabel2) {
+              stepLabel2.classList.remove('font-semibold', 'text-accent-crimson', 'dark:text-crimson');
+            }
+            if (submitBtnText) submitBtnText.textContent = 'Continue to Step 2 — Location';
+            return;
+          }
+        }
+
         if (targetKey.includes('Product_Ingestion') || targetKey.includes('light_product_ingestion') || targetKey.includes('dark_product_ingestion')) {
           navigateScreen('CatalogManager');
         } else if (targetKey.includes('Vendor_Order_Detail') || targetKey.includes('Order_Detail')) {
           navigateScreen('VendorOrders');
         } else if (targetKey.includes('Catalogue_Manager') || targetKey.includes('Catalog')) {
           navigateScreen('VendorOrders');
+        } else if (targetKey.includes('Product_Detail') || targetKey.includes('Your_Bag') || targetKey.includes('Profile___Settings') || targetKey.includes('My_Orders')) {
+          navigateScreen('Home');
+        } else if (targetKey.includes('Delivery_Address')) {
+          navigateScreen('Cart');
         } else if (navigation?.canGoBack?.()) {
           navigation.goBack();
         } else if (role === ROLES.VENDOR) {
@@ -2941,22 +3070,6 @@ export default function StitchScreenRenderer({
         }
       }
 
-      // --- 2b. HEADER BACK BUTTON ---
-      const goBackBtn = target.closest('[data-action="go-back"], button[aria-label="Go back" i], button[aria-label="Navigate Back" i]');
-      if (goBackBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (targetKey.includes('Product_Detail') || targetKey.includes('Your_Bag') || targetKey.includes('Profile___Settings') || targetKey.includes('My_Orders')) {
-          navigateScreen('Home');
-        } else if (targetKey.includes('Delivery_Address')) {
-          navigateScreen('Cart');
-        } else if (navigation?.canGoBack && navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigateScreen('Home');
-        }
-        return;
-      }
 
       // --- 2c. PDP / HEADER BAG BUTTON ---
       const headerBagBtn = target.closest('button[aria-label="Shopping Bag" i], [data-path="shopping-bag"]');
@@ -3931,52 +4044,285 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 21b. VENDOR: BOUTIQUE ONBOARDING SUBMISSION ---
+      // --- 21b. VENDOR: BOUTIQUE ONBOARDING MULTI-STEP FLOW & CREDENTIALS ---
+      const recalibrateBtn = target.closest('#recalibrate-gps');
+      if (recalibrateBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          showToast('Locating your boutique...');
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              vendorCoordsRef.current = { latitude: lat, longitude: lng };
+              if (vendorMapRef.current) {
+                vendorMapRef.current.setView([lat, lng], 16);
+                if (vendorMarkerRef.current) {
+                  vendorMarkerRef.current.setLatLng([lat, lng]);
+                  vendorMarkerRef.current.openPopup();
+                }
+                vendorMapRef.current.invalidateSize(true);
+              }
+              showToast('Location updated from GPS');
+            },
+            () => {
+              const lat = 21.1458;
+              const lng = 79.0882;
+              vendorCoordsRef.current = { latitude: lat, longitude: lng };
+              if (vendorMapRef.current) {
+                vendorMapRef.current.setView([lat, lng], 15);
+                if (vendorMarkerRef.current) {
+                  vendorMarkerRef.current.setLatLng([lat, lng]);
+                }
+              }
+              showToast('Centered on Nagpur Central Hub');
+            },
+            { timeout: 6000, enableHighAccuracy: true }
+          );
+        } else {
+          showToast('Centered on Nagpur Central Hub');
+        }
+        return;
+      }
+
       const submitVendorReg = target.closest('#submit-btn, button[id*="submit-btn"]');
       if (submitVendorReg && (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk') || targetKey.includes('Register'))) {
         e.preventDefault();
         e.stopPropagation();
-        const shopInput = el.querySelector('#shop-name, input[placeholder*="Studio Anamika" i], input[placeholder*="Brand Name" i]');
-        const propInput = el.querySelector('#proprietor-name, input[placeholder*="Anamika Joshi" i], input[placeholder*="Proprietor" i]');
-        const phoneInput = el.querySelector('#whatsapp-contact, input[type="tel"]');
 
-        const storeName = shopInput?.value?.trim() || 'Studio Anamika Handlooms';
-        const proprietorName = propInput?.value?.trim() || 'Anamika Joshi';
-        const rawPhone = (phoneInput?.value || '9822012345').replace(/[^0-9]/g, '');
-        const phone = rawPhone.length === 10 ? `+91${rawPhone}` : (rawPhone.length === 12 ? `+${rawPhone}` : `+919822012345`);
+        const step1Panel = el.querySelector('#vendor-step-1-panel');
+        const step2Panel = el.querySelector('#vendor-step-2-panel');
+        const step3Panel = el.querySelector('#vendor-step-3-panel');
 
-        const vendorPayload = {
-          shopName: storeName,
-          ownerName: proprietorName,
-          phone,
-          whatsappNumber: phone,
-          address: {
-            line1: 'Dharampeth Main Road',
-            area: 'Dharampeth',
-            city: 'Nagpur',
-            pincode: '440010',
-          },
-        };
+        const currentStep = vendorRegStepRef.current || ((step3Panel && !step3Panel.classList.contains('hidden'))
+          ? 3
+          : (step2Panel && !step2Panel.classList.contains('hidden'))
+            ? 2
+            : 1);
 
-        try {
-          await registerVendor(vendorPayload);
-        } catch (regErr) {
-          console.warn('[StitchRenderer] Vendor registration note:', regErr?.message);
+        if (currentStep === 1) {
+          const shopInput = el.querySelector('#shop-name');
+          const propInput = el.querySelector('#proprietor-name');
+          const phoneInput = el.querySelector('#whatsapp-contact');
+
+          const storeName = shopInput?.value?.trim();
+          const proprietorName = propInput?.value?.trim();
+          const rawPhone = (phoneInput?.value || '').replace(/[^0-9]/g, '');
+
+          if (!storeName) {
+            showToast('Please enter your Boutique / Brand Name');
+            shopInput?.focus();
+            return;
+          }
+          if (!proprietorName) {
+            showToast('Please enter the Lead Designer / Proprietor name');
+            propInput?.focus();
+            return;
+          }
+          if (rawPhone.length !== 10) {
+            showToast('Please enter a valid 10-digit WhatsApp number');
+            phoneInput?.focus();
+            return;
+          }
+
+          // Advance to Step 2
+          vendorRegStepRef.current = 2;
+          setVendorRegStep(2);
+          if (step1Panel) step1Panel.classList.add('hidden');
+          if (step2Panel) step2Panel.classList.remove('hidden');
+          if (step3Panel) step3Panel.classList.add('hidden');
+
+          const stepIndicator = el.querySelector('#vendor-step-indicator');
+          const stepTitle = el.querySelector('#vendor-step-title');
+          const stepStatus = el.querySelector('#vendor-step-status');
+          const stepBar2 = el.querySelector('#step-bar-2');
+          const stepLabel2 = el.querySelector('#step-label-2');
+          const submitBtnText = el.querySelector('#submit-btn-text');
+
+          if (stepIndicator) stepIndicator.textContent = 'Step 2';
+          if (stepTitle) stepTitle.textContent = 'Storefront & Location';
+          if (stepStatus) stepStatus.textContent = 'Step 2 of 3';
+          if (stepBar2) {
+            stepBar2.classList.remove('bg-black/[0.08]', 'bg-white/10');
+            stepBar2.classList.add('bg-accent-crimson', 'dark:bg-crimson');
+          }
+          if (stepLabel2) {
+            stepLabel2.classList.add('font-semibold', 'text-accent-crimson', 'dark:text-crimson');
+          }
+          if (submitBtnText) submitBtnText.textContent = 'Continue to Step 3 — Credentials';
+
+          el.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+          window.scrollTo?.({ top: 0, behavior: 'smooth' });
+
+          setTimeout(() => {
+            if (vendorMapRef.current) {
+              vendorMapRef.current.invalidateSize(true);
+              const lat = vendorCoordsRef.current?.latitude || 21.1458;
+              const lng = vendorCoordsRef.current?.longitude || 79.0882;
+              vendorMapRef.current.setView([lat, lng], 15, { animate: false });
+              if (vendorMarkerRef.current) {
+                vendorMarkerRef.current.setLatLng([lat, lng]);
+              }
+            }
+          }, 150);
+          return;
         }
 
-        useAuthStore.setState({
-          role: ROLES.VENDOR,
-          vendorProfile: {
-            ...vendorPayload,
-            approvalStatus: 'APPROVED',
-          },
-        });
+        if (currentStep === 2) {
+          const addressInput = el.querySelector('#atelier-address');
+          const addressVal = addressInput?.value?.trim();
 
-        showToast('Boutique Registered. Welcome to Nagpur Vendor Desk.');
-        setTimeout(() => {
-          navigateScreen('CatalogManager');
-        }, 500);
-        return;
+          if (!addressVal) {
+            showToast('Please enter your Storefront Landmark Address');
+            addressInput?.focus();
+            return;
+          }
+
+          // Advance to Step 3
+          vendorRegStepRef.current = 3;
+          setVendorRegStep(3);
+          if (step1Panel) step1Panel.classList.add('hidden');
+          if (step2Panel) step2Panel.classList.add('hidden');
+          if (step3Panel) step3Panel.classList.remove('hidden');
+
+          const stepIndicator = el.querySelector('#vendor-step-indicator');
+          const stepTitle = el.querySelector('#vendor-step-title');
+          const stepStatus = el.querySelector('#vendor-step-status');
+          const stepBar3 = el.querySelector('#step-bar-3');
+          const stepLabel3 = el.querySelector('#step-label-3');
+          const submitBtnText = el.querySelector('#submit-btn-text');
+
+          if (stepIndicator) stepIndicator.textContent = 'Step 3';
+          if (stepTitle) stepTitle.textContent = 'Account Credentials';
+          if (stepStatus) stepStatus.textContent = 'Final Step';
+          if (stepBar3) {
+            stepBar3.classList.remove('bg-black/[0.08]', 'bg-white/10');
+            stepBar3.classList.add('bg-accent-crimson', 'dark:bg-crimson');
+          }
+          if (stepLabel3) {
+            stepLabel3.classList.add('font-semibold', 'text-accent-crimson', 'dark:text-crimson');
+          }
+          if (submitBtnText) submitBtnText.textContent = 'Complete Registration & Launch Desk';
+
+          el.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+          window.scrollTo?.({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        if (currentStep === 3) {
+          const emailInput = el.querySelector('#vendor-email');
+          const passwordInput = el.querySelector('#vendor-password');
+          const confirmPasswordInput = el.querySelector('#vendor-confirm-password');
+
+          const emailVal = emailInput?.value?.trim();
+          const passwordVal = passwordInput?.value || '';
+          const confirmPasswordVal = confirmPasswordInput?.value || '';
+
+          if (!emailVal || !emailVal.includes('@') || !emailVal.includes('.')) {
+            showToast('Please enter a valid official email address');
+            emailInput?.focus();
+            return;
+          }
+          if (!passwordVal || passwordVal.length < 6) {
+            showToast('Password must be at least 6 characters');
+            passwordInput?.focus();
+            return;
+          }
+          if (passwordVal !== confirmPasswordVal) {
+            showToast('Passwords do not match');
+            confirmPasswordInput?.focus();
+            return;
+          }
+
+          const shopInput = el.querySelector('#shop-name');
+          const propInput = el.querySelector('#proprietor-name');
+          const phoneInput = el.querySelector('#whatsapp-contact');
+          const addressInput = el.querySelector('#atelier-address');
+
+          const storeName = shopInput?.value?.trim() || 'Nagpur Boutique';
+          const proprietorName = propInput?.value?.trim() || 'Boutique Designer';
+          const rawPhone = (phoneInput?.value || '').replace(/[^0-9]/g, '');
+          const phone = rawPhone.length === 10 ? `+91${rawPhone}` : `+919822012345`;
+          const addressVal = addressInput?.value?.trim() || 'Nagpur';
+
+          const lat = vendorCoordsRef.current?.latitude || 21.1458;
+          const lng = vendorCoordsRef.current?.longitude || 79.0882;
+
+          const vendorPayload = {
+            shopName: storeName,
+            ownerName: proprietorName,
+            phone,
+            whatsappNumber: phone,
+            email: emailVal,
+            address: {
+              line1: addressVal,
+              area: 'Nagpur Central',
+              city: 'Nagpur',
+              pincode: '440010',
+            },
+            location: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+          };
+
+          submitVendorReg.disabled = true;
+          submitVendorReg.style.opacity = '0.7';
+          const submitBtnText = el.querySelector('#submit-btn-text');
+          if (submitBtnText) submitBtnText.textContent = 'Registering Boutique...';
+
+          try {
+            if (useAuthStore.getState().registerWithEmail) {
+              try {
+                await useAuthStore.getState().registerWithEmail({
+                  name: proprietorName,
+                  email: emailVal,
+                  phone,
+                  password: passwordVal,
+                });
+              } catch (authErr) {
+                console.warn('[VendorRegister] Auth register note:', authErr?.message);
+              }
+            }
+
+            try {
+              await registerVendor(vendorPayload);
+            } catch (regErr) {
+              console.warn('[VendorRegister] Vendor registration note:', regErr?.message);
+            }
+
+            const vendorUser = {
+              uid: useAuthStore.getState().user?.uid || `vendor-${Date.now()}`,
+              displayName: proprietorName,
+              email: emailVal,
+              phoneNumber: phone,
+            };
+
+            useAuthStore.setState({
+              role: ROLES.VENDOR,
+              user: vendorUser,
+              token: useAuthStore.getState().token || `vendor-token-${Date.now()}`,
+              vendorProfile: {
+                ...vendorPayload,
+                _id: `vnd-${Date.now()}`,
+                approvalStatus: 'APPROVED',
+              },
+            });
+
+            showToast('Boutique Registered! Welcome to Nagpur Vendor Desk.');
+            setTimeout(() => {
+              navigateScreen('CatalogManager');
+            }, 600);
+          } catch (err) {
+            console.error('[VendorRegister] Error:', err);
+            showToast(err?.message || 'Registration failed. Please try again.');
+            submitVendorReg.disabled = false;
+            submitVendorReg.style.opacity = '1';
+            if (submitBtnText) submitBtnText.textContent = 'Complete Registration & Launch Desk';
+          }
+          return;
+        }
       }
 
       // --- 21c. VENDOR: VIEW ORDER DETAIL CLICK ---
@@ -4582,16 +4928,8 @@ export default function StitchScreenRenderer({
           keyboard: false,
         });
 
-        // Luxury CartoDB Voyager tiles with automatic OpenStreetMap tile fallback
-        const primaryTileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-        const tiles = L.tileLayer(primaryTileUrl, {
-          subdomains: 'abcd',
+        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
-        });
-        tiles.on('tileerror', (e) => {
-          if (e?.tile && e?.coords) {
-            e.tile.src = `https://tile.openstreetmap.org/${e.coords.z}/${e.coords.x}/${e.coords.y}.png`;
-          }
         });
         tiles.addTo(map);
 
@@ -4628,6 +4966,162 @@ export default function StitchScreenRenderer({
       }
     };
   }, [targetKey, deliveryLocation.latitude, deliveryLocation.longitude]);
+
+  // Dynamic Interactive Leaflet Map on Vendor Registration Screen (Step 2)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || (!targetKey.includes('Register_Your_Shop') && !targetKey.includes('Vendor_Desk') && !targetKey.includes('Register'))) {
+      if (vendorMapRef.current) {
+        try {
+          vendorMapRef.current.remove();
+        } catch (e) {}
+        vendorMapRef.current = null;
+      }
+      return;
+    }
+
+    const getLeaflet = () => {
+      if (typeof window !== 'undefined' && window.L) return Promise.resolve(window.L);
+      if (typeof document !== 'undefined') {
+        if (!document.getElementById('leaflet-css')) {
+          const link = document.createElement('link');
+          link.id = 'leaflet-css';
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(link);
+        }
+        if (!document.getElementById('leaflet-js')) {
+          const script = document.createElement('script');
+          script.id = 'leaflet-js';
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          document.head.appendChild(script);
+        }
+      }
+      return new Promise((resolve) => {
+        let attempts = 0;
+        const check = setInterval(() => {
+          attempts++;
+          if (typeof window !== 'undefined' && window.L) {
+            clearInterval(check);
+            resolve(window.L);
+          } else if (attempts > 50) {
+            clearInterval(check);
+            resolve(null);
+          }
+        }, 100);
+      });
+    };
+
+    let active = true;
+    let pollTimer = null;
+    let pollCount = 0;
+
+    const mountVendorMap = (L) => {
+      if (!active || !L) return;
+      const mapEl = containerRef.current?.querySelector('#vendor-leaflet-map');
+      if (!mapEl) {
+        if (pollCount < 30) {
+          pollCount++;
+          pollTimer = setTimeout(() => mountVendorMap(L), 150);
+        }
+        return;
+      }
+
+      if (vendorMapRef.current) {
+        try {
+          const c = vendorMapRef.current.getContainer?.();
+          if (c === mapEl) {
+            vendorMapRef.current.invalidateSize(true);
+            return;
+          }
+          vendorMapRef.current.remove();
+        } catch (e) {}
+        vendorMapRef.current = null;
+      }
+
+      if (mapEl._leaflet_id) {
+        try {
+          delete mapEl._leaflet_id;
+        } catch (e) {
+          mapEl._leaflet_id = undefined;
+        }
+      }
+
+      try {
+        const initialLat = vendorCoordsRef.current?.latitude || 21.1458;
+        const initialLng = vendorCoordsRef.current?.longitude || 79.0882;
+
+        const map = L.map(mapEl, {
+          center: [initialLat, initialLng],
+          zoom: 15,
+          zoomControl: false,
+          attributionControl: false,
+        });
+
+        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+        });
+        tiles.addTo(map);
+
+        const pinIcon = L.divIcon({
+          className: 'vendor-boutique-pin',
+          html: `<div style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:19px;background:#C4243A;color:white;box-shadow:0 4px 16px rgba(196,36,58,0.45);border:2.5px solid white;cursor:grab;"><span class="material-symbols-outlined" style="font-size:22px;">storefront</span></div>`,
+          iconSize: [38, 38],
+          iconAnchor: [19, 38],
+        });
+
+        const marker = L.marker([initialLat, initialLng], {
+          icon: pinIcon,
+          draggable: true,
+        }).addTo(map);
+
+        marker.bindPopup('<b>Boutique Pickup Bay</b><br/>Drag or tap map to set location').openPopup();
+
+        marker.on('dragend', (e) => {
+          const pos = e.target.getLatLng();
+          vendorCoordsRef.current = { latitude: pos.lat, longitude: pos.lng };
+        });
+
+        map.on('click', (e) => {
+          marker.setLatLng(e.latlng);
+          vendorCoordsRef.current = { latitude: e.latlng.lat, longitude: e.latlng.lng };
+          marker.openPopup();
+        });
+
+        vendorMapRef.current = map;
+        vendorMarkerRef.current = marker;
+
+        [80, 200, 500, 1000].forEach((delay) => {
+          setTimeout(() => {
+            if (active && vendorMapRef.current === map) {
+              try {
+                if (map._container && map._mapPane) {
+                  map.invalidateSize(true);
+                }
+              } catch (e) {}
+            }
+          }, delay);
+        });
+      } catch (err) {
+        console.warn('[VendorMap] Init failed:', err);
+      }
+    };
+
+    getLeaflet().then((L) => {
+      if (L && active) mountVendorMap(L);
+    });
+
+    return () => {
+      active = false;
+      if (pollTimer) clearTimeout(pollTimer);
+      if (vendorMapRef.current) {
+        try {
+          vendorMapRef.current.remove();
+        } catch (e) {}
+        vendorMapRef.current = null;
+      }
+      vendorMarkerRef.current = null;
+    };
+  }, [targetKey]);
 
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>
