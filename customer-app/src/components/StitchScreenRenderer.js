@@ -408,14 +408,38 @@ export default function StitchScreenRenderer({
   }, [user]);
 
 
-  // Fallback to light or dark equivalent if screenKey doesn't match exactly
+  // Match light or dark equivalent based on current theme
   let targetKey = screenKey;
-  if (!stitchScreens[targetKey]) {
-    if (isDark) {
+  if (isDark) {
+    if (targetKey.startsWith('final_light_theme_')) {
+      const darkCandidate = targetKey.replace('final_light_theme_', 'final_theme_dark_');
+      if (stitchScreens[darkCandidate]) {
+        targetKey = darkCandidate;
+      } else {
+        const coreName = targetKey.replace('final_light_theme_', '').toLowerCase();
+        const darkMatch = Object.keys(stitchScreens).find(
+          (k) => k.startsWith('final_theme_dark_') && k.toLowerCase().includes(coreName.slice(0, 10))
+        );
+        if (darkMatch) targetKey = darkMatch;
+      }
+    } else if (!stitchScreens[targetKey]) {
       targetKey = Object.keys(stitchScreens).find(
         (k) => k.startsWith('final_theme_dark') && k.toLowerCase().includes(screenKey.toLowerCase())
       ) || targetKey;
-    } else {
+    }
+  } else {
+    if (targetKey.startsWith('final_theme_dark_')) {
+      const lightCandidate = targetKey.replace('final_theme_dark_', 'final_light_theme_');
+      if (stitchScreens[lightCandidate]) {
+        targetKey = lightCandidate;
+      } else {
+        const coreName = targetKey.replace('final_theme_dark_', '').toLowerCase();
+        const lightMatch = Object.keys(stitchScreens).find(
+          (k) => k.startsWith('final_light_theme_') && k.toLowerCase().includes(coreName.slice(0, 10))
+        );
+        if (lightMatch) targetKey = lightMatch;
+      }
+    } else if (!stitchScreens[targetKey]) {
       targetKey = Object.keys(stitchScreens).find(
         (k) => k.startsWith('final_light_theme') && k.toLowerCase().includes(screenKey.toLowerCase())
       ) || targetKey;
@@ -880,28 +904,56 @@ export default function StitchScreenRenderer({
         authHtml = updateTagById(authHtml, 'dark-tab-register', (t) => setTabActive(t, true, true));
       }
 
-      // Modernize "Own a Boutique in Nagpur?" to "Want to Sell on Kya Pehnu?"
+      // Modernize "Own a Boutique in Nagpur?" to "Want to Sell on Kya Pehnu?" with harmonized, non-truncating card design
       authHtml = authHtml.replace(
         /Own a [bB]outique in Nagpur\??/g,
         'Want to Sell on Kya Pehnu?'
       );
       authHtml = authHtml.replace(
         /Join Sitabuldi &amp; Dharampeth (?:network|guild)/gi,
-        'Own a boutique, brand or store in Nagpur? Join our 45-min express network'
+        'Own a boutique, brand or store in Nagpur? Join our express network'
       );
       authHtml = authHtml.replace(
         /Join Nagpur's fastest fashion community/gi,
-        'Own a boutique, brand or store in Nagpur? Join our 45-min express network'
+        'Own a boutique, brand or store in Nagpur? Join our express network'
       );
 
-      // Ensure the register button has data-action="register-vendor" and id="registerBoutiqueBtn"
+      // Light theme: standardize card container and title font to avoid truncation
       authHtml = authHtml.replace(
-        /<a class="[^"]*" href="javascript:void\(0\)">\s*<span[^>]*>Register<\/span>[\s\S]*?<\/a>/i,
-        '<button data-action="register-vendor" id="registerBoutiqueBtn" type="button" class="shrink-0 flex items-center gap-1 font-tabular-caption text-tabular-caption font-bold text-accent-gold-deep px-3.5 py-1.5 rounded-full bg-surface-porcelain shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer"><span>Register</span><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>'
+        /<div class="mt-6 rounded-xl bg-surface-container-high p-4 flex items-center justify-between gap-3 shadow-sm[^"]*"[^>]*>/i,
+        '<div class="mt-5 rounded-2xl bg-surface-container-high/90 border border-black/[0.06] p-3.5 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-accent-gold/40 transition-all" data-purpose="vendor-callout" data-action="register-vendor" id="registerBoutiqueBtn">'
       );
       authHtml = authHtml.replace(
-        /<button class="shrink-0 px-3 py-1.5 rounded-lg bg-noir-card border border-gold\/40 text-gold-light[^"]*" type="button">\s*<span>Register<\/span>[\s\S]*?<\/button>/i,
-        '<button data-action="register-vendor" id="dark-registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"><span>Register</span><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>'
+        /<div class="w-10 h-10 rounded-full bg-accent-gold\/20 flex items-center justify-center shrink-0">/i,
+        '<div class="w-11 h-11 rounded-xl bg-accent-gold/15 border border-accent-gold/30 flex items-center justify-center shrink-0 text-accent-gold-deep">'
+      );
+      authHtml = authHtml.replace(
+        /<span class="font-tabular-price text-tabular-price text-text-obsidian[^"]*">[\s\S]*?Want to Sell on Kya Pehnu\??[\s\S]*?<\/span>/gi,
+        '<h4 class="text-xs sm:text-sm font-bold text-text-obsidian truncate tracking-tight">Want to Sell on Kya Pehnu?</h4>'
+      );
+
+      // Light theme: standardize button
+      authHtml = authHtml.replace(
+        /<a class="[^"]*" href="javascript:void\(0\)">\s*<span[^>]*>Register<\/span>[\s\S]*?<\/a>/i,
+        '<button data-action="register-vendor" id="registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-surface-porcelain border border-black/10 text-accent-gold-deep shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer"><span>Register &rarr;</span></button>'
+      );
+      authHtml = authHtml.replace(
+        /<button data-action="register-vendor" class="[^"]*font-tabular-caption[^"]*" type="button">\s*<span>[\s\S]*?Register[\s\S]*?<\/span>\s*<\/button>/gi,
+        '<button data-action="register-vendor" id="registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-surface-porcelain border border-black/10 text-accent-gold-deep shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer"><span>Register &rarr;</span></button>'
+      );
+
+      // Dark theme: standardize button & container
+      authHtml = authHtml.replace(
+        /<section class="bg-noir-surface\/70 border border-noir-border rounded-2xl p-3\.5 flex items-center justify-between gap-3 shadow-md[^"]*"[^>]*>/i,
+        '<section class="mt-5 rounded-2xl bg-noir-surface/80 border border-noir-border p-3.5 flex items-center justify-between gap-3 shadow-sm cursor-pointer hover:border-gold/30 transition-all" data-purpose="vendor-callout" data-action="register-vendor" id="registerBoutiqueBtn">'
+      );
+      authHtml = authHtml.replace(
+        /<button data-action="register-vendor" class="shrink-0 px-3 py-1\.5 rounded-lg bg-noir-card border border-gold\/40 text-gold-light[^"]*" type="button">\s*<span>[\s\S]*?Register[\s\S]*?<\/span>\s*<\/button>/gi,
+        '<button data-action="register-vendor" id="dark-registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-xl bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"><span>Register &rarr;</span></button>'
+      );
+      authHtml = authHtml.replace(
+        /<button class="shrink-0 px-3 py-1\.5 rounded-lg bg-noir-card border border-gold\/40 text-gold-light[^"]*" type="button">\s*<span>[\s\S]*?Register[\s\S]*?<\/span>\s*<\/button>/gi,
+        '<button data-action="register-vendor" id="dark-registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-xl bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"><span>Register &rarr;</span></button>'
       );
 
       return authHtml;
@@ -2050,11 +2102,11 @@ export default function StitchScreenRenderer({
         html = html.replace(/Join Sitabuldi &amp; Dharampeth 45-min express network/g, 'Own a boutique, brand or store in Nagpur? Join our express network');
         html = html.replace(
           /<label class="relative inline-flex items-center cursor-pointer">[\s\S]*?<\/label>/i,
-          '<button class="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-gold text-xs font-bold rounded-lg border border-gold/30 active:scale-95 transition cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
+          '<button class="shrink-0 px-3.5 py-1.5 rounded-xl bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
         );
         html = html.replace(
           /<button aria-checked="false" class="w-12 h-6 rounded-full bg-surface-container-highest[^"]*" id="vendorModeToggle"[\s\S]*?<\/button>/i,
-          '<button class="px-3.5 py-1.5 rounded-full bg-ground-subtle border border-accent-gold/40 text-accent-gold font-tabular-caption text-tabular-caption font-bold active:scale-95 transition-transform cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
+          '<button class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-surface-porcelain border border-black/10 text-accent-gold-deep shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
         );
       }
 
@@ -3829,6 +3881,53 @@ export default function StitchScreenRenderer({
         setTimeout(() => {
           navigateScreen('CatalogManager');
         }, 500);
+        return;
+      }
+
+      // --- 21b-1. VENDOR: SPECIALTY CHIPS & CLUSTER ZONE TOGGLE ---
+      const specChip = target.closest('.spec-chip');
+      if (specChip) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isActive = specChip.getAttribute('data-active') === 'true';
+        specChip.setAttribute('data-active', (!isActive).toString());
+        if (!isActive) {
+          specChip.className = isDark
+            ? 'spec-chip px-3.5 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 shadow-sm flex items-center gap-1.5 bg-crimson text-white shadow-crimson/30 active:scale-95'
+            : 'spec-chip px-3.5 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 shadow-sm flex items-center gap-1.5 bg-accent-crimson text-white shadow-crimson-glow/30 active:scale-95';
+          const icon = specChip.querySelector('.material-symbols-outlined');
+          if (icon) {
+            icon.textContent = 'check';
+            icon.className = 'material-symbols-outlined text-[14px]';
+          }
+        } else {
+          specChip.className = isDark
+            ? 'spec-chip px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all duration-200 border border-white/10 bg-noir-card/70 hover:bg-noir-elevated text-stone-300 active:scale-95'
+            : 'spec-chip px-3.5 py-2 rounded-xl text-[12px] font-medium transition-all duration-200 border border-black/10 bg-white/70 hover:bg-white text-text-obsidian active:scale-95';
+          const icon = specChip.querySelector('.material-symbols-outlined');
+          if (icon) {
+            icon.textContent = 'add';
+            icon.className = 'material-symbols-outlined text-[14px] text-stone-400';
+          }
+        }
+        return;
+      }
+
+      const clusterBtn = target.closest('.cluster-btn');
+      if (clusterBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const parent = clusterBtn.parentElement;
+        if (parent) {
+          parent.querySelectorAll('.cluster-btn').forEach((b) => {
+            b.className = isDark
+              ? 'cluster-btn py-2 px-2.5 rounded-xl text-[12px] font-medium text-center transition-all bg-noir-card text-stone-400 border border-white/10 hover:bg-noir-elevated'
+              : 'cluster-btn py-2 px-2.5 rounded-xl text-[12px] font-medium text-center transition-all bg-white/80 text-text-obsidian border border-black/10 hover:bg-white';
+          });
+        }
+        clusterBtn.className = isDark
+          ? 'cluster-btn py-2 px-2.5 rounded-xl text-[12px] font-semibold text-center transition-all bg-crimson text-white shadow-sm border border-transparent'
+          : 'cluster-btn py-2 px-2.5 rounded-xl text-[12px] font-semibold text-center transition-all bg-text-obsidian text-white shadow-sm border border-transparent';
         return;
       }
 

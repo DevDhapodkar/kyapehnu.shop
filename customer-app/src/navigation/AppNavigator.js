@@ -204,7 +204,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} key={`${role}-${themeMode}`} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} key={role} theme={navTheme}>
       {role === ROLES.VENDOR ? <VendorFlow themeColors={themeColors} /> : <CustomerFlow themeColors={themeColors} />}
     </NavigationContainer>
   );

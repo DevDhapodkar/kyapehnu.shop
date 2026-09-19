@@ -64,9 +64,19 @@ export default function StitchProfile({ navigation }) {
     rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp;\.\.\./g, `Manage ${boutiqueName} inventory`);
     rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, `Manage ${boutiqueName} inventory & queue`);
   } else {
-    rawHtml = rawHtml.replace(/Vendor (?:Atelier|Store) Mode/g, 'Own a Boutique in Nagpur?');
-    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
-    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
+    rawHtml = rawHtml.replace(/Vendor (?:Atelier|Store) Mode/g, 'Want to Sell on Kya Pehnu?');
+    rawHtml = rawHtml.replace(/Own a Boutique in Nagpur\??/g, 'Want to Sell on Kya Pehnu?');
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Own a boutique, brand or store in Nagpur? Join our express network');
+    rawHtml = rawHtml.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Own a boutique, brand or store in Nagpur? Join our express network');
+    rawHtml = rawHtml.replace(/Join Sitabuldi &amp; Dharampeth 45-min express network/g, 'Own a boutique, brand or store in Nagpur? Join our express network');
+    rawHtml = rawHtml.replace(
+      /<label class="relative inline-flex items-center cursor-pointer">[\s\S]*?<\/label>/i,
+      '<button class="shrink-0 px-3.5 py-1.5 rounded-xl bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
+    );
+    rawHtml = rawHtml.replace(
+      /<button aria-checked="false" class="w-12 h-6 rounded-full bg-surface-container-highest[^"]*" id="vendorModeToggle"[\s\S]*?<\/button>/i,
+      '<button class="shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-surface-porcelain border border-black/10 text-accent-gold-deep shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
+    );
   }
 
   // 5. Active Order vs Discovery Card
@@ -89,6 +99,18 @@ export default function StitchProfile({ navigation }) {
       const aria = (target.getAttribute('aria-label') || '').toLowerCase();
       const path = target.getAttribute('data-path') || '';
 
+      const action = target.getAttribute('data-action') || '';
+      const isVendorRegister =
+        action === 'register-vendor' ||
+        target.id === 'registerBoutiqueBtn' ||
+        Boolean(target.closest('[data-action="register-vendor"]')) ||
+        Boolean(target.closest('[data-purpose="vendor-callout"]')) ||
+        text.includes('register your shop') ||
+        text.includes('own a boutique') ||
+        text.includes('register boutique') ||
+        text.includes('want to sell') ||
+        text.includes('sell on kyapehnu');
+
       if (aria.includes('back') || target.querySelector('[class*="arrow_back"]')) {
         e.preventDefault();
         navigation.goBack();
@@ -98,7 +120,7 @@ export default function StitchProfile({ navigation }) {
       } else if (text.includes('vendor mode') || text.includes('merchant desk') || text.includes('vendor desk')) {
         e.preventDefault();
         useAuthStore.getState().setRole(ROLES.VENDOR);
-      } else if (text.includes('register your shop') || text.includes('own a boutique') || text.includes('register boutique') || text.includes('want to sell') || text.includes('sell on kyapehnu')) {
+      } else if (isVendorRegister) {
         e.preventDefault();
         navigation.navigate('VendorRegister');
       } else if (text.includes('log out') || text.includes('sign out')) {

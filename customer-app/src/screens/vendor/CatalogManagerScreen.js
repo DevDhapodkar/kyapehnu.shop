@@ -6,7 +6,14 @@ import { useThemeStore } from '../../store/useThemeStore';
 
 export default function CatalogManagerScreen({ navigation, route }) {
   const isDark = useThemeStore((state) => state.isDark);
-  const [activeScreen, setActiveScreen] = useState('final_light_theme_Catalogue_Manager');
+  const defaultScreen = isDark
+    ? 'final_theme_dark_Catalogue_Manager'
+    : 'final_light_theme_Catalogue_Manager';
+  const [activeScreen, setActiveScreen] = useState(defaultScreen);
+
+  useEffect(() => {
+    setActiveScreen(isDark ? 'final_theme_dark_Catalogue_Manager' : 'final_light_theme_Catalogue_Manager');
+  }, [isDark]);
 
   useEffect(() => {
     if (route?.params?.stitchScreen) {

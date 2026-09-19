@@ -75,4 +75,9 @@ export const useThemeStore = create((set, get) => ({
   },
 }));
 
+if (typeof window !== 'undefined') {
+  window.__KYAPEHNU_THEME_STORE__ = useThemeStore;
+  window.__KYA_PEHNU_TOGGLE_THEME__ = () => useThemeStore.getState().toggleTheme();
+}
+
 export default useThemeStore;
