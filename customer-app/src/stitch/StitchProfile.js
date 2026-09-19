@@ -98,7 +98,7 @@ export default function StitchProfile({ navigation }) {
       } else if (text.includes('vendor mode') || text.includes('merchant desk') || text.includes('vendor desk')) {
         e.preventDefault();
         useAuthStore.getState().setRole(ROLES.VENDOR);
-      } else if (text.includes('register your shop') || text.includes('own a boutique') || text.includes('register boutique')) {
+      } else if (text.includes('register your shop') || text.includes('own a boutique') || text.includes('register boutique') || text.includes('want to sell') || text.includes('sell on kyapehnu')) {
         e.preventDefault();
         navigation.navigate('VendorRegister');
       } else if (text.includes('log out') || text.includes('sign out')) {

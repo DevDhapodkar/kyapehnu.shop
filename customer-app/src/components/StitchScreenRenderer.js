@@ -879,6 +879,31 @@ export default function StitchScreenRenderer({
         authHtml = updateTagById(authHtml, 'tab-register', (t) => setTabActive(t, true, false));
         authHtml = updateTagById(authHtml, 'dark-tab-register', (t) => setTabActive(t, true, true));
       }
+
+      // Modernize "Own a Boutique in Nagpur?" to "Want to Sell on Kya Pehnu?"
+      authHtml = authHtml.replace(
+        /Own a [bB]outique in Nagpur\??/g,
+        'Want to Sell on Kya Pehnu?'
+      );
+      authHtml = authHtml.replace(
+        /Join Sitabuldi &amp; Dharampeth (?:network|guild)/gi,
+        'Own a boutique, brand or store in Nagpur? Join our 45-min express network'
+      );
+      authHtml = authHtml.replace(
+        /Join Nagpur's fastest fashion community/gi,
+        'Own a boutique, brand or store in Nagpur? Join our 45-min express network'
+      );
+
+      // Ensure the register button has data-action="register-vendor" and id="registerBoutiqueBtn"
+      authHtml = authHtml.replace(
+        /<a class="[^"]*" href="javascript:void\(0\)">\s*<span[^>]*>Register<\/span>[\s\S]*?<\/a>/i,
+        '<button data-action="register-vendor" id="registerBoutiqueBtn" type="button" class="shrink-0 flex items-center gap-1 font-tabular-caption text-tabular-caption font-bold text-accent-gold-deep px-3.5 py-1.5 rounded-full bg-surface-porcelain shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer"><span>Register</span><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>'
+      );
+      authHtml = authHtml.replace(
+        /<button class="shrink-0 px-3 py-1.5 rounded-lg bg-noir-card border border-gold\/40 text-gold-light[^"]*" type="button">\s*<span>Register<\/span>[\s\S]*?<\/button>/i,
+        '<button data-action="register-vendor" id="dark-registerBoutiqueBtn" type="button" class="shrink-0 px-3.5 py-1.5 rounded-lg bg-noir-card border border-gold/40 text-gold-light hover:bg-gold hover:text-stone-950 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"><span>Register</span><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>'
+      );
+
       return authHtml;
     }
 
@@ -2017,17 +2042,19 @@ export default function StitchScreenRenderer({
         html = html.replace(/id="vendorModeToggle"\s+role="switch"/gi, 'id="vendorModeToggle" role="switch" aria-checked="true" class="w-12 h-6 rounded-full bg-accent-crimson transition-colors relative flex items-center p-0.5 shrink-0 active:scale-95"');
         html = html.replace(/id="vendorToggleKnob"/gi, 'id="vendorToggleKnob" class="w-5 h-5 rounded-full bg-white shadow-sm transition-transform transform translate-x-6"');
       } else {
-        // Customer View: Show Boutique Partnership card instead of dummy Studio Anamika
-        html = html.replace(/Vendor (?:Atelier|Store) Mode/g, 'Own a Boutique in Nagpur?');
-        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
-        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Join Sitabuldi &amp; Dharampeth 45-min express network');
+        // Customer View: Show Seller / Boutique Partnership card
+        html = html.replace(/Vendor (?:Atelier|Store) Mode/g, 'Want to Sell on Kya Pehnu?');
+        html = html.replace(/Own a Boutique in Nagpur\??/g, 'Want to Sell on Kya Pehnu?');
+        html = html.replace(/Manage Studio Anamika listings &amp;\.\.\./g, 'Own a boutique, brand or store in Nagpur? Join our express network');
+        html = html.replace(/Manage Studio Anamika listings &amp; dispatch queue/g, 'Own a boutique, brand or store in Nagpur? Join our express network');
+        html = html.replace(/Join Sitabuldi &amp; Dharampeth 45-min express network/g, 'Own a boutique, brand or store in Nagpur? Join our express network');
         html = html.replace(
           /<label class="relative inline-flex items-center cursor-pointer">[\s\S]*?<\/label>/i,
-          '<button class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-gold text-xs font-semibold rounded-lg border border-gold/30 active:scale-95 transition" data-action="register-vendor">Register &rarr;</button>'
+          '<button class="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-gold text-xs font-bold rounded-lg border border-gold/30 active:scale-95 transition cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
         );
         html = html.replace(
           /<button aria-checked="false" class="w-12 h-6 rounded-full bg-surface-container-highest[^"]*" id="vendorModeToggle"[\s\S]*?<\/button>/i,
-          '<button class="px-3 py-1.5 rounded-full bg-ground-subtle border border-accent-gold/40 text-accent-gold font-tabular-caption text-tabular-caption font-semibold active:scale-95 transition-transform" data-action="register-vendor" type="button">Register &rarr;</button>'
+          '<button class="px-3.5 py-1.5 rounded-full bg-ground-subtle border border-accent-gold/40 text-accent-gold font-tabular-caption text-tabular-caption font-bold active:scale-95 transition-transform cursor-pointer" data-action="register-vendor" id="registerBoutiqueBtn" type="button">Register &rarr;</button>'
         );
       }
 
@@ -3607,7 +3634,22 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      const registerVendorAction = target.closest('[data-action="register-vendor"]');
+      const registerVendorAction =
+        target.closest('[data-action="register-vendor"]') ||
+        target.closest('[data-purpose="vendor-callout"]') ||
+        (btn && (
+          btn.getAttribute?.('data-action') === 'register-vendor' ||
+          btn.id === 'registerBoutiqueBtn' ||
+          btn.id === 'dark-registerBoutiqueBtn' ||
+          (btn.textContent && (
+            btn.textContent.includes('Want to Sell on Kya Pehnu') ||
+            btn.textContent.includes('Want to Sell') ||
+            btn.textContent.includes('Own a Boutique') ||
+            btn.textContent.includes('Register Your Boutique') ||
+            btn.textContent.includes('Register Your Shop')
+          ))
+        ));
+
       if (registerVendorAction) {
         e.preventDefault();
         e.stopPropagation();
@@ -4295,12 +4337,22 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- 25. BOUTIQUE REGISTER LINK ---
+      // --- 25. BOUTIQUE / SELLER REGISTER LINK ---
       if (
-        !targetKey.includes('Auth') &&
-        !targetKey.includes('Sign_In') &&
-        (target.closest('[data-action="register-vendor"]') ||
-        (btn && (btn.id === 'registerBoutiqueBtn' || (btn.textContent && (btn.textContent.includes('Register Your Boutique') || btn.textContent.includes('Own a Boutique'))))))
+        target.closest('[data-action="register-vendor"]') ||
+        target.closest('[data-purpose="vendor-callout"]') ||
+        (btn && (
+          btn.getAttribute?.('data-action') === 'register-vendor' ||
+          btn.id === 'registerBoutiqueBtn' ||
+          btn.id === 'dark-registerBoutiqueBtn' ||
+          (btn.textContent && (
+            btn.textContent.includes('Want to Sell on Kya Pehnu') ||
+            btn.textContent.includes('Want to Sell') ||
+            btn.textContent.includes('Own a Boutique') ||
+            btn.textContent.includes('Register Your Boutique') ||
+            btn.textContent.includes('Register Your Shop')
+          ))
+        ))
       ) {
         e.preventDefault();
         e.stopPropagation();
