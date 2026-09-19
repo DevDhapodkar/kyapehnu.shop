@@ -49,7 +49,9 @@ const PORT = process.env.PORT || 5001;
 const start = async () => {
   await connectDB();
   await ensureAdminSeed();
-  await ensureBootstrapData();
+  if (process.env.SEED_DATA === 'true') {
+    await ensureBootstrapData();
+  }
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };
 
