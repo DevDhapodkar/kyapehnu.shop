@@ -376,22 +376,31 @@ export default function StitchScreenRenderer({
     if (useAuthStore.getState().token) {
       fetchMyOrders()
         .then((orders) => {
-          if (Array.isArray(orders) && orders.length > 0) {
-            setRecentOrders((prev) => {
-              const ids = new Set(orders.map((o) => String(o.orderId || o._id)));
-              const merged = [...orders];
-              prev.forEach((p) => {
-                if (!ids.has(String(p.orderId || p._id))) {
-                  merged.push(p);
-                }
-              });
+          if (Array.isArray(orders)) {
+            if (orders.length === 0) {
+              setRecentOrders([]);
               if (typeof window !== 'undefined' && window.localStorage) {
                 try {
-                  window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(merged));
+                  window.localStorage.removeItem('kyapehnu_recent_orders');
                 } catch {}
               }
-              return merged;
-            });
+            } else {
+              setRecentOrders((prev) => {
+                const ids = new Set(orders.map((o) => String(o.orderId || o._id)));
+                const merged = [...orders];
+                prev.forEach((p) => {
+                  if (!ids.has(String(p.orderId || p._id))) {
+                    merged.push(p);
+                  }
+                });
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  try {
+                    window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(merged));
+                  } catch {}
+                }
+                return merged;
+              });
+            }
           }
         })
         .catch(() => {});
@@ -906,9 +915,82 @@ export default function StitchScreenRenderer({
     html = html.replace(/<div class="w-9 h-9 rounded-full bg-\[#201f24\] border border-noir-border flex items-center justify-center font-serif text-sm font-bold text-gold">\s*VP\s*<\/div>/gi, darkAvatarInner);
 
     // 1. STOREFRONT HOME: Inject live products from MongoDB into hero, ateliers & grid
-    if (targetKey.includes('Storefront_Home') && products.length > 0) {
-      // Hero Card Binding to primary database product
-      const heroP = products[0];
+    if (targetKey.includes('Storefront_Home')) {
+      if (products.length === 0) {
+        // Empty catalog state when database has 0 products
+        const emptyHeroLight = `
+          <section class="px-gutter-md pb-6">
+            <div class="relative w-full rounded-2xl overflow-hidden bg-surface-porcelain border border-surface-container-high p-8 text-center flex flex-col items-center justify-center gap-3 shadow-sm">
+              <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
+                <span class="material-symbols-outlined text-[32px]">storefront</span>
+              </div>
+              <h2 class="font-title-lg text-xl text-text-obsidian font-bold">Nagpur Boutique Catalog Refresh</h2>
+              <p class="font-body-sm text-text-slate text-sm max-w-sm">All previous test catalog data has been cleared. Fresh artisanal collections from Nagpur ateliers will be listed soon.</p>
+            </div>
+          </section>
+        `;
+        const emptyHeroDark = `
+          <section class="px-gutter pb-space-lg">
+            <div class="relative w-full rounded-xl bg-surface-container-low border border-border-hairline p-space-lg text-center flex flex-col items-center justify-center gap-space-sm shadow-md">
+              <div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center text-primary-container">
+                <span class="material-symbols-outlined text-[32px]">storefront</span>
+              </div>
+              <h2 class="font-headline-md text-xl text-on-surface font-bold">Nagpur Boutique Catalog Refresh</h2>
+              <p class="font-body-md text-outline text-sm max-w-sm">All previous test catalog data has been cleared. Fresh artisanal collections from Nagpur ateliers will be listed soon.</p>
+            </div>
+          </section>
+        `;
+
+        const heroLightRegex = /<section class="px-gutter-md pb-6">\s*<div class="relative w-full rounded-2xl overflow-hidden bg-surface-porcelain shadow-md">[\s\S]*?<\/section>/i;
+        if (heroLightRegex.test(html)) {
+          html = html.replace(heroLightRegex, emptyHeroLight);
+        }
+        const heroDarkRegex = /<section class="px-gutter">\s*<div class="relative w-full rounded-xl overflow-hidden bg-surface-container-lowest shadow-2xl">[\s\S]*?<\/section>/i;
+        if (heroDarkRegex.test(html)) {
+          html = html.replace(heroDarkRegex, emptyHeroDark);
+        }
+
+        // Hide mock ateliers section
+        const ateliersLightRegex = /<section class="pb-6">\s*<div class="px-gutter-md flex items-baseline justify-between mb-3">[\s\S]*?<\/section>/i;
+        if (ateliersLightRegex.test(html)) {
+          html = html.replace(ateliersLightRegex, '');
+        }
+        const ateliersDarkRegex = /<section class="space-y-space-md">\s*<div class="flex items-center justify-between px-gutter">[\s\S]*?<\/section>/i;
+        if (ateliersDarkRegex.test(html)) {
+          html = html.replace(ateliersDarkRegex, '');
+        }
+
+        // Replace product grid with clean empty catalog
+        const emptyGridLight = `
+          <section class="px-gutter-md pb-8">
+            <div class="p-10 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-2xl border border-surface-container-high shadow-sm">
+              <span class="material-symbols-outlined text-[44px] text-text-ash">inventory_2</span>
+              <h3 class="font-title-md text-lg text-text-obsidian font-bold">No Products Listed</h3>
+              <p class="font-body-sm text-text-slate text-xs max-w-xs">There are currently no active products in the store. Boutique partners will be onboarding new inventory shortly.</p>
+            </div>
+          </section>
+        `;
+        const emptyGridDark = `
+          <section class="px-gutter space-y-space-md pb-space-xl">
+            <div class="p-space-xl text-center flex flex-col items-center justify-center gap-space-sm bg-surface-container-low rounded-xl border border-border-hairline shadow-md">
+              <span class="material-symbols-outlined text-[44px] text-outline">inventory_2</span>
+              <h3 class="font-headline-md text-lg text-on-surface font-bold">No Products Listed</h3>
+              <p class="font-body-md text-outline text-xs max-w-xs">There are currently no active products in the store. Boutique partners will be onboarding new inventory shortly.</p>
+            </div>
+          </section>
+        `;
+
+        const gridLightRegex = /<section class="px-gutter-md pb-8">\s*<div class="flex items-baseline justify-between mb-3">[\s\S]*?<\/section>/i;
+        if (gridLightRegex.test(html)) {
+          html = html.replace(gridLightRegex, emptyGridLight);
+        }
+        const gridDarkRegex = /<section class="px-gutter space-y-space-md">\s*<div class="flex items-center justify-between">[\s\S]*?<\/section>/i;
+        if (gridDarkRegex.test(html)) {
+          html = html.replace(gridDarkRegex, emptyGridDark);
+        }
+      } else {
+        // Hero Card Binding to primary database product
+        const heroP = products[0];
       const heroImg = heroP.image || heroP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
       const heroName = heroP.name || 'Artisanal Nagpur Handloom';
       const heroPrice = heroP.price || 5200;
@@ -1222,6 +1304,7 @@ export default function StitchScreenRenderer({
       // Ensure no quick-add button collides with PDP Add to Bag accessible name
       html = html.replace(/aria-label="Add to bag"/gi, 'aria-label="Quick Add" data-action="quick-add"');
     }
+  }
 
     // 2. PRODUCT DETAIL: Inject active garment details from database
     if (targetKey.includes('Product_Detail') && activeProduct) {
@@ -2084,8 +2167,15 @@ export default function StitchScreenRenderer({
     }
 
     // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
-    if (targetKey.includes('Catalogue_Manager') && products.length > 0) {
-      let filteredCatalog = products;
+    if (targetKey.includes('Catalogue_Manager')) {
+      if (products.length === 0) {
+        html = html.replace(/\d+\s+Curated Pieces Live/gi, '0 Curated Pieces Live');
+        const catalogContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-4 px-screen-margin-mobile pb-6[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
+        if (catalogContainerRegex.test(html)) {
+          html = html.replace(catalogContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-xl border border-surface-container-high shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inventory_2</span><h3 class="font-title-md text-base text-text-obsidian font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>$2`);
+        }
+      } else {
+        let filteredCatalog = products;
       if (catalogCategory && catalogCategory !== 'ALL') {
         if (catalogCategory === 'KURTA') {
           filteredCatalog = filteredCatalog.filter(p => /angrakha|kurta|tunic|dress|set/i.test(p.name || '') || /kurta|women/i.test(p.category || ''));
@@ -2184,10 +2274,18 @@ export default function StitchScreenRenderer({
         html = html.replace(catalogContainerRegex, `$1${liveItemsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No pieces found matching your search.</div>'}$2`);
       }
     }
+  }
 
     // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders with active filtering
-    if (targetKey.includes('Vendor_Order_Queue') && recentOrders.length > 0) {
-      let filteredQueue = recentOrders;
+    if (targetKey.includes('Vendor_Order_Queue')) {
+      if (recentOrders.length === 0) {
+        html = html.replace(/\d+\s+Active Orders/gi, '0 Active Orders');
+        const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
+        if (queueContainerRegex.test(html)) {
+          html = html.replace(queueContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container-low my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inbox</span><h3 class="font-title-md text-base text-text-obsidian font-bold">No Incoming Orders</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">You have no active orders in your queue right now.</p></div>$2`);
+        }
+      } else {
+        let filteredQueue = recentOrders;
       if (queueFilter === 'new') {
         filteredQueue = recentOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status);
       } else if (queueFilter === 'packing') {
@@ -2286,6 +2384,7 @@ export default function StitchScreenRenderer({
         html = html.replace(queueContainerRegex, `$1${liveQueueCardsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No orders in this queue state.</div>'}$2`);
       }
     }
+  }
 
     // 8. VENDOR ORDER DETAIL: Inject active order details
     if (targetKey.includes('Vendor_Order_Detail')) {

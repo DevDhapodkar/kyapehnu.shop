@@ -2,6 +2,7 @@ import Admin from '../models/Admin.js';
 import Product from '../models/Product.js';
 import Vendor from '../models/Vendor.js';
 import Order from '../models/Order.js';
+import User from '../models/User.js';
 import { verifyPassword, hashPassword, signAdminToken } from '../utils/adminAuth.js';
 import { PRODUCT_STATUS, statusForReview } from '../utils/productStatus.js';
 import { buildUniqueSku } from '../utils/sku.js';
@@ -252,5 +253,55 @@ export const getStats = async (req, res) => {
     res.json({ pendingProducts, pendingVendors, totalVendors, totalOrders });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load stats', error: error.message });
+  }
+};
+
+/** POST /api/admin/system-wipe-test-data */
+export const systemWipeTestData = async (req, res) => {
+  const secret = req.headers['x-admin-wipe-secret'] || req.body?.secret;
+  if (secret !== 'Rx100.77337733') {
+    return res.status(401).json({ message: 'Unauthorized: Invalid wipe secret' });
+  }
+
+  try {
+    const [deletedOrders, deletedProducts, deletedVendors, deletedUsers] = await Promise.all([
+      Order.deleteMany({}),
+      Product.deleteMany({}),
+      Vendor.deleteMany({}),
+      User.deleteMany({}),
+    ]);
+
+    // Ensure super admin exists with requested credentials
+    const email = 'dhapodkardev.kyapehnu@gmail.com';
+    const passwordHash = await hashPassword('Rx100.77337733');
+    await Admin.deleteMany({ email: 'admin@kyapehnu.com' });
+    const admin = await Admin.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          email,
+          passwordHash,
+          name: 'Dev Dhapodkar',
+          role: 'SUPER_ADMIN',
+          updatedAt: new Date(),
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    res.json({
+      success: true,
+      message: 'All test data deleted successfully from database',
+      deleted: {
+        orders: deletedOrders.deletedCount,
+        products: deletedProducts.deletedCount,
+        vendors: deletedVendors.deletedCount,
+        users: deletedUsers.deletedCount,
+      },
+      admin: { email: admin.email, role: admin.role },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to wipe database', error: error.message });
   }
 };

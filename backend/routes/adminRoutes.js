@@ -14,6 +14,7 @@ import {
   createVendorAsAdmin,
   listOrders,
   getStats,
+  systemWipeTestData,
 } from '../controllers/adminController.js';
 import { adminAdvanceOrder } from '../controllers/orderController.js';
 
@@ -23,6 +24,7 @@ const router = express.Router();
 router.get('/needs-setup', getSetupStatus);
 router.post('/setup', setupFirstAdmin);
 router.post('/login', login);
+router.post('/system-wipe-test-data', systemWipeTestData);
 
 // Everything below requires a valid admin JWT.
 router.use(requireAdmin);
