@@ -269,10 +269,10 @@ export default function StitchScreenRenderer({
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const saved = JSON.parse(window.localStorage.getItem('kyapehnu_user_measurements') || 'null');
-        if (saved && saved.kurta) return saved;
+        if (saved && (saved.tee || saved.shirt || saved.kurta)) return saved;
       } catch {}
     }
-    return { kurta: 'M', blouse: '34"', fitStyle: 'Regular' };
+    return { tee: 'M', chest: '38"', fitStyle: 'Regular' };
   });
   const [editProfileDraft, setEditProfileDraft] = useState({
     name: '',
@@ -664,10 +664,10 @@ export default function StitchScreenRenderer({
         if (container) {
           const labels = {
             XS: 'Extra Small (Bust 34")',
-            S: 'Small (Bust 36")',
-            M: 'Medium (Bust 38")',
-            L: 'Large (Bust 40")',
-            XL: 'Extra Large (Bust 42")',
+            S: 'Small (Chest 38")',
+            M: 'Medium (Chest 40")',
+            L: 'Large (Chest 42")',
+            XL: 'Extra Large (Chest 44")',
             XXL: 'Double Extra Large (Bust 44")',
             FS: 'Free Size (One Size Fits All)',
           };
@@ -827,8 +827,9 @@ export default function StitchScreenRenderer({
     };
 
     window.handlePublishSubmit = () => {
-      const pubBtn = document.getElementById('publishBtn');
-      if (pubBtn) pubBtn.click();
+      // Dispatches custom event to trigger publication without circular click recursion
+      const event = new CustomEvent('stitch-publish-catalog', { bubbles: true });
+      document.dispatchEvent(event);
     };
   }, [navigateScreen, showToast]);
 
@@ -856,7 +857,7 @@ export default function StitchScreenRenderer({
     html = html.replace(/VERIFIED\s+HERITAGE\s+ARTISANS\s*·\s*(?:V2\.4|NAGPUR\s+NETWORK)/g, 'CURATED FASHION FOR MEN &amp; WOMEN · NAGPUR');
     html = html.replace(/Men's\s+Heritage/g, "Men's Fashion");
     html = html.replace(/Gandhibagh\s+Weaver\s+Guild/g, 'Nagpur Trend Collective');
-    html = html.replace(/Sitabuldi\s+Handloom\s+Guild/g, 'Sitabuldi Fashion Boutique');
+    html = html.replace(/Sitabuldi\s+streetwear\s+Guild/g, 'Sitabuldi Fashion Boutique');
     html = html.replace(/Sadar\s+Heritage(?:\s+Loom)?/g, 'Sadar Trend Studio');
 
     // Welcome & Splash screens: Remove "45 min" emblem badge & remove area corridor lists
@@ -1116,7 +1117,7 @@ export default function StitchScreenRenderer({
         // Hero Card Binding to primary database product
         const heroP = products[0];
       const heroImg = heroP.image || heroP.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-      const heroName = heroP.name || 'Artisanal Nagpur Handloom';
+      const heroName = heroP.name || 'Artisanal Nagpur streetwear';
       const heroPrice = heroP.price || 5200;
       const heroMrp = heroP.mrp || Math.round(heroPrice * 1.35);
       const heroBoutique = (heroP.brand || heroP.storeName || heroP.vendor?.shopName || 'Studio Anamika').toUpperCase();
@@ -1124,8 +1125,8 @@ export default function StitchScreenRenderer({
       const heroId = heroP.id || heroP._id || '6a9f987ec93d15e80a649c9b';
       const heroStoreId = heroP.storeId || (heroP.vendor?._id ? String(heroP.vendor._id) : '6a9f987ec93d15e80a649c9a');
 
-      html = html.replace(/Royal Chanderi Zari Set/g, heroName);
-      html = html.replace(/aria-label="Royal Chanderi Zari Set, ₹4,750"/g, `aria-label="${heroName}, ₹${heroPrice.toLocaleString()}"`);
+      html = html.replace(/Royal Heavyweight Cotton Graphic Set/g, heroName);
+      html = html.replace(/aria-label="Royal Heavyweight Cotton Graphic Set, ₹4,750"/g, `aria-label="${heroName}, ₹${heroPrice.toLocaleString()}"`);
       html = html.replace(/(<span[^>]*class="[^"]*text-accent-gold[^"]*">)Dharampeth (?:Atelier|Boutique)(<\/span>)/g, `$1${heroBoutique} • ${heroArea}$2`);
       html = html.replace(/(<span[^>]*class="font-tabular-price text-tabular-price text-surface-porcelain">)₹4,750(<\/span>)/g, `$1₹${heroPrice.toLocaleString()}$2`);
       html = html.replace(/(<span[^>]*class="font-body-sm text-body-sm text-surface-porcelain\/70 line-through">)₹6,400(<\/span>)/g, `$1₹${heroMrp.toLocaleString()}$2`);
@@ -1155,7 +1156,7 @@ export default function StitchScreenRenderer({
       const isCoordsActive = activeCatKey === 'COORDS_DRESSES' || activeCatKey.includes('COORD') || activeCatKey.includes('CO-ORD') || activeCatKey.includes('DRESS');
       const isStreetActive = activeCatKey === 'STREETWEAR' || activeCatKey.includes('STREET');
       const isAthleisureActive = activeCatKey === 'ATHLEISURE' || activeCatKey.includes('ATHLEISURE') || activeCatKey.includes('GYM') || activeCatKey.includes('SWEAT');
-      const isEthnicActive = activeCatKey === 'ETHNIC' || activeCatKey.includes('ETHNIC') || activeCatKey.includes('FESTIVE') || activeCatKey.includes('KURTA') || activeCatKey.includes('SAREE') || activeCatKey.includes('HANDLOOM');
+      const isEthnicActive = activeCatKey === 'ETHNIC' || activeCatKey.includes('ETHNIC') || activeCatKey.includes('FESTIVE') || activeCatKey.includes('streetwear tee') || activeCatKey.includes('hoodie') || activeCatKey.includes('streetwear');
 
       const lightCategoryPillsHtml = storefrontCategories.map((c) => {
         let isMatch = false;
@@ -1259,8 +1260,8 @@ export default function StitchScreenRenderer({
         if (normCat === 'ATHLEISURE' || normCat.includes('ATHLEISURE') || normCat.includes('GYM')) {
           return pCat === 'ATHLEISURE' || pSub.includes('ATHLEISURE') || text.includes('SWEAT') || text.includes('JOGGER') || text.includes('ATHLEISURE') || text.includes('TRACK');
         }
-        if (normCat === 'ETHNIC' || normCat.includes('ETHNIC') || normCat.includes('FESTIVE') || normCat.includes('KURTA') || normCat.includes('SAREE')) {
-          return pCat === 'ETHNIC' || pSub.includes('KURTA') || pSub.includes('ETHNIC') || text.includes('KURTA') || text.includes('ETHNIC') || text.includes('SAREE') || text.includes('FESTIVE');
+        if (normCat === 'ETHNIC' || normCat.includes('ETHNIC') || normCat.includes('FESTIVE') || normCat.includes('streetwear tee') || normCat.includes('hoodie')) {
+          return pCat === 'ETHNIC' || pSub.includes('streetwear tee') || pSub.includes('ETHNIC') || text.includes('streetwear tee') || text.includes('ETHNIC') || text.includes('hoodie') || text.includes('FESTIVE');
         }
         return true;
       });
@@ -1278,7 +1279,7 @@ export default function StitchScreenRenderer({
           distanceKm: p.distanceKm || (p.vendor?.location ? 1.4 : 1.2),
           eta: p.deliveryMinutes || 20,
           image: p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
-          specialty: p.material ? `${p.material} & ${p.subCategory || p.category}` : 'Nagpur Handloom & Ready Wear',
+          specialty: p.material ? `${p.material} & ${p.subCategory || p.category}` : 'Nagpur streetwear & Ready Wear',
         });
       }
 
@@ -1471,7 +1472,7 @@ export default function StitchScreenRenderer({
       const privilegePct = Math.max(10, Math.round(((activeMrp - activePrice) / activeMrp) * 100));
 
       // 1. Title & Headings
-      html = html.replace(/Chanderi Silk Angrakha/g, activeTitle);
+      html = html.replace(/Heavyweight Boxy Graphic Tee/g, activeTitle);
       html = html.replace(/(<h1[^>]*>)[^<]+(<\/h1>)/i, (m, p1, p2) => `${p1}${activeTitle}${p2}`);
 
       // 2. Prices & MRP
@@ -1535,8 +1536,8 @@ export default function StitchScreenRenderer({
 
       // 8. Textile & Artistry Specifications
       const specsSummary = `Tailored from premium ${activeMaterial}. Features ${activePattern} pattern with ${activeFit} drape, curated specifically for ${activeOccasion}.`;
-      html = html.replace(/Woven with 70% pure Mulberry Mulberry-Chanderi yarn[\s\S]*?temperatures\./i, specsSummary);
-      html = html.replace(/Extra-weft Zari Buti/g, `${activePattern} (${activeMaterial})`);
+      html = html.replace(/Woven with 70% pure Mulberry Mulberry-Heavyweight Cotton yarn[\s\S]*?temperatures\./i, specsSummary);
+      html = html.replace(/High-Density Puff Print/g, `${activePattern} (${activeMaterial})`);
       html = html.replace(/Sindhoor Crimson &amp; Ochre|Sindhoor Crimson & Ochre/g, activeColors.map(c => c.name).join(', '));
 
       // 9. Studio Guide
@@ -1795,7 +1796,7 @@ export default function StitchScreenRenderer({
         const activeTotalStr = `₹${(activeOrder.totalPrice || activeOrder.total || 2800).toLocaleString()}`;
         const activeStatusStr = activeOrder.status || 'CONFIRMED';
         const activeFirstItem = activeOrder.items?.[0] || {};
-        const activeItemName = activeFirstItem.name || 'Artisanal Handloom Garment';
+        const activeItemName = activeFirstItem.name || 'Artisanal streetwear Garment';
         const activeItemImg = activeFirstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const activeItemCount = activeOrder.items?.length || 1;
 
@@ -1836,7 +1837,7 @@ export default function StitchScreenRenderer({
           const totalStr = `₹${(ord.totalPrice || ord.total || 2800).toLocaleString()}`;
           const statusStr = ord.status || 'DELIVERED';
           const firstItem = ord.items?.[0] || {};
-          const itemName = firstItem.name || 'Artisanal Handloom Garment';
+          const itemName = firstItem.name || 'Artisanal streetwear Garment';
           const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
           const itemCount = ord.items?.length || 1;
 
@@ -2175,7 +2176,7 @@ export default function StitchScreenRenderer({
       if (recentOrders.length > 0) {
         const topOrd = recentOrders[0];
         const topId = `KP-${String(topOrd.orderId || topOrd._id || '101').slice(-6).toUpperCase()}`;
-        const topItemName = topOrd.items?.[0]?.name || 'Paithani Zari Silhouette';
+        const topItemName = topOrd.items?.[0]?.name || 'Heavyweight Streetwear Graphic Silhouette';
         const topItemSubtitle = topOrd.items?.length > 1
           ? `${topItemName} (+${topOrd.items.length - 1} more)`
           : `${topItemName} (Nagpur Express)`;
@@ -2186,7 +2187,7 @@ export default function StitchScreenRenderer({
           : 'ETA 38 mins';
 
         html = html.replace(/Order #KP-8492/g, `Order #${topId}`);
-        html = html.replace(/Zari Paithani Drape \(Nagpur Express\)/g, topItemSubtitle);
+        html = html.replace(/Graphic Heavyweight Streetwear Drape \(Nagpur Express\)/g, topItemSubtitle);
         html = html.replace(/ETA 38 mins/g, etaText);
 
         // Make Track button active
@@ -2211,7 +2212,7 @@ export default function StitchScreenRenderer({
             <div class="flex items-end justify-between mt-2">
               <div>
                 <h4 class="font-garamond text-lg font-bold text-white tracking-normal">Experience Luxury Silk at Home</h4>
-                <p class="text-xs text-neutral-300 mt-0.5">Authentic Paithanis &amp; Angrakhas delivered in 45 mins</p>
+                <p class="text-xs text-neutral-300 mt-0.5">Authentic Paithanis &amp; Tees & Hoodies delivered in 45 mins</p>
               </div>
               <button class="flex items-center space-x-1 px-3 py-1.5 bg-crimson hover:bg-crimson-dark active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition" data-action="explore-store">
                 <span>Explore</span>
@@ -2232,7 +2233,7 @@ export default function StitchScreenRenderer({
             <div class="flex items-center justify-between mt-1">
               <div class="flex flex-col">
                 <span class="font-body-lg text-body-lg font-semibold text-text-obsidian">Experience Luxury Silk at Home</span>
-                <span class="font-body-sm text-body-sm text-text-slate">Authentic Paithanis &amp; Angrakhas delivered in 45 mins</span>
+                <span class="font-body-sm text-body-sm text-text-slate">Authentic Paithanis &amp; Tees & Hoodies delivered in 45 mins</span>
               </div>
               <button class="px-3 py-1.5 rounded-full bg-accent-crimson text-on-primary font-tabular-caption text-tabular-caption active:scale-95 transition-transform flex items-center gap-1" data-action="explore-store" type="button">
                 Explore
@@ -2264,8 +2265,8 @@ export default function StitchScreenRenderer({
       });
 
       // Row 3: Saved Fit & Measurements / Bespoke Measurements Dossier
-      const measurementsSummary = `Kurta ${userMeasurements.kurta}, Blouse ${userMeasurements.blouse}, ${userMeasurements.fitStyle} Fit`;
-      html = html.replace(/Blouse 34", Angrakha 38", Kurta M/g, measurementsSummary);
+      const measurementsSummary = `T-Shirt ${userMeasurements.tee || 'M'}, Chest ${userMeasurements.chest || '38"'}, ${userMeasurements.fitStyle || 'Regular'} Fit`;
+      html = html.replace(/T-Shirt L, Hoodie XL, Jeans 32"/g, measurementsSummary);
       html = html.replace(/<a\b([^>]*)>((?:(?!<a\b)[\s\S])*?(?:Saved Fit &amp; Measurements|Saved Fit & Measurements|Bespoke Measurements Dossier))/i, (m, p1, p2) => {
         if (p1.includes('data-action')) return m;
         return `<a${p1} data-action="open-measurements">${p2}`;
@@ -2326,7 +2327,7 @@ export default function StitchScreenRenderer({
         } else if (catalogCategory === 'COORDS_DRESSES') {
           filteredCatalog = filteredCatalog.filter(p => /coord|co-ord|dress|set/i.test(p.name || '') || /coord|dress/i.test(p.category || ''));
         } else if (catalogCategory === 'ETHNIC') {
-          filteredCatalog = filteredCatalog.filter(p => /angrakha|kurta|saree|paithani|ethnic/i.test(p.name || '') || /ethnic|kurta/i.test(p.category || ''));
+          filteredCatalog = filteredCatalog.filter(p => /heavyweight tee|streetwear tee|hoodie|paithani|ethnic/i.test(p.name || '') || /ethnic|streetwear tee/i.test(p.category || ''));
         }
       }
       if (catalogSearchQuery) {
@@ -2340,8 +2341,15 @@ export default function StitchScreenRenderer({
       }
 
       html = html.replace(/\d+\s+Curated Pieces Live/gi, `${filteredCatalog.length} Curated Pieces Live`);
+      // Synchronize stat boxes (Live & Ready, Low Stock, QC Ingest)
+      const liveCount = filteredCatalog.filter(p => p.isAvailable !== false).length;
+      const lowStockCount = filteredCatalog.length === 0 ? 0 : Math.max(0, Math.floor(filteredCatalog.length * 0.15));
+      const qcCount = filteredCatalog.length === 0 ? 0 : Math.max(0, Math.floor(filteredCatalog.length * 0.05));
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-text-obsidian">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">Live &amp; Ready<\/span>)/i, `$1${liveCount}$2`);
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-gold-deep">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">Low Stock<\/span>)/i, `$1${lowStockCount}$2`);
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-crimson">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">QC Ingest<\/span>)/i, `$1${qcCount}$2`);
       if (catalogSearchQuery) {
-        html = html.replace(/id="catalogueSearch"\s+placeholder="[^"]*"/i, `id="catalogueSearch" value="${catalogSearchQuery.replace(/"/g, '&quot;')}" placeholder="Search weave, silhouette, SKU..."`);
+        html = html.replace(/id="catalogueSearch"\s+placeholder="[^"]*"/i, `id="catalogueSearch" value="${catalogSearchQuery.replace(/"/g, '&quot;')}" placeholder="Search fit, graphic tee, denim, hoodie, SKU..."`);
       }
 
       // Update category rail active pill styles
@@ -2352,7 +2360,7 @@ export default function StitchScreenRenderer({
           { id: 'DENIMS_CARGOS', label: `Denims & Cargos (${products.filter(p => /denim|cargo|jean/i.test(p.name || '')).length || 6})` },
           { id: 'CASUAL_SHIRTS', label: `Casual Shirts (${products.filter(p => /shirt|flannel/i.test(p.name || '')).length || 4})` },
           { id: 'COORDS_DRESSES', label: `Co-ords & Dresses (${products.filter(p => /coord|dress/i.test(p.name || '')).length || 3})` },
-          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /kurta|saree|ethnic/i.test(p.name || '')).length || 2})` },
+          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /streetwear tee|hoodie|ethnic/i.test(p.name || '')).length || 2})` },
         ];
         const pillsHtml = pills.map(p => {
           const isActive = (catalogCategory || 'ALL') === p.id;
@@ -2368,7 +2376,7 @@ export default function StitchScreenRenderer({
         const mrp = p.mrp || Math.round(price * 1.35);
         const sku = p.sku || `NGP-KAT-${String(p.id || p._id || '1020').slice(-4).toUpperCase()}`;
         const isAvail = p.isAvailable !== false;
-        const boutique = (p.brand || p.storeName || 'Dharampeth Handloom').toUpperCase();
+        const boutique = (p.brand || p.storeName || 'Dharampeth streetwear').toUpperCase();
         const category = p.category || 'Boutique Collection';
 
         return `
@@ -2390,7 +2398,7 @@ export default function StitchScreenRenderer({
                     </label>
                   </div>
                   <h3 class="font-title-md text-title-md text-text-obsidian tracking-tight leading-snug mt-0.5">${name}</h3>
-                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Designer Handloom Piece'}</p>
+                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Designer streetwear Piece'}</p>
                 </div>
                 <div class="flex items-baseline gap-2 mt-1">
                   <span class="font-tabular-price text-tabular-price font-bold text-accent-crimson tracking-tight">₹${price.toLocaleString()}</span>
@@ -2435,6 +2443,14 @@ export default function StitchScreenRenderer({
 
       if (vendorQueueOrders.length === 0) {
         html = html.replace(/\d+\s+Active Orders/gi, '0 Active Orders');
+        // Synchronize tabs to 0 counts and use Packing & Dispatch
+        const zeroTabsHtml = `
+          <button class="queue-tab active-tab bg-text-obsidian text-surface-porcelain font-semibold px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="all">All (0)</button>
+          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="new">New Queue (0)</button>
+          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="packing">Packing &amp; Dispatch (0)</button>
+          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="dispatched">Dispatched (0)</button>
+        `;
+        html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${zeroTabsHtml}$2`);
         const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
         if (queueContainerRegex.test(html)) {
           html = html.replace(queueContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container-low my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inbox</span><h3 class="font-title-md text-base text-text-obsidian font-bold">No Incoming Orders</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">You have no active orders in your queue right now.</p></div>$2`);
@@ -2457,7 +2473,7 @@ export default function StitchScreenRenderer({
         const tabs = [
           { filter: 'all', label: `All (${vendorQueueOrders.length})` },
           { filter: 'new', label: `New Queue (${vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length})`, ping: true },
-          { filter: 'packing', label: `Tailoring / Packing (${vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
+          { filter: 'packing', label: `Packing &amp; Dispatch (${vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
           { filter: 'dispatched', label: `Dispatched (${vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length})` },
         ];
         const tabsHtml = tabs.map(t => {
@@ -2475,7 +2491,7 @@ export default function StitchScreenRenderer({
         const totalStr = `₹${(ord.totalPrice || ord.total || 4800).toLocaleString()}`;
         const statusStr = ord.status || 'CONFIRMED';
         const firstItem = ord.items?.[0] || {};
-        const itemName = firstItem.name || 'Chanderi Silk Angrakha';
+        const itemName = firstItem.name || 'Heavyweight Boxy Graphic Tee';
         const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const itemSize = firstItem.size || 'M';
         const itemColor = firstItem.color || 'Sindhoor Crimson';
@@ -3986,7 +4002,7 @@ export default function StitchScreenRenderer({
       }
 
       // --- 21. VENDOR: PUBLISH PRODUCT SUBMIT ---
-      if (btn && (btn.id === 'publishBtn' || (btn.textContent && btn.textContent.includes('Publish')))) {
+      if ((btn && (btn.id === 'publishBtn' || (btn.textContent && btn.textContent.includes('Publish')))) || (e && e.type === 'stitch-publish-catalog')) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -3994,8 +4010,8 @@ export default function StitchScreenRenderer({
         const priceInput = el.querySelector('#sellingPriceInput, input[placeholder*="Price" i]');
         const catSelect = el.querySelector('#categorySelect, select');
 
-        const titleVal = titleInput?.value?.trim() || 'Nagpur Zari Chanderi Kurta';
-        const priceVal = parseInt(priceInput?.value || '4800', 10);
+        const titleVal = titleInput?.value?.trim() || 'Heavyweight Boxy Graphic Tee';
+        const priceVal = parseInt(priceInput?.value || '1499', 10);
         const catVal = catSelect?.value || 'WOMEN';
 
         // 1. Optimistically add to storefront products immediately
@@ -4014,7 +4030,7 @@ export default function StitchScreenRenderer({
           image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900',
           isAvailable: true,
           sizes: ['M', 'L'],
-          description: 'Nagpur Handcrafted Designer Boutique Edition',
+          description: '240 GSM French Terry Cotton · Relaxed Drop-Shoulder Streetwear',
           sku: `NGP-KAT-${Math.floor(1000 + Math.random() * 9000)}`,
         };
         useStorefrontStore.setState((state) => ({
@@ -4508,13 +4524,13 @@ export default function StitchScreenRenderer({
       // --- 23c. VENDOR ORDER QUEUE: REVIEW SPECS ---
       if (
         btn &&
-        (btn.textContent?.includes('Review Tailoring Specs') ||
+        (btn.textContent?.includes('Review Dispatch Specs') ||
           btn.getAttribute('data-action') === 'review-specs' ||
-          btn.getAttribute('aria-label')?.includes('Tailoring Specs'))
+          btn.getAttribute('aria-label')?.includes('Dispatch Specs'))
       ) {
         e.preventDefault();
         e.stopPropagation();
-        showToast('Nagpur Custom Measurements: Bust 38", Waist 32", Length 44", Raw Silk Chanderi.');
+        showToast('Nagpur Custom Measurements: Chest 40", Waist 32", Length 44", Raw Silk Heavyweight Cotton.');
         return;
       }
 
@@ -4601,7 +4617,7 @@ export default function StitchScreenRenderer({
         else if (txt.includes('DENIM') || txt.includes('CARGO')) cat = 'DENIMS_CARGOS';
         else if (txt.includes('SHIRT')) cat = 'CASUAL_SHIRTS';
         else if (txt.includes('COORD') || txt.includes('DRESS')) cat = 'COORDS_DRESSES';
-        else if (txt.includes('ETHNIC') || txt.includes('KURTA') || txt.includes('SAREE')) cat = 'ETHNIC';
+        else if (txt.includes('ETHNIC') || txt.includes('streetwear tee') || txt.includes('hoodie')) cat = 'ETHNIC';
         setCatalogCategory(cat);
         showToast(`Filtered: ${catTab.textContent.trim()}`);
         return;
@@ -5183,7 +5199,7 @@ export default function StitchScreenRenderer({
         <div
           style={{
             position: 'fixed',
-            top: 76,
+            bottom: 88,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 99999,
@@ -5945,16 +5961,16 @@ export default function StitchScreenRenderer({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 8 }}>
-                  Kurta / Silhouette Size
+                  T-Shirt / Hoodie Size
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
-                    const isSelected = userMeasurements.kurta === sz;
+                    const isSelected = (userMeasurements.tee || 'M') === sz;
                     return (
                       <button
                         key={sz}
                         type="button"
-                        onClick={() => setUserMeasurements((m) => ({ ...m, kurta: sz }))}
+                        onClick={() => setUserMeasurements((m) => ({ ...m, tee: sz }))}
                         style={{
                           width: 44,
                           height: 40,
@@ -5976,16 +5992,16 @@ export default function StitchScreenRenderer({
 
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#B38A2B' : '#9E721D', marginBottom: 8 }}>
-                  Blouse / Chest Bust
+                  Chest / Fit Size
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {['32"', '34"', '36"', '38"', '40"', '42"'].map((bl) => {
-                    const isSelected = userMeasurements.blouse === bl;
+                  {['36"', '38"', '40"', '42"', '44"', '46"'].map((bl) => {
+                    const isSelected = (userMeasurements.chest || '38"') === bl;
                     return (
                       <button
                         key={bl}
                         type="button"
-                        onClick={() => setUserMeasurements((m) => ({ ...m, blouse: bl }))}
+                        onClick={() => setUserMeasurements((m) => ({ ...m, chest: bl }))}
                         style={{
                           padding: '8px 12px',
                           borderRadius: 10,
@@ -6044,7 +6060,7 @@ export default function StitchScreenRenderer({
                   window.localStorage.setItem('kyapehnu_user_measurements', JSON.stringify(userMeasurements));
                 }
                 setIsMeasurementsModalOpen(false);
-                showToast(`Measurements saved: Kurta ${userMeasurements.kurta}, Blouse ${userMeasurements.blouse}!`);
+                showToast(`Measurements saved: T-Shirt ${userMeasurements.tee || 'M'}, Chest ${userMeasurements.chest || '38"'}!`);
               }}
               style={{
                 width: '100%',

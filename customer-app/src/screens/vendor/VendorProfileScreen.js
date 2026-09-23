@@ -18,6 +18,7 @@ import PressableScale from '../../components/PressableScale';
 import VendorBottomNav from '../../components/vendor/VendorBottomNav';
 import { colors, radii, spacing } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useThemeStore } from '../../store/useThemeStore';
 import { useVendorStore } from '../../store/useVendorStore';
 
 /**
@@ -32,6 +33,7 @@ import { useVendorStore } from '../../store/useVendorStore';
  */
 export default function VendorProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const isDark = useThemeStore((state) => state.isDark);
 
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
   const signOut = useAuthStore((state) => state.signOut);
@@ -88,16 +90,16 @@ export default function VendorProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[styles.root, { backgroundColor: isDark ? '#121214' : '#F4EFE7' }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* 1. Animated Drifting Background Blobs */}
       <AmbientBackgroundBlobs />
 
       {/* 2. Top Header Bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
-        <View style={styles.topBarInner}>
-          <Text style={styles.topBarTitle}>Store Profile & Settings</Text>
+      <View style={[styles.topBar, { paddingTop: insets.top + 4, backgroundColor: isDark ? 'rgba(18, 18, 20, 0.96)' : 'rgba(244, 239, 231, 0.96)', borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(217, 119, 6, 0.12)' }]}>
+        <View style={[styles.topBarInner, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.25)' }]}>
+          <Text style={[styles.topBarTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Store Profile & Settings</Text>
           <View style={styles.topBarBadge}>
             <Text style={styles.topBarBadgeText}>VENDOR MODE</Text>
           </View>
@@ -111,13 +113,13 @@ export default function VendorProfileScreen({ navigation }) {
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top + 76, 86),
-            paddingBottom: insets.bottom + 90,
+            paddingBottom: insets.bottom + 140,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Shop Identity Card */}
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
           <View style={styles.statusRow}>
             <View style={styles.statusPill}>
               <View style={[styles.statusDot, isApproved && styles.statusDotLive]} />
@@ -128,8 +130,8 @@ export default function VendorProfileScreen({ navigation }) {
             <Text style={styles.cityTag}>Nagpur</Text>
           </View>
 
-          <Text style={styles.shopNameText}>{shopName}</Text>
-          <Text style={styles.ownerNameText}>Proprietor: {ownerName}</Text>
+          <Text style={[styles.shopNameText, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>{shopName}</Text>
+          <Text style={[styles.ownerNameText, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Proprietor: {ownerName}</Text>
 
           <View style={styles.divider} />
 
@@ -160,15 +162,15 @@ export default function VendorProfileScreen({ navigation }) {
         </View>
 
         {/* Support & Helpline Card */}
-        <View style={styles.supportCard}>
-          <Text style={styles.sectionHeaderTitle}>Nagpur Partner Helpline</Text>
+        <View style={[styles.supportCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
+          <Text style={[styles.sectionHeaderTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Nagpur Partner Helpline</Text>
           <Text style={styles.sectionHeaderDesc}>
             Have questions or need assistance? Reach out directly to the Kya Pehnu Partner Desk:
           </Text>
 
           <PressableScale
             onPress={handleCallSupport}
-            style={styles.supportActionBtn}
+            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(18, 18, 20, 0.08)' }]}
             accessibilityRole="button"
             accessibilityLabel="Call support"
           >
@@ -202,7 +204,7 @@ export default function VendorProfileScreen({ navigation }) {
         {/* View Boutique Analytics & Insights Card */}
         <PressableScale
           onPress={() => navigation.navigate('VendorAnalytics')}
-          style={styles.switchModeCard}
+          style={[styles.switchModeCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.3)' }]}
           accessibilityRole="button"
           accessibilityLabel="View Boutique Analytics"
         >
@@ -210,7 +212,7 @@ export default function VendorProfileScreen({ navigation }) {
             <MaterialIcons name="insights" size={22} color="#FFFFFF" />
           </View>
           <View style={styles.switchModeTextCol}>
-            <Text style={styles.switchModeTitle}>Boutique Analytics & 60-Min Speed</Text>
+            <Text style={[styles.switchModeTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Boutique Analytics & 60-Min Speed</Text>
             <Text style={styles.switchModeSubtitle}>Fulfillment times, revenue velocity & top styles</Text>
           </View>
           <MaterialIcons name="chevron-right" size={24} color={colors.accentCrimson} />
@@ -219,7 +221,7 @@ export default function VendorProfileScreen({ navigation }) {
         {/* Switch to Customer Mode Card */}
         <PressableScale
           onPress={() => useAuthStore.getState().setRole('CUSTOMER')}
-          style={styles.switchModeCard}
+          style={[styles.switchModeCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.3)' }]}
           accessibilityRole="button"
           accessibilityLabel="Switch to customer storefront"
         >
@@ -247,7 +249,7 @@ export default function VendorProfileScreen({ navigation }) {
         <View style={styles.footerWrap}>
           <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 8 }} />
           <Text style={styles.footerStamp}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
-          <Text style={styles.footerCorridor}>Sitabuldi · Dharampeth · Itwari · Gandhibagh · Sadar</Text>
+          <Text style={styles.footerCorridor}>Nagpur Citywide Fast Courier Network · All Zones Active</Text>
         </View>
       </ScrollView>
 
