@@ -1,27 +1,24 @@
 /**
  * Mock catalogue — five independent fashion retailers in Nagpur.
  *
- * This stands in for the `/vendors` + `/products` endpoints described in
- * ARCHITECTURE.md until the Express + MongoDB backend is wired up. Shapes here
- * intentionally mirror the planned Vendor and Product schemas so swapping the
- * import for a fetch later is a one-line change.
+ * Targeted at the 18–35 & teenage demographic:
+ * Priority: Everyday streetwear, oversized tees, hoodies, baggy denims, cargos, casual shirts, and co-ords.
+ * Secondary: Contemporary fusion & everyday ethnic.
  *
  * Coordinates are real Nagpur neighbourhoods (Dharampeth, Sitabuldi, Ramdaspeth,
- * Civil Lines, and Gandhibagh) so the distance sort and the live-tracking map both
- * look plausible in demos.
+ * Civil Lines, and Gandhibagh) for realistic distance sort and live-tracking.
  *
- * All photography uses verified high-resolution fashion editorial imagery.
+ * All photography uses high-resolution fashion and streetwear editorial imagery.
  */
 
 export const CATEGORIES = {
-  SILKS: 'Silks',
-  LINEN: 'Linen',
-  FESTIVE: 'Festive',
-  WOMEN: 'Women',
-  MEN: 'Men',
-  TOPS: 'Tops',
-  SHIRTS: 'Shirts',
-  DRAPES: 'Drapes',
+  TEES_HOODIES: 'Tees & Hoodies',
+  DENIMS_CARGOS: 'Denims & Cargos',
+  CASUAL_SHIRTS: 'Casual Shirts',
+  COORDS_DRESSES: 'Co-ords & Dresses',
+  STREETWEAR: 'Streetwear',
+  ATHLEISURE: 'Athleisure',
+  ETHNIC: 'Ethnic & Festive',
 };
 
 /** Nagpur city centre — used as the default map region before GPS resolves. */
@@ -32,111 +29,287 @@ export const NAGPUR_CENTER = {
 
 export const mockStores = [
   {
-    id: 'str_studio_anamika',
-    name: 'Studio Anamika',
-    area: 'Dharampeth',
-    addressLine: 'Shop 14, West High Court Road, Dharampeth, Nagpur 440010',
-    coordinates: { latitude: 21.135, longitude: 79.068 },
+    id: 'str_thread_and_bone',
+    name: 'Thread & Bone',
+    area: 'Nagpur Central',
+    addressLine: 'First Floor, 42 Main Road, Nagpur Central 440001',
+    coordinates: { latitude: 21.1458, longitude: 79.0882 },
     rating: 4.9,
+    ratingCount: 680,
+    distanceKm: 0.8,
+    etaMinutes: 20,
+    image:
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80',
+    tagline: 'Nagpur Central · Heavyweight Boxy Tees, Hoodies & Raw Streetwear',
+    products: [
+      {
+        id: 'prd_heavyweight_tee',
+        name: 'Heavyweight Boxy Graphic Tee',
+        category: 'Tees & Hoodies',
+        gender: 'Unisex',
+        subCategory: 'Graphic Tees',
+        price: 1299,
+        mrp: 1800,
+        currency: 'INR',
+        colorway: 'Washed Charcoal Black',
+        material: '240 GSM combed heavyweight cotton, drop shoulder cut',
+        sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+        deliveryMinutes: 20,
+        image:
+          'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Oversized boxy silhouette cut from custom 240 GSM combed cotton. Ribbed dense collar, dropped shoulders, and pre-shrunk vintage wash.',
+      },
+      {
+        id: 'prd_vintage_hoodie',
+        name: 'Vintage Drop-Shoulder Fleece Hoodie',
+        category: 'Tees & Hoodies',
+        gender: 'Unisex',
+        subCategory: 'Hoodies & Sweatshirts',
+        price: 1999,
+        mrp: 2799,
+        currency: 'INR',
+        colorway: 'Acid Wash Olive',
+        material: '380 GSM brushed cotton fleece, double-layered hood',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 25,
+        image:
+          'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Ultra-cozy 380 GSM fleece hoodie featuring dropped shoulders, ribbed hem and cuffs, kangaroo pocket, and minimal tone-on-tone embroidery.',
+      },
+      {
+        id: 'prd_relaxed_cargos',
+        name: 'Multi-Pocket Relaxed Utility Cargos',
+        category: 'Denims & Cargos',
+        gender: 'Unisex',
+        subCategory: 'Cargo Pants',
+        price: 1899,
+        mrp: 2599,
+        currency: 'INR',
+        colorway: 'Military Khaki',
+        material: 'Heavy cotton twill with reinforced knee darts',
+        sizes: ['28', '30', '32', '34', '36'],
+        deliveryMinutes: 22,
+        image:
+          'https://images.unsplash.com/photo-1517445312882-bc9910d016b7?auto=format&fit=crop&w=900&q=80',
+        description:
+          '6-pocket relaxed utility cargos with adjustable ankle bungee drawstrings. Perfect for campus everyday wear and skate sessions.',
+      },
+    ],
+  },
+  {
+    id: 'str_urban_drift',
+    name: 'Urban Drift Co.',
+    area: 'West High Court Road, Nagpur',
+    addressLine: '18, West High Court Road, Nagpur 440010',
+    coordinates: { latitude: 21.135, longitude: 79.068 },
+    rating: 4.85,
     ratingCount: 520,
     distanceKm: 1.2,
     etaMinutes: 18,
     image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuB3fO0AlIyNUbsjQillmgpCWx1QCPdMm6I6G1ZsgUv2kPOwmh6JSuQ9r9mZXkheX-_WPYJ1exGjksPUEBoHxIduC6zmixfyL-RR79JPvIfLMM7ZVLQjDk0NTCG-6LxFcA9aOZWLWaJECd-7jJATwh7gfp0IUq0NDC27kxpVeO8dvWks7uuNArpDldMNEgbqWxhLy53afjqMuBfE6niZuVessjk8plkVRlHFDQgWkPpLkt5ekiflvX079w',
-    tagline: 'Dharampeth · Pure Zari & Tussar Silk',
+      'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=600&q=80',
+    tagline: 'Nagpur Central · Everyday Baggy Denims & Skater Fits',
     products: [
       {
-        id: 'prd_royal_chanderi_zari_set',
-        name: 'Royal Chanderi Zari Set',
-        category: 'Silks',
-        gender: 'Women',
-        subCategory: "Women's Wear",
-        price: 4750,
-        mrp: 6400,
+        id: 'prd_baggy_jeans',
+        name: 'Vintage Baggy Skater Jeans',
+        category: 'Denims & Cargos',
+        gender: 'Unisex',
+        subCategory: 'Baggy Jeans',
+        price: 2199,
+        mrp: 2999,
         currency: 'INR',
-        colorway: 'Crimson & Gold',
-        material: 'Handcrafted crimson and gold Banarasi zari silk angrakha robe',
-        sizes: ['S', 'M', 'L'],
-        deliveryMinutes: 25,
+        colorway: 'Stonewashed Indigo',
+        material: '13.5 oz 100% rigid cotton denim',
+        sizes: ['28', '30', '32', '34', '36'],
+        deliveryMinutes: 18,
         image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuA7S-N2WWsNXgtuAYoxV3VTKQj3zhQPJJVOqBebPKzwABDFzSMW8_Ma853uQn3Uh8t4ERL-qIjxCVuKaA1pBPZgz6Uh5jMAmjaeXXKaYzP90t225iQtt3IPiDJ6MeblM2eVZAA3a3T6fZNDtw1pbAIXEVn23GTbHNZwNTmCuADF2lyaHwYfFyFhDrB-ue-c49KvygdOgf5U9uviu-2NnPa9sZBsXaXdhFjKESwZ7jP7QBdTAo0RwlWsGg',
+          'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=900&q=80',
         description:
-          'Editorial luxury fashion portrait of an elegant handcrafted crimson and gold Banarasi zari silk angrakha robe. Natural warm ambient studio lighting, soft cream linen textures.',
+          'Authentic 90s baggy fit jeans with wide straight legs, custom brass hardware, and a clean drape over chunky sneakers.',
       },
       {
-        id: 'prd_chanderi_angrakha',
-        name: 'Chanderi Silk Angrakha',
-        category: 'Silks',
-        gender: 'Women',
-        subCategory: 'Drapes & Angrakhas',
-        price: 4800,
-        mrp: 6499,
+        id: 'prd_flannel_overshirt',
+        name: 'Relaxed Plaid Flannel Overshirt',
+        category: 'Casual Shirts',
+        gender: 'Men',
+        subCategory: 'Flannels & Overshirts',
+        price: 1699,
+        mrp: 2299,
         currency: 'INR',
-        colorway: 'Sindhoor Crimson',
-        material: 'Handwoven Chanderi cotton-silk, delicate zardozi lapels',
-        sizes: ['XS', 'S', 'M', 'L', 'XL'],
-        deliveryMinutes: 28,
+        colorway: 'Rust & Navy Plaid',
+        material: 'Brushed heavy cotton flannel',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 24,
         image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuD5WpgQNsXY8LzG4Zbdq5F-RthnwzTQ3IW1ybahamSyj4eSGXOeHMJemyAHE91tfnF373mJIqcDfA-cHnk_JyP6txaEy6DpAObexpxBaTIJ4mmlHdqbtH-upkBDBXP8KX3tYqEBv5V-Ox-5wNpsdY7z73yNzikadlIa5jK9oSmOeU9ls1VU3I196LB0Lfn9nleNXQ1ilXWU6vey5nCYpDaxC7XZ4pruGrZowV31ah2rdIni3a8-wUYDZw',
+          'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=80',
         description:
-          'Hand-woven tissue silk draped with asymmetrical overlap, edged in pure zari cordwork.',
+          'Soft brushed flannel overshirt designed to be worn open over a white tee or buttoned up for casual evenings.',
       },
       {
-        id: 'prd_raw_silk_dupatta',
-        name: 'Raw Silk Dupatta',
-        category: 'Silks',
-        gender: 'Women',
-        subCategory: 'Silk Dupattas',
-        price: 1500,
-        mrp: 2000,
+        id: 'prd_knit_polo',
+        name: 'Knitted Retro Collar Polo',
+        category: 'Casual Shirts',
+        gender: 'Men',
+        subCategory: 'Polos & Knitwear',
+        price: 1499,
+        mrp: 1999,
         currency: 'INR',
-        colorway: 'Blush Pink',
-        material: 'Soft blush pink raw silk dupatta adorned with subtle golden gota patti border',
-        sizes: ['Free Size'],
-        deliveryMinutes: 35,
-        image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuCEPtmkPMyIJEXMeO6aKr8gFQLa7xclnqiXU_XmWysTILZf5STQ313SzDms5D_CeAbkwJn67z5WAYzYRuszBusx7eNRs8_NwnUetFH59SJIT0GmM_5o1S2aqhxTPUAOE0cBTQApkznuEB-B_yEjAPW4i2TzM24-xclP9OxHcskpl-75SdiZna_PbBgMNSL1FREyUiJlaflfbVaSVmd938Lij0vTiVjZHuBkVGKoBcdJpUq69FzmxjiIBA',
-        description:
-          'Delicate luxury Indian handloom textile, natural linen studio styling, ultra-soft lighting.',
-      },
-    ],
-  },
-  {
-    id: 'str_pankh_atelier',
-    name: 'Pankh Boutique',
-    area: 'Sitabuldi',
-    addressLine: '42, Residency Road, Sitabuldi, Nagpur 440012',
-    coordinates: { latitude: 21.144, longitude: 79.085 },
-    rating: 4.8,
-    ratingCount: 410,
-    distanceKm: 0.8,
-    etaMinutes: 22,
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDkrarLJqQNSiq9nwRE1A1GD63ExWMaifYGh2k5uE4KlpLg8b3ju9qj_-fL7VnP3guo8QcO3RrFGX4-XzJEQNeebh2KMcShzaVXpln4HlDID3zs-sUUQcfSuzTwc3nyWFKowQGLuCzNE1V4ZPW2KatxtgWKuLLPAq5MaEMYiXjw-0be16OC7E6jTHnIubY7w1BTeorvP4kCy0VmWojBw2THUi7o6hMnmyIZhW6JJqIWE5Etbh0jWPvIuQ',
-    tagline: 'Sitabuldi · Paithani & Organza',
-    products: [
-      {
-        id: 'prd_paithani_silk_kurta',
-        name: 'Paithani Silk Kurta',
-        category: 'Silks',
-        gender: 'Women',
-        subCategory: 'Kurtas & Sets',
-        price: 3400,
-        mrp: 4200,
-        currency: 'INR',
-        colorway: 'Royal Emerald Green',
-        material: 'Royal emerald green Paithani silk kurta with golden peacock hand-embroidery',
-        sizes: ['S', 'M', 'L'],
+        colorway: 'Chalk White & Pine Green',
+        material: 'Breathable 100% combed cotton fine knit',
+        sizes: ['S', 'M', 'L', 'XL'],
         deliveryMinutes: 20,
         image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuAYDGM74E_WBhmoM3kL_gMs5hmfJ4_AsJW0t9hYBZkI8QR-J4ngUuy856EamXn-AHuXEbDyhGi_Ox0UjxrCGIoxnrtJYRszpNg-lF4Kr9LYMnrm8uMiUOsuoBzYNEi6PxH-oo3hYvAWl4fyGo3ybsK0jOL93juW_B-YDbBf0jnNJd6vAxf2TDJ8yO_MPrutyG7-pP4pS-EcZ2vGedezLuSiYQcj4R1B9udgJ8A8y3B7sjvJn6NwPer9Ew',
+          'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=900&q=80',
         description:
-          'Royal emerald green Paithani silk kurta with golden peacock hand-embroidery around the collar. Sharp textile weave detail.',
+          'Textured retro open-collar polo with ribbed cuffs. An effortless smart-casual staple for cafe dates and college hangouts.',
       },
     ],
   },
   {
-    id: 'str_sadar_loom',
+    id: 'str_campus_vogue',
+    name: 'Campus Vogue Studio',
+    area: 'Sadar',
+    addressLine: '8, Residency Road Extension, Sadar, Nagpur 440001',
+    coordinates: { latitude: 21.158, longitude: 79.08 },
+    rating: 4.9,
+    ratingCount: 440,
+    distanceKm: 2.1,
+    etaMinutes: 22,
+    image:
+      'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80',
+    tagline: 'Sadar · College Essentials, Co-ords & Casual Chic',
+    products: [
+      {
+        id: 'prd_ribbed_coord',
+        name: 'Ribbed Knit Crop & Flare Co-ord',
+        category: 'Co-ords & Dresses',
+        gender: 'Women',
+        subCategory: 'Co-ord Sets',
+        price: 1799,
+        mrp: 2499,
+        currency: 'INR',
+        colorway: 'Mocha Brown',
+        material: 'Stretch modal rib knit',
+        sizes: ['XS', 'S', 'M', 'L'],
+        deliveryMinutes: 22,
+        image:
+          'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Matching ribbed long-sleeve crop top and high-waist flared pants. Flattering, stretchy, and ultra-comfortable for all-day campus wear.',
+      },
+      {
+        id: 'prd_resort_linen_shirt',
+        name: 'Breezy Resort Collar Linen Shirt',
+        category: 'Casual Shirts',
+        gender: 'Unisex',
+        subCategory: 'Casual Shirts',
+        price: 1599,
+        mrp: 2199,
+        currency: 'INR',
+        colorway: 'Sage Green',
+        material: '100% pure breathable linen',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 22,
+        image:
+          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Relaxed camp-collar short sleeve shirt crafted from airy pure linen. Lightweight and breezy for everyday Nagpur weather.',
+      },
+      {
+        id: 'prd_parachute_pants',
+        name: 'Techwear Parachute Cargo Pants',
+        category: 'Streetwear',
+        gender: 'Unisex',
+        subCategory: 'Streetwear Pants',
+        price: 1899,
+        mrp: 2499,
+        currency: 'INR',
+        colorway: 'Matte Obsidian Black',
+        material: 'Crisp water-repellent nylon ripstop',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 25,
+        image:
+          'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Oversized parachute track pants with bungee cinches at waist and ankles, pleated knee articulation, and side cargo pockets.',
+      },
+    ],
+  },
+  {
+    id: 'str_studio_anamika',
+    name: 'Studio Anamika',
+    area: 'West High Court Road, Nagpur',
+    addressLine: 'Shop 14, West High Court Road, Nagpur 440010',
+    coordinates: { latitude: 21.135, longitude: 79.068 },
+    rating: 4.8,
+    ratingCount: 390,
+    distanceKm: 1.4,
+    etaMinutes: 20,
+    image:
+      'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=600&q=80',
+    tagline: 'Nagpur Central · Everyday Casuals & Contemporary Fusion',
+    products: [
+      {
+        id: 'prd_acid_wash_tee',
+        name: 'Distressed Acid-Wash Graphic Tee',
+        category: 'Tees & Hoodies',
+        gender: 'Unisex',
+        subCategory: 'Graphic Tees',
+        price: 1199,
+        mrp: 1699,
+        currency: 'INR',
+        colorway: 'Washed Rust & Charcoal',
+        material: '220 GSM single-jersey cotton',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 20,
+        image:
+          'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Hand-treated acid-wash tee featuring vintage distressed typography graphic, dropped shoulders, and raw-edge sleeve cuffs.',
+      },
+      {
+        id: 'prd_denim_trucker',
+        name: 'Boxy Trucker Denim Jacket',
+        category: 'Streetwear',
+        gender: 'Unisex',
+        subCategory: 'Jackets & Outerwear',
+        price: 2499,
+        mrp: 3499,
+        currency: 'INR',
+        colorway: 'Vintage Mid-Blue',
+        material: '14 oz heavyweight washed cotton denim',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 25,
+        image:
+          'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Timeless boxy denim jacket with shank buttons, chest flap pockets, and subtle distressed collar detailing.',
+      },
+      {
+        id: 'prd_everyday_kurta',
+        name: 'Minimalist Everyday Cotton Straight Kurta',
+        category: 'Ethnic & Festive',
+        gender: 'Men',
+        subCategory: 'Kurtas & Sets',
+        price: 1299,
+        mrp: 1799,
+        currency: 'INR',
+        colorway: 'Soft Natural Ivory',
+        material: '100% breathable slub cotton, wooden buttons',
+        sizes: ['38', '40', '42', '44'],
+        deliveryMinutes: 25,
+        image:
+          'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=80',
+        description:
+          'Contemporary straight-cut casual kurta with mandarin collar and roll-up sleeves. Designed for college pujas and casual festive days.',
+      },
+    ],
+  },
+  {
+    id: 'str_sadar_trend',
     name: 'Sadar Trend Studio',
     area: 'Sadar',
     addressLine: '12, Mount Road Extension, Sadar, Nagpur 440001',
@@ -146,250 +319,62 @@ export const mockStores = [
     distanceKm: 2.4,
     etaMinutes: 28,
     image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuASVOMaR-Rf5v0pXCa-wbfZHHU4qhQhVuCJiCbMT08xz8sWeJphW-wzGu4AM433agT-gQeJyUDcFPZJJLlbws1xYeXJwmPa_X8nWjIcgJR-_mO9_Wen5rhk6xCHSu4bumF9t4TAY_W-ee5uZB3yiMKU0PQWCtaUnfstGo_m5bBfRqW3UaLtmJk1yzvrrAptBwdOBdoVmOx1_8ixw52qKpFnEopUBOS2JphwBYsPp99RgGwv0w-VfIQRpQ',
-    tagline: 'Sadar · Menswear & Royal Bandhgalas',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80',
+    tagline: 'Sadar · Athleisure, Caps & Streetwear Essentials',
     products: [
       {
-        id: 'prd_linen_bundi_jacket',
-        name: 'Linen Bundi Jacket',
-        category: 'Men',
-        gender: 'Men',
-        subCategory: "Men's Fashion",
-        price: 5200,
-        mrp: 6500,
+        id: 'prd_fleece_sweatpants',
+        name: 'Wide-Leg Fleece Sweatpants',
+        category: 'Athleisure',
+        gender: 'Unisex',
+        subCategory: 'Sweatpants & Joggers',
+        price: 1699,
+        mrp: 2299,
         currency: 'INR',
-        colorway: 'Ivory & Brass',
-        material: 'Tailored ivory linen bundi jacket with brushed brass buttons',
-        sizes: ['38', '40', '42'],
-        deliveryMinutes: 25,
+        colorway: 'Heather Ash Grey',
+        material: '360 GSM cotton-poly brushed fleece',
+        sizes: ['S', 'M', 'L', 'XL'],
+        deliveryMinutes: 28,
         image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBDfCXZkxrJvcXumVTIdQ0NdEwsow6VcIeeZVBFMrj22bG0ymQQre2i-5SIg02fclD2PQAn9LXQwXBlTnxk6OaiQcIJ71zc5RkOrL6xCdTJNZO2WcUeL3JaBgPFlZbU4RJakO_Epyl-wy3xlG97YYx6nnnBjCS7j3iN1I9QYzngDYLMqbg531LjgI-MyTUEfdK5yI3KXtE3Ql3lkxMRnB6qMH87gjte8bikwM8Rpq8Gy-vxa3sb8HzJsg',
+          'https://images.unsplash.com/photo-1552902865-b72c031ac5ea?auto=format&fit=crop&w=900&q=80',
         description:
-          'Tailored ivory linen bundi jacket with brushed brass buttons over a classic bandhgala. Refined royal sophistication.',
+          'Relaxed wide-leg sweatpants with elasticated drawstring waistband, deep side pockets, and an open hem drape.',
       },
-    ],
-  },
-  {
-    id: 'str_sitabuldi_silk',
-    name: 'Sitabuldi Silk',
-    area: 'Sitabuldi',
-    addressLine: '80, Cotton Market Square, Sitabuldi, Nagpur 440012',
-    coordinates: { latitude: 21.147, longitude: 79.086 },
-    rating: 4.9,
-    ratingCount: 490,
-    distanceKm: 0.7,
-    etaMinutes: 30,
-    image:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCYmUCb6LsHzea-_Hq0at5dFcymwuBhotCd7EH3utfkLwLoZlve9XuimzOWHjp0aHYiJIhSEWsluGpsFvaLPxgthCU8dVghYNhcHC1H0IhAeGtqD2RPcx8uXfqH2-1Y2pt3L0ELokiVTPaA0IFVHi2Ho0WbB9ejtXrSKkpe37cOLPG8QYw_bej_jSX81c-TwkyvOXC1r9L-YMglvksn0WTOWWAbv6OWIEhN7yLeOO3Z6F-YdZF8rF14dA',
-    tagline: 'Sitabuldi · Sarees & Handlooms',
-    products: [
       {
-        id: 'prd_tissue_zari_saree',
-        name: 'Tissue Zari Saree',
-        category: 'Silks',
-        gender: 'Women',
-        subCategory: 'Sarees & Handlooms',
-        price: 8900,
-        mrp: 11500,
+        id: 'prd_flight_bomber',
+        name: 'Lightweight Flight Bomber Jacket',
+        category: 'Streetwear',
+        gender: 'Unisex',
+        subCategory: 'Jackets & Outerwear',
+        price: 2799,
+        mrp: 3899,
         currency: 'INR',
-        colorway: 'Midnight Blue & Antique Gold',
-        material: 'Handwoven midnight blue tissue silk saree with antique gold zari pallu border',
-        sizes: ['Free Size'],
+        colorway: 'Matte Obsidian Black',
+        material: 'Satin nylon shell with ribbed varsity trims',
+        sizes: ['S', 'M', 'L', 'XL'],
         deliveryMinutes: 30,
         image:
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuCYmUCb6LsHzea-_Hq0at5dFcymwuBhotCd7EH3utfkLwLoZlve9XuimzOWHjp0aHYiJIhSEWsluGpsFvaLPxgthCU8dVghYNhcHC1H0IhAeGtqD2RPcx8uXfqH2-1Y2pt3L0ELokiVTPaA0IFVHi2Ho0WbB9ejtXrSKkpe37cOLPG8QYw_bej_jSX81c-TwkyvOXC1r9L-YMglvksn0WTOWWAbv6OWIEhN7yLeOO3Z6F-YdZF8rF14dA',
+          'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80',
         description:
-          'Handwoven midnight blue tissue silk saree with intricate antique gold zari pallu border. Quiet luxury, timeless Indian craftsmanship.',
-      },
-    ],
-  },
-  {
-    id: 'str_maheshwari_handlooms',
-    name: 'Maheshwari Handlooms',
-    area: 'Gandhibagh',
-    addressLine: '88, Cloth Market, Gandhibagh, Nagpur 440002',
-    coordinates: { latitude: 21.152, longitude: 79.108 },
-    rating: 4.8,
-    ratingCount: 380,
-    distanceKm: 2.1,
-    etaMinutes: 32,
-    image:
-      'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80',
-    tagline: 'Modern fashion studio with trending fits & contemporary menswear.',
-    products: [
-      {
-        id: 'prd_tussar_kurta_set',
-        name: 'Tussar Silk Kurta Set',
-        category: 'Silks',
-        gender: 'Men',
-        subCategory: 'Kurtas & Sets',
-        price: 3450,
-        mrp: 4500,
-        currency: 'INR',
-        colorway: 'Natural Biscuit Ecru',
-        material: 'Raw handwoven tussar silk, subtle golden woven thread collar',
-        sizes: ['38', '40', '42', '44'],
-        deliveryMinutes: 32,
-        image:
-          'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Raw tussar silk classic straight-cut tunic with subtle golden woven thread along the mandarin bandhgala collar.',
+          'Classic MA-1 flight bomber with utility sleeve zipper pocket, contrast orange lining, and chunky metal hardware.',
       },
       {
-        id: 'prd_nehru_waistcoat',
-        name: 'Structured Nehru Waistcoat',
-        category: 'Festive',
-        gender: 'Men',
-        subCategory: 'Shirts & Waistcoats',
-        price: 3200,
-        mrp: 4200,
-        currency: 'INR',
-        colorway: 'Deep Royal Crimson',
-        material: 'Structured raw silk, handcrafted brass buttons',
-        sizes: ['38', '40', '42', '44'],
-        deliveryMinutes: 32,
-        image:
-          'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Structured textured raw silk Nehru waistcoat in deep royal crimson, tailored with antique brass buttons.',
-      },
-    ],
-  },
-  {
-    id: 'str_civillines_linen',
-    name: 'Civil Lines Linen Studio',
-    area: 'Civil Lines',
-    addressLine: 'Bungalow 6, Palm Road, Civil Lines, Nagpur 440001',
-    coordinates: { latitude: 21.155, longitude: 79.07 },
-    rating: 4.8,
-    ratingCount: 295,
-    distanceKm: 1.8,
-    etaMinutes: 24,
-    image:
-      'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=600&q=80',
-    tagline: 'Minimal pure European linen silhouettes tailored for Vidarbha climate.',
-    products: [
-      {
-        id: 'prd_linen_coord',
-        name: 'Sculpted Linen Co-ord Set',
-        category: 'Linen',
+        id: 'prd_casual_sundress',
+        name: 'Tiered Cotton Casual Sundress',
+        category: 'Co-ords & Dresses',
         gender: 'Women',
-        subCategory: 'Tops & Co-ords',
-        price: 2890,
-        mrp: 3800,
+        subCategory: 'Casual Dresses',
+        price: 1899,
+        mrp: 2599,
         currency: 'INR',
-        colorway: 'Warm Sand Ecru',
-        material: '100% Belgian breathable linen, tailored vest & relaxed trousers',
+        colorway: 'Butter Yellow',
+        material: '100% cotton poplin with side pockets',
         sizes: ['XS', 'S', 'M', 'L'],
-        deliveryMinutes: 24,
+        deliveryMinutes: 28,
         image:
-          'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80',
+          'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=900&q=80',
         description:
-          'Tailored notched-lapel vest paired with pleated wide-leg linen trousers. Lightweight and breathable for Vidarbha weather.',
-      },
-      {
-        id: 'prd_crimson_slip',
-        name: 'Crimson Bias-Cut Slip Dress',
-        category: 'Festive',
-        gender: 'Women',
-        subCategory: 'Dresses & Gowns',
-        price: 8900,
-        mrp: 11500,
-        currency: 'INR',
-        colorway: 'Deep Crimson',
-        material: 'Pure silk crepe with French seams',
-        sizes: ['XS', 'S', 'M', 'L'],
-        deliveryMinutes: 24,
-        image:
-          'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Cut on the bias so it moves effortlessly before you do. Handcrafted in a limited boutique batch.',
-      },
-    ],
-  },
-  {
-    id: 'str_kala_niketan',
-    name: 'Kala Niketan',
-    area: 'Sitabuldi',
-    addressLine: '52, Main Road, Sitabuldi, Nagpur 440012',
-    coordinates: { latitude: 21.146, longitude: 79.088 },
-    rating: 4.95,
-    ratingCount: 640,
-    distanceKm: 0.6,
-    etaMinutes: 15,
-    image:
-      'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=600&q=80',
-    tagline: "Nagpur's premier bridal fashion house and royal zardozi embroideries.",
-    products: [
-      {
-        id: 'prd_zardozi_anarkali',
-        name: 'Zardozi Embroidered Anarkali',
-        category: 'Festive',
-        gender: 'Women',
-        subCategory: 'Festive Anarkali',
-        price: 8900,
-        mrp: 11500,
-        currency: 'INR',
-        colorway: 'Mulberry Red & Gold',
-        material: 'Rich mulberry silk, accompanied by zari organza dupatta',
-        sizes: ['S', 'M', 'L'],
-        deliveryMinutes: 15,
-        image:
-          'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Grand festive floor-length anarkali in rich mulberry silk, accompanied by a zari organza dupatta.',
-      },
-      {
-        id: 'prd_obsidian_shirt',
-        name: 'Obsidian Evening Shirt',
-        category: 'Shirts',
-        gender: 'Men',
-        subCategory: 'Shirts & Eveningwear',
-        price: 4200,
-        mrp: 5600,
-        currency: 'INR',
-        colorway: 'Obsidian Black',
-        material: '2-ply Giza cotton, mother-of-pearl buttons',
-        sizes: ['S', 'M', 'L', 'XL'],
-        deliveryMinutes: 15,
-        image:
-          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Cut long in the body and narrow through the sleeve, finished with a hand-rolled placket. Made two streets away in Sitabuldi.',
-      },
-    ],
-  },
-  {
-    id: 'str_thread_and_bone',
-    name: 'Thread & Bone',
-    area: 'Sitabuldi',
-    addressLine: 'First Floor, Main Road, Sitabuldi, Nagpur 440012',
-    coordinates: { latitude: 21.1458, longitude: 79.0882 },
-    rating: 4.6,
-    ratingCount: 289,
-    distanceKm: 2.7,
-    etaMinutes: 42,
-    image:
-      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80',
-    tagline: 'Raw streetwear, boxy tees & campus essentials.',
-    products: [
-      {
-        id: 'prd_heavyweight_tee',
-        name: 'Heavyweight Boxy Tee',
-        category: 'Tops',
-        gender: 'Unisex',
-        subCategory: 'Tops & Tees',
-        price: 1450,
-        mrp: 1900,
-        currency: 'INR',
-        colorway: 'Washed Charcoal Black',
-        material: '240 GSM combed heavyweight cotton',
-        sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-        deliveryMinutes: 42,
-        image:
-          'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80',
-        description:
-          'Boxy through the body, ribbed collar, heavy enough to hold silhouette after repeated washes.',
+          'Breezy tiered sundress with square neckline and practical hidden side pockets. The ultimate effortless weekend piece.',
       },
     ],
   },
@@ -397,9 +382,6 @@ export const mockStores = [
 
 /**
  * Flattened product feed with the parent store denormalised onto each item.
- *
- * The Home feed, PDP, and cart all deal in single products rather than stores,
- * so they read from here instead of walking the nested structure themselves.
  */
 export const allProducts = mockStores.flatMap((store) =>
   store.products.map((product) => ({
@@ -429,11 +411,6 @@ export function getProductById(productId) {
   return allProducts.find((product) => product.id === productId) ?? null;
 }
 
-/**
- * Kept as a named export because every customer screen already imports it from
- * here, but the implementation now lives in `utils/format` so the vendor flow
- * and the customer flow render rupees identically.
- */
 export { formatCurrency as formatINR } from '../utils/format';
 
 export default mockStores;

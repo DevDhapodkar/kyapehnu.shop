@@ -9,18 +9,19 @@ import { useTheme } from '../theme/useTheme';
 // same label in both rows made them read as duplicate controls, so each id now
 // appears in exactly one row.
 const QUICK_SWITCH_ITEMS = [
-  { id: 'women', label: 'Women', icon: 'woman' },
-  { id: 'men', label: 'Men', icon: 'man' },
-  { id: 'tops', label: 'Tops', icon: 'checkroom' },
-  { id: 'shirts', label: 'Shirts', icon: 'dry-cleaning' },
-  { id: 'drapes', label: 'Drapes', icon: 'texture' },
+  { id: 'tees', label: 'Tees', icon: 'checkroom' },
+  { id: 'hoodies', label: 'Hoodies', icon: 'dry-cleaning' },
+  { id: 'denims', label: 'Denims', icon: 'texture' },
+  { id: 'shirts', label: 'Shirts', icon: 'styler' },
+  { id: 'coords', label: 'Co-ords', icon: 'interests' },
 ];
 
 const FILTER_PILLS = [
-  { id: 'all', label: 'All' },
-  { id: 'silks', label: 'Silks' },
-  { id: 'festive', label: 'Festive' },
-  { id: 'linen', label: 'Linen' },
+  { id: 'all', label: 'All Fits' },
+  { id: 'streetwear', label: 'Streetwear' },
+  { id: 'cargos', label: 'Cargos' },
+  { id: 'athleisure', label: 'Athleisure' },
+  { id: 'ethnic', label: 'Ethnic' },
 ];
 
 export default function StorefrontAmbientFilterPills({

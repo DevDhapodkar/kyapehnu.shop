@@ -3,11 +3,14 @@ import PressableScale from './PressableScale';
 import { colors, radii, spacing } from '../theme/colors';
 
 const CATEGORIES = [
-  { id: 'all', label: 'All Near You' },
-  { id: 'silks', label: 'Mulmul & Silks' },
-  { id: 'evening', label: 'Evening Sets' },
-  { id: 'linen', label: 'Contemporary Linen' },
-  { id: 'festive', label: 'Festive Edit' },
+  { id: 'all', label: 'All Fits' },
+  { id: 'tees', label: 'Tees & Hoodies' },
+  { id: 'denims', label: 'Denims & Cargos' },
+  { id: 'shirts', label: 'Casual Shirts' },
+  { id: 'coords', label: 'Co-ords & Dresses' },
+  { id: 'streetwear', label: 'Streetwear' },
+  { id: 'athleisure', label: 'Athleisure' },
+  { id: 'festive', label: 'Ethnic & Festive' },
 ];
 
 export default function StorefrontFilterPills({

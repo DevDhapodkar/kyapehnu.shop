@@ -50,7 +50,7 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-900">Curated Boutique Fashion</div>
-          <div class="text-[11px] text-neutral-500 truncate">Handpicked trending styles & pure silks</div>
+          <div class="text-[11px] text-neutral-500 truncate">Handpicked trending tees, denims & everyday fits</div>
         </div>
       </div>
 
@@ -137,7 +137,7 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
         </div>
         <div class="min-w-0">
           <div class="text-xs font-semibold text-neutral-100">Curated Boutique Fashion</div>
-          <div class="text-[11px] text-neutral-400 truncate">Handpicked trending styles & pure silks</div>
+          <div class="text-[11px] text-neutral-400 truncate">Handpicked trending tees, denims & everyday fits</div>
         </div>
       </div>
 

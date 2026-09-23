@@ -16,8 +16,8 @@ export const getCuratedProducts = () => {
       list.push({
         id: p.id,
         name: p.name,
-        category: p.category || 'SILKS',
-        subCategory: p.category || 'Silks & Handlooms',
+        category: p.category || 'Tees & Hoodies',
+        subCategory: p.subCategory || p.category || 'Tees & Hoodies',
         price: p.price,
         mrp: p.mrp,
         originalPrice: p.mrp,
@@ -30,14 +30,14 @@ export const getCuratedProducts = () => {
         colors: [{ name: p.colorway || 'Original', hex: '#1C1C21' }],
         colorway: p.colorway || 'Classic',
         brand: store.name,
-        material: p.material || 'Premium Handloom',
-        pattern: 'Artisanal',
-        fit: 'Tailored Fit',
+        material: p.material || '240 GSM Combed Cotton',
+        pattern: 'Street Graphic',
+        fit: 'Relaxed Boxy Fit',
         sleeve: 'Standard',
-        neck: 'Classic',
-        occasion: 'Everyday & Festive',
-        careInstructions: 'Dry Clean Recommended',
-        care: 'Dry Clean Recommended',
+        neck: 'Ribbed Crewneck',
+        occasion: 'Everyday & Streetwear',
+        careInstructions: 'Machine Wash Cold',
+        care: 'Machine Wash Cold',
         netQuantity: 1,
         countryOfOrigin: 'India (Nagpur)',
         returnPolicy: '7-day easy return',
@@ -59,8 +59,8 @@ export const getCuratedProducts = () => {
 };
 
 const allowMockCatalogue =
-  typeof process !== 'undefined' &&
-  process.env?.EXPO_PUBLIC_USE_MOCK_CATALOGUE === '1';
+  typeof process === 'undefined' ||
+  process.env?.EXPO_PUBLIC_USE_MOCK_CATALOGUE !== '0';
 
 /**
  * Map a backend product (with its vendor populated) onto the shape every
