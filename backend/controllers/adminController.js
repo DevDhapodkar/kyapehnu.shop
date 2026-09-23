@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Admin from '../models/Admin.js';
 import Product from '../models/Product.js';
 import Vendor from '../models/Vendor.js';
@@ -258,8 +259,32 @@ export const getStats = async (req, res) => {
 
 /** POST /api/admin/system-wipe-test-data */
 export const systemWipeTestData = async (req, res) => {
-  const secret = req.headers['x-admin-wipe-secret'] || req.body?.secret;
-  if (secret !== 'Rx100.77337733') {
+  // 1. Strict Role Authorization
+  if (!req.admin || req.admin.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ message: 'Forbidden: Super admin privileges required' });
+  }
+
+  // 2. Strict Environment Check: Never allow on production deploys
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ message: 'Forbidden: System wipe is permanently disabled in production' });
+  }
+
+  // 3. Opt-in Flag Check
+  if (process.env.ALLOW_SYSTEM_WIPE !== 'true') {
+    return res.status(403).json({ message: 'Forbidden: System wipe is not enabled on this instance' });
+  }
+
+  // 4. Constant-Time Secret Validation from Environment
+  const systemWipeSecret = process.env.SYSTEM_WIPE_SECRET;
+  if (!systemWipeSecret) {
+    return res.status(503).json({ message: 'SYSTEM_WIPE_SECRET is not configured on this server' });
+  }
+
+  const providedSecret = String(req.headers['x-admin-wipe-secret'] || req.body?.secret || '');
+  const secretBuf = Buffer.from(systemWipeSecret, 'utf8');
+  const providedBuf = Buffer.from(providedSecret, 'utf8');
+
+  if (secretBuf.length !== providedBuf.length || !crypto.timingSafeEqual(secretBuf, providedBuf)) {
     return res.status(401).json({ message: 'Unauthorized: Invalid wipe secret' });
   }
 
@@ -271,17 +296,18 @@ export const systemWipeTestData = async (req, res) => {
       User.deleteMany({}),
     ]);
 
-    // Ensure super admin exists with requested credentials
-    const email = 'dhapodkardev.kyapehnu@gmail.com';
-    const passwordHash = await hashPassword('Rx100.77337733');
-    await Admin.deleteMany({ email: 'admin@kyapehnu.com' });
+    // Ensure super admin exists safely using configured or generated credential
+    const email = req.admin.email || process.env.ADMIN_EMAIL || 'admin@kyapehnu.com';
+    const fallbackPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
+    const passwordHash = req.admin.passwordHash || (await hashPassword(fallbackPassword));
+
     const admin = await Admin.findOneAndUpdate(
       { email },
       {
         $set: {
           email,
           passwordHash,
-          name: 'Dev Dhapodkar',
+          name: req.admin.name || 'Super Admin',
           role: 'SUPER_ADMIN',
           updatedAt: new Date(),
         },
