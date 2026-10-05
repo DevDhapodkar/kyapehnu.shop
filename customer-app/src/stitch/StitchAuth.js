@@ -39,8 +39,10 @@ export default function StitchAuth({ navigation }) {
       } else if (text.includes('google')) {
         e.preventDefault();
         try {
-          await useAuthStore.getState().signInWithGoogle?.();
-          navigation.navigate('Home');
+          const cred = await useAuthStore.getState().signInWithGoogle?.();
+          if (cred) {
+            navigation.navigate('Home');
+          }
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
         }

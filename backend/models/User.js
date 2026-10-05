@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     firebaseUid: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true },
+    phone: { type: String, default: '' },
     savedAddresses: [addressSchema],
     currentLocation: {
       type: { type: String, enum: ['Point'], default: 'Point' },

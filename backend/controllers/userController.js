@@ -12,9 +12,22 @@ const syncProfile = async (req, res) => {
     const phoneDigits = cleanPhone.replace(/\D/g, '');
     const hasValidPhone = phoneDigits.length >= 10 && phoneDigits.slice(-10) !== '9999999999';
 
-    // Identity is the authenticated Firebase uid only. Matching by email (and
-    // reassigning firebaseUid on match) let one account adopt another's profile.
+    // 1. Look up by firebaseUid
     let user = await User.findOne({ firebaseUid: req.firebaseUser.uid });
+
+    // 2. If not found by UID, check if this is an OAuth user with a verified email
+    // matching an existing user profile (e.g. Google Sign-In with verified email)
+    if (!user && userEmail) {
+      const isEmailVerified =
+        req.firebaseUser.email_verified === true ||
+        req.firebaseUser.firebase?.sign_in_provider === 'google.com';
+      if (isEmailVerified) {
+        user = await User.findOne({ email: userEmail });
+        if (user) {
+          user.firebaseUid = req.firebaseUser.uid;
+        }
+      }
+    }
 
     if (user) {
       if (userName) user.name = userName;
@@ -28,7 +41,10 @@ const syncProfile = async (req, res) => {
       if (!userEmail) {
         return res.status(400).json({ message: 'Email is required to create a profile.' });
       }
-      if (!hasValidPhone) {
+      const isOAuth =
+        req.firebaseUser?.firebase?.sign_in_provider === 'google.com' ||
+        Boolean(req.firebaseUser?.email_verified);
+      if (!hasValidPhone && !isOAuth) {
         return res.status(400).json({
           message: 'A valid 10-digit mobile number is required. Placeholder numbers are not accepted.',
         });
@@ -37,7 +53,7 @@ const syncProfile = async (req, res) => {
         firebaseUid: req.firebaseUser.uid,
         name: userName,
         email: userEmail,
-        phone: cleanPhone,
+        phone: hasValidPhone ? cleanPhone : '',
       });
     }
 

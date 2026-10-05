@@ -11,6 +11,7 @@ import {
   GoogleAuthProvider,
   browserPopupRedirectResolver,
 } from 'firebase/auth';
+import { Platform } from 'react-native';
 
 import { auth, isFirebaseConfigured } from '../config/firebase';
 
@@ -38,6 +39,13 @@ export const registerEmail = async (email, password, displayName) => {
 
 export const signInGoogle = async () => {
   const authInstance = ensureAuth();
+  if (Platform.OS !== 'web') {
+    const err = new Error(
+      'Google sign-in popup is only supported in web browsers. Please use 1-Tap Instant Sign-In or Email.'
+    );
+    err.code = 'auth/operation-not-supported-in-this-environment';
+    throw err;
+  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   provider.addScope('email');
@@ -48,7 +56,8 @@ export const signInGoogle = async () => {
       ? signInWithPopup(authInstance, provider, resolver)
       : signInWithPopup(authInstance, provider));
   } catch (err) {
-    if (err?.code === 'auth/popup-blocked') {
+    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/internal-error') {
+      console.warn('[auth] Popup unavailable, falling back to redirect:', err?.code, err?.message || err);
       return await (resolver
         ? signInWithRedirect(authInstance, provider, resolver)
         : signInWithRedirect(authInstance, provider));
@@ -108,6 +117,8 @@ export const friendlyAuthError = (error) => {
       return 'Use at least 6 characters for your password.';
     case 'auth/email-already-in-use':
       return 'An account already exists for that email. Try logging in.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email using a different sign-in method. Please sign in with your email & password.';
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
     case 'auth/user-not-found':
@@ -122,6 +133,12 @@ export const friendlyAuthError = (error) => {
       return 'Google sign-in request was cancelled.';
     case 'auth/popup-blocked':
       return 'Browser blocked the sign-in popup. Please allow popups for this site.';
+    case 'auth/timeout':
+      return 'Google sign-in took too long. Please try again.';
+    case 'auth/operation-not-supported-in-this-environment':
+      return 'Google sign-in popup is only supported in web browsers. Use 1-Tap Quick Login or Email.';
+    case 'auth/credential-already-in-use':
+      return 'This account credential is already linked to another user.';
     case 'auth/unauthorized-domain': {
       const host = typeof window !== 'undefined' ? window.location?.hostname : '';
       if (host === '127.0.0.1') {

@@ -87,11 +87,16 @@ export const useAuthStore = create((set, get) => ({
             const token = await cred.user.getIdToken();
             setAuthToken(token);
             set({ user: cred.user, token, authReady: true });
-            syncUserProfile({
-              name: cred.user.displayName || '',
-              email: cred.user.email,
-              phone: cred.user.phoneNumber || '',
-            }).catch(() => {});
+            try {
+              const profile = await syncUserProfile({
+                name: cred.user.displayName || '',
+                email: cred.user.email,
+                phone: cred.user.phoneNumber || '',
+              });
+              set({ profile, pendingProfile: null });
+            } catch (err) {
+              console.warn('[auth] Redirect profile sync:', err?.message || err);
+            }
           }
         })
         .catch(() => {});
@@ -224,10 +229,10 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithGoogle: async () => {
     const cred = await signInGoogle();
-    if (!cred || !cred.user) return;
+    if (!cred || !cred.user) return null;
     const token = await cred.user.getIdToken();
     setAuthToken(token);
-    set({ user: cred.user, token });
+    set({ user: cred.user, token, role: ROLES.CUSTOMER });
 
     try {
       const vendor = await fetchVendorProfile();
@@ -248,17 +253,9 @@ export const useAuthStore = create((set, get) => ({
       });
       set({ profile, pendingProfile: null });
     } catch (err) {
-      // Keep pending so auth listener can retry once phone is collected —
-      // never invent a placeholder mobile number server-side.
-      set({
-        pendingProfile: {
-          name: cred.user.displayName || '',
-          email: cred.user.email,
-          phone: cred.user.phoneNumber || '',
-        },
-      });
-      console.warn('[auth] Profile sync needs a valid phone:', err?.message || err);
+      console.warn('[auth] Profile sync:', err?.message || err);
     }
+    return cred;
   },
 
   sendPasswordReset: async (email) => {

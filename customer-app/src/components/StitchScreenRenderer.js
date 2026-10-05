@@ -2871,19 +2871,7 @@ export default function StitchScreenRenderer({
             </span>
           `;
 
-          // 5-second safety timeout so it never hangs indefinitely
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => {
-              const err = new Error('Google sign-in timed out. Please try again or tap 1-Tap Quick Login above.');
-              err.code = 'auth/timeout';
-              reject(err);
-            }, 5000)
-          );
-
-          await Promise.race([
-            useAuthStore.getState().signInWithGoogle(),
-            timeoutPromise,
-          ]);
+          await useAuthStore.getState().signInWithGoogle();
 
           const currentUser = useAuthStore.getState().user;
           const firstName = currentUser?.displayName ? currentUser.displayName.split(' ')[0] : 'Shopper';
@@ -2893,7 +2881,10 @@ export default function StitchScreenRenderer({
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
           btn.innerHTML = origHtml;
-          showToast(err.code === 'auth/timeout' ? err.message : friendlyAuthError(err));
+          if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            return;
+          }
+          showToast(friendlyAuthError(err));
         }
         return;
       }
