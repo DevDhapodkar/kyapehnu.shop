@@ -8,6 +8,11 @@ export const NAGPUR_CENTER = { latitude: 21.1458, longitude: 79.0882 };
  * Used for instant, offline-resilient hyper-local neighbourhood resolution.
  */
 export const NAGPUR_AREAS = [
+  { name: 'Symbiosis (SIT) Campus', lat: 21.1273, lng: 79.1596, pincode: '440008' },
+  { name: 'Wathoda Layout', lat: 21.134, lng: 79.148, pincode: '440008' },
+  { name: 'Giddoba Nagar', lat: 21.131, lng: 79.149, pincode: '440008' },
+  { name: 'Bhandewadi', lat: 21.141, lng: 79.155, pincode: '440008' },
+  { name: 'Kharbi', lat: 21.122, lng: 79.145, pincode: '440034' },
   { name: 'Dharampeth', lat: 21.1432, lng: 79.0617, pincode: '440010' },
   { name: 'Ramdaspeth', lat: 21.1345, lng: 79.0745, pincode: '440010' },
   { name: 'Sitabuldi', lat: 21.1458, lng: 79.0835, pincode: '440012' },
@@ -46,6 +51,8 @@ export const NAGPUR_AREAS = [
   { name: 'Narendra Nagar', lat: 21.103, lng: 79.076, pincode: '440015' },
   { name: 'Subhash Nagar', lat: 21.121, lng: 79.043, pincode: '440022' },
   { name: 'Jaitala', lat: 21.102, lng: 79.034, pincode: '440036' },
+  { name: 'Hasanbagh', lat: 21.129, lng: 79.138, pincode: '440024' },
+  { name: 'Dighori', lat: 21.107, lng: 79.135, pincode: '440034' },
 ];
 
 /**
@@ -170,8 +177,8 @@ export async function getCurrentCoordinates() {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 15000,
+          timeout: 15000,
+          maximumAge: 0, // Force fresh satellite/GPS read instead of stale cached cell-tower fix
         }
       );
     });
@@ -202,13 +209,36 @@ const geocodeCache = new Map();
  * Works seamlessly across Web, iOS, and Android.
  */
 export async function reverseGeocodeLocation({ latitude, longitude }) {
-  const cacheKey = `${latitude.toFixed(3)},${longitude.toFixed(3)}`;
+  const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
   if (geocodeCache.has(cacheKey)) {
     return geocodeCache.get(cacheKey);
   }
 
   const inNagpur = isWithinNagpur(latitude, longitude);
   const closestNagpur = getClosestNagpurArea(latitude, longitude);
+
+  // 1. Direct high-precision campus landmark detection for Symbiosis (SIT / SIBM / SID)
+  const distToSymbiosis = getDistanceKm(latitude, longitude, 21.1272934, 79.1595864);
+  if (distToSymbiosis <= 1.2) {
+    const areaName = 'Symbiosis (SIT), Wathoda';
+    const road = 'Symbiosis Campus Rd';
+    const pincode = '440008';
+    const areaLabel = `${areaName}, Nagpur`;
+    const formattedAddress = `Symbiosis Institute of Technology (SIT), Wathoda Layout, Nagpur (${pincode})`;
+
+    const result = {
+      areaLabel,
+      formattedAddress,
+      areaName,
+      road,
+      pincode,
+      city: 'Nagpur',
+      distanceKm: distToSymbiosis,
+      isNagpur: true,
+    };
+    geocodeCache.set(cacheKey, result);
+    return result;
+  }
 
   let nominatim = null;
   // Try Nominatim with a short timeout to get street/road level detail
@@ -243,7 +273,9 @@ export async function reverseGeocodeLocation({ latitude, longitude }) {
     const pincode = addr?.postcode || closestNagpur.pincode;
 
     const areaLabel = `${areaName}, Nagpur`;
-    const formattedAddress = `${areaName}, Nagpur (${pincode})`;
+    const formattedAddress = road
+      ? `${road}, ${areaName}, Nagpur (${pincode})`
+      : `${areaName}, Nagpur (${pincode})`;
 
     const result = {
       areaLabel,

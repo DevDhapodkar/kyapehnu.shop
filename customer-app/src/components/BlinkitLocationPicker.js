@@ -27,11 +27,13 @@ import { colors, radii, spacing } from '../theme/colors';
 
 // Popular Nagpur Express Hubs for instant 1-tap snap
 const QUICK_HUBS = [
+  { name: 'Symbiosis (SIT)', lat: 21.1273, lng: 79.1596, pincode: '440008' },
   { name: 'Sitabuldi', lat: 21.1458, lng: 79.0835, pincode: '440012' },
   { name: 'Dharampeth', lat: 21.1432, lng: 79.0617, pincode: '440010' },
   { name: 'Ramdaspeth', lat: 21.1345, lng: 79.0745, pincode: '440010' },
   { name: 'Civil Lines', lat: 21.1553, lng: 79.0734, pincode: '440001' },
   { name: 'Sadar', lat: 21.1633, lng: 79.0818, pincode: '440001' },
+  { name: 'Wathoda', lat: 21.134, lng: 79.148, pincode: '440008' },
   { name: 'Wardha Rd', lat: 21.0905, lng: 79.0805, pincode: '440015' },
 ];
 

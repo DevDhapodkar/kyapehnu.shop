@@ -241,7 +241,8 @@ export default function StitchScreenRenderer({
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const saved = JSON.parse(window.localStorage.getItem('kyapehnu_delivery_location') || 'null');
-        if (saved && saved.latitude && saved.longitude && saved.isDetected) return saved;
+        const isFresh = saved?.timestamp && Date.now() - saved.timestamp < 30 * 60 * 1000;
+        if (saved && saved.latitude && saved.longitude && saved.isDetected && isFresh) return saved;
       } catch (e) {}
     }
     return {
@@ -581,6 +582,7 @@ export default function StitchScreenRenderer({
           formattedAddress: resolved?.formattedAddress || `${areaName}, Nagpur · ${pincode}`,
           inZone,
           isDetected: true,
+          timestamp: Date.now(),
         };
 
         setDeliveryLocation(newLoc);
@@ -3550,6 +3552,8 @@ export default function StitchScreenRenderer({
               pincode,
               formattedAddress: resolved?.formattedAddress || `${areaName}, Nagpur · ${pincode}`,
               inZone,
+              isDetected: true,
+              timestamp: Date.now(),
             };
 
             setDeliveryLocation(newLoc);
@@ -4202,6 +4206,7 @@ export default function StitchScreenRenderer({
               formattedAddress: formatted,
               inZone,
               isDetected: true,
+              timestamp: Date.now(),
             };
             setDeliveryLocation(newLoc);
             if (typeof window !== 'undefined' && window.localStorage) {
@@ -5329,6 +5334,7 @@ export default function StitchScreenRenderer({
               formattedAddress: formatted,
               inZone,
               isDetected: true,
+              timestamp: Date.now(),
             };
             setDeliveryLocation(newLoc);
             if (typeof window !== 'undefined' && window.localStorage) {

@@ -127,14 +127,70 @@ export async function searchNagpurLocation(queryText) {
   const clean = queryText.trim().toLowerCase();
   if (clean.length < 2) return null;
 
-  // 1. Direct match with curated Nagpur centroids
+  // 1. Direct match with curated Nagpur centroids and key educational hubs
+  // High-priority match for SIT Nagpur / Symbiosis Campus
+  if (
+    clean.includes('sit') ||
+    clean.includes('symbi') ||
+    clean.includes('sibm') ||
+    clean.includes('sspad') ||
+    clean.includes('sid nagpur')
+  ) {
+    return {
+      lat: 21.1272934,
+      lng: 79.1595864,
+      name: 'Symbiosis (SIT), Wathoda',
+      pincode: '440008',
+      source: 'curated_index',
+    };
+  }
+
+  if (clean.includes('wathoda')) {
+    return {
+      lat: 21.134,
+      lng: 79.148,
+      name: 'Wathoda Layout',
+      pincode: '440008',
+      source: 'curated_index',
+    };
+  }
+
+  if (clean.includes('giddoba')) {
+    return {
+      lat: 21.131,
+      lng: 79.149,
+      name: 'Giddoba Nagar, Wathoda',
+      pincode: '440008',
+      source: 'curated_index',
+    };
+  }
+
+  if (clean.includes('bhandewadi')) {
+    return {
+      lat: 21.141,
+      lng: 79.155,
+      name: 'Bhandewadi',
+      pincode: '440008',
+      source: 'curated_index',
+    };
+  }
+
+  if (clean.includes('kharbi')) {
+    return {
+      lat: 21.122,
+      lng: 79.145,
+      name: 'Kharbi',
+      pincode: '440034',
+      source: 'curated_index',
+    };
+  }
+
   for (const area of NAGPUR_AREAS) {
     const areaNameLower = area.name.toLowerCase();
     if (
       clean.includes(areaNameLower) ||
       areaNameLower.includes(clean) ||
       (clean.includes('nandanvan') && areaNameLower === 'nandanvan') ||
-      (clean.includes('giddoba') && areaNameLower === 'nandanvan') || // Giddoba Nagar is in Nandanvan (440009 / 440035)
       (clean.includes('dharampeth') && areaNameLower === 'dharampeth') ||
       (clean.includes('sadar') && areaNameLower === 'sadar') ||
       (clean.includes('sitabuldi') && areaNameLower === 'sitabuldi') ||
