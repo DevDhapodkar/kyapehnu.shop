@@ -4,13 +4,23 @@ import StitchScreenRenderer from '../components/StitchScreenRenderer';
 import StitchScreenSwitcher from '../components/StitchScreenSwitcher';
 import { useThemeStore } from '../store/useThemeStore';
 import { useStorefrontStore } from '../store/useStorefrontStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function HomeScreen({ navigation, route }) {
   const isDark = useThemeStore((state) => state.isDark);
 
   useEffect(() => {
+    const isAuthed = useAuthStore.getState().isAuthenticated();
+    if (!isAuthed) {
+      if (navigation?.replace) {
+        navigation.replace('Welcome');
+      } else if (navigation?.navigate) {
+        navigation.navigate('Welcome');
+      }
+      return;
+    }
     useStorefrontStore.getState().load();
-  }, []);
+  }, [navigation]);
   const [activeScreen, setActiveScreen] = useState(
     isDark ? 'final_theme_dark_Storefront_Home' : 'final_light_theme_Storefront_Home'
   );

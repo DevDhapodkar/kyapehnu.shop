@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useThemeStore } from '../store/useThemeStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { LOGO_DATA_URI } from '../constants/logoDataUri';
 
 const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-w-md mx-auto min-h-screen px-6 py-8 sm:py-12 select-none bg-[#FAF9F5] text-neutral-900 relative overflow-hidden font-sans">
@@ -69,23 +70,15 @@ const LIGHT_HTML = `<main class="flex-1 flex flex-col justify-between w-full max
   <div class="w-full max-w-xs sm:max-w-sm mx-auto flex flex-col items-center gap-2.5 z-10 pt-2 pb-2">
     <button
       type="button"
-      aria-label="Explore Looks · Explore Storefront as Guest"
+      aria-label="Sign In to Kya Pehnu"
       class="w-full h-12 py-3 px-6 rounded-2xl bg-[#C4243A] hover:bg-[#B01E33] active:scale-[0.98] text-white font-semibold text-sm tracking-wide shadow-lg shadow-rose-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
     >
-      <span>Explore Looks</span>
+      <span>Sign In to Continue</span>
       <span class="text-base font-bold">→</span>
     </button>
 
-    <button
-      type="button"
-      aria-label="Log In to Your Account"
-      class="w-full h-12 py-3 px-6 rounded-2xl bg-white hover:bg-neutral-50 border border-neutral-200/80 active:scale-[0.98] text-neutral-800 font-medium text-sm tracking-wide shadow-xs transition-all flex items-center justify-center cursor-pointer"
-    >
-      <span>Log In to Your Account</span>
-    </button>
-
     <div class="text-[11px] text-neutral-400 font-normal tracking-wide text-center pt-1">
-      Fast 45-min delivery · Pay with cash or UPI
+      Fast 45-min delivery · Sign in required to browse &amp; order
     </div>
   </div>
 </main>`;
@@ -156,23 +149,15 @@ const DARK_HTML = `<main class="flex-1 flex flex-col justify-between w-full max-
   <div class="w-full max-w-xs sm:max-w-sm mx-auto flex flex-col items-center gap-2.5 z-10 pt-2 pb-2">
     <button
       type="button"
-      aria-label="Explore Looks · Explore Storefront as Guest"
+      aria-label="Sign In to Kya Pehnu"
       class="w-full h-12 py-3 px-6 rounded-2xl bg-[#C4243A] hover:bg-[#B01E33] active:scale-[0.98] text-white font-semibold text-sm tracking-wide shadow-lg shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
     >
-      <span>Explore Looks</span>
+      <span>Sign In to Continue</span>
       <span class="text-base font-bold">→</span>
     </button>
 
-    <button
-      type="button"
-      aria-label="Log In to Your Account"
-      class="w-full h-12 py-3 px-6 rounded-2xl bg-neutral-900 hover:bg-neutral-800 border border-white/10 active:scale-[0.98] text-neutral-100 font-medium text-sm tracking-wide shadow-xs transition-all flex items-center justify-center cursor-pointer"
-    >
-      <span>Log In to Your Account</span>
-    </button>
-
     <div class="text-[11px] text-neutral-500 font-normal tracking-wide text-center pt-1">
-      Fast 45-min delivery · Pay with cash or UPI
+      Fast 45-min delivery · Sign in required to browse &amp; order
     </div>
   </div>
 </main>`;
@@ -195,28 +180,13 @@ export default function StitchWelcome({ navigation }) {
 
       const target = e.target.closest('button, a');
       if (!target) return;
-      const text = (target.textContent || '').trim().toLowerCase();
-      const aria = (target.getAttribute('aria-label') || '').toLowerCase();
+      e.preventDefault();
 
-      if (
-        text.includes('explore looks') ||
-        text.includes('explore storefront') ||
-        text.includes('browse catalog') ||
-        text.includes('get started') ||
-        text.includes('start shopping') ||
-        aria.includes('explore') ||
-        aria.includes('browse')
-      ) {
-        e.preventDefault();
+      // Only authenticated users can access the app storefront
+      const isAuthed = useAuthStore.getState().isAuthenticated();
+      if (isAuthed) {
         navigation.navigate('Home');
-      } else if (
-        text.includes('log in') ||
-        text.includes('sign in') ||
-        text.includes('account') ||
-        aria.includes('auth') ||
-        aria.includes('log in')
-      ) {
-        e.preventDefault();
+      } else {
         navigation.navigate('Auth');
       }
     };

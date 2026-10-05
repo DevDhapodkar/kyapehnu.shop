@@ -35,6 +35,7 @@ import { colors } from '../theme/colors';
  */
 const CustomerStack = createNativeStackNavigator();
 const VendorStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
 
 import { useThemeStore } from '../store/useThemeStore';
 
@@ -59,13 +60,31 @@ function slideUpOptions(reduced, themeColors, extra = {}) {
   };
 }
 
+/** Unauthenticated flow: Welcome and Sign In only. No storefront or guest browsing allowed. */
+function AuthFlow({ themeColors }) {
+  const reduced = useReducedMotion();
+  return (
+    <AuthStack.Navigator initialRouteName="Welcome" screenOptions={makeScreenOptions(reduced, themeColors)}>
+      <AuthStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+      <AuthStack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+      <AuthStack.Screen
+        name="VendorRegister"
+        component={VendorRegisterScreen}
+        options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+    </AuthStack.Navigator>
+  );
+}
 
-/** Buyer side: the full Frosted Glass & Ambient Blobs commerce flow. */
+/** Buyer side: the full Frosted Glass & Ambient Blobs commerce flow (requires sign-in). */
 function CustomerFlow({ themeColors }) {
   const reduced = useReducedMotion();
   return (
-    <CustomerStack.Navigator initialRouteName="Welcome" screenOptions={makeScreenOptions(reduced, themeColors)}>
-      <CustomerStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+    <CustomerStack.Navigator initialRouteName="Home" screenOptions={makeScreenOptions(reduced, themeColors)}>
       <CustomerStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <CustomerStack.Screen
         name="ProductDetail"
@@ -112,6 +131,11 @@ function CustomerFlow({ themeColors }) {
         name="ProductIngestion"
         component={ProductIngestionScreen}
         options={slideUpOptions(reduced, themeColors, { headerShown: false })}
+      />
+      <CustomerStack.Screen
+        name="Welcome"
+        component={WelcomeScreen}
+        options={{ headerShown: false }}
       />
       <CustomerStack.Screen
         name="VendorOrders"
@@ -178,12 +202,16 @@ function VendorFlow({ themeColors }) {
 }
 
 /**
- * One binary, two flows. `role` in the auth store and `themeMode` in the theme store
- * govern the navigation container styling and initial mounts.
+ * Three distinct flows:
+ * 1. AuthFlow (unauthenticated): Welcome + Auth only. No guest access to storefront.
+ * 2. VendorFlow: Order desk, catalog manager, inventory controls.
+ * 3. CustomerFlow (authenticated): Storefront Home, Cart, Orders, Profile.
  */
 export default function AppNavigator() {
   const role = useAuthStore(selectRole);
-  const themeMode = useThemeStore((state) => state.themeMode);
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = Boolean(token || user);
   const themeColors = useThemeStore((state) => state.colors);
 
   const navTheme = {
@@ -203,9 +231,22 @@ export default function AppNavigator() {
     window.__NAV__ = navigationRef;
   }
 
+  let flow;
+  if (!isAuthenticated) {
+    flow = <AuthFlow themeColors={themeColors} />;
+  } else if (role === ROLES.VENDOR) {
+    flow = <VendorFlow themeColors={themeColors} />;
+  } else {
+    flow = <CustomerFlow themeColors={themeColors} />;
+  }
+
   return (
-    <NavigationContainer ref={navigationRef} key={role} theme={navTheme}>
-      {role === ROLES.VENDOR ? <VendorFlow themeColors={themeColors} /> : <CustomerFlow themeColors={themeColors} />}
+    <NavigationContainer
+      ref={navigationRef}
+      key={`${isAuthenticated ? 'authed' : 'unauthed'}-${role}`}
+      theme={navTheme}
+    >
+      {flow}
     </NavigationContainer>
   );
 }

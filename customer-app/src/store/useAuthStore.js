@@ -40,15 +40,53 @@ export const ROLES = {
   VENDOR: 'VENDOR',
 };
 
+let initialToken = null;
+let initialUser = null;
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    initialToken = window.localStorage.getItem('kyapehnu_auth_token') || null;
+    const rawUser = window.localStorage.getItem('kyapehnu_auth_user');
+    if (rawUser) initialUser = JSON.parse(rawUser);
+    if (initialToken) {
+      setAuthToken(initialToken);
+    }
+  } catch (e) {}
+}
+
+const persistAuthSession = (token, user) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      if (token) {
+        window.localStorage.setItem('kyapehnu_auth_token', token);
+      } else {
+        window.localStorage.removeItem('kyapehnu_auth_token');
+      }
+      if (user) {
+        window.localStorage.setItem(
+          'kyapehnu_auth_user',
+          JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            phoneNumber: user.phoneNumber,
+          })
+        );
+      } else {
+        window.localStorage.removeItem('kyapehnu_auth_user');
+      }
+    } catch (e) {}
+  }
+};
+
 export const useAuthStore = create((set, get) => ({
   /** 'CUSTOMER' | 'VENDOR' — the navigator's only input. */
   role: ROLES.CUSTOMER,
 
   /** Firebase user, once signed in. Null while signed out. */
-  user: null,
+  user: initialUser,
 
   /** Firebase ID token sent as `Authorization: Bearer …`. */
-  token: null,
+  token: initialToken,
 
   /** Customer profile from `GET /api/users/me`. */
   profile: null,
@@ -71,7 +109,7 @@ export const useAuthStore = create((set, get) => ({
   /** True when Firebase keys are present (auth screens are usable). */
   authAvailable: isFirebaseConfigured,
 
-  isAuthenticated: () => Boolean(get().token),
+  isAuthenticated: () => Boolean(get().token || get().user),
 
   /**
    * Start listening to Firebase auth state. Call once from App on mount; the
@@ -273,6 +311,7 @@ export const useAuthStore = create((set, get) => ({
       await signOutFirebase();
     } finally {
       setAuthToken(null);
+      persistAuthSession(null, null);
       set({
         user: null,
         token: null,
@@ -306,6 +345,10 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 }));
+
+useAuthStore.subscribe((state) => {
+  persistAuthSession(state.token, state.user);
+});
 
 /* Selectors — importable so components subscribe to the narrowest slice. */
 

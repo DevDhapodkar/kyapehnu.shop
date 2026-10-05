@@ -489,6 +489,13 @@ export default function StitchScreenRenderer({
   };
 
   const navigateScreen = (screenName, screenParams) => {
+    const isAuthed = useAuthStore.getState().isAuthenticated();
+    const publicScreens = ['Welcome', 'Auth', 'VendorRegister'];
+    if (!isAuthed && !publicScreens.includes(screenName)) {
+      showToast('Please sign in to continue');
+      screenName = 'Auth';
+    }
+
     try {
       if (navigation && typeof navigation.navigate === 'function') {
         navigation.navigate(screenName, screenParams);
@@ -2891,41 +2898,18 @@ export default function StitchScreenRenderer({
 
       // --- WELCOME SCREEN CTAS ---
       if (
-        (targetKey.includes('Welcome') || targetKey.includes('Landing') || targetKey.includes('Auth')) &&
+        (targetKey.includes('Welcome') || targetKey.includes('Landing')) &&
         btn &&
-        (btn.getAttribute('aria-label') === 'Explore Storefront as Guest' ||
-          btn.getAttribute('aria-label') === 'Browse Catalog as guest' ||
-          (btn.textContent &&
-            (btn.textContent.includes('Enter Store') ||
-              btn.textContent.includes('Enter Atelier') ||
-              btn.textContent.includes('Explore Looks') ||
-              btn.textContent.includes('Explore Styles') ||
-              btn.textContent.includes('Explore Storefront') ||
-              btn.textContent.includes('Browse Catalog') ||
-              btn.textContent.includes('Explore Prêt') ||
-              btn.textContent.includes('Get Started'))))
+        !btn.closest('[data-action="toggle-theme"], [data-action="register-vendor"], #registerBoutiqueBtn')
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigateScreen('Home');
-        return;
-      }
-
-      if (
-        !targetKey.includes('Auth') &&
-        !targetKey.includes('Sign_In') &&
-        btn &&
-        btn.textContent &&
-        (btn.textContent.includes('Log In to Your Account') ||
-          btn.textContent.includes('Log In') ||
-          btn.textContent.includes('Sign In to Store') ||
-          btn.textContent.includes('Sign In to Atelier') ||
-          btn.textContent.includes('Sign In')) &&
-        !btn.closest('#auth-tab-bar, #dark-auth-tab-bar, #panel-signin, #dark-panel-signin, #panel-register, #dark-panel-register')
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        navigateScreen('Auth');
+        const isAuthed = useAuthStore.getState().isAuthenticated();
+        if (isAuthed) {
+          navigateScreen('Home');
+        } else {
+          navigateScreen('Auth');
+        }
         return;
       }
 
@@ -3038,7 +3022,8 @@ export default function StitchScreenRenderer({
         } else if (role === ROLES.VENDOR) {
           navigateScreen('VendorOrders');
         } else {
-          navigateScreen('Home');
+          const isAuthed = useAuthStore.getState().isAuthenticated();
+          navigateScreen(isAuthed ? 'Home' : 'Welcome');
         }
         return;
       }
