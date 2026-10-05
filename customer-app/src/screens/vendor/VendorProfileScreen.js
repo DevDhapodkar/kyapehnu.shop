@@ -121,9 +121,9 @@ export default function VendorProfileScreen({ navigation }) {
         {/* Shop Identity Card */}
         <View style={[styles.profileCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
           <View style={styles.statusRow}>
-            <View style={styles.statusPill}>
+            <View style={[styles.statusPill, isDark && { backgroundColor: isApproved ? 'rgba(21, 128, 61, 0.25)' : 'rgba(239, 68, 68, 0.15)', borderColor: isApproved ? '#22C55E' : 'rgba(239, 68, 68, 0.4)' }]}>
               <View style={[styles.statusDot, isApproved && styles.statusDotLive]} />
-              <Text style={styles.statusPillText}>
+              <Text style={[styles.statusPillText, isDark && { color: isApproved ? '#4ADE80' : '#F87171' }]}>
                 {isApproved ? 'STORE IS LIVE' : 'ADMIN VERIFICATION IN PROGRESS'}
               </Text>
             </View>
@@ -133,44 +133,44 @@ export default function VendorProfileScreen({ navigation }) {
           <Text style={[styles.shopNameText, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>{shopName}</Text>
           <Text style={[styles.ownerNameText, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Proprietor: {ownerName}</Text>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)' }]} />
 
           {/* Details list */}
           <View style={styles.infoRow}>
             <MaterialIcons name="phone" size={20} color={colors.accentGoldDeep} />
-            <Text style={styles.infoLabel}>Phone:</Text>
-            <Text style={styles.infoValue}>{phone}</Text>
+            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Phone:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{phone}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <MaterialIcons name="chat" size={20} color="#25D366" />
-            <Text style={styles.infoLabel}>WhatsApp:</Text>
-            <Text style={styles.infoValue}>{whatsapp}</Text>
+            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>WhatsApp:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{whatsapp}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <MaterialIcons name="location-on" size={20} color={colors.accentCrimson} />
-            <Text style={styles.infoLabel}>Area:</Text>
-            <Text style={styles.infoValue}>{area}, Nagpur</Text>
+            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Area:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{area}, Nagpur</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="store" size={20} color={colors.textSlate} />
-            <Text style={styles.infoLabel}>Address:</Text>
-            <Text style={styles.infoValue}>{addressLine}</Text>
+            <MaterialIcons name="store" size={20} color={isDark ? '#9CA3AF' : colors.textSlate} />
+            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Address:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{addressLine}</Text>
           </View>
         </View>
 
         {/* Support & Helpline Card */}
         <View style={[styles.supportCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
           <Text style={[styles.sectionHeaderTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Nagpur Partner Helpline</Text>
-          <Text style={styles.sectionHeaderDesc}>
+          <Text style={[styles.sectionHeaderDesc, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>
             Have questions or need assistance? Reach out directly to the Kya Pehnu Partner Desk:
           </Text>
 
           <PressableScale
             onPress={handleCallSupport}
-            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(18, 18, 20, 0.08)' }]}
+            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(18, 18, 20, 0.08)' }]}
             accessibilityRole="button"
             accessibilityLabel="Call support"
           >
@@ -178,15 +178,15 @@ export default function VendorProfileScreen({ navigation }) {
               <MaterialIcons name="call" size={22} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={styles.supportBtnTitle}>Call Partner Support</Text>
-              <Text style={styles.supportBtnSubtitle}>+91 712 254 9900 (10:00 AM - 9:00 PM)</Text>
+              <Text style={[styles.supportBtnTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Call Partner Support</Text>
+              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>+91 712 254 9900 (10:00 AM - 9:00 PM)</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textAsh} />
+            <MaterialIcons name="chevron-right" size={24} color={isDark ? '#9CA3AF' : colors.textAsh} />
           </PressableScale>
 
           <PressableScale
             onPress={handleWhatsAppSupport}
-            style={[styles.supportActionBtn, { borderColor: 'rgba(37, 211, 102, 0.3)' }]}
+            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: 'rgba(37, 211, 102, 0.4)' }]}
             accessibilityRole="button"
             accessibilityLabel="WhatsApp support"
           >
@@ -194,29 +194,12 @@ export default function VendorProfileScreen({ navigation }) {
               <MaterialIcons name="chat" size={22} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={styles.supportBtnTitle}>Message on WhatsApp</Text>
-              <Text style={styles.supportBtnSubtitle}>Instant partner assistance</Text>
+              <Text style={[styles.supportBtnTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Message on WhatsApp</Text>
+              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Instant partner assistance</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textAsh} />
+            <MaterialIcons name="chevron-right" size={24} color={isDark ? '#9CA3AF' : colors.textAsh} />
           </PressableScale>
         </View>
-
-        {/* View Boutique Analytics & Insights Card */}
-        <PressableScale
-          onPress={() => navigation.navigate('VendorAnalytics')}
-          style={[styles.switchModeCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.3)' }]}
-          accessibilityRole="button"
-          accessibilityLabel="View Boutique Analytics"
-        >
-          <View style={[styles.switchModeIconWrap, { backgroundColor: colors.accentCrimson }]}>
-            <MaterialIcons name="insights" size={22} color="#FFFFFF" />
-          </View>
-          <View style={styles.switchModeTextCol}>
-            <Text style={[styles.switchModeTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Boutique Analytics & 60-Min Speed</Text>
-            <Text style={styles.switchModeSubtitle}>Fulfillment times, revenue velocity & top styles</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color={colors.accentCrimson} />
-        </PressableScale>
 
         {/* Switch to Customer Mode Card */}
         <PressableScale
@@ -229,8 +212,8 @@ export default function VendorProfileScreen({ navigation }) {
             <MaterialIcons name="storefront" size={22} color="#FFFFFF" />
           </View>
           <View style={styles.switchModeTextCol}>
-            <Text style={styles.switchModeTitle}>Switch to Customer Storefront</Text>
-            <Text style={styles.switchModeSubtitle}>Browse designer outfits & express delivery</Text>
+            <Text style={[styles.switchModeTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Switch to Customer Storefront</Text>
+            <Text style={[styles.switchModeSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Browse designer outfits & express delivery</Text>
           </View>
           <MaterialIcons name="chevron-right" size={24} color={colors.accentGoldDeep} />
         </PressableScale>
@@ -248,8 +231,8 @@ export default function VendorProfileScreen({ navigation }) {
 
         <View style={styles.footerWrap}>
           <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 8 }} />
-          <Text style={styles.footerStamp}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
-          <Text style={styles.footerCorridor}>Nagpur Citywide Fast Courier Network · All Zones Active</Text>
+          <Text style={[styles.footerStamp, { color: isDark ? '#6B7280' : colors.textAsh }]}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
+          <Text style={[styles.footerCorridor, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Nagpur Citywide Fast Courier Network · All Zones Active</Text>
         </View>
       </ScrollView>
 

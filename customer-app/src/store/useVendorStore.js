@@ -267,4 +267,8 @@ export const selectStatusCounts = (state) => {
 export const selectOrderById = (orderId) => (state) =>
   (Array.isArray(state?.orders) ? state.orders : []).find((order) => order?._id === orderId) ?? null;
 
+if (typeof window !== 'undefined') {
+  window.__KYAPEHNU_VENDOR_STORE__ = useVendorStore;
+}
+
 export default useVendorStore;

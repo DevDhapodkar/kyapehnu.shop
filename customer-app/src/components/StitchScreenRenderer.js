@@ -2382,11 +2382,65 @@ export default function StitchScreenRenderer({
 
     // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
     if (targetKey.includes('Catalogue_Manager')) {
+      const isDarkScreen = targetKey.includes('dark');
+      const displayShopName = vendorProfile?.shopName || vendorProfile?.storeName || profile?.shopName || user?.displayName || 'Nagpur Boutique';
+      const shopInitial = displayShopName.charAt(0).toUpperCase();
+
+      // Profile avatar replacement in header
+      if (user?.photoURL) {
+        html = html.replace(/id="vendor-catalog-profile-btn"[^>]*>[\s\S]*?<\/button>/i,
+          `<button aria-label="Profile" data-action="profile" class="relative flex items-center justify-center p-0.5 rounded-full ring-1 ring-gold/30 hover:ring-gold transition-all cursor-pointer" id="vendor-catalog-profile-btn"><img src="${user.photoURL}" alt="${displayShopName}" class="w-8 h-8 rounded-full object-cover" /></button>`
+        );
+        html = html.replace(/<button[^>]*aria-label="Profile"[^>]*>[\s\S]*?<img[^>]*aida-public[^>]*>[\s\S]*?<\/button>/i,
+          `<button aria-label="Profile" data-action="profile" class="relative flex items-center justify-center p-0.5 rounded-full ring-1 ring-gold/30 hover:ring-gold transition-all cursor-pointer" id="vendor-catalog-profile-btn"><img src="${user.photoURL}" alt="${displayShopName}" class="w-8 h-8 rounded-full object-cover" /></button>`
+        );
+      } else {
+        html = html.replace(/<button[^>]*aria-label="Profile"[^>]*>[\s\S]*?<img[^>]*aida-public[^>]*>[\s\S]*?<\/button>/i,
+          `<button aria-label="Profile" data-action="profile" class="relative flex items-center justify-center p-0.5 rounded-full ring-1 ring-gold/30 hover:ring-gold transition-all cursor-pointer" id="vendor-catalog-profile-btn"><div class="w-8 h-8 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center font-bold text-xs text-gold">${shopInitial}</div></button>`
+        );
+        html = html.replace(/id="vendor-catalog-profile-initial">[^<]*<\/div>/i, `id="vendor-catalog-profile-initial">${shopInitial}</div>`);
+      }
+
+      // Rename QC Ingest to Under Review across the board
+      html = html.replace(/QC Ingest/g, 'Under Review');
+
       if (products.length === 0) {
         html = html.replace(/\d+\s+Curated Pieces Live/gi, '0 Curated Pieces Live');
+
+        // Zero-out stat numbers for dark and light versions
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-stone-100">)\d+(<\/span>)/i, '$10$2');
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-gold">)\d+(<\/span>)/i, '$10$2');
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-crimson">)\d+(<\/span>)/i, '$10$2');
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-text-obsidian">)\d+(<\/span>)/i, '$10$2');
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-gold-deep">)\d+(<\/span>)/i, '$10$2');
+        html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-crimson">)\d+(<\/span>)/i, '$10$2');
+
+        // Category rail zero counts
+        html = html.replace(/(<div[^>]*id="categoryRail"[^>]*>)[\s\S]*?(<\/div>)/i, () => {
+          const zeroPills = [
+            { id: 'ALL', label: 'All Fits (0)' },
+            { id: 'TEES_HOODIES', label: 'Tees & Hoodies (0)' },
+            { id: 'DENIMS_CARGOS', label: 'Denims & Cargos (0)' },
+            { id: 'CASUAL_SHIRTS', label: 'Casual Shirts (0)' },
+            { id: 'COORDS_DRESSES', label: 'Co-ords & Dresses (0)' },
+            { id: 'ETHNIC', label: 'Ethnic Secondary (0)' },
+          ];
+          const pillsHtml = zeroPills.map(p => {
+            const isActive = (catalogCategory || 'ALL') === p.id;
+            const activeClasses = isDarkScreen ? 'active font-semibold bg-stone-100 text-stone-900 shadow-sm' : 'active font-semibold bg-text-obsidian text-surface-porcelain shadow-sm';
+            const inactiveClasses = isDarkScreen ? 'font-medium bg-stone-800/80 text-stone-400 hover:text-stone-100' : 'font-medium bg-surface-container text-text-slate hover:text-text-obsidian';
+            return `<button class="filter-pill whitespace-nowrap px-4 py-1.5 rounded-full font-tabular-caption text-tabular-caption ${isActive ? activeClasses : inactiveClasses} transition-all">${p.label}</button>`;
+          }).join('');
+          return `<div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 -mx-screen-margin-mobile px-screen-margin-mobile" id="categoryRail">${pillsHtml}</div>`;
+        });
+
+        // Theme-aware dark/light empty catalog box
         const catalogContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-4 px-screen-margin-mobile pb-6[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
         if (catalogContainerRegex.test(html)) {
-          html = html.replace(catalogContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-xl border border-surface-container-high shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inventory_2</span><h3 class="font-title-md text-base text-text-obsidian font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>$2`);
+          const emptyBoxHtml = isDarkScreen
+            ? `<div class="p-10 text-center flex flex-col items-center justify-center gap-3 bg-[#1C1B1D] rounded-2xl border border-white/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-500">inventory_2</span><h3 class="font-title-md text-base text-stone-100 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-400 max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>`
+            : `<div class="p-10 text-center flex flex-col items-center justify-center gap-3 bg-white rounded-2xl border border-amber-900/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-400">inventory_2</span><h3 class="font-title-md text-base text-stone-900 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-500 max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>`;
+          html = html.replace(catalogContainerRegex, `$1${emptyBoxHtml}$2`);
         }
       } else {
         let filteredCatalog = products;
@@ -2414,30 +2468,40 @@ export default function StitchScreenRenderer({
       }
 
       html = html.replace(/\d+\s+Curated Pieces Live/gi, `${filteredCatalog.length} Curated Pieces Live`);
-      // Synchronize stat boxes (Live & Ready, Low Stock, QC Ingest)
+      // Synchronize live stat boxes (Live & Ready, Low Stock, Under Review)
       const liveCount = filteredCatalog.filter(p => p.isAvailable !== false).length;
-      const lowStockCount = filteredCatalog.length === 0 ? 0 : Math.max(0, Math.floor(filteredCatalog.length * 0.15));
-      const qcCount = filteredCatalog.length === 0 ? 0 : Math.max(0, Math.floor(filteredCatalog.length * 0.05));
+      const lowStockCount = filteredCatalog.filter(p => p.stock !== undefined && p.stock <= 2).length;
+      const underReviewCount = filteredCatalog.filter(p => p.status === 'UNDER_REVIEW' || p.status === 'DRAFT').length;
+
+      // Dark mode stat replacements
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-stone-100">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-stone-500">Live &amp; Ready<\/span>)/i, `$1${liveCount}$2`);
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-gold">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-stone-500">Low Stock<\/span>)/i, `$1${lowStockCount}$2`);
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-crimson">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-stone-500">Under Review<\/span>)/i, `$1${underReviewCount}$2`);
+
+      // Light mode stat replacements
       html = html.replace(/(<span class="font-tabular-price text-tabular-price text-text-obsidian">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">Live &amp; Ready<\/span>)/i, `$1${liveCount}$2`);
       html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-gold-deep">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">Low Stock<\/span>)/i, `$1${lowStockCount}$2`);
-      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-crimson">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">QC Ingest<\/span>)/i, `$1${qcCount}$2`);
+      html = html.replace(/(<span class="font-tabular-price text-tabular-price text-accent-crimson">)\d+(<\/span>\s*<span class="font-eyebrow text-\[9px\] uppercase tracking-wider text-text-ash">Under Review<\/span>)/i, `$1${underReviewCount}$2`);
+
       if (catalogSearchQuery) {
         html = html.replace(/id="catalogueSearch"\s+placeholder="[^"]*"/i, `id="catalogueSearch" value="${catalogSearchQuery.replace(/"/g, '&quot;')}" placeholder="Search fit, graphic tee, denim, hoodie, SKU..."`);
       }
 
-      // Update category rail active pill styles
+      // Update category rail active pill styles with live counts
       html = html.replace(/(<div[^>]*id="categoryRail"[^>]*>)[\s\S]*?(<\/div>)/i, () => {
         const pills = [
           { id: 'ALL', label: `All Fits (${products.length})` },
-          { id: 'TEES_HOODIES', label: `Tees & Hoodies (${products.filter(p => /tee|hoodie|graphic/i.test(p.name || '')).length || 8})` },
-          { id: 'DENIMS_CARGOS', label: `Denims & Cargos (${products.filter(p => /denim|cargo|jean/i.test(p.name || '')).length || 6})` },
-          { id: 'CASUAL_SHIRTS', label: `Casual Shirts (${products.filter(p => /shirt|flannel/i.test(p.name || '')).length || 4})` },
-          { id: 'COORDS_DRESSES', label: `Co-ords & Dresses (${products.filter(p => /coord|dress/i.test(p.name || '')).length || 3})` },
-          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /streetwear tee|hoodie|ethnic/i.test(p.name || '')).length || 2})` },
+          { id: 'TEES_HOODIES', label: `Tees & Hoodies (${products.filter(p => /tee|hoodie|graphic/i.test(p.name || '')).length})` },
+          { id: 'DENIMS_CARGOS', label: `Denims & Cargos (${products.filter(p => /denim|cargo|jean/i.test(p.name || '')).length})` },
+          { id: 'CASUAL_SHIRTS', label: `Casual Shirts (${products.filter(p => /shirt|flannel/i.test(p.name || '')).length})` },
+          { id: 'COORDS_DRESSES', label: `Co-ords & Dresses (${products.filter(p => /coord|dress/i.test(p.name || '')).length})` },
+          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /streetwear tee|hoodie|ethnic/i.test(p.name || '')).length})` },
         ];
         const pillsHtml = pills.map(p => {
           const isActive = (catalogCategory || 'ALL') === p.id;
-          return `<button class="filter-pill whitespace-nowrap px-4 py-1.5 rounded-full font-tabular-caption text-tabular-caption ${isActive ? 'active font-semibold bg-text-obsidian text-surface-porcelain shadow-sm' : 'font-medium bg-surface-container text-text-slate hover:text-text-obsidian'} transition-all">${p.label}</button>`;
+          const activeClasses = isDarkScreen ? 'active font-semibold bg-stone-100 text-stone-900 shadow-sm' : 'active font-semibold bg-text-obsidian text-surface-porcelain shadow-sm';
+          const inactiveClasses = isDarkScreen ? 'font-medium bg-stone-800/80 text-stone-400 hover:text-stone-100' : 'font-medium bg-surface-container text-text-slate hover:text-text-obsidian';
+          return `<button class="filter-pill whitespace-nowrap px-4 py-1.5 rounded-full font-tabular-caption text-tabular-caption ${isActive ? activeClasses : inactiveClasses} transition-all">${p.label}</button>`;
         }).join('');
         return `<div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 -mx-screen-margin-mobile px-screen-margin-mobile" id="categoryRail">${pillsHtml}</div>`;
       });
@@ -2537,8 +2601,8 @@ export default function StitchScreenRenderer({
       const inactiveTabBg = isDarkTheme ? 'bg-noir-card border border-white/10 text-stone-300 hover:bg-noir-elevated' : 'bg-surface-container-low border border-black/5 text-text-obsidian hover:bg-surface-container';
 
       if (vendorQueueOrders.length === 0) {
-        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">0 Active Orders</span>`);
-        html = html.replace(/\d+\s+Active Orders/gi, '0 Active Orders');
+        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">0 Active</span>`);
+        html = html.replace(/\d+\s+Active Orders/gi, '0 Active');
 
         const zeroTabsHtml = `
           <button class="queue-tab ${(queueFilter || 'all') === 'all' ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer" data-filter="all" type="button">All (0)</button>
@@ -2599,8 +2663,8 @@ export default function StitchScreenRenderer({
         }
 
         // Update active order badge
-        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">${vendorQueueOrders.length} Active Orders</span>`);
-        html = html.replace(/\d+\s+Active Orders/gi, `${vendorQueueOrders.length} Active Orders`);
+        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">${vendorQueueOrders.length} Active</span>`);
+        html = html.replace(/\d+\s+Active Orders/gi, `${vendorQueueOrders.length} Active`);
 
         // Update tabs with real counts
         const newCount = vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length;
@@ -3359,19 +3423,23 @@ export default function StitchScreenRenderer({
 
         // Specific vendor bottom nav items
         if (role === ROLES.VENDOR) {
-          if (dataPath === 'production-queue' || text === 'queue') {
+          if (dataPath === 'production-queue' || text === 'queue' || text === 'orders') {
             navigateScreen('VendorOrders');
             return;
           }
-          if (dataPath === 'boutique-catalogue' || text === 'catalogue' || text === 'catalog') {
+          if (dataPath === 'boutique-catalogue' || text === 'catalogue' || text === 'catalog' || text === 'inventory') {
             navigateScreen('CatalogManager');
             return;
           }
-          if (dataPath === 'orders-and-dispatch' || text === 'dispatch') {
-            navigateScreen('VendorOrders');
+          if (dataPath === 'vendor-analytics' || text === 'analytics' || text === 'insights') {
+            navigateScreen('VendorAnalytics');
             return;
           }
-          if (dataPath === 'atelier-profile' || text === 'atelier' || text === 'store' || text === 'boutique') {
+          if (dataPath === 'orders-and-dispatch' || text === 'dispatch') {
+            navigateScreen('VendorAnalytics');
+            return;
+          }
+          if (dataPath === 'atelier-profile' || text === 'atelier' || text === 'store' || text === 'store profile' || text === 'profile' || text === 'boutique') {
             navigateScreen('VendorProfile');
             return;
           }
@@ -3443,12 +3511,18 @@ export default function StitchScreenRenderer({
       if (
         target.closest('[aria-label="Profile" i]') ||
         target.closest('[data-action="view-profile"]') ||
+        target.closest('[data-action="profile"]') ||
+        target.closest('#vendor-catalog-profile-btn') ||
         target.closest('img[alt="Profile" i]') ||
         (btn && btn.querySelector && btn.querySelector('img[alt="Profile" i]'))
       ) {
         e.preventDefault();
         e.stopPropagation();
-        navigateScreen('Profile');
+        if (role === ROLES.VENDOR) {
+          navigateScreen('VendorProfile');
+        } else {
+          navigateScreen('Profile');
+        }
         return;
       }
 

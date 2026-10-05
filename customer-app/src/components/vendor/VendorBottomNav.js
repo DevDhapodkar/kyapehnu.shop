@@ -38,14 +38,19 @@ export default function VendorBottomNav({
     navigation.navigate(targetRoute);
   };
 
+  const isOrdersActive = activeTab === 'orders' || activeTab === 'queue';
+  const isCatalogueActive = activeTab === 'catalogue' || activeTab === 'catalog' || activeTab === 'stock';
+  const isAnalyticsActive = activeTab === 'analytics';
+  const isProfileActive = activeTab === 'profile' || activeTab === 'store';
+
   return (
     <View
       style={[
         styles.bottomBarContainer,
         {
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: isDark ? 'rgba(22, 22, 25, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 18, 20, 0.08)',
+          backgroundColor: isDark ? 'rgba(19, 19, 21, 0.96)' : 'rgba(255, 255, 255, 0.96)',
+          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.08)',
         },
       ]}
     >
@@ -56,14 +61,14 @@ export default function VendorBottomNav({
         accessibilityRole="tab"
         accessibilityLabel="Orders"
       >
-        {activeTab === 'orders' && (
+        {isOrdersActive && (
           <View style={[styles.activePill, { backgroundColor: colors.accentCrimson }]} />
         )}
         <View style={styles.iconWrap}>
           <MaterialIcons
-            name="local-shipping"
-            size={24}
-            color={activeTab === 'orders' ? colors.accentCrimson : (isDark ? colors.textSlate : '#6E6C75')}
+            name="receipt-long"
+            size={23}
+            color={isOrdersActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
           {pendingCount > 0 && (
             <View style={[styles.badgePill, { backgroundColor: colors.accentCrimson, borderColor: isDark ? '#161619' : '#FFFFFF' }]}>
@@ -74,29 +79,29 @@ export default function VendorBottomNav({
         <Text
           style={[
             styles.tabLabel,
-            { color: isDark ? colors.textSlate : '#6E6C75' },
-            activeTab === 'orders' && { color: colors.accentCrimson, fontWeight: '900' },
+            { color: isDark ? '#78716C' : '#6E6C75' },
+            isOrdersActive && { color: colors.accentCrimson, fontWeight: '900' },
           ]}
         >
           Orders
         </Text>
       </PressableScale>
 
-      {/* Tab 2: Inventory */}
+      {/* Tab 2: Catalogue */}
       <PressableScale
         onPress={() => handleTabPress('CatalogManager')}
         style={styles.navTab}
         accessibilityRole="tab"
-        accessibilityLabel="Inventory"
+        accessibilityLabel="Catalogue"
       >
-        {activeTab === 'stock' && (
+        {isCatalogueActive && (
           <View style={[styles.activePill, { backgroundColor: colors.accentCrimson }]} />
         )}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="checkroom"
-            size={24}
-            color={activeTab === 'stock' ? colors.accentCrimson : (isDark ? colors.textSlate : '#6E6C75')}
+            size={23}
+            color={isCatalogueActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
           {stockCount > 0 && (
             <View style={[styles.badgePill, { backgroundColor: colors.accentGoldDeep || '#946C18', borderColor: isDark ? '#161619' : '#FFFFFF' }]}>
@@ -107,11 +112,11 @@ export default function VendorBottomNav({
         <Text
           style={[
             styles.tabLabel,
-            { color: isDark ? colors.textSlate : '#6E6C75' },
-            activeTab === 'stock' && { color: colors.accentCrimson, fontWeight: '900' },
+            { color: isDark ? '#78716C' : '#6E6C75' },
+            isCatalogueActive && { color: colors.accentCrimson, fontWeight: '900' },
           ]}
         >
-          Inventory
+          Catalogue
         </Text>
       </PressableScale>
 
@@ -122,52 +127,52 @@ export default function VendorBottomNav({
         accessibilityRole="tab"
         accessibilityLabel="Analytics"
       >
-        {activeTab === 'analytics' && (
+        {isAnalyticsActive && (
           <View style={[styles.activePill, { backgroundColor: colors.accentCrimson }]} />
         )}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="bar-chart"
-            size={24}
-            color={activeTab === 'analytics' ? colors.accentCrimson : (isDark ? colors.textSlate : '#6E6C75')}
+            size={23}
+            color={isAnalyticsActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
         </View>
         <Text
           style={[
             styles.tabLabel,
-            { color: isDark ? colors.textSlate : '#6E6C75' },
-            activeTab === 'analytics' && { color: colors.accentCrimson, fontWeight: '900' },
+            { color: isDark ? '#78716C' : '#6E6C75' },
+            isAnalyticsActive && { color: colors.accentCrimson, fontWeight: '900' },
           ]}
         >
           Analytics
         </Text>
       </PressableScale>
 
-      {/* Tab 4: Store Profile */}
+      {/* Tab 4: Store */}
       <PressableScale
         onPress={() => handleTabPress('VendorProfile')}
         style={styles.navTab}
         accessibilityRole="tab"
-        accessibilityLabel="Store Profile"
+        accessibilityLabel="Store"
       >
-        {activeTab === 'profile' && (
+        {isProfileActive && (
           <View style={[styles.activePill, { backgroundColor: colors.accentCrimson }]} />
         )}
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="storefront"
-            size={24}
-            color={activeTab === 'profile' ? colors.accentCrimson : (isDark ? colors.textSlate : '#6E6C75')}
+            size={23}
+            color={isProfileActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
         </View>
         <Text
           style={[
             styles.tabLabel,
-            { color: isDark ? colors.textSlate : '#6E6C75' },
-            activeTab === 'profile' && { color: colors.accentCrimson, fontWeight: '900' },
+            { color: isDark ? '#78716C' : '#6E6C75' },
+            isProfileActive && { color: colors.accentCrimson, fontWeight: '900' },
           ]}
         >
-          Store Profile
+          Store
         </Text>
       </PressableScale>
     </View>

@@ -42,18 +42,24 @@ export const ROLES = {
 
 let initialToken = null;
 let initialUser = null;
+let initialRole = ROLES.CUSTOMER;
+let initialVendorProfile = null;
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
     initialToken = window.localStorage.getItem('kyapehnu_auth_token') || null;
     const rawUser = window.localStorage.getItem('kyapehnu_auth_user');
     if (rawUser) initialUser = JSON.parse(rawUser);
+    const rawRole = window.localStorage.getItem('kyapehnu_role');
+    if (rawRole && ROLES[rawRole]) initialRole = rawRole;
+    const rawVendorProfile = window.localStorage.getItem('kyapehnu_vendor_profile');
+    if (rawVendorProfile) initialVendorProfile = JSON.parse(rawVendorProfile);
     if (initialToken) {
       setAuthToken(initialToken);
     }
   } catch (e) {}
 }
 
-const persistAuthSession = (token, user) => {
+const persistAuthSession = (token, user, role, vendorProfile) => {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       if (token) {
@@ -74,13 +80,21 @@ const persistAuthSession = (token, user) => {
       } else {
         window.localStorage.removeItem('kyapehnu_auth_user');
       }
+      if (role) {
+        window.localStorage.setItem('kyapehnu_role', role);
+      }
+      if (vendorProfile) {
+        window.localStorage.setItem('kyapehnu_vendor_profile', JSON.stringify(vendorProfile));
+      } else {
+        window.localStorage.removeItem('kyapehnu_vendor_profile');
+      }
     } catch (e) {}
   }
 };
 
 export const useAuthStore = create((set, get) => ({
   /** 'CUSTOMER' | 'VENDOR' — the navigator's only input. */
-  role: ROLES.CUSTOMER,
+  role: initialRole,
 
   /** Firebase user, once signed in. Null while signed out. */
   user: initialUser,
@@ -101,7 +115,7 @@ export const useAuthStore = create((set, get) => ({
   pendingProfile: null,
 
   /** Vendor profile from `GET /api/vendors/me`, populated on entering VENDOR. */
-  vendorProfile: null,
+  vendorProfile: initialVendorProfile,
 
   /** False until the first Firebase auth-state callback resolves. */
   authReady: !isFirebaseConfigured,
@@ -347,8 +361,12 @@ export const useAuthStore = create((set, get) => ({
 }));
 
 useAuthStore.subscribe((state) => {
-  persistAuthSession(state.token, state.user);
+  persistAuthSession(state.token, state.user, state.role, state.vendorProfile);
 });
+
+if (typeof window !== 'undefined') {
+  window.__KYAPEHNU_AUTH_STORE__ = useAuthStore;
+}
 
 /* Selectors — importable so components subscribe to the narrowest slice. */
 
