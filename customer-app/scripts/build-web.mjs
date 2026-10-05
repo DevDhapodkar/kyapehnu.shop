@@ -36,6 +36,21 @@ if (fs.existsSync(indexPath)) {
 
   // Inject PWA meta tags, Google Fonts, mobile hardening CSS, and early gesture protection into <head>
   const headInject = `
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var r of regs) { r.unregister(); }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var n of names) { caches.delete(n); }
+        });
+      }
+    </script>
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -464,6 +479,12 @@ if (fs.existsSync(indexPath)) {
     </div>
   `;
   html = html.replace('<div id="root"></div>', preHydrationSplash.trim());
+
+  const buildTimestamp = Date.now();
+  html = html.replace(
+    /(<script\s+src=["']\/app\/_expo\/static\/js\/web\/[^"']+)(["'])/gi,
+    `$1?v=${buildTimestamp}$2`
+  );
 
   fs.writeFileSync(indexPath, html, 'utf8');
 }

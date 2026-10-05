@@ -6,6 +6,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useAuthStore, ROLES } from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
 import { useStorefrontStore } from '../store/useStorefrontStore';
+import { useVendorStore } from '../store/useVendorStore';
 import {
   createGuestOrder,
   placeOrder,
@@ -221,7 +222,9 @@ export default function StitchScreenRenderer({
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
 
   // Storefront live products & filtering
-  const products = useStorefrontStore((state) => state.products || []);
+  const storefrontProducts = useStorefrontStore((state) => state.products || []);
+  const vendorProducts = useVendorStore((state) => state.products || []);
+  const products = storefrontProducts;
   const loadStorefront = useStorefrontStore((state) => state.load);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedBoutique, setSelectedBoutique] = useState(null);
@@ -2383,6 +2386,7 @@ export default function StitchScreenRenderer({
     // 6. CATALOGUE MANAGER: Inject live products from MongoDB into catalog
     if (targetKey.includes('Catalogue_Manager')) {
       const isDarkScreen = targetKey.includes('dark');
+      const products = vendorProducts;
       const displayShopName = vendorProfile?.shopName || vendorProfile?.storeName || profile?.shopName || user?.displayName || 'Nagpur Boutique';
       const shopInitial = displayShopName.charAt(0).toUpperCase();
 
@@ -3422,7 +3426,8 @@ export default function StitchScreenRenderer({
         e.stopPropagation();
 
         // Specific vendor bottom nav items
-        if (role === ROLES.VENDOR) {
+        const isVendorScreen = targetKey.includes('Vendor') || targetKey.includes('Catalogue_Manager') || targetKey.includes('Product_Ingestion') || role === ROLES.VENDOR;
+        if (isVendorScreen) {
           if (dataPath === 'production-queue' || text === 'queue' || text === 'orders') {
             navigateScreen('VendorOrders');
             return;
