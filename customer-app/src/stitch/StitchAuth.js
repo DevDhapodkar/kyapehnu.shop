@@ -39,8 +39,11 @@ export default function StitchAuth({ navigation }) {
       } else if (text.includes('google')) {
         e.preventDefault();
         try {
-          const cred = await useAuthStore.getState().signInWithGoogle?.();
-          if (cred) {
+          const res = await useAuthStore.getState().signInWithGoogle?.();
+          const finalRole = res?.role || useAuthStore.getState().role;
+          if (finalRole === 'VENDOR') {
+            navigation.navigate('VendorOrders');
+          } else {
             navigation.navigate('Home');
           }
         } catch (err) {
@@ -54,8 +57,13 @@ export default function StitchAuth({ navigation }) {
         e.preventDefault();
         const phoneInput = el.querySelector('input[type="tel"]') || el.querySelector('#mobile-input');
         const phoneVal = phoneInput ? phoneInput.value : '9823045892';
-        await useAuthStore.getState().signInWithPhone?.(phoneVal) || useAuthStore.getState().signIn?.();
-        navigation.navigate('Home');
+        const res = await useAuthStore.getState().signInWithPhone?.(phoneVal) || await useAuthStore.getState().signIn?.();
+        const finalRole = res?.role || useAuthStore.getState().role;
+        if (finalRole === 'VENDOR') {
+          navigation.navigate('VendorOrders');
+        } else {
+          navigation.navigate('Home');
+        }
       }
     };
 

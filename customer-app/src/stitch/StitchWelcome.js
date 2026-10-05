@@ -184,8 +184,13 @@ export default function StitchWelcome({ navigation }) {
 
       // Only authenticated users can access the app storefront
       const isAuthed = useAuthStore.getState().isAuthenticated();
+      const role = useAuthStore.getState().role;
       if (isAuthed) {
-        navigation.navigate('Home');
+        if (role === 'VENDOR') {
+          navigation.navigate('VendorOrders');
+        } else {
+          navigation.navigate('Home');
+        }
       } else {
         navigation.navigate('Auth');
       }

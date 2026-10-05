@@ -3056,27 +3056,35 @@ export default function StitchScreenRenderer({
 
         const cleanName = identifier.split('@')[0];
 
-        // OPTIMISTIC NON-BLOCKING SIGN-IN (<80ms)
-        useAuthStore.setState({
-          user: { email, displayName: cleanName, uid: `usr-${Date.now()}` },
-          token: 'auth-token-live',
-          role: ROLES.CUSTOMER,
-        });
+        const origBtnText = submitSignIn.innerHTML;
+        submitSignIn.disabled = true;
+        submitSignIn.innerHTML = `
+          <span class="inline-flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <span>Verifying credentials...</span>
+          </span>
+        `;
 
-        // Background non-blocking sync with remote backend
-        (async () => {
-          try {
-            await useAuthStore.getState().signInWithEmail?.({ email, password });
-          } catch {
-            syncUserProfile({ name: cleanName, email, phone: identifier.replace(/[^0-9]/g, '') }).catch(() => {});
+        try {
+          const res = await useAuthStore.getState().signInWithEmail?.({ email, password });
+          const finalRole = res?.role || useAuthStore.getState().role;
+
+          if (finalRole === ROLES.VENDOR) {
+            showToast('Welcome to your Vendor Desk!');
+            navigateScreen('VendorOrders');
+          } else {
+            showToast('Welcome back to Kya Pehnu.');
+            detectAndApplyUserLocation(true);
+            navigateScreen('Home');
           }
-        })();
-
-        showToast('Welcome back to Kya Pehnu.');
-        detectAndApplyUserLocation(true);
-        setTimeout(() => {
-          navigateScreen('Home');
-        }, 50);
+        } catch (authErr) {
+          submitSignIn.disabled = false;
+          submitSignIn.innerHTML = origBtnText;
+          showToast(friendlyAuthError(authErr));
+        }
         return;
       }
 
@@ -3150,13 +3158,20 @@ export default function StitchScreenRenderer({
             </span>
           `;
 
-          await useAuthStore.getState().signInWithGoogle();
+          const res = await useAuthStore.getState().signInWithGoogle();
+          const finalRole = res?.role || useAuthStore.getState().role;
 
           const currentUser = useAuthStore.getState().user;
-          const firstName = currentUser?.displayName ? currentUser.displayName.split(' ')[0] : 'Shopper';
-          showToast(`Welcome to Kya Pehnu, ${firstName}!`);
-          detectAndApplyUserLocation(true);
-          setTimeout(() => navigateScreen('Home'), 300);
+          const firstName = currentUser?.displayName ? currentUser.displayName.split(' ')[0] : 'Partner';
+
+          if (finalRole === ROLES.VENDOR) {
+            showToast(`Welcome to your Vendor Desk, ${firstName}!`);
+            setTimeout(() => navigateScreen('VendorOrders'), 100);
+          } else {
+            showToast(`Welcome to Kya Pehnu, ${firstName}!`);
+            detectAndApplyUserLocation(true);
+            setTimeout(() => navigateScreen('Home'), 100);
+          }
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
           btn.innerHTML = origHtml;

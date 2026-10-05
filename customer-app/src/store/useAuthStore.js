@@ -163,35 +163,38 @@ export const useAuthStore = create((set, get) => ({
 
       const { user, token } = session;
       setAuthToken(token);
-      set({ user, token, authReady: true });
 
-      // Load the backend profile so orders/addresses have somewhere to attach.
-      // Non-fatal: a brand-new account has no profile until registration syncs.
-      try {
-        const profile = await fetchUserProfile();
+      // Check cached role from localStorage to avoid flashing to customer if already vendor
+      const cachedRole = (typeof window !== 'undefined' && window.localStorage?.getItem('kyapehnu_role')) || null;
+      const initialRoleToSet = (cachedRole && ROLES[cachedRole]) ? cachedRole : get().role;
+
+      set({ user, token, role: initialRoleToSet, authReady: true });
+
+      // Load profile and vendor in PARALLEL to eliminate sequential 5s delay
+      const [profileRes, vendorRes] = await Promise.allSettled([
+        fetchUserProfile(),
+        fetchVendorProfile(),
+      ]);
+
+      const profile = profileRes.status === 'fulfilled' ? profileRes.value : null;
+      const vendor = vendorRes.status === 'fulfilled' ? vendorRes.value : null;
+
+      if (profile) {
         set({ profile, pendingProfile: null });
-      } catch {
-        // No profile yet. If registration captured the details but its own sync
-        // never landed, finish it here so the account is never left half-made.
+      } else {
         const pending = get().pendingProfile;
         if (pending) {
           try {
-            const profile = await syncUserProfile(pending);
-            set({ profile, pendingProfile: null });
-          } catch {
-            /* still unreachable — retried on the next token change */
-          }
+            const synced = await syncUserProfile(pending);
+            set({ profile: synced, pendingProfile: null });
+          } catch {}
         }
       }
 
-      // Check if this account is a registered vendor
-      try {
-        const vendor = await fetchVendorProfile();
-        if (vendor && (vendor._id || vendor.shopName)) {
-          set({ role: ROLES.VENDOR, vendorProfile: vendor });
-        }
-      } catch {
-        // Customer account
+      if (vendor && (vendor._id || vendor.shopName)) {
+        set({ role: ROLES.VENDOR, vendorProfile: vendor });
+      } else if (!cachedRole || cachedRole !== ROLES.VENDOR) {
+        set({ role: ROLES.CUSTOMER });
       }
 
       // Register this device for order-status push notifications (best-effort).
@@ -204,21 +207,31 @@ export const useAuthStore = create((set, get) => ({
     return unsubscribe;
   },
 
-  /** Email/password sign-in. Non-blocking with optimistic session assignment. */
+  /** Email/password sign-in with instant vendor role detection. */
   signInWithEmail: async ({ email, password }) => {
     const cred = await signInEmail(email, password);
     const token = await cred.user.getIdToken();
     setAuthToken(token);
-    set({ user: cred.user, token, role: ROLES.CUSTOMER });
 
-    // Non-blocking background verification for vendor desk
-    fetchVendorProfile()
-      .then((vendor) => {
-        if (vendor && (vendor._id || vendor.shopName)) {
-          set({ role: ROLES.VENDOR, vendorProfile: vendor });
-        }
-      })
-      .catch(() => {});
+    const cachedRole = (typeof window !== 'undefined' && window.localStorage?.getItem('kyapehnu_role')) || null;
+    let assignedRole = (cachedRole && ROLES[cachedRole]) ? cachedRole : ROLES.CUSTOMER;
+    let vendor = null;
+
+    try {
+      vendor = await fetchVendorProfile();
+      if (vendor && (vendor._id || vendor.shopName)) {
+        assignedRole = ROLES.VENDOR;
+      }
+    } catch {}
+
+    set({
+      user: cred.user,
+      token,
+      role: assignedRole,
+      vendorProfile: assignedRole === ROLES.VENDOR ? vendor : null,
+    });
+
+    return { cred, role: assignedRole, vendor };
   },
 
   /**
@@ -284,30 +297,34 @@ export const useAuthStore = create((set, get) => ({
     if (!cred || !cred.user) return null;
     const token = await cred.user.getIdToken();
     setAuthToken(token);
-    set({ user: cred.user, token, role: ROLES.CUSTOMER });
+
+    const cachedRole = (typeof window !== 'undefined' && window.localStorage?.getItem('kyapehnu_role')) || null;
+    let assignedRole = (cachedRole && ROLES[cachedRole]) ? cachedRole : ROLES.CUSTOMER;
+    let vendor = null;
 
     try {
-      const vendor = await fetchVendorProfile();
+      vendor = await fetchVendorProfile();
       if (vendor && (vendor._id || vendor.shopName)) {
-        set({ role: ROLES.VENDOR, vendorProfile: vendor });
-      } else {
-        set({ role: ROLES.CUSTOMER });
+        assignedRole = ROLES.VENDOR;
       }
-    } catch {
-      set({ role: ROLES.CUSTOMER });
-    }
+    } catch {}
 
-    try {
-      const profile = await syncUserProfile({
-        name: cred.user.displayName || '',
-        email: cred.user.email,
-        phone: cred.user.phoneNumber || '',
-      });
-      set({ profile, pendingProfile: null });
-    } catch (err) {
-      console.warn('[auth] Profile sync:', err?.message || err);
-    }
-    return cred;
+    set({
+      user: cred.user,
+      token,
+      role: assignedRole,
+      vendorProfile: assignedRole === ROLES.VENDOR ? vendor : null,
+    });
+
+    syncUserProfile({
+      name: cred.user.displayName || '',
+      email: cred.user.email,
+      phone: cred.user.phoneNumber || '',
+    })
+      .then((profile) => set({ profile, pendingProfile: null }))
+      .catch((err) => console.warn('[auth] Profile sync:', err?.message || err));
+
+    return { cred, role: assignedRole, vendor };
   },
 
   sendPasswordReset: async (email) => {
