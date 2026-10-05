@@ -2925,8 +2925,15 @@ export default function StitchScreenRenderer({
         return;
       }
 
-      // --- AUTH: GOOGLE SIGN IN ---
-      if (btn && btn.textContent && btn.textContent.includes('Google')) {
+      // --- AUTH: GOOGLE SIGN IN (CUSTOMER) ---
+      if (
+        btn &&
+        btn.textContent &&
+        btn.textContent.includes('Google') &&
+        !btn.id?.includes('vendor-google') &&
+        !target.closest('#vendor-google-btn') &&
+        !targetKey.includes('Register_Your_Shop')
+      ) {
         e.preventDefault();
         e.stopPropagation();
         const origHtml = btn.innerHTML;
@@ -2955,6 +2962,117 @@ export default function StitchScreenRenderer({
             return;
           }
           showToast(friendlyAuthError(err));
+        }
+        return;
+      }
+
+      // --- VENDOR ONBOARDING: GOOGLE SIGN IN (STEP 3) ---
+      const vendorGoogleBtn = target.closest('#vendor-google-btn') || (btn && btn.id === 'vendor-google-btn');
+      if (vendorGoogleBtn && (targetKey.includes('Register_Your_Shop') || targetKey.includes('Vendor_Desk') || targetKey.includes('Register'))) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const whatsappConfirmInput = el.querySelector('#vendor-whatsapp-confirm');
+        const phoneInput = el.querySelector('#whatsapp-contact');
+        const rawPhone = (whatsappConfirmInput?.value || phoneInput?.value || '').replace(/[^0-9]/g, '');
+
+        if (rawPhone.length !== 10) {
+          showToast('Please enter your 10-digit WhatsApp number to link your boutique to the bot');
+          whatsappConfirmInput?.focus();
+          return;
+        }
+
+        const origHtml = vendorGoogleBtn.innerHTML;
+        vendorGoogleBtn.innerHTML = `
+          <span class="inline-flex items-center justify-center gap-2">
+            <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <span>Connecting Google & WhatsApp...</span>
+          </span>
+        `;
+        vendorGoogleBtn.style.pointerEvents = 'none';
+
+        try {
+          await useAuthStore.getState().signInWithGoogle();
+          const currentUser = useAuthStore.getState().user;
+
+          if (!currentUser) {
+            throw new Error('Google authentication was cancelled or failed.');
+          }
+
+          const shopInput = el.querySelector('#shop-name');
+          const propInput = el.querySelector('#proprietor-name');
+          const addressInput = el.querySelector('#atelier-address');
+
+          const storeName = shopInput?.value?.trim() || `${currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Nagpur'}'s Boutique`;
+          const proprietorName = propInput?.value?.trim() || currentUser.displayName || 'Boutique Designer';
+          const phone = `+91${rawPhone.slice(-10)}`;
+          const email = currentUser.email || `${rawPhone.slice(-10)}@kyapehnu.boutique`;
+          const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+          const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+          const addressVal = addressInput?.value?.trim() || `${deliveryLocation.road ? deliveryLocation.road + ', ' : ''}${deliveryLocation.areaName || 'Nagpur Central'}`;
+          const selectedSpecialties = Array.from(el.querySelectorAll('.spec-chip[data-active="true"]'))
+            .map((c) => c.textContent.trim().replace(/^(check|add)\s*/, ''))
+            .filter(Boolean);
+
+          const vendorPayload = {
+            shopName: storeName,
+            ownerName: proprietorName,
+            phone,
+            whatsappNumber: phone,
+            rawWhatsapp: rawPhone.slice(-10),
+            email,
+            specialties: selectedSpecialties,
+            address: {
+              line1: addressVal,
+              area: deliveryLocation.areaName || 'Nagpur Central',
+              city: 'Nagpur',
+              pincode: deliveryLocation.pincode || '440010',
+            },
+            location: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+            authProvider: 'google',
+          };
+
+          try {
+            await registerVendor(vendorPayload);
+          } catch (regErr) {
+            console.warn('[VendorRegister-Google] Backend sync note:', regErr?.message);
+          }
+
+          useAuthStore.setState({
+            role: ROLES.VENDOR,
+            user: {
+              uid: currentUser.uid,
+              displayName: proprietorName,
+              email,
+              phoneNumber: phone,
+              photoURL: currentUser.photoURL,
+            },
+            token: useAuthStore.getState().token || `vendor-token-${Date.now()}`,
+            vendorProfile: {
+              ...vendorPayload,
+              _id: `vnd-${currentUser.uid}`,
+              approvalStatus: 'APPROVED',
+            },
+          });
+
+          showToast(`Boutique Registered! WhatsApp Bot linked to +91 ${rawPhone.slice(-10)}`);
+          setTimeout(() => {
+            navigateScreen('CatalogManager');
+          }, 600);
+        } catch (err) {
+          console.error('[VendorRegister-Google Error]', err);
+          vendorGoogleBtn.innerHTML = origHtml;
+          vendorGoogleBtn.style.pointerEvents = 'auto';
+          if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            return;
+          }
+          showToast(err?.message || friendlyAuthError(err) || 'Google sign-in failed. Please try again.');
         }
         return;
       }
@@ -3015,6 +3133,8 @@ export default function StitchScreenRenderer({
             const stepLabel3 = el.querySelector('#step-label-3');
             const submitBtnText = el.querySelector('#submit-btn-text');
 
+            const headerPill = el.querySelector('#vendor-step-indicator-pill');
+            if (headerPill) headerPill.textContent = 'Step 2 of 3';
             if (stepIndicator) stepIndicator.textContent = 'Step 2';
             if (stepTitle) stepTitle.textContent = 'Storefront & Location';
             if (stepStatus) stepStatus.textContent = 'Step 2 of 3';
@@ -3033,7 +3153,7 @@ export default function StitchScreenRenderer({
               setTimeout(() => {
                 if (vendorMapRef.current) {
                   vendorMapRef.current.invalidateSize(true);
-                  vendorMapRef.current.setView([lat, lng], 16, { animate: false });
+                  vendorMapRef.current.setView([lat, lng], 18, { animate: false });
                   if (vendorMarkerRef.current) {
                     vendorMarkerRef.current.setLatLng([lat, lng]);
                   }
@@ -3050,6 +3170,7 @@ export default function StitchScreenRenderer({
             if (step2Panel) step2Panel.classList.add('hidden');
             if (step3Panel) step3Panel.classList.add('hidden');
 
+            const headerPill = el.querySelector('#vendor-step-indicator-pill');
             const stepIndicator = el.querySelector('#vendor-step-indicator');
             const stepTitle = el.querySelector('#vendor-step-title');
             const stepStatus = el.querySelector('#vendor-step-status');
@@ -3057,6 +3178,7 @@ export default function StitchScreenRenderer({
             const stepLabel2 = el.querySelector('#step-label-2');
             const submitBtnText = el.querySelector('#submit-btn-text');
 
+            if (headerPill) headerPill.textContent = 'Step 1 of 3';
             if (stepIndicator) stepIndicator.textContent = 'Step 1';
             if (stepTitle) stepTitle.textContent = 'Store Profile & Details';
             if (stepStatus) stepStatus.textContent = 'In Progress';
@@ -4169,7 +4291,7 @@ export default function StitchScreenRenderer({
 
             if (vendorMapRef.current) {
               vendorMapRef.current.invalidateSize(true);
-              vendorMapRef.current.setView([lat, lng], 16, { animate: true });
+              vendorMapRef.current.flyTo([lat, lng], 18, { animate: true, duration: 1.2 });
               if (vendorMarkerRef.current) {
                 vendorMarkerRef.current.setLatLng([lat, lng]);
               }
@@ -4221,7 +4343,7 @@ export default function StitchScreenRenderer({
             const fallbackLng = deliveryLocation.longitude || 79.0882;
             vendorCoordsRef.current = { latitude: fallbackLat, longitude: fallbackLng, isManuallyPinned: false };
             if (vendorMapRef.current) {
-              vendorMapRef.current.setView([fallbackLat, fallbackLng], 15);
+              vendorMapRef.current.setView([fallbackLat, fallbackLng], 18);
               if (vendorMarkerRef.current) {
                 vendorMarkerRef.current.setLatLng([fallbackLat, fallbackLng]);
               }
@@ -4282,6 +4404,7 @@ export default function StitchScreenRenderer({
           if (step2Panel) step2Panel.classList.remove('hidden');
           if (step3Panel) step3Panel.classList.add('hidden');
 
+          const headerPill = el.querySelector('#vendor-step-indicator-pill');
           const stepIndicator = el.querySelector('#vendor-step-indicator');
           const stepTitle = el.querySelector('#vendor-step-title');
           const stepStatus = el.querySelector('#vendor-step-status');
@@ -4289,6 +4412,7 @@ export default function StitchScreenRenderer({
           const stepLabel2 = el.querySelector('#step-label-2');
           const submitBtnText = el.querySelector('#submit-btn-text');
 
+          if (headerPill) headerPill.textContent = 'Step 2 of 3';
           if (stepIndicator) stepIndicator.textContent = 'Step 2';
           if (stepTitle) stepTitle.textContent = 'Storefront & Location';
           if (stepStatus) stepStatus.textContent = 'Step 2 of 3';
@@ -4300,6 +4424,12 @@ export default function StitchScreenRenderer({
             stepLabel2.classList.add('font-semibold', 'text-accent-crimson', 'dark:text-crimson');
           }
           if (submitBtnText) submitBtnText.textContent = 'Continue to Step 3 — Credentials';
+
+          // Pre-populate Step 3 WhatsApp confirmation input from Step 1 phoneInput
+          const confirmWhatsappInput = el.querySelector('#vendor-whatsapp-confirm');
+          if (confirmWhatsappInput && (!confirmWhatsappInput.value || !confirmWhatsappInput.value.trim())) {
+            confirmWhatsappInput.value = rawPhone;
+          }
 
           // Pre-populate address if empty and detected location exists
           const addressInput = el.querySelector('#atelier-address');
@@ -4320,7 +4450,7 @@ export default function StitchScreenRenderer({
             setTimeout(() => {
               if (vendorMapRef.current) {
                 vendorMapRef.current.invalidateSize(true);
-                vendorMapRef.current.setView([lat, lng], 16, { animate: false });
+                vendorMapRef.current.setView([lat, lng], 18, { animate: false });
                 if (vendorMarkerRef.current) {
                   vendorMarkerRef.current.setLatLng([lat, lng]);
                   const area = deliveryLocation.areaName || 'Nagpur Hub';
@@ -4349,6 +4479,7 @@ export default function StitchScreenRenderer({
           if (step2Panel) step2Panel.classList.add('hidden');
           if (step3Panel) step3Panel.classList.remove('hidden');
 
+          const headerPill = el.querySelector('#vendor-step-indicator-pill');
           const stepIndicator = el.querySelector('#vendor-step-indicator');
           const stepTitle = el.querySelector('#vendor-step-title');
           const stepStatus = el.querySelector('#vendor-step-status');
@@ -4356,6 +4487,7 @@ export default function StitchScreenRenderer({
           const stepLabel3 = el.querySelector('#step-label-3');
           const submitBtnText = el.querySelector('#submit-btn-text');
 
+          if (headerPill) headerPill.textContent = 'Step 3 of 3';
           if (stepIndicator) stepIndicator.textContent = 'Step 3';
           if (stepTitle) stepTitle.textContent = 'Account Credentials';
           if (stepStatus) stepStatus.textContent = 'Final Step';
@@ -4368,6 +4500,14 @@ export default function StitchScreenRenderer({
           }
           if (submitBtnText) submitBtnText.textContent = 'Complete Registration & Launch Desk';
 
+          // Pre-populate Step 3 WhatsApp confirmation input from Step 1 phoneInput if empty
+          const phoneInput = el.querySelector('#whatsapp-contact');
+          const confirmWhatsappInput = el.querySelector('#vendor-whatsapp-confirm');
+          if (confirmWhatsappInput && (!confirmWhatsappInput.value || !confirmWhatsappInput.value.trim())) {
+            const rawPhone = (phoneInput?.value || '').replace(/[^0-9]/g, '');
+            if (rawPhone) confirmWhatsappInput.value = rawPhone;
+          }
+
           el.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'smooth' });
           window.scrollTo?.({ top: 0, behavior: 'smooth' });
           return;
@@ -4377,11 +4517,19 @@ export default function StitchScreenRenderer({
           const emailInput = el.querySelector('#vendor-email');
           const passwordInput = el.querySelector('#vendor-password');
           const confirmPasswordInput = el.querySelector('#vendor-confirm-password');
+          const whatsappConfirmInput = el.querySelector('#vendor-whatsapp-confirm');
+          const phoneInput = el.querySelector('#whatsapp-contact');
 
           const emailVal = emailInput?.value?.trim();
           const passwordVal = passwordInput?.value || '';
           const confirmPasswordVal = confirmPasswordInput?.value || '';
+          const rawPhone = (whatsappConfirmInput?.value || phoneInput?.value || '').replace(/[^0-9]/g, '');
 
+          if (rawPhone.length !== 10) {
+            showToast('Please enter a valid 10-digit WhatsApp dispatch number');
+            whatsappConfirmInput?.focus();
+            return;
+          }
           if (!emailVal || !emailVal.includes('@') || !emailVal.includes('.')) {
             showToast('Please enter a valid official email address');
             emailInput?.focus();
@@ -4400,34 +4548,38 @@ export default function StitchScreenRenderer({
 
           const shopInput = el.querySelector('#shop-name');
           const propInput = el.querySelector('#proprietor-name');
-          const phoneInput = el.querySelector('#whatsapp-contact');
           const addressInput = el.querySelector('#atelier-address');
 
           const storeName = shopInput?.value?.trim() || 'Nagpur Boutique';
           const proprietorName = propInput?.value?.trim() || 'Boutique Designer';
-          const rawPhone = (phoneInput?.value || '').replace(/[^0-9]/g, '');
-          const phone = rawPhone.length === 10 ? `+91${rawPhone}` : `+919822012345`;
-          const addressVal = addressInput?.value?.trim() || 'Nagpur';
+          const phone = `+91${rawPhone.slice(-10)}`;
+          const addressVal = addressInput?.value?.trim() || `${deliveryLocation.road ? deliveryLocation.road + ', ' : ''}${deliveryLocation.areaName || 'Nagpur Central'}`;
 
-          const lat = vendorCoordsRef.current?.latitude || 21.1458;
-          const lng = vendorCoordsRef.current?.longitude || 79.0882;
+          const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+          const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+          const selectedSpecialties = Array.from(el.querySelectorAll('.spec-chip[data-active="true"]'))
+            .map((chip) => chip.textContent.trim().replace(/^(check|add)\s*/, ''))
+            .filter(Boolean);
 
           const vendorPayload = {
             shopName: storeName,
             ownerName: proprietorName,
             phone,
             whatsappNumber: phone,
+            rawWhatsapp: rawPhone.slice(-10),
             email: emailVal,
+            specialties: selectedSpecialties,
             address: {
               line1: addressVal,
-              area: 'Nagpur Central',
+              area: deliveryLocation.areaName || 'Nagpur Central',
               city: 'Nagpur',
-              pincode: '440010',
+              pincode: deliveryLocation.pincode || '440010',
             },
             location: {
               type: 'Point',
               coordinates: [lng, lat],
             },
+            authProvider: 'password',
           };
 
           submitVendorReg.disabled = true;
@@ -4473,7 +4625,7 @@ export default function StitchScreenRenderer({
               },
             });
 
-            showToast('Boutique Registered! Welcome to Nagpur Vendor Desk.');
+            showToast(`Boutique Registered! WhatsApp Bot linked to +91 ${rawPhone.slice(-10)}`);
             setTimeout(() => {
               navigateScreen('CatalogManager');
             }, 600);
@@ -5232,10 +5384,13 @@ export default function StitchScreenRenderer({
 
         const map = L.map(mapEl, {
           center: [initialLat, initialLng],
-          zoom: 16,
+          zoom: 18,
           zoomControl: false,
           attributionControl: false,
         });
+
+        // Add Leaflet zoom controls (+ and -) at bottom right
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         // Genuine Google Maps roadmap tiles (Fast CDN, high-res Nagpur roads, landmarks)
         const tiles = createGoogleMapsTileLayer(L, { type: 'roadmap' }) || L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
@@ -5368,7 +5523,7 @@ export default function StitchScreenRenderer({
             const match = await searchNagpurLocation(query);
             if (match && vendorMapRef.current && vendorMarkerRef.current) {
               vendorCoordsRef.current = { latitude: match.lat, longitude: match.lng, isManuallyPinned: true };
-              vendorMapRef.current.setView([match.lat, match.lng], 16, { animate: true });
+              vendorMapRef.current.setView([match.lat, match.lng], 18, { animate: true });
               vendorMarkerRef.current.setLatLng([match.lat, match.lng]);
               vendorMarkerRef.current.bindPopup(`<b>${match.name}</b><br/>Mapped from address`).openPopup();
               showToast(`Map centered on ${match.name}`);
