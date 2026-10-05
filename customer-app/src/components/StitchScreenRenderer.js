@@ -619,20 +619,23 @@ export default function StitchScreenRenderer({
       })
       .catch((err) => {
         console.warn('[StitchScreenRenderer] Geolocation notice:', err);
-        showToast('Tap location in header to choose your address.');
+        if (role !== ROLES.VENDOR) {
+          showToast('Tap location in header to choose your address.');
+        }
       })
       .finally(() => {
         setIsLocating(false);
       });
-  }, [isLocating]);
+  }, [isLocating, role]);
 
   // Ask for location as soon as user logs in (or on active authenticated session if not detected)
   useEffect(() => {
+    if (role === ROLES.VENDOR) return;
     if (user && !deliveryLocation.isDetected && !hasPromptedLocationRef.current) {
       hasPromptedLocationRef.current = true;
       detectAndApplyUserLocation(true);
     }
-  }, [user, deliveryLocation.isDetected, detectAndApplyUserLocation]);
+  }, [user, role, deliveryLocation.isDetected, detectAndApplyUserLocation]);
 
   // Global safety handlers for inline Stitch template event handlers
   useEffect(() => {
@@ -2504,6 +2507,24 @@ export default function StitchScreenRenderer({
     if (targetKey.includes('Vendor_Order_Queue')) {
       const currentVendorId = profile?.vendorId || user?.uid || (vendorProfile && (vendorProfile._id || vendorProfile.id));
       const currentShopName = (vendorProfile?.shopName || '').toLowerCase().trim();
+      const displayShopName = vendorProfile?.shopName || vendorProfile?.storeName || profile?.shopName || user?.displayName || 'Nagpur Boutique';
+      const displayArea = vendorProfile?.address?.area || profile?.address?.area || deliveryLocation?.areaName || 'Nagpur';
+
+      // 1. Dynamic shop name & location in header/banner
+      html = html.replace(/id="vendor-shop-name"[^>]*>[\s\S]*?<\/h2>/i, `id="vendor-shop-name">${displayShopName}</h2>`);
+      html = html.replace(/Nagpur Store 04/g, displayShopName);
+      html = html.replace(/id="vendor-header-area"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-header-area">${displayArea}</span>`);
+
+      // 2. Vendor avatar
+      if (user?.photoURL) {
+        html = html.replace(/id="vendor-header-avatar"[^>]*>[\s\S]*?<\/div>/i, `id="vendor-header-avatar" class="w-8 h-8 rounded-full overflow-hidden border border-gold/40 shadow-sm"><img src="${user.photoURL}" alt="${displayShopName}" class="w-full h-full object-cover" /></div>`);
+      }
+
+      // 3. Online/Offline toggle state
+      const toggleSwitchClass = isAtelierOnline ? 'bg-crimson' : 'bg-stone-600';
+      const toggleKnobClass = isAtelierOnline ? 'translate-x-6' : 'translate-x-1';
+      html = html.replace(/id="toggleAtelierBtn"[^>]*>[\s\S]*?<\/button>/i, `id="toggleAtelierBtn" class="relative inline-flex h-6 w-11 items-center rounded-full ${toggleSwitchClass} transition-colors duration-200 focus:outline-none cursor-pointer" type="button" aria-label="Toggle Online Status"><span class="inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${toggleKnobClass} shadow-sm"></span></button>`);
+
       const vendorQueueOrders = recentOrders.filter(o => {
         if (!currentVendorId && !currentShopName) return false;
         const matchesId = o.vendorId && (o.vendorId === currentVendorId);
@@ -2511,20 +2532,62 @@ export default function StitchScreenRenderer({
         return Boolean(matchesId || matchesShop);
       });
 
+      const isDarkTheme = targetKey.includes('dark');
+      const activeTabBg = isDarkTheme ? 'bg-crimson text-white shadow-sm shadow-crimson/25' : 'bg-accent-crimson text-white shadow-sm shadow-crimson-glow';
+      const inactiveTabBg = isDarkTheme ? 'bg-noir-card border border-white/10 text-stone-300 hover:bg-noir-elevated' : 'bg-surface-container-low border border-black/5 text-text-obsidian hover:bg-surface-container';
+
       if (vendorQueueOrders.length === 0) {
+        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">0 Active Orders</span>`);
         html = html.replace(/\d+\s+Active Orders/gi, '0 Active Orders');
-        // Synchronize tabs to 0 counts and use Packing & Dispatch
+
         const zeroTabsHtml = `
-          <button class="queue-tab active-tab bg-text-obsidian text-surface-porcelain font-semibold px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="all">All (0)</button>
-          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="new">New Queue (0)</button>
-          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="packing">Packing &amp; Dispatch (0)</button>
-          <button class="queue-tab bg-surface-container-low text-text-slate px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="dispatched">Dispatched (0)</button>
+          <button class="queue-tab ${(queueFilter || 'all') === 'all' ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer" data-filter="all" type="button">All (0)</button>
+          <button class="queue-tab ${(queueFilter || 'all') === 'new' ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer" data-filter="new" type="button">New Queue (0)</button>
+          <button class="queue-tab ${(queueFilter || 'all') === 'packing' ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer" data-filter="packing" type="button">Packing &amp; Dispatch (0)</button>
+          <button class="queue-tab ${(queueFilter || 'all') === 'dispatched' ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer" data-filter="dispatched" type="button">Dispatched (0)</button>
         `;
-        html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${zeroTabsHtml}$2`);
-        const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
-        if (queueContainerRegex.test(html)) {
-          html = html.replace(queueContainerRegex, `$1<div class="p-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container-low my-4"><span class="material-symbols-outlined text-4xl text-text-ash">inbox</span><h3 class="font-title-md text-base text-text-obsidian font-bold">No Incoming Orders</h3><p class="font-body-sm text-xs text-text-slate max-w-xs">You have no active orders in your queue right now.</p></div>$2`);
-        }
+        html = html.replace(/(id="vendor-queue-tabs"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${zeroTabsHtml}$2`);
+
+        const emptyStateDark = `
+          <div class="p-8 sm:p-10 text-center flex flex-col items-center justify-center gap-3.5 bg-noir-surface/90 rounded-2xl border border-noir-border shadow-sm my-2" id="vendor-empty-queue-state">
+            <div class="w-14 h-14 rounded-2xl bg-noir-card border border-white/10 flex items-center justify-center text-gold shadow-inner">
+              <span class="material-symbols-outlined text-[28px]">inventory_2</span>
+            </div>
+            <div class="space-y-1.5 max-w-xs">
+              <h3 class="font-title-md text-[18px] text-stone-100 font-semibold tracking-tight">Queue is Clear</h3>
+              <p class="font-body-sm text-[12px] text-stone-400 leading-relaxed">
+                Your boutique is live on Nagpur express 45-minute dispatch network. Customer orders placed across Nagpur will appear here in real-time.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" data-path="boutique-catalogue" class="px-4 py-2.5 rounded-xl bg-noir-card hover:bg-noir-elevated border border-gold/40 text-gold text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95">
+                <span class="material-symbols-outlined text-[16px]">checkroom</span>
+                <span>Open Boutique Catalogue</span>
+              </button>
+            </div>
+          </div>
+        `;
+        const emptyStateLight = `
+          <div class="p-8 sm:p-10 text-center flex flex-col items-center justify-center gap-3.5 bg-surface-container-lowest rounded-2xl border border-border-hairline shadow-sm my-2" id="vendor-empty-queue-state">
+            <div class="w-14 h-14 rounded-2xl bg-surface-container-low border border-black/5 flex items-center justify-center text-accent-gold-deep shadow-inner">
+              <span class="material-symbols-outlined text-[28px]">inventory_2</span>
+            </div>
+            <div class="space-y-1.5 max-w-xs">
+              <h3 class="font-title-md text-[18px] text-text-obsidian font-semibold tracking-tight">Queue is Clear</h3>
+              <p class="font-body-sm text-[12px] text-text-slate leading-relaxed">
+                Your boutique is live on Nagpur express 45-minute dispatch network. Customer orders placed across Nagpur will appear here in real-time.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" data-path="boutique-catalogue" class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-accent-gold/40 text-accent-gold-deep text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95">
+                <span class="material-symbols-outlined text-[16px]">checkroom</span>
+                <span>Open Boutique Catalogue</span>
+              </button>
+            </div>
+          </div>
+        `;
+        const emptyStateHtml = isDarkTheme ? emptyStateDark : emptyStateLight;
+        html = html.replace(/(id="vendor-order-cards-container"[^>]*>)[\s\S]*?(<\/div>\s*<\/div>\s*<!-- 3\. Bottom Nav)/i, `$1${emptyStateHtml}$2`);
       } else {
         let filteredQueue = vendorQueueOrders;
         if (queueFilter === 'new') {
@@ -2535,108 +2598,179 @@ export default function StitchScreenRenderer({
           filteredQueue = vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED');
         }
 
-        // Update active order badge and toggle online button
+        // Update active order badge
+        html = html.replace(/id="vendor-active-orders-badge"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-active-orders-badge">${vendorQueueOrders.length} Active Orders</span>`);
         html = html.replace(/\d+\s+Active Orders/gi, `${vendorQueueOrders.length} Active Orders`);
-        html = html.replace(/id="toggleAtelierBtn"[^>]*>[\s\S]*?<\/button>/i, `id="toggleAtelierBtn" class="relative inline-flex h-6 w-11 items-center rounded-full ${isAtelierOnline ? 'bg-accent-crimson' : 'bg-stone-400'} transition-colors duration-200 focus:outline-none"><span class="inline-block h-4 w-4 transform rounded-full bg-surface-container-lowest transition duration-200 ${isAtelierOnline ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span></button>`);
 
-        // Update queue tabs with active state
+        // Update tabs with real counts
+        const newCount = vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length;
+        const packingCount = vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length;
+        const dispatchedCount = vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length;
+
         const tabs = [
           { filter: 'all', label: `All (${vendorQueueOrders.length})` },
-          { filter: 'new', label: `New Queue (${vendorQueueOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING' || !o.status).length})`, ping: true },
-          { filter: 'packing', label: `Packing &amp; Dispatch (${vendorQueueOrders.filter(o => o.status === 'ACCEPTED' || o.status === 'PACKING').length})` },
-          { filter: 'dispatched', label: `Dispatched (${vendorQueueOrders.filter(o => o.status === 'DISPATCHED' || o.status === 'SHIPPED').length})` },
+          { filter: 'new', label: `New Queue (${newCount})`, ping: newCount > 0 },
+          { filter: 'packing', label: `Packing &amp; Dispatch (${packingCount})` },
+          { filter: 'dispatched', label: `Dispatched (${dispatchedCount})` },
         ];
         const tabsHtml = tabs.map(t => {
           const isAct = (queueFilter || 'all') === t.filter;
-          return `<button class="queue-tab ${isAct ? 'active-tab bg-text-obsidian text-surface-porcelain font-semibold' : 'bg-surface-container-low text-text-slate'} px-3.5 py-2 rounded-full font-tabular-caption text-tabular-caption whitespace-nowrap flex items-center gap-1.5 transition-all" data-filter="${t.filter}">
-            ${t.ping && !isAct ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-crimson animate-ping"></span>' : ''}
+          return `<button class="queue-tab ${isAct ? `active-tab ${activeTabBg} font-semibold` : `${inactiveTabBg} font-medium`} px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer" data-filter="${t.filter}" type="button">
+            ${t.ping && !isAct ? '<span class="w-1.5 h-1.5 rounded-full bg-crimson animate-ping"></span>' : ''}
             <span>${t.label}</span>
           </button>`;
         }).join('');
 
-        html = html.replace(/(<div[^>]*class="[^"]*flex items-center gap-gutter-xs overflow-x-auto no-scrollbar py-1[^"]*"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${tabsHtml}$2`);
+        html = html.replace(/(id="vendor-queue-tabs"[^>]*>)[\s\S]*?(<\/div>)/i, `$1${tabsHtml}$2`);
 
-      const liveQueueCardsHtml = filteredQueue.map((ord) => {
-        const idStr = `KP-${(ord.orderId || ord._id || '8492').slice(-6).toUpperCase()}`;
-        const totalStr = `₹${(ord.totalPrice || ord.total || 4800).toLocaleString()}`;
-        const statusStr = ord.status || 'CONFIRMED';
-        const firstItem = ord.items?.[0] || {};
-        const itemName = firstItem.name || 'Heavyweight Boxy Graphic Tee';
-        const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
-        const itemSize = firstItem.size || 'M';
-        const itemColor = firstItem.color || 'Sindhoor Crimson';
-        const itemCount = ord.items?.length || 1;
+        const liveQueueCardsHtml = filteredQueue.map((ord) => {
+          const idStr = `KP-${(ord.orderId || ord._id || '8492').slice(-6).toUpperCase()}`;
+          const totalStr = `₹${(ord.totalPrice || ord.total || 4800).toLocaleString()}`;
+          const statusStr = ord.status || 'CONFIRMED';
+          const firstItem = ord.items?.[0] || {};
+          const itemName = firstItem.name || 'Heavyweight Boxy Graphic Tee';
+          const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+          const itemSize = firstItem.size || 'M';
+          const itemColor = firstItem.color || 'Sindhoor Crimson';
+          const itemCount = ord.items?.length || 1;
+          const receiverName = ord.deliveryAddress?.receiverName || ord.customerName || 'Customer';
+          const receiverArea = ord.deliveryAddress?.area || ord.deliveryAddress?.city || 'Nagpur Central';
 
-        return `
-          <article class="order-card relative flex flex-col rounded-xl bg-surface-container-lowest p-5 shadow-[0_12px_32px_rgba(18,18,20,0.05)] transition-all overflow-hidden cursor-pointer" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-crimson via-accent-gold to-accent-crimson"></div>
-            <div class="flex items-start justify-between gap-gutter-sm mb-3.5 pt-1">
-              <div class="flex flex-col min-w-0">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="font-eyebrow text-eyebrow uppercase text-accent-crimson font-bold tracking-widest">Express Delivery</span>
-                  <span class="text-text-ash text-body-sm">·</span>
-                  <span class="font-tabular-caption text-tabular-caption text-text-ash">Just now</span>
-                </div>
-                <h2 class="font-title-lg text-title-lg text-text-obsidian tracking-tight mt-0.5">Order #${idStr}</h2>
-              </div>
-              <div class="flex items-center gap-1 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500/10' : (statusStr === 'DISPATCHED' ? 'bg-emerald-500/10' : 'bg-accent-crimson/10')} flex-shrink-0">
-                <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500' : (statusStr === 'DISPATCHED' ? 'bg-emerald-600' : 'bg-accent-crimson')} animate-pulse"></span>
-                <span class="font-eyebrow text-eyebrow ${statusStr === 'ACCEPTED' ? 'text-amber-700' : (statusStr === 'DISPATCHED' ? 'text-emerald-700' : 'text-accent-crimson')} font-bold uppercase tracking-wider">${statusStr}</span>
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-2.5 p-3 rounded-lg bg-ground-subtle mb-4">
-              <div class="flex items-center gap-3">
-                <img class="w-12 h-14 object-cover rounded-lg flex-shrink-0 shadow-sm" alt="${itemName}" src="${itemImg}" onerror="this.src='/app/apple-touch-icon.png';" />
-                <div class="flex flex-col min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="font-body-md text-body-md text-text-obsidian font-semibold truncate">${itemName}</p>
-                    <span class="font-tabular-price text-tabular-price text-text-obsidian whitespace-nowrap">${totalStr}</span>
+          if (isDarkTheme) {
+            return `
+              <article class="order-card relative flex flex-col rounded-2xl bg-noir-surface/90 border border-noir-border p-4 shadow-sm transition-all overflow-hidden cursor-pointer" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex flex-col min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-eyebrow text-[10px] uppercase text-crimson font-bold tracking-wider">Express 45-Min</span>
+                      <span class="text-stone-500 text-xs">·</span>
+                      <span class="text-[11px] text-stone-400">Just now</span>
+                    </div>
+                    <h3 class="font-title-md text-[17px] font-semibold text-stone-100 tracking-tight mt-0.5">Order #${idStr}</h3>
                   </div>
-                  <p class="font-body-sm text-body-sm text-text-slate truncate">Size ${itemSize} · ${itemColor} · Qty ${itemCount}</p>
+                  <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300' : (statusStr === 'DISPATCHED' ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300' : 'bg-crimson/15 border border-crimson/30 text-rose-300')} flex-shrink-0 text-[11px] font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-400' : (statusStr === 'DISPATCHED' ? 'bg-emerald-400' : 'bg-crimson')} animate-pulse"></span>
+                    <span class="font-eyebrow uppercase tracking-wider">${statusStr}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="flex items-center gap-2 pt-1 border-t border-surface-container-low">
-              ${statusStr === 'CONFIRMED' || statusStr === 'PENDING' ? `
-                <button data-action="accept-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-accent-crimson text-surface-porcelain font-semibold text-xs shadow-md active:scale-95 transition-all">
-                  Accept Order
-                </button>
-              ` : (statusStr === 'ACCEPTED' ? `
-                <button data-action="mark-ready" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all">
-                  Dispatch Porter Courier
-                </button>
-              ` : `
-                <button data-action="track-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-text-obsidian text-white font-semibold text-xs shadow-md active:scale-95 transition-all">
-                  Track En-Route Porter
-                </button>
-              `)}
-              <button data-action="view-order-detail" data-order-id="${ord.orderId || ord._id}" class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-obsidian font-semibold text-xs transition-all">
-                View Details
-              </button>
-            </div>
-          </article>
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-noir-card border border-white/5 mb-3">
+                  <img class="w-12 h-14 object-cover rounded-lg flex-shrink-0 border border-white/10" alt="${itemName}" src="${itemImg}" onerror="this.src='/app/apple-touch-icon.png';" />
+                  <div class="flex flex-col min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-xs font-semibold text-stone-100 truncate">${itemName}</p>
+                      <span class="font-tabular-price text-xs font-bold text-gold">${totalStr}</span>
+                    </div>
+                    <p class="text-[11px] text-stone-400 truncate mt-0.5">Size ${itemSize} · ${itemColor} · Qty ${itemCount}</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-stone-400 px-1 pb-3">
+                  <span class="truncate">${receiverName} · <strong class="text-stone-300">${receiverArea}</strong></span>
+                  <span class="font-semibold text-gold shrink-0">COD</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2 border-t border-white/10">
+                  ${statusStr === 'CONFIRMED' || statusStr === 'PENDING' ? `
+                    <button data-action="accept-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-crimson hover:bg-crimson-dark text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+                      Accept Order
+                    </button>
+                  ` : (statusStr === 'ACCEPTED' ? `
+                    <button data-action="mark-ready" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+                      Dispatch Porter Courier
+                    </button>
+                  ` : `
+                    <button data-action="track-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-noir-elevated text-stone-200 font-semibold text-xs border border-white/10 shadow-md active:scale-95 transition-all cursor-pointer">
+                      Track En-Route Porter
+                    </button>
+                  `)}
+                  <button data-action="view-order-detail" data-order-id="${ord.orderId || ord._id}" class="px-4 py-2.5 rounded-xl bg-noir-card hover:bg-noir-elevated text-stone-200 border border-white/10 font-medium text-xs transition-all cursor-pointer">
+                    View Details
+                  </button>
+                </div>
+              </article>
+            `;
+          } else {
+            return `
+              <article class="order-card relative flex flex-col rounded-2xl bg-surface-container-lowest border border-border-hairline p-4 shadow-sm transition-all overflow-hidden cursor-pointer" data-status="${statusStr.toLowerCase()}" data-order-id="${ord.orderId || ord._id}">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex flex-col min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-eyebrow text-[10px] uppercase text-accent-crimson font-bold tracking-wider">Express 45-Min</span>
+                      <span class="text-text-ash text-xs">·</span>
+                      <span class="text-[11px] text-text-slate">Just now</span>
+                    </div>
+                    <h3 class="font-title-md text-[17px] font-semibold text-text-obsidian tracking-tight mt-0.5">Order #${idStr}</h3>
+                  </div>
+                  <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-50 text-amber-700 border border-amber-200' : (statusStr === 'DISPATCHED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200')} flex-shrink-0 text-[11px] font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full ${statusStr === 'ACCEPTED' ? 'bg-amber-500' : (statusStr === 'DISPATCHED' ? 'bg-emerald-600' : 'bg-accent-crimson')} animate-pulse"></span>
+                    <span class="font-eyebrow uppercase tracking-wider">${statusStr}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-ground-subtle border border-black/5 mb-3">
+                  <img class="w-12 h-14 object-cover rounded-lg flex-shrink-0 border border-black/5" alt="${itemName}" src="${itemImg}" onerror="this.src='/app/apple-touch-icon.png';" />
+                  <div class="flex flex-col min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-xs font-semibold text-text-obsidian truncate">${itemName}</p>
+                      <span class="font-tabular-price text-xs font-bold text-accent-gold-deep">${totalStr}</span>
+                    </div>
+                    <p class="text-[11px] text-text-slate truncate mt-0.5">Size ${itemSize} · ${itemColor} · Qty ${itemCount}</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-text-slate px-1 pb-3">
+                  <span class="truncate">${receiverName} · <strong class="text-text-obsidian">${receiverArea}</strong></span>
+                  <span class="font-semibold text-accent-gold-deep shrink-0">COD</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2 border-t border-surface-container-low">
+                  ${statusStr === 'CONFIRMED' || statusStr === 'PENDING' ? `
+                    <button data-action="accept-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-accent-crimson hover:bg-accent-crimson-deep text-surface-porcelain font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+                      Accept Order
+                    </button>
+                  ` : (statusStr === 'ACCEPTED' ? `
+                    <button data-action="mark-ready" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+                      Dispatch Porter Courier
+                    </button>
+                  ` : `
+                    <button data-action="track-order" data-order-id="${ord.orderId || ord._id}" class="flex-1 py-2.5 rounded-xl bg-text-obsidian text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+                      Track En-Route Porter
+                    </button>
+                  `)}
+                  <button data-action="view-order-detail" data-order-id="${ord.orderId || ord._id}" class="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-text-obsidian font-semibold text-xs transition-all cursor-pointer">
+                    View Details
+                  </button>
+                </div>
+              </article>
+            `;
+          }
+        }).join('');
+
+        const emptyFilterMsg = `
+          <div class="p-8 text-center flex flex-col items-center justify-center gap-2 rounded-2xl ${isDarkTheme ? 'bg-noir-surface/90 border border-noir-border text-stone-400' : 'bg-surface-container-lowest border border-border-hairline text-text-slate'}">
+            <span class="material-symbols-outlined text-3xl opacity-60">filter_list_off</span>
+            <p class="text-xs font-medium">No orders in this queue state.</p>
+          </div>
         `;
-      }).join('');
 
-      const queueContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-gutter-md[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
-      if (queueContainerRegex.test(html)) {
-        html = html.replace(queueContainerRegex, `$1${liveQueueCardsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No orders in this queue state.</div>'}$2`);
+        html = html.replace(/(id="vendor-order-cards-container"[^>]*>)[\s\S]*?(<\/div>\s*<\/div>\s*<!-- 3\. Bottom Nav)/i, `$1${liveQueueCardsHtml || emptyFilterMsg}$2`);
       }
     }
-  }
 
     // 8. VENDOR ORDER DETAIL: Inject active order details
     if (targetKey.includes('Vendor_Order_Detail')) {
-      const activeOrd = recentOrders.find(o => (o.orderId || o._id) === params.orderId) || recentOrders[0] || {};
-      const idClean = `KP-${String(activeOrd.orderId || activeOrd._id || '8492').slice(-6).toUpperCase()}`;
-      html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, idClean);
-      if (activeOrd.deliveryAddress?.receiverName) {
-        html = html.replace(/Radhika Deshmukh|Mrs\. Sunita Kulkarni/gi, activeOrd.deliveryAddress.receiverName);
-      }
-      if (activeOrd.deliveryAddress?.line1) {
-        html = html.replace(/Flat 402, Royal Palms, West High Court Road/gi, `${activeOrd.deliveryAddress.line1}, ${activeOrd.deliveryAddress.line2 || 'Dharampeth'}`);
+      const activeOrd = recentOrders.find(o => (o.orderId || o._id) === params?.orderId) || (recentOrders.length > 0 ? recentOrders[0] : null);
+      if (activeOrd) {
+        const idClean = `KP-${String(activeOrd.orderId || activeOrd._id || '8492').slice(-6).toUpperCase()}`;
+        html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, idClean);
+        html = html.replace(/id="detail-order-number"[^>]*>[\s\S]*?<\/span>/i, `id="detail-order-number">Order #${idClean}</span>`);
+        if (activeOrd.deliveryAddress?.receiverName) {
+          html = html.replace(/Radhika Deshmukh|Mrs\. Sunita Kulkarni/gi, activeOrd.deliveryAddress.receiverName);
+        }
+        if (activeOrd.deliveryAddress?.line1) {
+          html = html.replace(/Flat 402, Royal Palms, West High Court Road|Flat 402, Royal Gulmohar Manor/gi, `${activeOrd.deliveryAddress.line1}, ${activeOrd.deliveryAddress.line2 || 'Dharampeth'}`);
+        }
       }
     }
 

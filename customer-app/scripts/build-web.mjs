@@ -535,5 +535,9 @@ if (fs.existsSync(targetSymlink) || fs.lstatSync(targetSymlink, { throwIfNoEntry
   fs.rmSync(targetSymlink, { force: true });
 }
 
+try {
+  fs.symlinkSync('.', path.join(distWebDir, 'app'), 'dir');
+} catch (e) {}
+
 console.log('[4/4] Web app build and sync complete! Ready for Vercel deployment at kyapehnu.shop/app');
 
