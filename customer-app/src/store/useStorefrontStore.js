@@ -59,8 +59,8 @@ export const getCuratedProducts = () => {
 };
 
 const allowMockCatalogue =
-  typeof process === 'undefined' ||
-  process.env?.EXPO_PUBLIC_USE_MOCK_CATALOGUE !== '0';
+  typeof process !== 'undefined' &&
+  process.env?.EXPO_PUBLIC_USE_MOCK_CATALOGUE === '1';
 
 /**
  * Map a backend product (with its vendor populated) onto the shape every

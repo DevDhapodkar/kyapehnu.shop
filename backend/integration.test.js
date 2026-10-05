@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 
 import connectDB from './config/db.js';
+import { ensureBootstrapData } from './config/seedData.js';
 import Vendor from './models/Vendor.js';
 import Product from './models/Product.js';
 import Order from './models/Order.js';
@@ -18,6 +19,7 @@ dotenv.config();
 test('E2E Storefront and Order Lifecycle Integration', async (t) => {
   const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/kyapehnu';
   await mongoose.connect(mongoUri);
+  await ensureBootstrapData();
 
   const app = express();
   app.use(express.json());

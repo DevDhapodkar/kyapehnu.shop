@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import { verifyPassword, hashPassword, signAdminToken } from '../utils/adminAuth.js';
 import { PRODUCT_STATUS, statusForReview } from '../utils/productStatus.js';
 import { buildUniqueSku } from '../utils/sku.js';
+import { deleteAllFirebaseUsers, listAllFirebaseUsers } from '../config/firebase.js';
 
 /** GET /api/admin/needs-setup -> { needsSetup } (true when no admin exists yet). */
 export const getSetupStatus = async (req, res) => {
@@ -331,3 +332,78 @@ export const systemWipeTestData = async (req, res) => {
     res.status(500).json({ message: 'Failed to wipe database', error: error.message });
   }
 };
+
+/** GET /api/admin/users — list registered customer profiles */
+export const listUsers = async (req, res) => {
+  try {
+    const users = await User.find({}).sort({ createdAt: -1 }).limit(100);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to list users', error: error.message });
+  }
+};
+
+/** DELETE /api/admin/vendors/:id — remove specific vendor and its products */
+export const deleteVendorAsAdmin = async (req, res) => {
+  try {
+    const vendor = await Vendor.findByIdAndDelete(req.params.id);
+    if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+    const deletedProducts = await Product.deleteMany({ vendor: req.params.id });
+    res.json({
+      success: true,
+      message: `Vendor ${vendor.shopName} and ${deletedProducts.deletedCount} products deleted`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete vendor', error: error.message });
+  }
+};
+
+/** DELETE /api/admin/products/:id — remove specific product */
+export const deleteProductAsAdmin = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+    res.json({ success: true, message: `Product ${product.name} deleted` });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete product', error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/clean-slate
+ * Super-admin action: wipes all customer accounts, vendor accounts, products, orders,
+ * and clears Firebase auth users. Returns full audit of everything deleted.
+ */
+export const cleanSlate = async (req, res) => {
+  if (!req.admin || req.admin.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({ message: 'Forbidden: Super admin privileges required' });
+  }
+
+  try {
+    const [deletedOrders, deletedProducts, deletedVendors, deletedUsers] = await Promise.all([
+      Order.deleteMany({}),
+      Product.deleteMany({}),
+      Vendor.deleteMany({}),
+      User.deleteMany({}),
+    ]);
+
+    const fbResult = await deleteAllFirebaseUsers();
+
+    res.json({
+      success: true,
+      message: 'Clean slate completed successfully',
+      deleted: {
+        customers: deletedUsers.deletedCount,
+        vendors: deletedVendors.deletedCount,
+        products: deletedProducts.deletedCount,
+        orders: deletedOrders.deletedCount,
+        firebaseUsers: fbResult.count,
+      },
+      firebaseErrors: fbResult.errors?.length ? fbResult.errors : undefined,
+    });
+  } catch (error) {
+    console.error('[cleanSlate] Error:', error);
+    res.status(500).json({ message: 'Failed to clean slate', error: error.message });
+  }
+};
+
