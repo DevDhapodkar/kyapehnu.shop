@@ -22,6 +22,7 @@ import {
   NAGPUR_CENTER,
   NAGPUR_AREAS,
 } from '../utils/geolocation';
+import { GOOGLE_MAPS_LOGO_SVG, searchNagpurLocation } from '../utils/googleMapsService';
 import { colors, radii, spacing } from '../theme/colors';
 
 // Popular Nagpur Express Hubs for instant 1-tap snap
@@ -225,6 +226,14 @@ export default function BlinkitLocationPicker({
 
         tileLayer.addTo(map);
 
+        const googleBadge = L.control({ position: 'bottomleft' });
+        googleBadge.onAdd = function () {
+          const div = L.DomUtil.create('div', 'google-map-brand-badge');
+          div.innerHTML = GOOGLE_MAPS_LOGO_SVG;
+          return div;
+        };
+        googleBadge.addTo(map);
+
         // Blinkit physics: lift center pin when drag/pan starts
         map.on('movestart', () => {
           setIsMapMoving(true);
@@ -297,21 +306,36 @@ export default function BlinkitLocationPicker({
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
+        const curated = await searchNagpurLocation(text);
         const query = encodeURIComponent(`${text.trim()} Nagpur`);
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=in&limit=5`,
           { headers: { 'User-Agent': 'KyaPehnuApp/1.0' } }
         );
+        let list = [];
         if (res.ok) {
           const data = await res.json();
-          setSearchResults(data || []);
+          list = data || [];
         }
+        if (curated) {
+          const curatedItem = {
+            place_id: `curated-${curated.name}`,
+            display_name: `${curated.name}, Nagpur (${curated.pincode || '440012'})`,
+            lat: curated.lat.toString(),
+            lon: curated.lng.toString(),
+          };
+          list = [
+            curatedItem,
+            ...list.filter((it) => !it.display_name?.toLowerCase().includes(curated.name.toLowerCase())),
+          ];
+        }
+        setSearchResults(list);
       } catch {
         setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
-    }, 350);
+    }, 300);
   };
 
   // Fly to search result

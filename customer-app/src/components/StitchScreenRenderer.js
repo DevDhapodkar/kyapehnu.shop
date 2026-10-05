@@ -32,6 +32,15 @@ import {
   NAGPUR_AREAS,
   NAGPUR_CENTER,
 } from '../utils/geolocation';
+import {
+  createGoogleMapsTileLayer,
+  GOOGLE_MAPS_TILES,
+  GOOGLE_MAPS_SUBDOMAINS,
+  GOOGLE_MAPS_ATTRIBUTION,
+  GOOGLE_MAPS_LOGO_SVG,
+  searchNagpurLocation,
+  loadGoogleMapsScript,
+} from '../utils/googleMapsService';
 
 const DARK_PALETTE_CSS = `
   .hidden { display: none !important; }
@@ -227,10 +236,6 @@ export default function StitchScreenRenderer({
   const [isAtelierOnline, setIsAtelierOnline] = useState(true);
   const [vendorRegStep, setVendorRegStep] = useState(1);
   const vendorRegStepRef = useRef(1);
-  const vendorCoordsRef = useRef({ latitude: 21.1458, longitude: 79.0882 });
-  const vendorMapRef = useRef(null);
-  const vendorMarkerRef = useRef(null);
-
   // Delivery Address & Location Pin States
   const [deliveryLocation, setDeliveryLocation] = useState(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -250,6 +255,36 @@ export default function StitchScreenRenderer({
       isDetected: false,
     };
   });
+
+  const vendorCoordsRef = useRef({
+    latitude: deliveryLocation.latitude || 21.1458,
+    longitude: deliveryLocation.longitude || 79.0882,
+    isManuallyPinned: false,
+  });
+  const vendorMapRef = useRef(null);
+  const vendorMarkerRef = useRef(null);
+
+  // Synchronize vendor map and coordinates reactively with detected location
+  useEffect(() => {
+    if (deliveryLocation?.isDetected && deliveryLocation.latitude && deliveryLocation.longitude) {
+      if (!vendorCoordsRef.current?.isManuallyPinned) {
+        vendorCoordsRef.current = {
+          latitude: deliveryLocation.latitude,
+          longitude: deliveryLocation.longitude,
+          isManuallyPinned: false,
+        };
+        if (vendorMapRef.current) {
+          vendorMapRef.current.invalidateSize(true);
+          vendorMapRef.current.setView([deliveryLocation.latitude, deliveryLocation.longitude], 16, { animate: true });
+          if (vendorMarkerRef.current) {
+            vendorMarkerRef.current.setLatLng([deliveryLocation.latitude, deliveryLocation.longitude]);
+            const area = deliveryLocation.areaName || 'Detected Location';
+            vendorMarkerRef.current.bindPopup(`<b>${area}</b><br/>${deliveryLocation.road || 'Nagpur Boutique Pickup Bay'}`).openPopup();
+          }
+        }
+      }
+    }
+  }, [deliveryLocation.latitude, deliveryLocation.longitude, deliveryLocation.isDetected, deliveryLocation.areaName, deliveryLocation.road]);
   const [isLocating, setIsLocating] = useState(false);
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [addressClassification, setAddressClassification] = useState('Home');
@@ -552,7 +587,33 @@ export default function StitchScreenRenderer({
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
         }
-        showToast(`Location set to ${areaName}, Nagpur`);
+
+        // Sync vendor coordinates and pan map if not manually pinned
+        if (!vendorCoordsRef.current?.isManuallyPinned) {
+          vendorCoordsRef.current = {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            isManuallyPinned: false,
+          };
+          if (vendorMapRef.current) {
+            vendorMapRef.current.invalidateSize(true);
+            vendorMapRef.current.setView([coords.latitude, coords.longitude], 16, { animate: true });
+            if (vendorMarkerRef.current) {
+              vendorMarkerRef.current.setLatLng([coords.latitude, coords.longitude]);
+              vendorMarkerRef.current.bindPopup(`<b>${areaName}</b><br/>${road || 'Nagpur Boutique Pickup Bay'}`).openPopup();
+            }
+          }
+        }
+
+        // Pre-fill atelier-address on vendor screen if present and blank
+        if (containerRef.current) {
+          const addressInput = containerRef.current.querySelector('#atelier-address');
+          if (addressInput && !addressInput.value.trim()) {
+            addressInput.value = road ? `${road}, ${areaName}, Nagpur (${pincode})` : `${areaName}, Nagpur (${pincode})`;
+          }
+        }
+
+        showToast(`Doorstep detected: ${areaName}, Nagpur (${pincode})`);
       })
       .catch((err) => {
         console.warn('[StitchScreenRenderer] Geolocation notice:', err);
@@ -2964,17 +3025,19 @@ export default function StitchScreenRenderer({
             }
             if (submitBtnText) submitBtnText.textContent = 'Continue to Step 3 — Credentials';
 
-            setTimeout(() => {
-              if (vendorMapRef.current) {
-                vendorMapRef.current.invalidateSize(true);
-                const lat = vendorCoordsRef.current?.latitude || 21.1458;
-                const lng = vendorCoordsRef.current?.longitude || 79.0882;
-                vendorMapRef.current.setView([lat, lng], 15, { animate: false });
-                if (vendorMarkerRef.current) {
-                  vendorMarkerRef.current.setLatLng([lat, lng]);
+            const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+            const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+            [50, 150, 300].forEach((delay) => {
+              setTimeout(() => {
+                if (vendorMapRef.current) {
+                  vendorMapRef.current.invalidateSize(true);
+                  vendorMapRef.current.setView([lat, lng], 16, { animate: false });
+                  if (vendorMarkerRef.current) {
+                    vendorMarkerRef.current.setLatLng([lat, lng]);
+                  }
                 }
-              }
-            }, 150);
+              }, delay);
+            });
             return;
           }
 
@@ -4087,40 +4150,83 @@ export default function StitchScreenRenderer({
       if (recalibrateBtn) {
         e.preventDefault();
         e.stopPropagation();
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-          showToast('Locating your boutique...');
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const lat = pos.coords.latitude;
-              const lng = pos.coords.longitude;
-              vendorCoordsRef.current = { latitude: lat, longitude: lng };
-              if (vendorMapRef.current) {
-                vendorMapRef.current.setView([lat, lng], 16);
-                if (vendorMarkerRef.current) {
-                  vendorMarkerRef.current.setLatLng([lat, lng]);
-                  vendorMarkerRef.current.openPopup();
-                }
-                vendorMapRef.current.invalidateSize(true);
+
+        const originalBtnHtml = recalibrateBtn.innerHTML;
+        recalibrateBtn.innerHTML = '<span class="material-symbols-outlined text-[13px] animate-spin">sync</span> Locating...';
+        recalibrateBtn.style.pointerEvents = 'none';
+
+        showToast('Detecting precise boutique GPS coordinates...');
+
+        getCurrentCoordinates()
+          .then(async (coords) => {
+            const lat = coords.latitude;
+            const lng = coords.longitude;
+            vendorCoordsRef.current = { latitude: lat, longitude: lng, isManuallyPinned: true };
+
+            if (vendorMapRef.current) {
+              vendorMapRef.current.invalidateSize(true);
+              vendorMapRef.current.setView([lat, lng], 16, { animate: true });
+              if (vendorMarkerRef.current) {
+                vendorMarkerRef.current.setLatLng([lat, lng]);
               }
-              showToast('Location updated from GPS');
-            },
-            () => {
-              const lat = 21.1458;
-              const lng = 79.0882;
-              vendorCoordsRef.current = { latitude: lat, longitude: lng };
-              if (vendorMapRef.current) {
-                vendorMapRef.current.setView([lat, lng], 15);
-                if (vendorMarkerRef.current) {
-                  vendorMarkerRef.current.setLatLng([lat, lng]);
-                }
+            }
+
+            let resolved = null;
+            try {
+              resolved = await reverseGeocodeLocation(coords);
+            } catch (err) {
+              resolved = getClosestNagpurArea(lat, lng);
+            }
+
+            const inZone = isWithinNagpur(lat, lng);
+            const areaName = resolved?.areaName || (inZone ? 'Sitabuldi' : 'Nagpur Hub');
+            const road = resolved?.road || '';
+            const pincode = resolved?.pincode || '440012';
+            const formatted = road ? `${road}, ${areaName}, Nagpur (${pincode})` : `${areaName}, Nagpur (${pincode})`;
+
+            const addressInput = el.querySelector('#atelier-address');
+            if (addressInput) {
+              addressInput.value = formatted;
+            }
+
+            if (vendorMarkerRef.current) {
+              vendorMarkerRef.current.bindPopup(`<b>${areaName}</b><br/>${road || 'Nagpur Boutique Pickup Bay'}`).openPopup();
+            }
+
+            const newLoc = {
+              latitude: lat,
+              longitude: lng,
+              areaName,
+              road,
+              pincode,
+              formattedAddress: formatted,
+              inZone,
+              isDetected: true,
+            };
+            setDeliveryLocation(newLoc);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+            }
+
+            showToast(`Boutique located: ${areaName}, Nagpur (${pincode})`);
+          })
+          .catch((err) => {
+            console.warn('[VendorMap] Locate GPS error:', err);
+            const fallbackLat = deliveryLocation.latitude || 21.1458;
+            const fallbackLng = deliveryLocation.longitude || 79.0882;
+            vendorCoordsRef.current = { latitude: fallbackLat, longitude: fallbackLng, isManuallyPinned: false };
+            if (vendorMapRef.current) {
+              vendorMapRef.current.setView([fallbackLat, fallbackLng], 15);
+              if (vendorMarkerRef.current) {
+                vendorMarkerRef.current.setLatLng([fallbackLat, fallbackLng]);
               }
-              showToast('Centered on Nagpur Central Hub');
-            },
-            { timeout: 6000, enableHighAccuracy: true }
-          );
-        } else {
-          showToast('Centered on Nagpur Central Hub');
-        }
+            }
+            showToast('Could not access GPS. Tap the map or enter address manually.');
+          })
+          .finally(() => {
+            recalibrateBtn.innerHTML = originalBtnHtml;
+            recalibrateBtn.style.pointerEvents = 'auto';
+          });
         return;
       }
 
@@ -4190,20 +4296,34 @@ export default function StitchScreenRenderer({
           }
           if (submitBtnText) submitBtnText.textContent = 'Continue to Step 3 — Credentials';
 
+          // Pre-populate address if empty and detected location exists
+          const addressInput = el.querySelector('#atelier-address');
+          if (addressInput && !addressInput.value.trim()) {
+            if (deliveryLocation.road || deliveryLocation.isDetected) {
+              addressInput.value = deliveryLocation.road
+                ? `${deliveryLocation.road}, ${deliveryLocation.areaName}, Nagpur (${deliveryLocation.pincode || '440012'})`
+                : `${deliveryLocation.areaName}, Nagpur (${deliveryLocation.pincode || '440012'})`;
+            }
+          }
+
           el.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'smooth' });
           window.scrollTo?.({ top: 0, behavior: 'smooth' });
 
-          setTimeout(() => {
-            if (vendorMapRef.current) {
-              vendorMapRef.current.invalidateSize(true);
-              const lat = vendorCoordsRef.current?.latitude || 21.1458;
-              const lng = vendorCoordsRef.current?.longitude || 79.0882;
-              vendorMapRef.current.setView([lat, lng], 15, { animate: false });
-              if (vendorMarkerRef.current) {
-                vendorMarkerRef.current.setLatLng([lat, lng]);
+          const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+          const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+          [50, 150, 300, 600, 1000].forEach((delay) => {
+            setTimeout(() => {
+              if (vendorMapRef.current) {
+                vendorMapRef.current.invalidateSize(true);
+                vendorMapRef.current.setView([lat, lng], 16, { animate: false });
+                if (vendorMarkerRef.current) {
+                  vendorMarkerRef.current.setLatLng([lat, lng]);
+                  const area = deliveryLocation.areaName || 'Nagpur Hub';
+                  vendorMarkerRef.current.bindPopup(`<b>${area}</b><br/>${deliveryLocation.road || 'Nagpur Boutique Pickup Bay'}`).openPopup();
+                }
               }
-            }
-          }, 150);
+            }, delay);
+          });
           return;
         }
 
@@ -4971,10 +5091,16 @@ export default function StitchScreenRenderer({
           keyboard: false,
         });
 
-        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-        });
+        const tiles = createGoogleMapsTileLayer(L, { type: 'roadmap' }) || L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
         tiles.addTo(map);
+
+        const googleBadge = L.control({ position: 'bottomleft' });
+        googleBadge.onAdd = function() {
+          const div = L.DomUtil.create('div', 'google-map-brand-badge');
+          div.innerHTML = GOOGLE_MAPS_LOGO_SVG;
+          return div;
+        };
+        googleBadge.addTo(map);
 
         deliveryMiniMapRef.current = map;
 
@@ -5062,7 +5188,7 @@ export default function StitchScreenRenderer({
       if (!active || !L) return;
       const mapEl = containerRef.current?.querySelector('#vendor-leaflet-map');
       if (!mapEl) {
-        if (pollCount < 30) {
+        if (pollCount < 40) {
           pollCount++;
           pollTimer = setTimeout(() => mountVendorMap(L), 150);
         }
@@ -5074,6 +5200,12 @@ export default function StitchScreenRenderer({
           const c = vendorMapRef.current.getContainer?.();
           if (c === mapEl) {
             vendorMapRef.current.invalidateSize(true);
+            const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+            const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+            vendorMapRef.current.setView([lat, lng], 16, { animate: false });
+            if (vendorMarkerRef.current) {
+              vendorMarkerRef.current.setLatLng([lat, lng]);
+            }
             return;
           }
           vendorMapRef.current.remove();
@@ -5090,26 +5222,73 @@ export default function StitchScreenRenderer({
       }
 
       try {
-        const initialLat = vendorCoordsRef.current?.latitude || 21.1458;
-        const initialLng = vendorCoordsRef.current?.longitude || 79.0882;
+        const initialLat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+        const initialLng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
 
         const map = L.map(mapEl, {
           center: [initialLat, initialLng],
-          zoom: 15,
+          zoom: 16,
           zoomControl: false,
           attributionControl: false,
         });
 
-        const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-        });
+        // Genuine Google Maps roadmap tiles (Fast CDN, high-res Nagpur roads, landmarks)
+        const tiles = createGoogleMapsTileLayer(L, { type: 'roadmap' }) || L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
         tiles.addTo(map);
+
+        // Google Maps official logo badge
+        const googleBadge = L.control({ position: 'bottomleft' });
+        googleBadge.onAdd = function () {
+          const div = L.DomUtil.create('div', 'google-map-brand-badge');
+          div.innerHTML = GOOGLE_MAPS_LOGO_SVG;
+          return div;
+        };
+        googleBadge.addTo(map);
+
+        // Map layer switcher (Map vs Satellite)
+        const layerCtrl = L.control({ position: 'topright' });
+        layerCtrl.onAdd = function () {
+          const div = L.DomUtil.create('div', 'leaflet-bar');
+          div.style.border = 'none';
+          div.style.margin = '8px 8px 0 0';
+          div.innerHTML = `
+            <div style="display:flex;background:${isDark ? 'rgba(28,27,29,0.92)' : 'rgba(255,255,255,0.92)'};border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.18);border:1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'};font-size:11px;">
+              <button type="button" id="btn-vmap-road" style="padding:4px 9px;border:none;background:#C4243A;color:#fff;cursor:pointer;font-weight:700;">Map</button>
+              <button type="button" id="btn-vmap-sat" style="padding:4px 9px;border:none;background:transparent;color:${isDark ? '#e5e1e4' : '#121215'};cursor:pointer;font-weight:600;">Sat</button>
+            </div>
+          `;
+          L.DomEvent.disableClickPropagation(div);
+          return div;
+        };
+        layerCtrl.addTo(map);
+
+        setTimeout(() => {
+          const roadBtn = mapEl.querySelector('#btn-vmap-road');
+          const satBtn = mapEl.querySelector('#btn-vmap-sat');
+          if (roadBtn && satBtn) {
+            roadBtn.onclick = () => {
+              tiles.setUrl(GOOGLE_MAPS_TILES.roadmap);
+              roadBtn.style.background = '#C4243A';
+              roadBtn.style.color = '#FFF';
+              satBtn.style.background = 'transparent';
+              satBtn.style.color = isDark ? '#e5e1e4' : '#121215';
+            };
+            satBtn.onclick = () => {
+              tiles.setUrl(GOOGLE_MAPS_TILES.hybrid);
+              satBtn.style.background = '#C4243A';
+              satBtn.style.color = '#FFF';
+              roadBtn.style.background = 'transparent';
+              roadBtn.style.color = isDark ? '#e5e1e4' : '#121215';
+            };
+          }
+        }, 50);
 
         const pinIcon = L.divIcon({
           className: 'vendor-boutique-pin',
-          html: `<div style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:19px;background:#C4243A;color:white;box-shadow:0 4px 16px rgba(196,36,58,0.45);border:2.5px solid white;cursor:grab;"><span class="material-symbols-outlined" style="font-size:22px;">storefront</span></div>`,
-          iconSize: [38, 38],
-          iconAnchor: [19, 38],
+          html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:20px;background:#C4243A;color:white;box-shadow:0 6px 20px rgba(196,36,58,0.5);border:2.5px solid white;cursor:grab;"><span class="material-symbols-outlined" style="font-size:22px;">storefront</span></div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 40],
+          popupAnchor: [0, -38],
         });
 
         const marker = L.marker([initialLat, initialLng], {
@@ -5117,23 +5296,100 @@ export default function StitchScreenRenderer({
           draggable: true,
         }).addTo(map);
 
-        marker.bindPopup('<b>Boutique Pickup Bay</b><br/>Drag or tap map to set location').openPopup();
+        const initialArea = deliveryLocation.areaName || 'Boutique Pickup Bay';
+        marker.bindPopup(`<b>${initialArea}</b><br/>${deliveryLocation.road || 'Drag or tap map to set location'}`).openPopup();
+
+        // Bi-directional reverse geocoding on drag and click
+        const syncLocationFromCoords = async (lat, lng) => {
+          vendorCoordsRef.current = { latitude: lat, longitude: lng, isManuallyPinned: true };
+          marker.setLatLng([lat, lng]);
+          marker.bindPopup('<b>Resolving address...</b>').openPopup();
+
+          try {
+            const geo = await reverseGeocodeLocation({ latitude: lat, longitude: lng });
+            const inZone = isWithinNagpur(lat, lng);
+            const areaName = geo?.areaName || (inZone ? 'Sitabuldi' : 'Nagpur Hub');
+            const road = geo?.road || '';
+            const pincode = geo?.pincode || '440012';
+            const formatted = road ? `${road}, ${areaName}, Nagpur (${pincode})` : `${areaName}, Nagpur (${pincode})`;
+
+            marker.bindPopup(`<b>${areaName}</b><br/>${road || 'Boutique Pickup Bay'}`).openPopup();
+
+            const addressInput = containerRef.current?.querySelector('#atelier-address');
+            if (addressInput) {
+              addressInput.value = formatted;
+            }
+
+            const newLoc = {
+              latitude: lat,
+              longitude: lng,
+              areaName,
+              road,
+              pincode,
+              formattedAddress: formatted,
+              inZone,
+              isDetected: true,
+            };
+            setDeliveryLocation(newLoc);
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem('kyapehnu_delivery_location', JSON.stringify(newLoc));
+            }
+            showToast(`Boutique located: ${areaName} (${pincode})`);
+          } catch (err) {
+            marker.bindPopup('<b>Boutique Pickup Bay</b><br/>Nagpur').openPopup();
+          }
+        };
 
         marker.on('dragend', (e) => {
           const pos = e.target.getLatLng();
-          vendorCoordsRef.current = { latitude: pos.lat, longitude: pos.lng };
+          syncLocationFromCoords(pos.lat, pos.lng);
         });
 
         map.on('click', (e) => {
-          marker.setLatLng(e.latlng);
-          vendorCoordsRef.current = { latitude: e.latlng.lat, longitude: e.latlng.lng };
-          marker.openPopup();
+          map.panTo(e.latlng, { animate: true });
+          syncLocationFromCoords(e.latlng.lat, e.latlng.lng);
         });
+
+        // Address input typing listener to geocode and center map
+        const addressInput = containerRef.current?.querySelector('#atelier-address');
+        let addressDebounce = null;
+        const handleAddressInput = (e) => {
+          const query = e.target.value?.trim();
+          if (addressDebounce) clearTimeout(addressDebounce);
+          if (!query || query.length < 3) return;
+
+          addressDebounce = setTimeout(async () => {
+            const match = await searchNagpurLocation(query);
+            if (match && vendorMapRef.current && vendorMarkerRef.current) {
+              vendorCoordsRef.current = { latitude: match.lat, longitude: match.lng, isManuallyPinned: true };
+              vendorMapRef.current.setView([match.lat, match.lng], 16, { animate: true });
+              vendorMarkerRef.current.setLatLng([match.lat, match.lng]);
+              vendorMarkerRef.current.bindPopup(`<b>${match.name}</b><br/>Mapped from address`).openPopup();
+              showToast(`Map centered on ${match.name}`);
+            }
+          }, 450);
+        };
+        if (addressInput) {
+          addressInput.addEventListener('input', handleAddressInput);
+        }
 
         vendorMapRef.current = map;
         vendorMarkerRef.current = marker;
 
-        [80, 200, 500, 1000].forEach((delay) => {
+        // Auto-invalidate map size when step 2 container becomes visible
+        let ro = null;
+        if (typeof ResizeObserver !== 'undefined') {
+          ro = new ResizeObserver(() => {
+            if (active && vendorMapRef.current === map) {
+              try {
+                map.invalidateSize(true);
+              } catch (e) {}
+            }
+          });
+          ro.observe(mapEl);
+        }
+
+        [50, 150, 300, 600, 1200].forEach((delay) => {
           setTimeout(() => {
             if (active && vendorMapRef.current === map) {
               try {
@@ -5164,7 +5420,7 @@ export default function StitchScreenRenderer({
       }
       vendorMarkerRef.current = null;
     };
-  }, [targetKey]);
+  }, [targetKey, isDark]);
 
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>
@@ -5472,7 +5728,7 @@ export default function StitchScreenRenderer({
             </div>
             <div style={{ height: 280, position: 'relative', backgroundColor: '#F4EFE7' }}>
               <iframe
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><style>body,#map{margin:0;padding:0;width:100%;height:100%;}</style></head><body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}],14);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);var dest=L.marker([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]).addTo(map).bindPopup('Doorstep Destination').openPopup();var rider=L.marker([${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}]).addTo(map).bindPopup('Porter Rider Rajesh (18 min ETA)');L.polyline([[${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}],[${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]],{color:'#C4243A',weight:4,dashArray:'6, 6'}).addTo(map);</script></body></html>`}
+                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><style>body,#map{margin:0;padding:0;width:100%;height:100%;}.g-badge{position:absolute;bottom:8px;left:8px;z-index:999;background:rgba(255,255,255,0.92);padding:2px 6px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.2);display:flex;align-items:center;}</style></head><body><div id="map"></div><div class="g-badge">${GOOGLE_MAPS_LOGO_SVG}</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>var map=L.map('map',{zoomControl:false,attributionControl:false}).setView([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}],14);var gl=L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{subdomains:['0','1','2','3'],maxZoom:20});gl.on('tileerror',function(){gl.setUrl('https://tile.openstreetmap.org/{z}/{x}/{y}.png');});gl.addTo(map);var dest=L.marker([${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]).addTo(map).bindPopup('Doorstep Destination: ${deliveryLocation.areaName || 'Nagpur'}').openPopup();var rider=L.marker([${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}]).addTo(map).bindPopup('Porter Rider Rajesh (18 min ETA)');L.polyline([[${(deliveryLocation.latitude || 21.1458) + 0.006},${(deliveryLocation.longitude || 79.0835) - 0.008}],[${deliveryLocation.latitude || 21.1458},${deliveryLocation.longitude || 79.0835}]],{color:'#C4243A',weight:4,dashArray:'6, 6'}).addTo(map);</script></body></html>`}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="Live Courier GPS Route"
               />

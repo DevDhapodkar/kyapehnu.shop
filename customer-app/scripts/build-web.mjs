@@ -52,6 +52,13 @@ if (fs.existsSync(indexPath)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCfr4q93xlmNSNHp3YTC0pd2bPmoKktPhc&libraries=places,geometry&loading=async" async defer></script>
+    <script>
+      window.gm_authFailure = function() {
+        console.warn('[GoogleMaps] API key notice. Seamless high-res Google Maps tile fallback active.');
+        window.__gm_auth_failed = true;
+      };
+    </script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
@@ -260,6 +267,28 @@ if (fs.existsSync(indexPath)) {
       .leaflet-container {
         font-family: 'Plus Jakarta Sans', sans-serif !important;
         background: #F4EFE7 !important;
+      }
+      .google-map-brand-badge {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.94);
+        padding: 3px 8px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        pointer-events: auto;
+      }
+      .dark .google-map-brand-badge {
+        background: rgba(18, 18, 21, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .dark .leaflet-tile-google {
+        filter: brightness(0.85) invert(1) contrast(2.2) hue-rotate(200deg) saturate(0.4) !important;
       }
       /* Prevent tap highlight flashes and callout menus */
       *, *::before, *::after {
