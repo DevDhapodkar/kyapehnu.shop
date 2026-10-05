@@ -80,10 +80,10 @@ export default function VendorBottomNav({
           style={[
             styles.tabLabel,
             { color: isDark ? '#78716C' : '#6E6C75' },
-            isOrdersActive && { color: colors.accentCrimson, fontWeight: '900' },
+            isOrdersActive && { color: colors.accentCrimson, fontWeight: '600' },
           ]}
         >
-          Orders
+          Queue
         </Text>
       </PressableScale>
 
@@ -113,7 +113,7 @@ export default function VendorBottomNav({
           style={[
             styles.tabLabel,
             { color: isDark ? '#78716C' : '#6E6C75' },
-            isCatalogueActive && { color: colors.accentCrimson, fontWeight: '900' },
+            isCatalogueActive && { color: colors.accentCrimson, fontWeight: '600' },
           ]}
         >
           Catalogue
@@ -133,7 +133,7 @@ export default function VendorBottomNav({
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="bar-chart"
-            size={23}
+            size={22}
             color={isAnalyticsActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
         </View>
@@ -141,7 +141,7 @@ export default function VendorBottomNav({
           style={[
             styles.tabLabel,
             { color: isDark ? '#78716C' : '#6E6C75' },
-            isAnalyticsActive && { color: colors.accentCrimson, fontWeight: '900' },
+            isAnalyticsActive && { color: colors.accentCrimson, fontWeight: '600' },
           ]}
         >
           Analytics
@@ -161,7 +161,7 @@ export default function VendorBottomNav({
         <View style={styles.iconWrap}>
           <MaterialIcons
             name="storefront"
-            size={23}
+            size={22}
             color={isProfileActive ? colors.accentCrimson : (isDark ? '#78716C' : '#6E6C75')}
           />
         </View>
@@ -169,7 +169,7 @@ export default function VendorBottomNav({
           style={[
             styles.tabLabel,
             { color: isDark ? '#78716C' : '#6E6C75' },
-            isProfileActive && { color: colors.accentCrimson, fontWeight: '900' },
+            isProfileActive && { color: colors.accentCrimson, fontWeight: '600' },
           ]}
         >
           Store
@@ -185,19 +185,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    height: 64,
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(217, 119, 6, 0.2)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.08)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingTop: 8,
-    shadowColor: '#121215',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 10,
     zIndex: 100,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      },
+    }),
   },
   navTab: {
     flex: 1,

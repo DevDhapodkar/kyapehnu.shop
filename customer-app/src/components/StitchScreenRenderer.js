@@ -2388,10 +2388,17 @@ export default function StitchScreenRenderer({
       const isDarkScreen = targetKey.includes('dark');
       const products = vendorProducts;
       const displayShopName = vendorProfile?.shopName || vendorProfile?.storeName || profile?.shopName || user?.displayName || 'Nagpur Boutique';
+      const displayArea = vendorProfile?.address?.area || profile?.address?.area || deliveryLocation?.areaName || 'Nagpur';
       const shopInitial = displayShopName.charAt(0).toUpperCase();
+
+      // Dynamic area in header
+      html = html.replace(/id="vendor-header-area"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-header-area">${displayArea}</span>`);
 
       // Profile avatar replacement in header
       if (user?.photoURL) {
+        html = html.replace(/id="vendor-header-avatar"[^>]*>[\s\S]*?<\/div>/i,
+          `id="vendor-header-avatar" class="w-8 h-8 rounded-full overflow-hidden border border-gold/40 shadow-sm"><img src="${user.photoURL}" alt="${displayShopName}" class="w-full h-full object-cover" /></div>`
+        );
         html = html.replace(/id="vendor-catalog-profile-btn"[^>]*>[\s\S]*?<\/button>/i,
           `<button aria-label="Profile" data-action="profile" class="relative flex items-center justify-center p-0.5 rounded-full ring-1 ring-gold/30 hover:ring-gold transition-all cursor-pointer" id="vendor-catalog-profile-btn"><img src="${user.photoURL}" alt="${displayShopName}" class="w-8 h-8 rounded-full object-cover" /></button>`
         );

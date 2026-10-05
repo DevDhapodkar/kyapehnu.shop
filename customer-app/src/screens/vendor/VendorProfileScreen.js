@@ -12,10 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
 import BrandLogo from '../../components/BrandLogo';
 import PressableScale from '../../components/PressableScale';
 import VendorBottomNav from '../../components/vendor/VendorBottomNav';
+import VendorHeader from '../../components/vendor/VendorHeader';
 import { colors, radii, spacing } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -90,30 +90,20 @@ export default function VendorProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: isDark ? '#121214' : '#F4EFE7' }]}>
+    <View style={[styles.root, { backgroundColor: isDark ? '#131315' : '#FAF9F5' }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* 1. Animated Drifting Background Blobs */}
-      <AmbientBackgroundBlobs />
+      {/* 1. Standard Unified Top Header Bar */}
+      <VendorHeader subtitle="Store Profile & Settings" navigation={navigation} />
 
-      {/* 2. Top Header Bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 4, backgroundColor: isDark ? 'rgba(18, 18, 20, 0.96)' : 'rgba(244, 239, 231, 0.96)', borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(217, 119, 6, 0.12)' }]}>
-        <View style={[styles.topBarInner, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.25)' }]}>
-          <Text style={[styles.topBarTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Store Profile & Settings</Text>
-          <View style={styles.topBarBadge}>
-            <Text style={styles.topBarBadgeText}>VENDOR MODE</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 3. Main Content Scroll */}
+      {/* 2. Main Content Scroll */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: Math.max(insets.top + 76, 86),
-            paddingBottom: insets.bottom + 140,
+            paddingTop: 12,
+            paddingBottom: Math.max(insets.bottom, 16) + 120,
           },
         ]}
         showsVerticalScrollIndicator={false}

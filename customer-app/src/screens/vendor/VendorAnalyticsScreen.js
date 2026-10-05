@@ -12,9 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-import AmbientBackgroundBlobs from '../../components/AmbientBackgroundBlobs';
 import PressableScale from '../../components/PressableScale';
 import VendorBottomNav from '../../components/vendor/VendorBottomNav';
+import VendorHeader from '../../components/vendor/VendorHeader';
 import { formatCurrency as formatINR } from '../../utils/format';
 import { colors, radii, spacing } from '../../theme/colors';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -86,39 +86,13 @@ export default function VendorAnalyticsScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: isDark ? '#121214' : '#F4EFE7' }]}>
+    <View style={[styles.root, { backgroundColor: isDark ? '#131315' : '#FAF9F5' }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* 1. Animated Ambient Drifting Blobs */}
-      <AmbientBackgroundBlobs />
+      {/* 1. Standard Unified Top Header Bar */}
+      <VendorHeader subtitle="Boutique Analytics" navigation={navigation} />
 
-      {/* 2. Top Header Bar (Natural Flow, Safe Area Protected) */}
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12), backgroundColor: isDark ? 'rgba(18, 18, 20, 0.98)' : 'rgba(244, 239, 231, 0.98)', borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(217, 119, 6, 0.12)' }]}>
-        <View style={[styles.topBarInner, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(217, 119, 6, 0.25)' }]}>
-          <PressableScale
-            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('VendorOrders'))}
-            style={[styles.backBtn, { backgroundColor: isDark ? '#232225' : '#FFFFFF', borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)' }]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <MaterialIcons name="arrow-back-ios-new" size={18} color={isDark ? '#FDFDFD' : colors.textObsidian} />
-          </PressableScale>
-
-          <View style={styles.topBarTitleCol}>
-            <Text style={[styles.shopName, { color: isDark ? '#FDFDFD' : colors.textObsidian }]} numberOfLines={1}>
-              {shopName}
-            </Text>
-            <Text style={styles.screenSubtitle}>Boutique Insights & Analytics</Text>
-          </View>
-
-          <View style={styles.livePill}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 3. Main Scrollable Content */}
+      {/* 2. Main Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
