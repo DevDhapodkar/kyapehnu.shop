@@ -109,9 +109,9 @@ export default function VendorProfileScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {/* Shop Identity Card */}
-        <View style={[styles.profileCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
+        <View style={[styles.profileCard, { backgroundColor: isDark ? '#18181B' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
           <View style={styles.statusRow}>
-            <View style={[styles.statusPill, isDark && { backgroundColor: isApproved ? 'rgba(21, 128, 61, 0.25)' : 'rgba(239, 68, 68, 0.15)', borderColor: isApproved ? '#22C55E' : 'rgba(239, 68, 68, 0.4)' }]}>
+            <View style={[styles.statusPill, isDark && { backgroundColor: isApproved ? 'rgba(21, 128, 61, 0.2)' : 'rgba(239, 68, 68, 0.12)', borderColor: isApproved ? '#22C55E' : 'rgba(239, 68, 68, 0.3)' }]}>
               <View style={[styles.statusDot, isApproved && styles.statusDotLive]} />
               <Text style={[styles.statusPillText, isDark && { color: isApproved ? '#4ADE80' : '#F87171' }]}>
                 {isApproved ? 'STORE IS LIVE' : 'ADMIN VERIFICATION IN PROGRESS'}
@@ -120,109 +120,109 @@ export default function VendorProfileScreen({ navigation }) {
             <Text style={styles.cityTag}>Nagpur</Text>
           </View>
 
-          <Text style={[styles.shopNameText, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>{shopName}</Text>
-          <Text style={[styles.ownerNameText, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Proprietor: {ownerName}</Text>
+          <Text style={[styles.shopNameText, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>{shopName}</Text>
+          <Text style={[styles.ownerNameText, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Proprietor: {ownerName}</Text>
 
-          <View style={[styles.divider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)' }]} />
+          <View style={[styles.divider, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]} />
 
           {/* Details list */}
           <View style={styles.infoRow}>
-            <MaterialIcons name="phone" size={20} color={colors.accentGoldDeep} />
-            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Phone:</Text>
-            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{phone}</Text>
+            <MaterialIcons name="phone" size={16} color={colors.accentGoldDeep} />
+            <Text style={[styles.infoLabel, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Phone:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>{phone}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="chat" size={20} color="#25D366" />
-            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>WhatsApp:</Text>
-            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{whatsapp}</Text>
+            <MaterialIcons name="chat" size={16} color="#25D366" />
+            <Text style={[styles.infoLabel, { color: isDark ? '#A8A29E' : colors.textSlate }]}>WhatsApp:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>{whatsapp}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="location-on" size={20} color={colors.accentCrimson} />
-            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Area:</Text>
-            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{area}, Nagpur</Text>
+            <MaterialIcons name="location-on" size={16} color={colors.accentCrimson} />
+            <Text style={[styles.infoLabel, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Area:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>{area}, Nagpur</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="store" size={20} color={isDark ? '#9CA3AF' : colors.textSlate} />
-            <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Address:</Text>
-            <Text style={[styles.infoValue, { color: isDark ? '#F3F4F6' : colors.textObsidian }]}>{addressLine}</Text>
+            <MaterialIcons name="store" size={16} color={isDark ? '#A8A29E' : colors.textSlate} />
+            <Text style={[styles.infoLabel, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Address:</Text>
+            <Text style={[styles.infoValue, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>{addressLine}</Text>
           </View>
         </View>
 
         {/* Support & Helpline Card */}
-        <View style={[styles.supportCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(217, 119, 6, 0.2)' }]}>
-          <Text style={[styles.sectionHeaderTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Nagpur Partner Helpline</Text>
-          <Text style={[styles.sectionHeaderDesc, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>
-            Have questions or need assistance? Reach out directly to the Kya Pehnu Partner Desk:
+        <View style={[styles.supportCard, { backgroundColor: isDark ? '#18181B' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+          <Text style={[styles.sectionHeaderTitle, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>Nagpur Partner Helpline</Text>
+          <Text style={[styles.sectionHeaderDesc, { color: isDark ? '#A8A29E' : colors.textSlate }]}>
+            Need assistance? Reach out directly to the Kya Pehnu Partner Desk:
           </Text>
 
           <PressableScale
             onPress={handleCallSupport}
-            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(18, 18, 20, 0.08)' }]}
+            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#202024' : '#F8F9FA', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0, 0, 0, 0.06)' }]}
             accessibilityRole="button"
             accessibilityLabel="Call support"
           >
             <View style={styles.supportIconWrap}>
-              <MaterialIcons name="call" size={22} color="#FFFFFF" />
+              <MaterialIcons name="call" size={16} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={[styles.supportBtnTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Call Partner Support</Text>
-              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>+91 712 254 9900 (10:00 AM - 9:00 PM)</Text>
+              <Text style={[styles.supportBtnTitle, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>Call Partner Support</Text>
+              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#A8A29E' : colors.textSlate }]}>+91 712 254 9900 (10:00 AM - 9:00 PM)</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={isDark ? '#9CA3AF' : colors.textAsh} />
+            <MaterialIcons name="chevron-right" size={18} color={isDark ? '#A8A29E' : colors.textAsh} />
           </PressableScale>
 
           <PressableScale
             onPress={handleWhatsAppSupport}
-            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#232225' : '#FDFBF7', borderColor: 'rgba(37, 211, 102, 0.4)' }]}
+            style={[styles.supportActionBtn, { backgroundColor: isDark ? '#202024' : '#F8F9FA', borderColor: isDark ? 'rgba(37, 211, 102, 0.25)' : 'rgba(37, 211, 102, 0.3)' }]}
             accessibilityRole="button"
             accessibilityLabel="WhatsApp support"
           >
             <View style={[styles.supportIconWrap, { backgroundColor: '#25D366' }]}>
-              <MaterialIcons name="chat" size={22} color="#FFFFFF" />
+              <MaterialIcons name="chat" size={16} color="#FFFFFF" />
             </View>
             <View style={styles.supportTextCol}>
-              <Text style={[styles.supportBtnTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Message on WhatsApp</Text>
-              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Instant partner assistance</Text>
+              <Text style={[styles.supportBtnTitle, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>Message on WhatsApp</Text>
+              <Text style={[styles.supportBtnSubtitle, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Instant partner assistance</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={isDark ? '#9CA3AF' : colors.textAsh} />
+            <MaterialIcons name="chevron-right" size={18} color={isDark ? '#A8A29E' : colors.textAsh} />
           </PressableScale>
         </View>
 
         {/* Switch to Customer Mode Card */}
         <PressableScale
           onPress={() => useAuthStore.getState().setRole('CUSTOMER')}
-          style={[styles.switchModeCard, { backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(217, 119, 6, 0.3)' }]}
+          style={[styles.switchModeCard, { backgroundColor: isDark ? '#18181B' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(217, 119, 6, 0.2)' }]}
           accessibilityRole="button"
           accessibilityLabel="Switch to customer storefront"
         >
           <View style={styles.switchModeIconWrap}>
-            <MaterialIcons name="storefront" size={22} color="#FFFFFF" />
+            <MaterialIcons name="storefront" size={16} color="#FFFFFF" />
           </View>
           <View style={styles.switchModeTextCol}>
-            <Text style={[styles.switchModeTitle, { color: isDark ? '#FDFDFD' : colors.textObsidian }]}>Switch to Customer Storefront</Text>
-            <Text style={[styles.switchModeSubtitle, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Browse designer outfits & express delivery</Text>
+            <Text style={[styles.switchModeTitle, { color: isDark ? '#F5F5F4' : colors.textObsidian }]}>Switch to Customer Storefront</Text>
+            <Text style={[styles.switchModeSubtitle, { color: isDark ? '#A8A29E' : colors.textSlate }]}>Browse designer outfits & express delivery</Text>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color={colors.accentGoldDeep} />
+          <MaterialIcons name="chevron-right" size={18} color={colors.accentGoldDeep} />
         </PressableScale>
 
         {/* Sign Out Card */}
         <PressableScale
           onPress={handleSignOut}
-          style={styles.signOutCard}
+          style={[styles.signOutCard, isDark && { backgroundColor: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)' }]}
           accessibilityRole="button"
           accessibilityLabel="Sign out of store"
         >
-          <MaterialIcons name="logout" size={22} color={colors.accentCrimson} />
+          <MaterialIcons name="logout" size={16} color={colors.accentCrimson} />
           <Text style={styles.signOutText}>SIGN OUT OF STORE ACCOUNT</Text>
         </PressableScale>
 
         <View style={styles.footerWrap}>
-          <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 8 }} />
-          <Text style={[styles.footerStamp, { color: isDark ? '#6B7280' : colors.textAsh }]}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
-          <Text style={[styles.footerCorridor, { color: isDark ? '#9CA3AF' : colors.textSlate }]}>Nagpur Citywide Fast Courier Network · All Zones Active</Text>
+          <BrandLogo size="sm" showEmblem={true} style={{ marginBottom: 6 }} />
+          <Text style={[styles.footerStamp, { color: isDark ? '#78716C' : colors.textAsh }]}>Kya Pehnu? Nagpur Partner Portal v2.5</Text>
+          <Text style={[styles.footerCorridor, { color: isDark ? '#78716C' : colors.textSlate }]}>Nagpur Citywide Fast Courier Network · All Zones Active</Text>
         </View>
       </ScrollView>
 
@@ -319,124 +319,135 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
+    maxWidth: 512,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    gap: 12,
   },
   profileCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(217, 119, 6, 0.22)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.15)',
     shadowColor: '#121215',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: 8,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#F0FDF4',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: radii.full,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 9999,
     borderWidth: 1,
     borderColor: '#15803D',
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.accentCrimson,
   },
   statusDotLive: {
     backgroundColor: '#15803D',
   },
   statusPillText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 9.5,
+    fontWeight: '700',
     color: '#15803D',
+    letterSpacing: 0.5,
   },
   cityTag: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 10.5,
+    fontWeight: '600',
     color: colors.accentGoldDeep,
+    letterSpacing: 0.3,
   },
   shopNameText: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.textObsidian,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    lineHeight: 22,
   },
   ownerNameText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '400',
     color: colors.textSlate,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
-    marginVertical: spacing.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    marginVertical: 10,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 6,
+    gap: 8,
+    paddingVertical: 4,
   },
   infoLabel: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '500',
     color: colors.textSlate,
-    width: 90,
+    width: 75,
   },
   infoValue: {
     flex: 1,
-    fontSize: 14.5,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: colors.textObsidian,
   },
   supportCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    gap: 10,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    gap: 8,
   },
   sectionHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 13.5,
+    fontWeight: '600',
     color: colors.textObsidian,
+    letterSpacing: -0.1,
   },
   sectionHeaderDesc: {
-    fontSize: 13,
+    fontSize: 11.5,
     color: colors.textSlate,
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 16,
   },
   supportActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8F9FA',
-    padding: 12,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    gap: 10,
   },
   supportIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: colors.accentCrimson,
     alignItems: 'center',
     justifyContent: 'center',
@@ -445,45 +456,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   supportBtnTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: colors.textObsidian,
   },
   supportBtnSubtitle: {
-    fontSize: 12,
+    fontSize: 10.5,
     color: colors.textSlate,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  switchModeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+    marginBottom: 2,
+    gap: 10,
+  },
+  switchModeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.accentGoldDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchModeTextCol: {
+    flex: 1,
+  },
+  switchModeTitle: {
+    color: colors.textObsidian,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  switchModeSubtitle: {
+    color: colors.textSlate,
+    fontSize: 10.5,
+    marginTop: 1,
+    fontWeight: '400',
   },
   signOutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#FEF2F2',
-    borderWidth: 2,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
-    borderRadius: radii.lg,
-    paddingVertical: 16,
-    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 2,
   },
   signOutText: {
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.accentCrimson,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   footerWrap: {
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    gap: 3,
+    paddingVertical: 14,
+    gap: 2,
   },
   footerStamp: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     color: colors.textAsh,
   },
   footerCorridor: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textSlate,
   },
 });
