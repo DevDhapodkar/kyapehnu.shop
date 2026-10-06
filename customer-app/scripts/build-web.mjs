@@ -40,6 +40,30 @@ if (fs.existsSync(indexPath)) {
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <script>
+      (function() {
+        var v = "__BUILD_TIMESTAMP__";
+        try {
+          var last = localStorage.getItem('__kyapehnu_build_v__');
+          if (last && last !== v) {
+            localStorage.setItem('__kyapehnu_build_v__', v);
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
+              });
+            }
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                for (var r of regs) { r.unregister(); }
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
+            return;
+          }
+          localStorage.setItem('__kyapehnu_build_v__', v);
+        } catch(e) {}
+      })();
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           for (var r of regs) { r.unregister(); }
@@ -481,6 +505,7 @@ if (fs.existsSync(indexPath)) {
   html = html.replace('<div id="root"></div>', preHydrationSplash.trim());
 
   const buildTimestamp = Date.now();
+  html = html.replace(/__BUILD_TIMESTAMP__/g, String(buildTimestamp));
   html = html.replace(
     /(<script\s+src=["']\/app\/_expo\/static\/js\/web\/[^"']+)(["'])/gi,
     `$1?v=${buildTimestamp}$2`
