@@ -40,9 +40,9 @@ export default function VendorHeader({
       style={[
         styles.headerRoot,
         {
-          paddingTop: Math.max(insets.top, 8),
-          backgroundColor: isDark ? 'rgba(19, 19, 21, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.08)',
+          paddingTop: Platform.OS === 'web' ? 0 : Math.max(insets.top, 8),
+          backgroundColor: isDark ? 'rgba(19, 19, 21, 0.90)' : 'rgba(250, 249, 245, 0.90)',
+          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E5E3DC',
         },
       ]}
     >
@@ -53,8 +53,8 @@ export default function VendorHeader({
             style={[
               styles.emblemBox,
               {
-                backgroundColor: isDark ? '#1C1B1D' : '#FFFFFF',
-                borderColor: isDark ? 'rgba(200, 162, 74, 0.35)' : 'rgba(200, 162, 74, 0.40)',
+                backgroundColor: isDark ? '#18181B' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(200, 162, 74, 0.30)' : 'rgba(179, 138, 43, 0.35)',
               },
             ]}
           >
@@ -64,7 +64,7 @@ export default function VendorHeader({
             <Text style={[styles.brandTitle, { color: isDark ? '#F5F5F4' : '#121215' }]}>
               Kya Pehnu?
             </Text>
-            <Text style={[styles.brandSubtitle, { color: isDark ? '#A8A29E' : '#78716C' }]}>
+            <Text style={[styles.brandSubtitle, { color: isDark ? '#A8A29E' : '#4A4950' }]}>
               {subtitle}
             </Text>
           </View>
@@ -76,16 +76,29 @@ export default function VendorHeader({
             style={[
               styles.locationPill,
               {
-                backgroundColor: isDark ? '#1C1B1D' : '#F4F4F0',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                backgroundColor: isDark ? 'rgba(24, 24, 27, 0.90)' : '#F4F4F0',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.06)',
               },
             ]}
           >
-            <MaterialIcons
-              name="near-me"
-              size={14}
-              color={isDark ? '#EAC166' : colors.accentGoldDeep || '#946C18'}
-            />
+            {Platform.OS === 'web' ? (
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: 15,
+                  lineHeight: '15px',
+                  color: isDark ? '#C8A24A' : colors.accentGoldDeep || '#946C18',
+                }}
+              >
+                near_me
+              </span>
+            ) : (
+              <MaterialIcons
+                name="near-me"
+                size={15}
+                color={isDark ? '#C8A24A' : colors.accentGoldDeep || '#946C18'}
+              />
+            )}
             <Text style={[styles.locationText, { color: isDark ? '#F5F5F4' : '#121215' }]}>
               {displayArea.toUpperCase()}
             </Text>
@@ -99,7 +112,7 @@ export default function VendorHeader({
             }}
             style={[
               styles.avatarBtn,
-              { borderColor: isDark ? 'rgba(200, 162, 74, 0.35)' : 'rgba(200, 162, 74, 0.40)' },
+              { borderColor: isDark ? 'rgba(200, 162, 74, 0.30)' : 'rgba(179, 138, 43, 0.35)' },
             ]}
             accessibilityRole="button"
             accessibilityLabel="Store Profile"
@@ -108,22 +121,33 @@ export default function VendorHeader({
               style={[
                 styles.avatarInner,
                 {
-                  backgroundColor: isDark ? '#201F21' : '#EFEEEA',
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+                  backgroundColor: isDark ? '#202024' : '#EFEEEA',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.06)',
                 },
               ]}
             >
               {user?.photoURL ? (
                 <Image source={{ uri: user.photoURL }} style={styles.avatarImg} />
+              ) : Platform.OS === 'web' ? (
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: 18,
+                    lineHeight: '18px',
+                    color: isDark ? '#C8A24A' : colors.accentGoldDeep || '#946C18',
+                  }}
+                >
+                  storefront
+                </span>
               ) : (
                 <MaterialIcons
                   name="storefront"
                   size={18}
-                  color={isDark ? '#EAC166' : colors.accentGoldDeep || '#946C18'}
+                  color={isDark ? '#C8A24A' : colors.accentGoldDeep || '#946C18'}
                 />
               )}
             </View>
-            <View style={styles.onlineDot} />
+            <View style={[styles.onlineDot, { borderColor: isDark ? '#0E0E10' : '#FAF9F5' }]} />
           </PressableScale>
         </View>
       </View>
@@ -140,8 +164,8 @@ const styles = StyleSheet.create({
       web: {
         position: 'sticky',
         top: 0,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
       },
     }),
   },
@@ -163,16 +187,11 @@ const styles = StyleSheet.create({
   emblemBox: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   emblemImg: {
     width: '100%',
@@ -184,13 +203,15 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 16,
     fontWeight: '600',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
     lineHeight: 20,
+    fontFamily: Platform.OS === 'web' ? 'ebGaramond, "EB Garamond", Georgia, serif' : 'serif',
   },
   brandSubtitle: {
     fontSize: 11,
     fontWeight: '400',
     lineHeight: 14,
+    fontFamily: Platform.OS === 'web' ? '"Plus Jakarta Sans", sans-serif' : undefined,
   },
   headerRight: {
     flexDirection: 'row',
@@ -203,24 +224,26 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 9999,
+    borderRadius: 12,
     borderWidth: 1,
   },
   locationText: {
-    fontSize: 11,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: '600',
     letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'web' ? 'plusJakartaSans, "Plus Jakarta Sans", sans-serif' : undefined,
   },
   avatarBtn: {
     position: 'relative',
     padding: 2,
-    borderRadius: 9999,
+    borderRadius: 12,
     borderWidth: 1,
   },
   avatarInner: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -232,13 +255,12 @@ const styles = StyleSheet.create({
   },
   onlineDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#10B981',
-    borderWidth: 1.5,
-    borderColor: '#131315',
+    borderWidth: 2,
   },
 });

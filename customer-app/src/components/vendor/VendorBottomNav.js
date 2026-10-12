@@ -74,16 +74,16 @@ export default function VendorBottomNav({
   const isProfileActive = activeTab === 'profile' || activeTab === 'store';
 
   const activeColor = colors.accentCrimson || '#C4243A';
-  const inactiveColor = isDark ? '#78716C' : '#78716C';
+  const inactiveColor = isDark ? '#78716C' : '#7E7C85';
 
   return (
     <View
       style={[
         styles.bottomBarContainer,
         {
-          paddingBottom: Math.max(insets.bottom, 6),
-          backgroundColor: isDark ? 'rgba(19, 19, 21, 0.88)' : 'rgba(255, 255, 255, 0.88)',
-          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+          paddingBottom: Platform.OS === 'web' ? 0 : Math.max(insets.bottom, 6),
+          backgroundColor: isDark ? 'rgba(19, 19, 21, 0.90)' : 'rgba(250, 249, 245, 0.90)',
+          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E5E3DC',
         },
       ]}
     >
@@ -106,7 +106,7 @@ export default function VendorBottomNav({
           <Text
             style={[
               styles.tabLabel,
-              { color: isOrdersActive ? activeColor : inactiveColor, fontWeight: isOrdersActive ? '600' : '400' },
+              { color: isOrdersActive ? activeColor : inactiveColor, fontWeight: isOrdersActive ? '600' : '500' },
             ]}
           >
             Queue
@@ -126,7 +126,7 @@ export default function VendorBottomNav({
           <Text
             style={[
               styles.tabLabel,
-              { color: isCatalogueActive ? activeColor : inactiveColor, fontWeight: isCatalogueActive ? '600' : '400' },
+              { color: isCatalogueActive ? activeColor : inactiveColor, fontWeight: isCatalogueActive ? '600' : '500' },
             ]}
           >
             Catalogue
@@ -146,7 +146,7 @@ export default function VendorBottomNav({
           <Text
             style={[
               styles.tabLabel,
-              { color: isAnalyticsActive ? activeColor : inactiveColor, fontWeight: isAnalyticsActive ? '600' : '400' },
+              { color: isAnalyticsActive ? activeColor : inactiveColor, fontWeight: isAnalyticsActive ? '600' : '500' },
             ]}
           >
             Analytics
@@ -166,7 +166,7 @@ export default function VendorBottomNav({
           <Text
             style={[
               styles.tabLabel,
-              { color: isProfileActive ? activeColor : inactiveColor, fontWeight: isProfileActive ? '600' : '400' },
+              { color: isProfileActive ? activeColor : inactiveColor, fontWeight: isProfileActive ? '600' : '500' },
             ]}
           >
             Store
@@ -189,20 +189,20 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         position: 'fixed',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
       },
     }),
   },
   innerNav: {
     maxWidth: 512,
     width: '100%',
-    height: '100%',
+    height: 64,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   navTab: {
     minWidth: 54,
@@ -215,13 +215,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
   },
   tabLabel: {
-    fontSize: 10,
-    letterSpacing: -0.2,
-    lineHeight: 12,
+    fontSize: 12,
+    letterSpacing: -0.3,
+    lineHeight: 16,
+    fontFamily: Platform.OS === 'web' ? 'plusJakartaSans, "Plus Jakarta Sans", sans-serif' : undefined,
   },
   badgePill: {
     position: 'absolute',

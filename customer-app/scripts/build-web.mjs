@@ -153,6 +153,7 @@ if (fs.existsSync(indexPath)) {
               'outline': '#8e6f6f',
               'outline-variant': '#e3bebd',
               'ground-base': '#FAF9F5',
+              'surface-ground': '#FAF9F5',
               'ground-subtle': '#F4F3EE',
               'surface-porcelain': '#FFFFFF',
               'surface-glass': 'rgba(255, 255, 255, 0.75)',

@@ -2394,6 +2394,18 @@ export default function StitchScreenRenderer({
       // Dynamic area in header
       html = html.replace(/id="vendor-header-area"[^>]*>[\s\S]*?<\/span>/i, `id="vendor-header-area">${displayArea}</span>`);
 
+      if (isDarkScreen) {
+        html = html
+          .replace(/bg-\[#131315\]-container-low\/80/g, 'bg-noir-surface/90 border border-white/10')
+          .replace(/bg-\[#131315\]-container-low/g, 'bg-noir-card border border-white/10')
+          .replace(/focus:bg-\[#131315\]-porcelain/g, 'focus:bg-noir-elevated')
+          .replace(/bg-\[#131315\]-porcelain\/90/g, 'bg-noir-card/90 border border-white/10')
+          .replace(/bg-\[#131315\]-porcelain/g, 'bg-noir-card border border-white/10')
+          .replace(/hover:bg-\[#131315\]-container/g, 'hover:bg-noir-elevated')
+          .replace(/bg-\[#131315\]-container/g, 'bg-noir-elevated')
+          .replace(/bg-ground-subtle/g, 'bg-noir-elevated border border-white/10');
+      }
+
       // Profile avatar replacement in header
       if (user?.photoURL) {
         html = html.replace(/id="vendor-header-avatar"[^>]*>[\s\S]*?<\/div>/i,
@@ -2576,6 +2588,11 @@ export default function StitchScreenRenderer({
         html = html.replace(catalogContainerRegex, `$1${liveItemsHtml || '<div class="p-8 text-center text-text-slate font-medium text-sm">No pieces found matching your search.</div>'}$2`);
       }
     }
+    // Ensure Catalogue bottom nav has the same 1px top border as Queue, Analytics, and Store
+    html = html.replace(
+      /<nav class="fixed bottom-0 w-full z-50 pb-safe ([^"]*)"/i,
+      `<nav class="fixed bottom-0 inset-x-0 w-full z-50 pb-safe border-t ${isDarkScreen ? 'border-white/10' : 'border-border-hairline'} $1"`
+    );
   }
 
     // 7. VENDOR ORDER QUEUE: Inject live incoming vendor orders with active filtering
@@ -2584,6 +2601,13 @@ export default function StitchScreenRenderer({
       const currentShopName = (vendorProfile?.shopName || '').toLowerCase().trim();
       const displayShopName = vendorProfile?.shopName || vendorProfile?.storeName || profile?.shopName || user?.displayName || 'Nagpur Boutique';
       const displayArea = vendorProfile?.address?.area || profile?.address?.area || deliveryLocation?.areaName || 'Nagpur';
+
+      // Normalize Queue bottom nav label font size (12px text-tabular-caption) and SVG stroke-width (1.5) to match Catalogue, Analytics, and Store
+      html = html.replace(/(<nav[\s\S]*?<\/nav>)/i, (navMatch) =>
+        navMatch
+          .replace(/font-tabular-caption text-\[11px\]/g, 'font-tabular-caption text-tabular-caption')
+          .replace(/stroke-width="1\.8"/g, 'stroke-width="1.5"')
+      );
 
       // 1. Dynamic shop name & location in header/banner
       html = html.replace(/id="vendor-shop-name"[^>]*>[\s\S]*?<\/h2>/i, `id="vendor-shop-name">${displayShopName}</h2>`);
