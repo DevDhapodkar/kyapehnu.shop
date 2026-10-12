@@ -2424,8 +2424,9 @@ export default function StitchScreenRenderer({
         html = html.replace(/id="vendor-catalog-profile-initial">[^<]*<\/div>/i, `id="vendor-catalog-profile-initial">${shopInitial}</div>`);
       }
 
-      // Rename QC Ingest to Under Review across the board
+      // Rename QC Ingest to Under Review and Ingest Piece to Add Product across the board
       html = html.replace(/QC Ingest/g, 'Under Review');
+      html = html.replace(/Ingest Piece/g, 'Add Product');
 
       if (products.length === 0) {
         html = html.replace(/\d+\s+Curated Pieces Live/gi, '0 Curated Pieces Live');
@@ -2457,12 +2458,12 @@ export default function StitchScreenRenderer({
           return `<div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 -mx-screen-margin-mobile px-screen-margin-mobile" id="categoryRail">${pillsHtml}</div>`;
         });
 
-        // Theme-aware dark/light empty catalog box
+        // Theme-aware dark/light empty catalog box with direct Add Product button
         const catalogContainerRegex = /(<div[^>]*class="[^"]*flex flex-col gap-4 px-screen-margin-mobile pb-6[^"]*"[^>]*>)[\s\S]*?(<\/div>\s*<\/main>)/i;
         if (catalogContainerRegex.test(html)) {
           const emptyBoxHtml = isDarkScreen
-            ? `<div class="p-10 text-center flex flex-col items-center justify-center gap-3 bg-[#1C1B1D] rounded-2xl border border-white/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-500">inventory_2</span><h3 class="font-title-md text-base text-stone-100 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-400 max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>`
-            : `<div class="p-10 text-center flex flex-col items-center justify-center gap-3 bg-white rounded-2xl border border-amber-900/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-400">inventory_2</span><h3 class="font-title-md text-base text-stone-900 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-500 max-w-xs">No products are currently in your boutique. Add your first piece using the + button above.</p></div>`;
+            ? `<div class="p-8 text-center flex flex-col items-center justify-center gap-3 bg-[#1C1B1D] rounded-2xl border border-white/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-500">inventory_2</span><h3 class="font-title-md text-base text-stone-100 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-400 max-w-xs">No products are currently in your boutique. Add your first piece to start receiving express orders.</p><button id="addPieceEmptyBtn" class="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-crimson text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"><span class="material-symbols-outlined text-sm">add</span>Add Product</button></div>`
+            : `<div class="p-8 text-center flex flex-col items-center justify-center gap-3 bg-white rounded-2xl border border-amber-900/10 shadow-sm my-4"><span class="material-symbols-outlined text-4xl text-stone-400">inventory_2</span><h3 class="font-title-md text-base text-stone-900 font-bold">Your Catalog is Empty</h3><p class="font-body-sm text-xs text-stone-500 max-w-xs">No products are currently in your boutique. Add your first piece to start receiving express orders.</p><button id="addPieceEmptyBtn" class="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-[#C4243A] text-white font-semibold text-xs shadow-sm active:scale-95 transition-all"><span class="material-symbols-outlined text-sm">add</span>Add Product</button></div>`;
           html = html.replace(catalogContainerRegex, `$1${emptyBoxHtml}$2`);
         }
       } else {
@@ -2477,7 +2478,7 @@ export default function StitchScreenRenderer({
         } else if (catalogCategory === 'COORDS_DRESSES') {
           filteredCatalog = filteredCatalog.filter(p => /coord|co-ord|dress|set/i.test(p.name || '') || /coord|dress/i.test(p.category || ''));
         } else if (catalogCategory === 'ETHNIC') {
-          filteredCatalog = filteredCatalog.filter(p => /heavyweight tee|streetwear tee|hoodie|paithani|ethnic/i.test(p.name || '') || /ethnic|streetwear tee/i.test(p.category || ''));
+          filteredCatalog = filteredCatalog.filter(p => /heavyweight tee|streetwear tee|hoodie|paithani|ethnic|kurta/i.test(p.name || '') || /ethnic|streetwear tee|festive/i.test(p.category || ''));
         }
       }
       if (catalogSearchQuery) {
@@ -2514,11 +2515,11 @@ export default function StitchScreenRenderer({
       html = html.replace(/(<div[^>]*id="categoryRail"[^>]*>)[\s\S]*?(<\/div>)/i, () => {
         const pills = [
           { id: 'ALL', label: `All Fits (${products.length})` },
-          { id: 'TEES_HOODIES', label: `Tees & Hoodies (${products.filter(p => /tee|hoodie|graphic/i.test(p.name || '')).length})` },
-          { id: 'DENIMS_CARGOS', label: `Denims & Cargos (${products.filter(p => /denim|cargo|jean/i.test(p.name || '')).length})` },
-          { id: 'CASUAL_SHIRTS', label: `Casual Shirts (${products.filter(p => /shirt|flannel/i.test(p.name || '')).length})` },
-          { id: 'COORDS_DRESSES', label: `Co-ords & Dresses (${products.filter(p => /coord|dress/i.test(p.name || '')).length})` },
-          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /streetwear tee|hoodie|ethnic/i.test(p.name || '')).length})` },
+          { id: 'TEES_HOODIES', label: `Tees & Hoodies (${products.filter(p => /tee|hoodie|graphic/i.test(p.name || '') || /tee|hoodie/i.test(p.category || '')).length})` },
+          { id: 'DENIMS_CARGOS', label: `Denims & Cargos (${products.filter(p => /denim|cargo|jean/i.test(p.name || '') || /denim|cargo/i.test(p.category || '')).length})` },
+          { id: 'CASUAL_SHIRTS', label: `Casual Shirts (${products.filter(p => /shirt|flannel/i.test(p.name || '') || /shirt/i.test(p.category || '')).length})` },
+          { id: 'COORDS_DRESSES', label: `Co-ords & Dresses (${products.filter(p => /coord|dress/i.test(p.name || '') || /coord|dress/i.test(p.category || '')).length})` },
+          { id: 'ETHNIC', label: `Ethnic Secondary (${products.filter(p => /streetwear tee|hoodie|ethnic|kurta/i.test(p.name || '') || /ethnic|festive/i.test(p.category || '')).length})` },
         ];
         const pillsHtml = pills.map(p => {
           const isActive = (catalogCategory || 'ALL') === p.id;
@@ -2532,15 +2533,66 @@ export default function StitchScreenRenderer({
       const liveItemsHtml = filteredCatalog.map((p) => {
         const img = p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
         const name = p.name || 'Artisanal Nagpur Garment';
-        const price = p.price || 4800;
+        const price = p.price || 1499;
         const mrp = p.mrp || Math.round(price * 1.35);
         const sku = p.sku || `NGP-KAT-${String(p.id || p._id || '1020').slice(-4).toUpperCase()}`;
         const isAvail = p.isAvailable !== false;
-        const boutique = (p.brand || p.storeName || 'Dharampeth streetwear').toUpperCase();
+        const boutique = (p.brand || p.storeName || displayShopName || 'Urban Threads').toUpperCase();
         const category = p.category || 'Boutique Collection';
+        const sizesText = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes.join(' · ') : 'S · M · L · XL';
+        const stockCount = typeof p.stock === 'number' ? p.stock : 10;
+
+        if (isDarkScreen) {
+          return `
+            <div class="relative flex flex-col p-4 rounded-xl bg-[#1C1B1D] border border-white/10 shadow-sm overflow-hidden transition-all" data-product-id="${p.id || p._id}">
+              <div class="flex gap-3.5">
+                <div class="relative w-28 h-36 rounded-lg overflow-hidden flex-shrink-0 bg-[#252427] shadow-sm">
+                  <img class="w-full h-full object-cover" alt="${name}" src="${img}" onerror="this.src='/app/apple-touch-icon.png';" />
+                  <div class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md">
+                    <span class="font-eyebrow text-[8px] uppercase tracking-widest text-stone-100">${category}</span>
+                  </div>
+                </div>
+                <div class="flex flex-col justify-between flex-1 min-w-0">
+                  <div>
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="font-eyebrow text-[10px] text-gold uppercase tracking-wider truncate font-bold">${boutique}</span>
+                      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input type="checkbox" class="sr-only peer status-toggle" data-id="${p.id || p._id}" data-action="toggle-stock" ${isAvail ? 'checked' : ''} />
+                        <div class="w-9 h-5 bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#C4243A] shadow-inner"></div>
+                      </label>
+                    </div>
+                    <h3 class="font-title-md text-base text-stone-100 font-bold tracking-tight leading-snug mt-0.5">${name}</h3>
+                    <p class="font-body-sm text-xs text-stone-400 line-clamp-1 mt-0.5">${p.description || 'Nagpur Express Ready Piece'}</p>
+                    <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-semibold text-stone-300">Sizes: ${sizesText}</span>
+                      <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-[10px] font-bold text-emerald-400">${stockCount} in stock</span>
+                    </div>
+                  </div>
+                  <div class="flex items-baseline gap-2 mt-2">
+                    <span class="font-tabular-price text-base font-bold text-[#F05A6E] tracking-tight">₹${price.toLocaleString()}</span>
+                    <span class="font-body-sm text-xs text-stone-500 line-through">₹${mrp.toLocaleString()}</span>
+                    <span class="font-eyebrow text-[10px] uppercase text-stone-500 tracking-wider ml-auto">SKU: ${sku}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 pt-2.5 flex items-center justify-between bg-[#252427]/60 border-t border-white/5 -mx-4 -mb-4 px-4 py-2 text-stone-400">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-tabular-caption text-[11px]">Live for <strong>60-min express delivery</strong> across Nagpur</span>
+                </div>
+                <button class="p-1 rounded-full text-stone-400 hover:text-stone-100 transition-colors" data-action="quick-edit-prod" data-product-id="${p.id || p._id}" title="Quick edit piece">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="19" cy="12" r="1"></circle>
+                    <circle cx="5" cy="12" r="1"></circle>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }
 
         return `
-          <div class="relative flex flex-col p-4 rounded-xl bg-surface-porcelain shadow-[0_12px_32px_rgba(18,18,20,0.04)] overflow-hidden transition-all hover:shadow-[0_16px_40px_rgba(18,18,20,0.07)]" data-product-id="${p.id || p._id}">
+          <div class="relative flex flex-col p-4 rounded-xl bg-surface-porcelain border border-amber-900/10 shadow-[0_12px_32px_rgba(18,18,20,0.04)] overflow-hidden transition-all hover:shadow-[0_16px_40px_rgba(18,18,20,0.07)]" data-product-id="${p.id || p._id}">
             <div class="flex gap-3.5">
               <div class="relative w-28 h-36 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm">
                 <img class="w-full h-full object-cover" alt="${name}" src="${img}" onerror="this.src='/app/apple-touch-icon.png';" />
@@ -2551,16 +2603,20 @@ export default function StitchScreenRenderer({
               <div class="flex flex-col justify-between flex-1 min-w-0">
                 <div>
                   <div class="flex items-center justify-between gap-1">
-                    <span class="font-eyebrow text-eyebrow text-accent-gold uppercase tracking-wider truncate">${boutique}</span>
+                    <span class="font-eyebrow text-[10px] text-accent-gold uppercase tracking-wider truncate font-bold">${boutique}</span>
                     <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
                       <input type="checkbox" class="sr-only peer status-toggle" data-id="${p.id || p._id}" data-action="toggle-stock" ${isAvail ? 'checked' : ''} />
                       <div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-crimson shadow-inner"></div>
                     </label>
                   </div>
                   <h3 class="font-title-md text-title-md text-text-obsidian tracking-tight leading-snug mt-0.5">${name}</h3>
-                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Designer streetwear Piece'}</p>
+                  <p class="font-body-sm text-body-sm text-text-ash line-clamp-1">${p.description || 'Nagpur Express Ready Piece'}</p>
+                  <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span class="px-2 py-0.5 rounded bg-stone-100 border border-stone-200 text-[10px] font-semibold text-stone-700">Sizes: ${sizesText}</span>
+                    <span class="px-2 py-0.5 rounded bg-emerald-50 text-[10px] font-bold text-emerald-700">${stockCount} in stock</span>
+                  </div>
                 </div>
-                <div class="flex items-baseline gap-2 mt-1">
+                <div class="flex items-baseline gap-2 mt-2">
                   <span class="font-tabular-price text-tabular-price font-bold text-accent-crimson tracking-tight">₹${price.toLocaleString()}</span>
                   <span class="font-body-sm text-body-sm text-text-ash line-through">₹${mrp.toLocaleString()}</span>
                   <span class="font-eyebrow text-[10px] uppercase text-text-ash tracking-wider ml-auto">SKU: ${sku}</span>
@@ -2569,7 +2625,7 @@ export default function StitchScreenRenderer({
             </div>
             <div class="mt-3 pt-2.5 flex items-center justify-between bg-surface-container-low/60 -mx-4 -mb-4 px-4 py-2 text-text-slate">
               <div class="flex items-center gap-1.5">
-                <span class="font-tabular-caption text-[11px]">Avg <strong>28 mins</strong> across Nagpur.</span>
+                <span class="font-tabular-caption text-[11px]">Live for <strong>60-min express delivery</strong> across Nagpur</span>
               </div>
               <button class="p-1 rounded-full text-text-ash hover:text-text-obsidian hover:bg-surface-porcelain transition-colors" data-action="quick-edit-prod" data-product-id="${p.id || p._id}" title="Quick edit piece">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
