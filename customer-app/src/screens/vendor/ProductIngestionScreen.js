@@ -106,6 +106,30 @@ const COLOR_SWATCHES = [
   { name: 'Mustard Gold', hex: '#D97706', tone: 'Vibrant' },
 ];
 
+const TREND_SHADES = [
+  { name: 'Lavender Lilac', hex: '#9F7AEA' },
+  { name: 'Terracotta Rust', hex: '#C05621' },
+  { name: 'Dusty Rose', hex: '#E06C75' },
+  { name: 'Teal Turquoise', hex: '#0D9488' },
+  { name: 'Olive Drab', hex: '#4D7C0F' },
+  { name: 'Plum Berry', hex: '#831843' },
+  { name: 'Mustard Saffron', hex: '#D97706' },
+  { name: 'Steel Blue', hex: '#2563EB' },
+  { name: 'Emerald Forest', hex: '#059669' },
+  { name: 'Coral Peach', hex: '#F97316' },
+];
+
+const getContrastColor = (hex) => {
+  if (!hex || typeof hex !== 'string') return '#FFFFFF';
+  const clean = hex.replace('#', '');
+  if (clean.length < 6) return '#FFFFFF';
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? '#121215' : '#FFFFFF';
+};
+
 const FABRIC_OPTIONS = [
   '100% Combed Cotton',
   'Heavyweight 240 GSM',
@@ -251,6 +275,7 @@ export default function ProductIngestionScreen({ navigation }) {
   ]);
   const [activeColorTab, setActiveColorTab] = useState('Jet Black');
   const [customColorName, setCustomColorName] = useState('');
+  const [customColorHex, setCustomColorHex] = useState('#9F7AEA');
   const [fabric, setFabric] = useState('100% Combed Cotton');
   const [occasion, setOccasion] = useState('Everyday Casual');
   const [care, setCare] = useState('Machine Wash Cold');
@@ -481,14 +506,15 @@ export default function ProductIngestionScreen({ navigation }) {
   const handleAddCustomColor = () => {
     const trimmed = customColorName.trim();
     if (!trimmed) {
-      showToast('Type a custom shade name first.');
+      showToast('Type a custom shade name (e.g. Lavender Lilac) first.');
       return;
     }
     if (selectedColors.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      showToast(`${trimmed} is already added.`);
+      showToast(`"${trimmed}" is already added.`);
       return;
     }
-    const newColor = { name: trimmed, hex: '#C4243A', tone: 'Custom' };
+    const hex = customColorHex ? (customColorHex.startsWith('#') ? customColorHex : `#${customColorHex}`) : '#9F7AEA';
+    const newColor = { name: trimmed, hex, tone: 'Custom' };
     setSelectedColors((prev) => [...prev, newColor]);
     setColorSizeStock((curMap) => {
       const baseSizes = curMap[activeColorTab] || { S: 2, M: 3, L: 3, XL: 2 };
@@ -500,6 +526,26 @@ export default function ProductIngestionScreen({ navigation }) {
     setActiveColorTab(trimmed);
     setCustomColorName('');
     showToast(`Added custom shade: ${trimmed}`);
+  };
+
+  const handleRemoveCustomColor = (colorName) => {
+    if (selectedColors.length <= 1) {
+      showToast('At least 1 color must remain selected.');
+      return;
+    }
+    setSelectedColors((prev) => prev.filter((c) => c.name !== colorName));
+    setColorSizeStock((prev) => {
+      const next = { ...prev };
+      delete next[colorName];
+      return next;
+    });
+    if (activeColorTab === colorName) {
+      const remaining = selectedColors.filter((c) => c.name !== colorName);
+      if (remaining.length > 0) {
+        setActiveColorTab(remaining[0].name);
+      }
+    }
+    showToast(`Removed "${colorName}".`);
   };
 
   const handleCopySizesToAllColors = () => {
@@ -1938,29 +1984,195 @@ export default function ProductIngestionScreen({ navigation }) {
                 })}
               </View>
 
-              {/* Custom Color Input */}
-              <View style={styles.customColorRow}>
-                <TextInput
-                  value={customColorName}
-                  onChangeText={setCustomColorName}
-                  placeholder="Or type custom shade (e.g. Washed Indigo)..."
-                  placeholderTextColor={textMuted}
+              {/* Custom Color Input with Native Interactive Color Picker */}
+              <View style={styles.customColorPickerContainer}>
+                <View
                   style={[
-                    styles.customColorInput,
+                    styles.customColorInputRow,
                     {
                       backgroundColor: inputBg,
                       borderColor: inputBorder,
-                      color: textPrimary,
                     },
                   ]}
-                />
-                <PressableScale
-                  onPress={handleAddCustomColor}
-                  style={[styles.customColorAddBtn, { backgroundColor: crimson }]}
                 >
-                  <Feather name="plus" size={14} color="#FFFFFF" />
-                  <Text style={styles.customColorAddText}>Add</Text>
-                </PressableScale>
+                  {/* Visual Color Picker Bubble with HTML5 Color input overlay */}
+                  <View style={styles.colorPickerTriggerWrap}>
+                    <View
+                      style={[
+                        styles.colorPickerBubble,
+                        {
+                          backgroundColor: customColorHex || '#9F7AEA',
+                          borderColor:
+                            customColorHex === '#FFFFFF' || customColorHex === '#F5F0E6'
+                              ? '#D6D3D1'
+                              : 'rgba(255,255,255,0.3)',
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name="eyedropper"
+                        size={12}
+                        color={getContrastColor(customColorHex || '#9F7AEA')}
+                      />
+                    </View>
+                    {Platform.OS === 'web' && (
+                      <input
+                        type="color"
+                        value={customColorHex || '#9F7AEA'}
+                        onChange={(e) => setCustomColorHex(e.target.value)}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          opacity: 0,
+                          cursor: 'pointer',
+                        }}
+                        title="Open native color picker wheel"
+                      />
+                    )}
+                  </View>
+
+                  {/* Hex Text Input */}
+                  <TextInput
+                    value={customColorHex}
+                    onChangeText={(val) => {
+                      if (!val) {
+                        setCustomColorHex('');
+                      } else if (val.startsWith('#')) {
+                        setCustomColorHex(val);
+                      } else {
+                        setCustomColorHex('#' + val);
+                      }
+                    }}
+                    placeholder="#HEX"
+                    placeholderTextColor={textMuted}
+                    maxLength={7}
+                    style={[styles.customHexInput, { color: textPrimary }]}
+                    autoCapitalize="characters"
+                  />
+
+                  <View style={[styles.inputDivider, { backgroundColor: cardBorder }]} />
+
+                  {/* Custom Shade Name Input */}
+                  <TextInput
+                    value={customColorName}
+                    onChangeText={setCustomColorName}
+                    placeholder="Custom shade name (e.g. Washed Indigo)..."
+                    placeholderTextColor={textMuted}
+                    style={[styles.customColorNameInput, { color: textPrimary }]}
+                  />
+
+                  {/* Add Button */}
+                  <PressableScale
+                    onPress={handleAddCustomColor}
+                    style={[styles.customColorAddBtn, { backgroundColor: crimson }]}
+                  >
+                    <Feather name="plus" size={14} color="#FFFFFF" />
+                    <Text style={styles.customColorAddText}>Add</Text>
+                  </PressableScale>
+                </View>
+
+                {/* Quick Boutique Trend Palette */}
+                <View style={styles.quickTrendRow}>
+                  <Text style={[styles.quickTrendLabel, { color: textMuted }]}>
+                    TRENDS:
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.quickTrendScroll}
+                  >
+                    {TREND_SHADES.map((trend) => {
+                      const isSelected = customColorHex?.toLowerCase() === trend.hex.toLowerCase();
+                      return (
+                        <PressableScale
+                          key={trend.name}
+                          onPress={() => {
+                            setCustomColorHex(trend.hex);
+                            if (!customColorName.trim()) {
+                              setCustomColorName(trend.name);
+                            }
+                          }}
+                          style={[
+                            styles.quickTrendChip,
+                            {
+                              backgroundColor: elevatedBg,
+                              borderColor: isSelected ? crimson : cardBorder,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.quickTrendDot,
+                              { backgroundColor: trend.hex },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.quickTrendText,
+                              { color: isSelected ? textPrimary : textSecondary },
+                            ]}
+                          >
+                            {trend.name}
+                          </Text>
+                        </PressableScale>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                {/* Custom Boutique Shades Added */}
+                {selectedColors.filter((c) => !COLOR_SWATCHES.some((sw) => sw.name === c.name)).length > 0 && (
+                  <View style={styles.customColorsListWrap}>
+                    <Text style={[styles.customColorsListTitle, { color: textSecondary }]}>
+                      Added Custom Shades ({selectedColors.filter((c) => !COLOR_SWATCHES.some((sw) => sw.name === c.name)).length}):
+                    </Text>
+                    <View style={styles.customColorsPillRow}>
+                      {selectedColors
+                        .filter((c) => !COLOR_SWATCHES.some((sw) => sw.name === c.name))
+                        .map((customCol) => (
+                          <View
+                            key={customCol.name}
+                            style={[
+                              styles.customAddedPill,
+                              {
+                                backgroundColor: elevatedBg,
+                                borderColor: cardBorder,
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.swatchCircleSm,
+                                {
+                                  backgroundColor: customCol.hex,
+                                  borderColor:
+                                    customCol.hex === '#FFFFFF' || customCol.hex === '#F5F0E6'
+                                      ? '#D6D3D1'
+                                      : 'rgba(255,255,255,0.2)',
+                                },
+                              ]}
+                            />
+                            <Text style={[styles.customAddedName, { color: textPrimary }]}>
+                              {customCol.name}
+                            </Text>
+                            <Text style={[styles.customAddedHex, { color: textMuted }]}>
+                              {customCol.hex}
+                            </Text>
+                            <PressableScale
+                              onPress={() => handleRemoveCustomColor(customCol.name)}
+                              style={styles.customRemoveBtn}
+                              accessibilityLabel={`Remove custom color ${customCol.name}`}
+                            >
+                              <Feather name="x" size={13} color={textMuted} />
+                            </PressableScale>
+                          </View>
+                        ))}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -3609,19 +3821,59 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: sansFont,
   },
-  customColorRow: {
-    flexDirection: 'row',
+  customColorPickerContainer: {
+    marginTop: 6,
     gap: 8,
-    marginTop: 4,
   },
-  customColorInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 10,
+  customColorInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingLeft: 6,
+    paddingRight: 4,
+    gap: 7,
+  },
+  colorPickerTriggerWrap: {
+    position: 'relative',
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorPickerBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customHexInput: {
+    width: 66,
+    height: '100%',
+    fontSize: 12,
+    fontFamily: sansFont,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      },
+    }),
+  },
+  inputDivider: {
+    width: 1,
+    height: 22,
+  },
+  customColorNameInput: {
+    flex: 1,
+    height: '100%',
     fontSize: 12.5,
     fontFamily: sansFont,
+    paddingHorizontal: 4,
     ...Platform.select({
       web: {
         outlineStyle: 'none',
@@ -3632,8 +3884,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    height: 36,
+    paddingHorizontal: 13,
+    borderRadius: 9,
     justifyContent: 'center',
   },
   customColorAddText: {
@@ -3641,6 +3894,86 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     fontFamily: sansFont,
+  },
+  quickTrendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 1,
+  },
+  quickTrendLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: sansFont,
+    letterSpacing: 0.5,
+  },
+  quickTrendScroll: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  quickTrendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4.5,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  quickTrendDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+  },
+  quickTrendText: {
+    fontSize: 11,
+    fontFamily: sansFont,
+    fontWeight: '500',
+  },
+  customColorsListWrap: {
+    marginTop: 8,
+    gap: 6,
+  },
+  customColorsListTitle: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    fontFamily: sansFont,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  customColorsPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  customAddedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  swatchCircleSm: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    borderWidth: 1,
+  },
+  customAddedName: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    fontFamily: sansFont,
+  },
+  customAddedHex: {
+    fontSize: 10,
+    fontFamily: sansFont,
+  },
+  customRemoveBtn: {
+    padding: 2,
+    marginLeft: 2,
   },
   textArea: {
     minHeight: 72,
