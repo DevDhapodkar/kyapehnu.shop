@@ -2066,6 +2066,8 @@ export default function ProductIngestionScreen({ navigation }) {
 
                   {/* Add Button */}
                   <PressableScale
+                    accessibilityLabel="Add custom color"
+                    testID="add-custom-color-btn"
                     onPress={handleAddCustomColor}
                     style={[styles.customColorAddBtn, { backgroundColor: crimson }]}
                   >
@@ -3851,13 +3853,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   customHexInput: {
-    width: 66,
+    width: 76,
     height: '100%',
     fontSize: 12,
     fontFamily: sansFont,
     fontWeight: '700',
     letterSpacing: 0.5,
     textAlign: 'center',
+    paddingHorizontal: 2,
     ...Platform.select({
       web: {
         outlineStyle: 'none',
