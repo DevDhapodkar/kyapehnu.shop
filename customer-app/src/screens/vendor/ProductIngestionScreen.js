@@ -264,14 +264,8 @@ export default function ProductIngestionScreen({ navigation }) {
   const [care, setCare] = useState('Machine Wash Cold');
   const [description, setDescription] = useState('');
 
-  // Photos State
-  const [photos, setPhotos] = useState([
-    {
-      id: 'default-cover',
-      uri: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=900&auto=format&fit=crop&q=80',
-      label: 'Cover Look',
-    },
-  ]);
+  // Photos State (starts clean - no dummy default photo)
+  const [photos, setPhotos] = useState([]);
 
   // UI Feedback State
   const [toastMsg, setToastMsg] = useState('');
@@ -418,13 +412,9 @@ export default function ProductIngestionScreen({ navigation }) {
     setFabric(preset.fabric);
     const matchedSwatch = COLOR_SWATCHES.find((c) => c.name === preset.color) || COLOR_SWATCHES[0];
     setSelectedColors([matchedSwatch]);
-    setPhotos((prev) => {
-      const filtered = prev.filter((p) => p.id !== 'default-cover' && p.uri !== preset.image);
-      return [
-        { id: `preset-${Date.now()}`, uri: preset.image, label: preset.label },
-        ...filtered,
-      ].slice(0, 5);
-    });
+    setPhotos([
+      { id: `preset-${Date.now()}`, uri: preset.image, label: preset.label, isPreset: true },
+    ]);
     showToast(`Applied "${preset.label}" template`);
   };
 
@@ -514,27 +504,40 @@ export default function ProductIngestionScreen({ navigation }) {
   const handleWebFileSelect = (event) => {
     const files = Array.from(event?.target?.files || []);
     if (!files.length) return;
-    files.slice(0, 5).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const resultUri = e?.target?.result;
-        if (typeof resultUri === 'string') {
-          setPhotos((prev) => {
-            const withoutDefault = prev.filter((p) => p.id !== 'default-cover');
-            return [
-              ...withoutDefault,
-              {
+
+    Promise.all(
+      files.slice(0, 5).map((file) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const resultUri = e?.target?.result;
+            if (typeof resultUri === 'string') {
+              resolve({
                 id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
                 uri: resultUri,
                 label: file.name ? file.name.slice(0, 14) : 'Uploaded Photo',
-              },
-            ].slice(0, 5);
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+              });
+            } else {
+              resolve(null);
+            }
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+      })
+    ).then((newItems) => {
+      const validNew = newItems.filter(Boolean);
+      if (!validNew.length) return;
+      setPhotos((prev) => {
+        // Strip any sample/preset/default photos as soon as real photos are uploaded
+        const cleanPrev = prev.filter(
+          (p) => !p.isPreset && !p.id?.startsWith('preset-') && p.id !== 'default-cover'
+        );
+        return [...cleanPrev, ...validNew].slice(0, 5);
+      });
+      showToast(`${validNew.length} photo${validNew.length > 1 ? 's' : ''} added to listing.`);
     });
-    showToast(`${files.length} photo${files.length > 1 ? 's' : ''} added to listing.`);
+
     if (event.target) {
       event.target.value = '';
     }
@@ -641,12 +644,17 @@ export default function ProductIngestionScreen({ navigation }) {
       showToast('Please select at least 1 size with stock in Step 3.');
       return;
     }
+    if (photos.length === 0) {
+      scrollToStep(5);
+      showToast('Please snap or upload at least 1 photo of your garment in Step 5.');
+      return;
+    }
 
     setIsSubmitting(true);
 
     const coverUri =
       photos[0]?.uri ||
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=900&auto=format&fit=crop&q=80';
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=900&auto=format&fit=crop&q=80';
     const imageList = photos.length > 0 ? photos.map((p) => p.uri) : [coverUri];
     const sizeNames = activeSizeEntries.map(([sz]) => sz);
     const sizeObjects = activeSizeEntries.map(([sz, stock]) => ({ size: sz, stock }));
@@ -2343,8 +2351,8 @@ export default function ProductIngestionScreen({ navigation }) {
               </PressableScale>
             </View>
 
-            {/* Photo Preview Grid */}
-            {photos.length > 0 && (
+            {/* Photo Preview Grid or Empty Helper */}
+            {photos.length > 0 ? (
               <View style={styles.photoGridWrap}>
                 <View style={styles.labelRow}>
                   <Text style={[styles.fieldLabel, { color: textPrimary }]}>
@@ -2386,6 +2394,21 @@ export default function ProductIngestionScreen({ navigation }) {
                     );
                   })}
                 </View>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.emptyPhotoHintBox,
+                  {
+                    backgroundColor: elevatedBg,
+                    borderColor: cardBorder,
+                  },
+                ]}
+              >
+                <Feather name="image" size={15} color={gold} />
+                <Text style={[styles.emptyPhotoHintText, { color: textSecondary }]}>
+                  No photos added yet. Snap with your phone camera or select up to 5 boutique photos.
+                </Text>
               </View>
             )}
           </View>
@@ -3399,6 +3422,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.68)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emptyPhotoHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderRadius: 11,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  emptyPhotoHintText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: sansFont,
+    flex: 1,
   },
   assuranceCard: {
     borderRadius: 14,
