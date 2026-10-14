@@ -41,15 +41,32 @@ const validateOrderReferences = (vendorId, items) => {
 /**
  * Best-effort stock adjustment across an order's lines. `sign` is -1 to reserve
  * on order, +1 to restore on cancellation. Never throws into the caller.
+ * Adjusts aggregate size stock and color-specific variant stock when color is provided.
  */
 const adjustStock = (items, sign) =>
   Promise.all(
-    (items || []).map((it) =>
-      Product.updateOne(
-        { _id: it.product, 'sizes.size': it.size },
-        { $inc: { 'sizes.$.stock': sign * it.quantity } }
-      ).catch((e) => console.error(`Stock adjust failed for ${it.product}:`, e.message))
-    )
+    (items || []).map(async (it) => {
+      try {
+        await Product.updateOne(
+          { _id: it.product, 'sizes.size': it.size },
+          { $inc: { 'sizes.$.stock': sign * it.quantity } }
+        );
+        if (it.color) {
+          await Product.updateOne(
+            { _id: it.product },
+            { $inc: { 'variants.$[v].sizes.$[s].stock': sign * it.quantity } },
+            {
+              arrayFilters: [
+                { 'v.color': it.color },
+                { 's.size': it.size },
+              ],
+            }
+          );
+        }
+      } catch (e) {
+        console.error(`Stock adjust failed for ${it.product}:`, e.message);
+      }
+    })
   );
 
 /** Push an order-status update to the buyer's device(s). Best-effort. */
@@ -86,6 +103,7 @@ const normalizeOrderItems = (items) =>
     product: i.product || i.productId,
     name: i.name,
     size: i.size || 'Free',
+    color: i.color || '',
     quantity: i.quantity || 1,
     price: i.price,
   }));

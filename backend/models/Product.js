@@ -15,6 +15,16 @@ const sizeSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const variantSchema = new mongoose.Schema(
+  {
+    color: { type: String, required: true },
+    colorHex: { type: String },
+    sizes: [sizeSchema],
+    sku: { type: String },
+  },
+  { _id: false }
+);
+
 const productSchema = new mongoose.Schema(
   {
     vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true },
@@ -35,6 +45,7 @@ const productSchema = new mongoose.Schema(
     discountPrice: { type: Number }, // legacy — prefer mrp/price
 
     sizes: [sizeSchema],
+    variants: [variantSchema],
     colors: [mongoose.Schema.Types.Mixed],
     images: [{ type: String }],
     isAvailable: { type: Boolean, default: true },

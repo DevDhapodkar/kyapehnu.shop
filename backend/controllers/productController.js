@@ -54,6 +54,39 @@ const createProduct = async (req, res) => {
         }));
     }
 
+    // Sanitize variants array (Color x Size matrix)
+    if (Array.isArray(body.variants)) {
+      body.variants = body.variants
+        .filter((v) => v && typeof v === 'object' && v.color && String(v.color).trim())
+        .map((v) => ({
+          color: String(v.color).trim(),
+          colorHex: typeof v.colorHex === 'string' ? v.colorHex.trim() : '',
+          sku: typeof v.sku === 'string' ? v.sku.trim() : '',
+          sizes: Array.isArray(v.sizes)
+            ? v.sizes
+                .filter((s) => s && s.size && typeof s.size === 'string' && s.size.trim())
+                .map((s) => ({
+                  size: s.size.trim(),
+                  stock: Math.max(0, parseInt(s.stock, 10) || 0),
+                }))
+            : [],
+        }));
+
+      // If sizes array was omitted or empty, auto-aggregate total stock across variants
+      if ((!body.sizes || !body.sizes.length) && body.variants.length > 0) {
+        const sizeMap = new Map();
+        for (const variant of body.variants) {
+          for (const s of variant.sizes) {
+            sizeMap.set(s.size, (sizeMap.get(s.size) || 0) + s.stock);
+          }
+        }
+        body.sizes = Array.from(sizeMap.entries()).map(([size, stock]) => ({
+          size,
+          stock,
+        }));
+      }
+    }
+
     // Sanitize images array
     if (Array.isArray(body.images)) {
       body.images = body.images.filter((img) => img && typeof img === 'string' && img.trim());
@@ -153,6 +186,48 @@ const updateProduct = async (req, res) => {
     if (!existing) return res.status(404).json({ message: 'Product not found for this vendor' });
 
     const update = stripProtected(req.body);
+
+    // Sanitize sizes array if provided
+    if (Array.isArray(update.sizes)) {
+      update.sizes = update.sizes
+        .filter((s) => s && s.size && typeof s.size === 'string' && s.size.trim())
+        .map((s) => ({
+          size: s.size.trim(),
+          stock: Math.max(0, parseInt(s.stock, 10) || 0),
+        }));
+    }
+
+    // Sanitize variants array (Color x Size matrix) if provided
+    if (Array.isArray(update.variants)) {
+      update.variants = update.variants
+        .filter((v) => v && typeof v === 'object' && v.color && String(v.color).trim())
+        .map((v) => ({
+          color: String(v.color).trim(),
+          colorHex: typeof v.colorHex === 'string' ? v.colorHex.trim() : '',
+          sku: typeof v.sku === 'string' ? v.sku.trim() : '',
+          sizes: Array.isArray(v.sizes)
+            ? v.sizes
+                .filter((s) => s && s.size && typeof s.size === 'string' && s.size.trim())
+                .map((s) => ({
+                  size: s.size.trim(),
+                  stock: Math.max(0, parseInt(s.stock, 10) || 0),
+                }))
+            : [],
+        }));
+
+      if (!update.sizes && update.variants.length > 0) {
+        const sizeMap = new Map();
+        for (const variant of update.variants) {
+          for (const s of variant.sizes) {
+            sizeMap.set(s.size, (sizeMap.get(s.size) || 0) + s.stock);
+          }
+        }
+        update.sizes = Array.from(sizeMap.entries()).map(([size, stock]) => ({
+          size,
+          stock,
+        }));
+      }
+    }
 
     // Content edits to an APPROVED listing (or any fix to a REJECTED one) send
     // it back through QC. Stock/availability toggles on an approved item stay live.

@@ -245,24 +245,37 @@ export default function ProductIngestionScreen({ navigation }) {
   const [discountPct, setDiscountPct] = useState(25);
   const [customMrp, setCustomMrp] = useState('');
 
-  // Size & Stock State
-  const [sizeScale, setSizeScale] = useState('APPAREL');
-  const [sizeStock, setSizeStock] = useState({
-    S: 2,
-    M: 3,
-    L: 3,
-    XL: 2,
-  });
-
   // Colors & Specs State
   const [selectedColors, setSelectedColors] = useState([
     { name: 'Jet Black', hex: '#141416', tone: 'Core' },
   ]);
+  const [activeColorTab, setActiveColorTab] = useState('Jet Black');
   const [customColorName, setCustomColorName] = useState('');
   const [fabric, setFabric] = useState('100% Combed Cotton');
   const [occasion, setOccasion] = useState('Everyday Casual');
   const [care, setCare] = useState('Machine Wash Cold');
   const [description, setDescription] = useState('');
+
+  // Size Scale & Color-Specific Size Inventory Matrix
+  // Structure: { [colorName]: { S: 2, M: 3, L: 3, XL: 2 } }
+  const [sizeScale, setSizeScale] = useState('APPAREL');
+  const [colorSizeStock, setColorSizeStock] = useState({
+    'Jet Black': {
+      S: 2,
+      M: 3,
+      L: 3,
+      XL: 2,
+    },
+  });
+
+  // Ensure activeColorTab points to a selected color
+  useEffect(() => {
+    if (!selectedColors.some((c) => c.name === activeColorTab)) {
+      if (selectedColors.length > 0) {
+        setActiveColorTab(selectedColors[0].name);
+      }
+    }
+  }, [selectedColors, activeColorTab]);
 
   // Photos State (starts clean - no dummy default photo)
   const [photos, setPhotos] = useState([]);
@@ -343,23 +356,39 @@ export default function ProductIngestionScreen({ navigation }) {
   const platformFee = Math.round(numericPrice * 0.05);
   const netVendorPayout = Math.max(0, numericPrice - platformFee);
 
-  // Stock Calculations
-  const activeSizeEntries = useMemo(
-    () => Object.entries(sizeStock).filter(([, qty]) => qty > 0),
-    [sizeStock]
-  );
+  // Stock Calculations (Color-Specific and Aggregate)
+  const activeColorSizes = useMemo(() => {
+    const colorKey = activeColorTab || selectedColors[0]?.name || 'Default';
+    return colorSizeStock[colorKey] || {};
+  }, [colorSizeStock, activeColorTab, selectedColors]);
 
-  const totalStockPieces = useMemo(
-    () => activeSizeEntries.reduce((sum, [, qty]) => sum + qty, 0),
-    [activeSizeEntries]
-  );
+  const activeColorStockTotal = useMemo(() => {
+    return Object.values(activeColorSizes).reduce((sum, qty) => sum + (qty > 0 ? qty : 0), 0);
+  }, [activeColorSizes]);
+
+  const activeSizeEntries = useMemo(() => {
+    const aggregated = {};
+    selectedColors.forEach((c) => {
+      const stock = colorSizeStock[c.name] || {};
+      Object.entries(stock).forEach(([sz, qty]) => {
+        if (qty > 0) {
+          aggregated[sz] = (aggregated[sz] || 0) + qty;
+        }
+      });
+    });
+    return Object.entries(aggregated);
+  }, [colorSizeStock, selectedColors]);
+
+  const totalStockPieces = useMemo(() => {
+    return activeSizeEntries.reduce((sum, [, qty]) => sum + qty, 0);
+  }, [activeSizeEntries]);
 
   // Step Completion Tracking
   const stepCompletion = useMemo(() => {
     const s1 = productName.trim().length >= 2 && Boolean(department) && Boolean(category);
     const s2 = numericPrice >= 99;
-    const s3 = activeSizeEntries.length >= 1 && totalStockPieces >= 1;
-    const s4 = selectedColors.length >= 1 && Boolean(fabric);
+    const s3 = selectedColors.length >= 1 && Boolean(fabric);
+    const s4 = activeSizeEntries.length >= 1 && totalStockPieces >= 1;
     const s5 = photos.length >= 1;
     return {
       1: s1,
@@ -412,61 +441,14 @@ export default function ProductIngestionScreen({ navigation }) {
     setFabric(preset.fabric);
     const matchedSwatch = COLOR_SWATCHES.find((c) => c.name === preset.color) || COLOR_SWATCHES[0];
     setSelectedColors([matchedSwatch]);
+    setActiveColorTab(matchedSwatch.name);
+    setColorSizeStock({
+      [matchedSwatch.name]: { S: 2, M: 3, L: 3, XL: 2 },
+    });
     setPhotos([
       { id: `preset-${Date.now()}`, uri: preset.image, label: preset.label, isPreset: true },
     ]);
     showToast(`Applied "${preset.label}" template`);
-  };
-
-  const handleToggleSize = (sizeKey) => {
-    setSizeStock((prev) => {
-      const next = { ...prev };
-      if (next[sizeKey] && next[sizeKey] > 0) {
-        delete next[sizeKey];
-      } else {
-        next[sizeKey] = 2;
-      }
-      return next;
-    });
-  };
-
-  const handleAdjustSizeQty = (sizeKey, delta) => {
-    setSizeStock((prev) => {
-      const cur = prev[sizeKey] || 0;
-      const updated = Math.max(0, Math.min(99, cur + delta));
-      const next = { ...prev };
-      if (updated === 0) {
-        delete next[sizeKey];
-      } else {
-        next[sizeKey] = updated;
-      }
-      return next;
-    });
-  };
-
-  const handleBulkSelectSizes = (mode) => {
-    const scaleItems = SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL;
-    if (mode === 'popular') {
-      if (sizeScale === 'APPAREL') {
-        setSizeStock({ S: 2, M: 3, L: 3, XL: 2 });
-      } else if (sizeScale === 'WAIST') {
-        setSizeStock({ '30': 2, '32': 3, '34': 3, '36': 2 });
-      } else {
-        setSizeStock({ FS: 5 });
-      }
-      showToast('Selected core sizes with standard boutique stock.');
-    } else if (mode === 'set3') {
-      const next = {};
-      scaleItems.forEach((item) => {
-        if (sizeStock[item.size] > 0 || ['S', 'M', 'L', 'XL', '30', '32', '34', 'FS'].includes(item.size)) {
-          next[item.size] = 3;
-        }
-      });
-      setSizeStock(next);
-      showToast('Set active sizes to 3 pieces each.');
-    } else if (mode === 'clear') {
-      setSizeStock({});
-    }
   };
 
   const handleToggleColor = (swatch) => {
@@ -477,8 +459,21 @@ export default function ProductIngestionScreen({ navigation }) {
           showToast('At least 1 color stays selected.');
           return prev;
         }
-        return prev.filter((c) => c.name !== swatch.name);
+        const updated = prev.filter((c) => c.name !== swatch.name);
+        if (activeColorTab === swatch.name) {
+          setActiveColorTab(updated[0]?.name || '');
+        }
+        return updated;
       }
+      // New color selected: initialize its size inventory copying from active color or defaults
+      setColorSizeStock((curMap) => {
+        if (curMap[swatch.name]) return curMap;
+        const baseSizes = curMap[activeColorTab] || curMap[prev[0]?.name] || { S: 2, M: 3, L: 3, XL: 2 };
+        return {
+          ...curMap,
+          [swatch.name]: { ...baseSizes },
+        };
+      });
       return [...prev, swatch];
     });
   };
@@ -493,12 +488,100 @@ export default function ProductIngestionScreen({ navigation }) {
       showToast(`${trimmed} is already added.`);
       return;
     }
-    setSelectedColors((prev) => [
-      ...prev,
-      { name: trimmed, hex: '#C4243A', tone: 'Custom' },
-    ]);
+    const newColor = { name: trimmed, hex: '#C4243A', tone: 'Custom' };
+    setSelectedColors((prev) => [...prev, newColor]);
+    setColorSizeStock((curMap) => {
+      const baseSizes = curMap[activeColorTab] || { S: 2, M: 3, L: 3, XL: 2 };
+      return {
+        ...curMap,
+        [trimmed]: { ...baseSizes },
+      };
+    });
+    setActiveColorTab(trimmed);
     setCustomColorName('');
     showToast(`Added custom shade: ${trimmed}`);
+  };
+
+  const handleCopySizesToAllColors = () => {
+    if (selectedColors.length <= 1) {
+      showToast('Select multiple colors to copy sizes across them.');
+      return;
+    }
+    const colorKey = activeColorTab || selectedColors[0]?.name;
+    const currentStock = colorSizeStock[colorKey] || {};
+    setColorSizeStock((prev) => {
+      const next = { ...prev };
+      selectedColors.forEach((c) => {
+        next[c.name] = { ...currentStock };
+      });
+      return next;
+    });
+    showToast(`Applied ${colorKey} sizes to all ${selectedColors.length} colors.`);
+  };
+
+  const handleToggleSize = (sizeKey) => {
+    const colorKey = activeColorTab || selectedColors[0]?.name || 'Default';
+    setColorSizeStock((prev) => {
+      const currentMap = { ...(prev[colorKey] || {}) };
+      if (currentMap[sizeKey] && currentMap[sizeKey] > 0) {
+        delete currentMap[sizeKey];
+      } else {
+        currentMap[sizeKey] = 2;
+      }
+      return {
+        ...prev,
+        [colorKey]: currentMap,
+      };
+    });
+  };
+
+  const handleAdjustSizeQty = (sizeKey, delta) => {
+    const colorKey = activeColorTab || selectedColors[0]?.name || 'Default';
+    setColorSizeStock((prev) => {
+      const currentMap = { ...(prev[colorKey] || {}) };
+      const cur = currentMap[sizeKey] || 0;
+      const updated = Math.max(0, Math.min(99, cur + delta));
+      if (updated === 0) {
+        delete currentMap[sizeKey];
+      } else {
+        currentMap[sizeKey] = updated;
+      }
+      return {
+        ...prev,
+        [colorKey]: currentMap,
+      };
+    });
+  };
+
+  const handleBulkSelectSizes = (mode) => {
+    const colorKey = activeColorTab || selectedColors[0]?.name || 'Default';
+    const scaleItems = SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL;
+    let nextSizes = {};
+    if (mode === 'popular') {
+      if (sizeScale === 'APPAREL') {
+        nextSizes = { S: 2, M: 3, L: 3, XL: 2 };
+      } else if (sizeScale === 'WAIST') {
+        nextSizes = { '30': 2, '32': 3, '34': 3, '36': 2 };
+      } else {
+        nextSizes = { FS: 5 };
+      }
+      showToast(`Selected core sizes for ${colorKey}.`);
+    } else if (mode === 'set3') {
+      const currentMap = colorSizeStock[colorKey] || {};
+      scaleItems.forEach((item) => {
+        if (currentMap[item.size] > 0 || ['S', 'M', 'L', 'XL', '30', '32', '34', 'FS'].includes(item.size)) {
+          nextSizes[item.size] = 3;
+        }
+      });
+      showToast(`Set active sizes to 3 pcs for ${colorKey}.`);
+    } else if (mode === 'clear') {
+      nextSizes = {};
+      showToast(`Cleared sizes for ${colorKey}.`);
+    }
+    setColorSizeStock((prev) => ({
+      ...prev,
+      [colorKey]: nextSizes,
+    }));
   };
 
   const handleWebFileSelect = (event) => {
@@ -568,7 +651,9 @@ export default function ProductIngestionScreen({ navigation }) {
           sellingPrice,
           discountPct,
           customMrp,
-          sizeStock,
+          sizeScale,
+          colorSizeStock,
+          activeColorTab,
           selectedColors,
           fabric,
           occasion,
@@ -604,8 +689,17 @@ export default function ProductIngestionScreen({ navigation }) {
         if (d.sellingPrice) setSellingPrice(d.sellingPrice);
         if (d.discountPct !== undefined) setDiscountPct(d.discountPct);
         if (d.customMrp !== undefined) setCustomMrp(d.customMrp);
-        if (d.sizeStock) setSizeStock(d.sizeStock);
-        if (Array.isArray(d.selectedColors) && d.selectedColors.length) setSelectedColors(d.selectedColors);
+        if (d.sizeScale) setSizeScale(d.sizeScale);
+        if (Array.isArray(d.selectedColors) && d.selectedColors.length) {
+          setSelectedColors(d.selectedColors);
+        }
+        if (d.colorSizeStock && typeof d.colorSizeStock === 'object') {
+          setColorSizeStock(d.colorSizeStock);
+        } else if (d.sizeStock && typeof d.sizeStock === 'object') {
+          const defaultColor = (Array.isArray(d.selectedColors) && d.selectedColors[0]?.name) || 'Jet Black';
+          setColorSizeStock({ [defaultColor]: d.sizeStock });
+        }
+        if (d.activeColorTab) setActiveColorTab(d.activeColorTab);
         if (d.fabric) setFabric(d.fabric);
         if (d.occasion) setOccasion(d.occasion);
         if (d.care) setCare(d.care);
@@ -639,9 +733,14 @@ export default function ProductIngestionScreen({ navigation }) {
       showToast('Please enter a valid Selling Price (₹99 or above) in Step 2.');
       return;
     }
-    if (activeSizeEntries.length === 0 || totalStockPieces <= 0) {
+    if (selectedColors.length === 0 || !fabric) {
       scrollToStep(3);
-      showToast('Please select at least 1 size with stock in Step 3.');
+      showToast('Please select at least 1 color and fabric in Step 3.');
+      return;
+    }
+    if (activeSizeEntries.length === 0 || totalStockPieces <= 0) {
+      scrollToStep(4);
+      showToast('Please select at least 1 size with stock in Step 4.');
       return;
     }
     if (photos.length === 0) {
@@ -656,8 +755,35 @@ export default function ProductIngestionScreen({ navigation }) {
       photos[0]?.uri ||
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=900&auto=format&fit=crop&q=80';
     const imageList = photos.length > 0 ? photos.map((p) => p.uri) : [coverUri];
-    const sizeNames = activeSizeEntries.map(([sz]) => sz);
-    const sizeObjects = activeSizeEntries.map(([sz, stock]) => ({ size: sz, stock }));
+
+    // Build structured variants (Color x Size matrix)
+    const variants = selectedColors.map((colorObj) => {
+      const stockMap = colorSizeStock[colorObj.name] || {};
+      const sizes = Object.entries(stockMap)
+        .filter(([, qty]) => qty > 0)
+        .map(([size, stock]) => ({ size, stock }));
+      const colorSkuSuffix = colorObj.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
+      return {
+        color: colorObj.name,
+        colorHex: colorObj.hex || '',
+        sizes,
+        sku: `${computedSku}-${colorSkuSuffix}`,
+      };
+    });
+
+    // Compute aggregated sizes across all variants for backward compatibility
+    const sizeMap = {};
+    variants.forEach((v) => {
+      v.sizes.forEach((s) => {
+        sizeMap[s.size] = (sizeMap[s.size] || 0) + s.stock;
+      });
+    });
+    const sizeObjects = Object.entries(sizeMap).map(([size, stock]) => ({
+      size,
+      stock,
+    }));
+    const sizeNames = sizeObjects.map((s) => s.size);
+
     const finalDesc =
       description.trim() ||
       `${fitStyle} · ${fabric} · ${selectedColors.map((c) => c.name).join(', ')} · ${care}`;
@@ -683,6 +809,8 @@ export default function ProductIngestionScreen({ navigation }) {
       stock: totalStockPieces,
       sizes: sizeNames,
       sizeInventory: sizeObjects,
+      variants,
+      colorInventory: colorSizeStock,
       colors: selectedColors.map((c) => c.name),
       colorSwatches: selectedColors,
       fabric,
@@ -703,7 +831,7 @@ export default function ProductIngestionScreen({ navigation }) {
       products: [newProductItem, ...(Array.isArray(state.products) ? state.products : [])],
     }));
 
-    // 3. Best-effort backend sync
+    // 3. Best-effort backend sync with variants and sizes
     try {
       await createProduct({
         name: cleanTitle,
@@ -711,6 +839,8 @@ export default function ProductIngestionScreen({ navigation }) {
         price: numericPrice,
         mrp: numericMrp,
         sizes: sizeObjects,
+        variants,
+        colors: selectedColors,
         images: imageList,
         description: finalDesc,
         sku: computedSku,
@@ -752,8 +882,8 @@ export default function ProductIngestionScreen({ navigation }) {
   const STEPS = [
     { num: 1, label: '1. Identity', title: 'Garment Identity', done: stepCompletion[1] },
     { num: 2, label: '2. Pricing', title: 'Pricing & Payout', done: stepCompletion[2] },
-    { num: 3, label: '3. Sizes & Stock', title: 'Sizes & Stock', done: stepCompletion[3] },
-    { num: 4, label: '4. Colors & Specs', title: 'Colors & Details', done: stepCompletion[4] },
+    { num: 3, label: '3. Colors & Specs', title: 'Colors & Specifications', done: stepCompletion[3] },
+    { num: 4, label: '4. Sizes & Stock', title: 'Sizes & Stock Matrix', done: stepCompletion[4] },
     { num: 5, label: '5. Photos', title: 'Product Photos', done: stepCompletion[5] },
   ];
 
@@ -1680,7 +1810,7 @@ export default function ProductIngestionScreen({ navigation }) {
           </View>
 
           {/* ================================================================
-              SECTION 3: SIZE & INVENTORY MATRIX
+              SECTION 3: COLORS, FABRIC & SPECIFICATIONS
           ================================================================ */}
           <View
             onLayout={(e) => {
@@ -1711,258 +1841,10 @@ export default function ProductIngestionScreen({ navigation }) {
                 </View>
                 <View>
                   <Text style={[styles.sectionTitle, { color: textPrimary }]}>
-                    Sizes &amp; Stock Matrix
-                  </Text>
-                  <Text style={[styles.sectionSubtitle, { color: textSecondary }]}>
-                    Tap sizes in stock and adjust quantities
-                  </Text>
-                </View>
-              </View>
-              <View
-                style={[
-                  styles.sectionBadge,
-                  {
-                    backgroundColor:
-                      totalStockPieces > 0
-                        ? isDark
-                          ? 'rgba(16, 185, 129, 0.15)'
-                          : '#ECFDF5'
-                        : elevatedBg,
-                    borderColor:
-                      totalStockPieces > 0
-                        ? isDark
-                          ? 'rgba(16, 185, 129, 0.35)'
-                          : '#A7F3D0'
-                        : cardBorder,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sectionBadgeText,
-                    { color: totalStockPieces > 0 ? emerald : textSecondary },
-                  ]}
-                >
-                  {totalStockPieces} PCS · {activeSizeEntries.length} SIZES
-                </Text>
-              </View>
-            </View>
-
-            {/* Size Scale Switcher */}
-            <View style={styles.scaleTabRow}>
-              {[
-                { id: 'APPAREL', label: 'Apparel (XS–XXL)' },
-                { id: 'WAIST', label: 'Waist (28–36)' },
-                { id: 'FREE', label: 'Free Size' },
-              ].map((sc) => {
-                const isAct = sizeScale === sc.id;
-                return (
-                  <PressableScale
-                    key={sc.id}
-                    onPress={() => {
-                      setSizeScale(sc.id);
-                      if (sc.id === 'FREE') {
-                        setSizeStock({ FS: 5 });
-                      } else if (sc.id === 'WAIST') {
-                        setSizeStock({ '30': 2, '32': 3, '34': 3 });
-                      } else {
-                        setSizeStock({ S: 2, M: 3, L: 3, XL: 2 });
-                      }
-                      setActiveStep(3);
-                    }}
-                    wrapperStyle={{ flex: 1 }}
-                    style={[
-                      styles.scaleTabBtn,
-                      isAct
-                        ? { backgroundColor: crimson, borderColor: crimson }
-                        : { backgroundColor: elevatedBg, borderColor: cardBorder },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.scaleTabText,
-                        {
-                          color: isAct ? '#FFFFFF' : textSecondary,
-                          fontWeight: isAct ? '700' : '500',
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {sc.label}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
-
-            {/* Bulk Quick Actions */}
-            <View style={styles.bulkActionsRow}>
-              <PressableScale
-                onPress={() => handleBulkSelectSizes('popular')}
-                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
-              >
-                <Feather name="check-circle" size={11} color={gold} />
-                <Text style={[styles.bulkBtnText, { color: textPrimary }]}>
-                  Select Core Sizes
-                </Text>
-              </PressableScale>
-              <PressableScale
-                onPress={() => handleBulkSelectSizes('set3')}
-                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
-              >
-                <Feather name="layers" size={11} color={gold} />
-                <Text style={[styles.bulkBtnText, { color: textPrimary }]}>
-                  Set All = 3 pcs
-                </Text>
-              </PressableScale>
-              <PressableScale
-                onPress={() => handleBulkSelectSizes('clear')}
-                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
-              >
-                <Text style={[styles.bulkBtnText, { color: textMuted }]}>Clear</Text>
-              </PressableScale>
-            </View>
-
-            {/* Size Pill Toggles */}
-            <View style={styles.sizePillRow}>
-              {(SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL).map((item) => {
-                const qty = sizeStock[item.size] || 0;
-                const isSelected = qty > 0;
-                return (
-                  <PressableScale
-                    key={item.size}
-                    onPress={() => {
-                      handleToggleSize(item.size);
-                      setActiveStep(3);
-                    }}
-                    style={[
-                      styles.sizeTogglePill,
-                      isSelected
-                        ? { backgroundColor: crimson, borderColor: crimson }
-                        : { backgroundColor: elevatedBg, borderColor: inputBorder },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.sizeToggleText,
-                        { color: isSelected ? '#FFFFFF' : textPrimary },
-                      ]}
-                    >
-                      {item.size}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.sizeToggleSub,
-                        { color: isSelected ? 'rgba(255,255,255,0.85)' : textMuted },
-                      ]}
-                    >
-                      {isSelected ? `${qty} pcs` : 'Off'}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
-
-            {/* Active Size Stepper Rows */}
-            <View style={styles.sizeRowsList}>
-              {(SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL)
-                .filter((item) => (sizeStock[item.size] || 0) > 0)
-                .map((item) => {
-                  const qty = sizeStock[item.size] || 0;
-                  return (
-                    <View
-                      key={item.size}
-                      style={[
-                        styles.sizeStepperRow,
-                        {
-                          backgroundColor: elevatedBg,
-                          borderColor: cardBorder,
-                        },
-                      ]}
-                    >
-                      <View style={styles.sizeRowLeft}>
-                        <View style={[styles.sizeBadgeBox, { backgroundColor: crimson }]}>
-                          <Text style={styles.sizeBadgeText}>{item.size}</Text>
-                        </View>
-                        <View>
-                          <Text style={[styles.sizeRowTitle, { color: textPrimary }]}>
-                            Size {item.size} · {item.hint}
-                          </Text>
-                          <Text style={[styles.sizeRowReady, { color: emerald }]}>
-                            ✓ Ready for 45-min dispatch
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.stepperControls,
-                          {
-                            backgroundColor: cardBg,
-                            borderColor: inputBorder,
-                          },
-                        ]}
-                      >
-                        <PressableScale
-                          onPress={() => handleAdjustSizeQty(item.size, -1)}
-                          style={[styles.stepperBtn, { backgroundColor: elevatedBg }]}
-                          accessibilityLabel={`Decrease size ${item.size}`}
-                        >
-                          <Feather name="minus" size={13} color={textPrimary} />
-                        </PressableScale>
-                        <Text style={[styles.stepperQtyText, { color: textPrimary }]}>
-                          {qty}
-                        </Text>
-                        <PressableScale
-                          onPress={() => handleAdjustSizeQty(item.size, 1)}
-                          style={[styles.stepperBtn, { backgroundColor: elevatedBg }]}
-                          accessibilityLabel={`Increase size ${item.size}`}
-                        >
-                          <Feather name="plus" size={13} color={textPrimary} />
-                        </PressableScale>
-                      </View>
-                    </View>
-                  );
-                })}
-            </View>
-          </View>
-
-          {/* ================================================================
-              SECTION 4: COLORS, FABRIC & SPECIFICATIONS
-          ================================================================ */}
-          <View
-            onLayout={(e) => {
-              sectionOffsetsRef.current[4] = e.nativeEvent.layout.y;
-            }}
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: cardBg,
-                borderColor: cardBorder,
-              },
-            ]}
-          >
-            <View style={[styles.sectionHeader, { borderBottomColor: cardBorder }]}>
-              <View style={styles.sectionHeaderLeft}>
-                <View
-                  style={[
-                    styles.sectionNumCircle,
-                    {
-                      backgroundColor: isDark ? 'rgba(196, 36, 58, 0.20)' : '#FFF1F2',
-                      borderColor: isDark ? 'rgba(196, 36, 58, 0.40)' : '#FECDD3',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.sectionNumText, { color: isDark ? '#FDA4AF' : crimson }]}>
-                    4
-                  </Text>
-                </View>
-                <View>
-                  <Text style={[styles.sectionTitle, { color: textPrimary }]}>
                     Colors &amp; Specifications
                   </Text>
                   <Text style={[styles.sectionSubtitle, { color: textSecondary }]}>
-                    Color swatches, fabric, occasion &amp; care
+                    Garment palette, fabric, occasion &amp; care
                   </Text>
                 </View>
               </View>
@@ -1994,7 +1876,7 @@ export default function ProductIngestionScreen({ navigation }) {
                       key={sw.name}
                       onPress={() => {
                         handleToggleColor(sw);
-                        setActiveStep(4);
+                        setActiveStep(3);
                       }}
                       wrapperStyle={{ width: '48%', flexGrow: 1 }}
                       style={[
@@ -2095,7 +1977,7 @@ export default function ProductIngestionScreen({ navigation }) {
                       key={fab}
                       onPress={() => {
                         setFabric(fab);
-                        setActiveStep(4);
+                        setActiveStep(3);
                       }}
                       style={[
                         styles.choiceChip,
@@ -2228,6 +2110,364 @@ export default function ProductIngestionScreen({ navigation }) {
                   },
                 ]}
               />
+            </View>
+          </View>
+
+          {/* ================================================================
+              SECTION 4: SIZE & INVENTORY MATRIX (COLOR-SPECIFIC)
+          ================================================================ */}
+          <View
+            onLayout={(e) => {
+              sectionOffsetsRef.current[4] = e.nativeEvent.layout.y;
+            }}
+            style={[
+              styles.sectionCard,
+              {
+                backgroundColor: cardBg,
+                borderColor: cardBorder,
+              },
+            ]}
+          >
+            <View style={[styles.sectionHeader, { borderBottomColor: cardBorder }]}>
+              <View style={styles.sectionHeaderLeft}>
+                <View
+                  style={[
+                    styles.sectionNumCircle,
+                    {
+                      backgroundColor: isDark ? 'rgba(196, 36, 58, 0.20)' : '#FFF1F2',
+                      borderColor: isDark ? 'rgba(196, 36, 58, 0.40)' : '#FECDD3',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.sectionNumText, { color: isDark ? '#FDA4AF' : crimson }]}>
+                    4
+                  </Text>
+                </View>
+                <View>
+                  <Text style={[styles.sectionTitle, { color: textPrimary }]}>
+                    Sizes &amp; Stock Matrix
+                  </Text>
+                  <Text style={[styles.sectionSubtitle, { color: textSecondary }]}>
+                    Configure inventory per color variant
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.sectionBadge,
+                  {
+                    backgroundColor:
+                      totalStockPieces > 0
+                        ? isDark
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : '#ECFDF5'
+                        : elevatedBg,
+                    borderColor:
+                      totalStockPieces > 0
+                        ? isDark
+                          ? 'rgba(16, 185, 129, 0.35)'
+                          : '#A7F3D0'
+                        : cardBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sectionBadgeText,
+                    { color: totalStockPieces > 0 ? emerald : textSecondary },
+                  ]}
+                >
+                  {totalStockPieces} PCS · {selectedColors.length} {selectedColors.length === 1 ? 'COLOR' : 'COLORS'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Color Variant Selector Tabs */}
+            <View style={styles.colorTabsWrap}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.fieldLabel, { color: textPrimary }]}>
+                  Select Color to Set Stock:
+                </Text>
+                {selectedColors.length > 1 && (
+                  <PressableScale
+                    onPress={handleCopySizesToAllColors}
+                    style={[styles.copyAllBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
+                  >
+                    <Feather name="copy" size={11} color={gold} />
+                    <Text style={[styles.copyAllBtnText, { color: textPrimary }]}>
+                      Copy sizes to all colors
+                    </Text>
+                  </PressableScale>
+                )}
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.colorTabsScroll}
+              >
+                {selectedColors.map((col) => {
+                  const isAct = col.name === activeColorTab;
+                  const colStock = Object.values(colorSizeStock[col.name] || {}).reduce(
+                    (s, q) => s + (q > 0 ? q : 0),
+                    0
+                  );
+                  return (
+                    <PressableScale
+                      key={col.name}
+                      onPress={() => {
+                        setActiveColorTab(col.name);
+                        setActiveStep(4);
+                      }}
+                      style={[
+                        styles.colorTabPill,
+                        isAct
+                          ? { backgroundColor: crimson, borderColor: crimson }
+                          : { backgroundColor: elevatedBg, borderColor: cardBorder },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.colorTabDot,
+                          {
+                            backgroundColor: col.hex || '#141416',
+                            borderColor:
+                              col.hex === '#FFFFFF' || col.hex === '#F5F0E6'
+                                ? '#D6D3D1'
+                                : 'rgba(255,255,255,0.3)',
+                          },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.colorTabName,
+                          {
+                            color: isAct ? '#FFFFFF' : textPrimary,
+                            fontWeight: isAct ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {col.name}
+                      </Text>
+                      <View
+                        style={[
+                          styles.colorTabBadge,
+                          { backgroundColor: isAct ? 'rgba(255,255,255,0.22)' : cardBg },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.colorTabBadgeText,
+                            { color: isAct ? '#FFFFFF' : colStock > 0 ? emerald : textMuted },
+                          ]}
+                        >
+                          {colStock} pcs
+                        </Text>
+                      </View>
+                    </PressableScale>
+                  );
+                })}
+              </ScrollView>
+
+              <View
+                style={[
+                  styles.activeColorBanner,
+                  { backgroundColor: elevatedBg, borderColor: cardBorder },
+                ]}
+              >
+                <Feather name="sliders" size={13} color={gold} />
+                <Text style={[styles.activeColorBannerText, { color: textSecondary }]}>
+                  Editing sizes for <Text style={{ color: textPrimary, fontWeight: '700' }}>{activeColorTab}</Text> ({activeColorStockTotal} pcs in stock)
+                </Text>
+              </View>
+            </View>
+
+            {/* Size Scale Switcher */}
+            <View style={styles.scaleTabRow}>
+              {[
+                { id: 'APPAREL', label: 'Apparel (XS–XXL)' },
+                { id: 'WAIST', label: 'Waist (28–36)' },
+                { id: 'FREE', label: 'Free Size' },
+              ].map((sc) => {
+                const isAct = sizeScale === sc.id;
+                return (
+                  <PressableScale
+                    key={sc.id}
+                    onPress={() => {
+                      setSizeScale(sc.id);
+                      const colorKey = activeColorTab || selectedColors[0]?.name || 'Default';
+                      if (sc.id === 'FREE') {
+                        setColorSizeStock((prev) => ({
+                          ...prev,
+                          [colorKey]: { FS: 5 },
+                        }));
+                      } else if (sc.id === 'WAIST') {
+                        setColorSizeStock((prev) => ({
+                          ...prev,
+                          [colorKey]: { '30': 2, '32': 3, '34': 3 },
+                        }));
+                      } else {
+                        setColorSizeStock((prev) => ({
+                          ...prev,
+                          [colorKey]: { S: 2, M: 3, L: 3, XL: 2 },
+                        }));
+                      }
+                      setActiveStep(4);
+                    }}
+                    wrapperStyle={{ flex: 1 }}
+                    style={[
+                      styles.scaleTabBtn,
+                      isAct
+                        ? { backgroundColor: crimson, borderColor: crimson }
+                        : { backgroundColor: elevatedBg, borderColor: cardBorder },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.scaleTabText,
+                        {
+                          color: isAct ? '#FFFFFF' : textSecondary,
+                          fontWeight: isAct ? '700' : '500',
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {sc.label}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+
+            {/* Bulk Quick Actions */}
+            <View style={styles.bulkActionsRow}>
+              <PressableScale
+                onPress={() => handleBulkSelectSizes('popular')}
+                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
+              >
+                <Feather name="check-circle" size={11} color={gold} />
+                <Text style={[styles.bulkBtnText, { color: textPrimary }]}>
+                  Core Sizes
+                </Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => handleBulkSelectSizes('set3')}
+                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
+              >
+                <Feather name="layers" size={11} color={gold} />
+                <Text style={[styles.bulkBtnText, { color: textPrimary }]}>
+                  All = 3 pcs
+                </Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => handleBulkSelectSizes('clear')}
+                style={[styles.bulkBtn, { backgroundColor: elevatedBg, borderColor: cardBorder }]}
+              >
+                <Text style={[styles.bulkBtnText, { color: textMuted }]}>Clear</Text>
+              </PressableScale>
+            </View>
+
+            {/* Size Pill Toggles (for active color) */}
+            <View style={styles.sizePillRow}>
+              {(SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL).map((item) => {
+                const qty = activeColorSizes[item.size] || 0;
+                const isSelected = qty > 0;
+                return (
+                  <PressableScale
+                    key={item.size}
+                    onPress={() => {
+                      handleToggleSize(item.size);
+                      setActiveStep(4);
+                    }}
+                    style={[
+                      styles.sizeTogglePill,
+                      isSelected
+                        ? { backgroundColor: crimson, borderColor: crimson }
+                        : { backgroundColor: elevatedBg, borderColor: inputBorder },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sizeToggleText,
+                        { color: isSelected ? '#FFFFFF' : textPrimary },
+                      ]}
+                    >
+                      {item.size}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.sizeToggleSub,
+                        { color: isSelected ? 'rgba(255,255,255,0.85)' : textMuted },
+                      ]}
+                    >
+                      {isSelected ? `${qty} pcs` : 'Off'}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+
+            {/* Active Size Stepper Rows (for active color) */}
+            <View style={styles.sizeRowsList}>
+              {(SIZE_SCALES[sizeScale] || SIZE_SCALES.APPAREL)
+                .filter((item) => (activeColorSizes[item.size] || 0) > 0)
+                .map((item) => {
+                  const qty = activeColorSizes[item.size] || 0;
+                  return (
+                    <View
+                      key={item.size}
+                      style={[
+                        styles.sizeStepperRow,
+                        {
+                          backgroundColor: elevatedBg,
+                          borderColor: cardBorder,
+                        },
+                      ]}
+                    >
+                      <View style={styles.sizeRowLeft}>
+                        <View style={[styles.sizeBadgeBox, { backgroundColor: crimson }]}>
+                          <Text style={styles.sizeBadgeText}>{item.size}</Text>
+                        </View>
+                        <View>
+                          <Text style={[styles.sizeRowTitle, { color: textPrimary }]}>
+                            Size {item.size} · {item.hint}
+                          </Text>
+                          <Text style={[styles.sizeRowReady, { color: emerald }]}>
+                            ✓ Ready for 45-min dispatch ({activeColorTab})
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.stepperControls,
+                          {
+                            backgroundColor: cardBg,
+                            borderColor: inputBorder,
+                          },
+                        ]}
+                      >
+                        <PressableScale
+                          onPress={() => handleAdjustSizeQty(item.size, -1)}
+                          style={[styles.stepperBtn, { backgroundColor: elevatedBg }]}
+                          accessibilityLabel={`Decrease size ${item.size} for ${activeColorTab}`}
+                        >
+                          <Feather name="minus" size={13} color={textPrimary} />
+                        </PressableScale>
+                        <Text style={[styles.stepperQtyText, { color: textPrimary }]}>
+                          {qty}
+                        </Text>
+                        <PressableScale
+                          onPress={() => handleAdjustSizeQty(item.size, 1)}
+                          style={[styles.stepperBtn, { backgroundColor: elevatedBg }]}
+                          accessibilityLabel={`Increase size ${item.size} for ${activeColorTab}`}
+                        >
+                          <Feather name="plus" size={13} color={textPrimary} />
+                        </PressableScale>
+                      </View>
+                    </View>
+                  );
+                })}
             </View>
           </View>
 
@@ -3146,6 +3386,73 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: sansFont,
     textAlign: 'center',
+  },
+  colorTabsWrap: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  colorTabsScroll: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  colorTabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  colorTabDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  colorTabName: {
+    fontSize: 12,
+    fontFamily: sansFont,
+  },
+  colorTabBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
+  },
+  colorTabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: sansFont,
+  },
+  activeColorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  activeColorBannerText: {
+    fontSize: 11.5,
+    fontFamily: sansFont,
+    flex: 1,
+  },
+  copyAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  copyAllBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: sansFont,
   },
   scaleTabRow: {
     flexDirection: 'row',

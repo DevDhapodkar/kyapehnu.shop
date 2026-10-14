@@ -133,6 +133,75 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
     assert.equal(fetched.fit, 'Tailored Regular');
   });
 
+  await t.test('2c. Vendor adds garment with color-specific size inventory variants (Color x Size matrix)', async () => {
+    const multiVariantPayload = {
+      name: 'Sitabuldi Artisan Boxy Tee',
+      brand: 'Studio Anamika',
+      category: 'MEN',
+      subCategory: 'T-Shirts',
+      price: 1499,
+      mrp: 1999,
+      colors: [
+        { name: 'Jet Black', hex: '#141416' },
+        { name: 'Sindhoor Crimson', hex: '#9E1929' },
+      ],
+      variants: [
+        {
+          color: 'Jet Black',
+          colorHex: '#141416',
+          sku: 'TEE-BLK-001',
+          sizes: [
+            { size: 'S', stock: 2 },
+            { size: 'M', stock: 5 },
+            { size: 'L', stock: 0 },
+          ],
+        },
+        {
+          color: 'Sindhoor Crimson',
+          colorHex: '#9E1929',
+          sku: 'TEE-CRM-001',
+          sizes: [
+            { size: 'S', stock: 0 },
+            { size: 'M', stock: 3 },
+            { size: 'L', stock: 4 },
+          ],
+        },
+      ],
+      material: '100% Combed Cotton',
+      fit: 'Oversized / Boxy',
+      images: ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=900'],
+      isAvailable: true,
+    };
+
+    const res = await fetch(`${baseUrl}/api/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer dev-token-${vendorUid}`,
+      },
+      body: JSON.stringify(multiVariantPayload),
+    });
+
+    assert.equal(res.status, 201);
+    const created = await res.json();
+    assert.equal(created.name, 'Sitabuldi Artisan Boxy Tee');
+    assert.ok(Array.isArray(created.variants));
+    assert.equal(created.variants.length, 2);
+    assert.equal(created.variants[0].color, 'Jet Black');
+    assert.equal(created.variants[0].sizes.length, 3);
+    assert.equal(created.variants[1].color, 'Sindhoor Crimson');
+
+    // Auto-aggregated sizes check: S (2+0=2), M (5+3=8), L (0+4=4)
+    assert.ok(Array.isArray(created.sizes));
+    const sizeM = created.sizes.find((s) => s.size === 'M');
+    assert.ok(sizeM);
+    assert.equal(sizeM.stock, 8);
+    const sizeS = created.sizes.find((s) => s.size === 'S');
+    assert.equal(sizeS.stock, 2);
+    const sizeL = created.sizes.find((s) => s.size === 'L');
+    assert.equal(sizeL.stock, 4);
+  });
+
   await t.test('3. Place guest cart order on 45-min corridor', async () => {
     const payload = {
       vendor: vendorId,
