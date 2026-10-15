@@ -39,22 +39,18 @@ if (isFirebaseConfigured) {
 
   if (Platform.OS === 'web') {
     try {
-      auth = getAuth(app);
-    } catch {
-      try {
-        const persistenceList = [
-          fbAuth.indexedDBLocalPersistence,
-          fbAuth.browserLocalPersistence,
-          fbAuth.browserSessionPersistence,
-        ].filter(Boolean);
+      const persistenceList = [
+        fbAuth.indexedDBLocalPersistence,
+        fbAuth.browserLocalPersistence,
+        fbAuth.browserSessionPersistence,
+      ].filter(Boolean);
 
-        auth = initializeAuth(app, {
-          popupRedirectResolver: fbAuth.browserPopupRedirectResolver,
-          persistence: persistenceList.length ? persistenceList : undefined,
-        });
-      } catch {
-        auth = getAuth(app);
-      }
+      auth = initializeAuth(app, {
+        popupRedirectResolver: fbAuth.browserPopupRedirectResolver,
+        persistence: persistenceList.length ? persistenceList : undefined,
+      });
+    } catch {
+      auth = getAuth(app);
     }
   } else {
     // eslint-disable-next-line import/namespace

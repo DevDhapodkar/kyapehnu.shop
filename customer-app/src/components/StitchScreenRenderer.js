@@ -3246,6 +3246,10 @@ export default function StitchScreenRenderer({
           `;
 
           const res = await useAuthStore.getState().signInWithGoogle();
+          if (!res || !res.cred?.user) {
+            // Redirecting to Google on Mobile/Safari or popup cancelled
+            return;
+          }
           const finalRole = res?.role || useAuthStore.getState().role;
 
           const currentUser = useAuthStore.getState().user;
@@ -3298,28 +3302,48 @@ export default function StitchScreenRenderer({
         `;
         vendorGoogleBtn.style.pointerEvents = 'none';
 
+        const shopInput = el.querySelector('#shop-name');
+        const propInput = el.querySelector('#proprietor-name');
+        const addressInput = el.querySelector('#atelier-address');
+        const selectedSpecialties = Array.from(el.querySelectorAll('.spec-chip[data-active="true"]'))
+          .map((c) => c.textContent.trim().replace(/^(check|add)\s*/, ''))
+          .filter(Boolean);
+        const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
+        const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
+        const addressVal = addressInput?.value?.trim() || `${deliveryLocation.road ? deliveryLocation.road + ', ' : ''}${deliveryLocation.areaName || 'Nagpur Central'}`;
+
+        const draft = {
+          shopName: shopInput?.value?.trim() || '',
+          proprietor: propInput?.value?.trim() || '',
+          phone: `+91${rawPhone.slice(-10)}`,
+          specialties: selectedSpecialties,
+          address: addressVal,
+          area: deliveryLocation.areaName || 'Nagpur Central',
+          pincode: deliveryLocation.pincode || '440010',
+          coordinates: [lng, lat],
+          timestamp: Date.now(),
+        };
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('kyapehnu_vendor_reg_draft', JSON.stringify(draft));
+        }
+
         try {
-          await useAuthStore.getState().signInWithGoogle();
+          const res = await useAuthStore.getState().signInWithGoogle();
+          if (!res || !res.cred?.user) {
+            // Redirecting to Google on Mobile/Safari or cancelled
+            return;
+          }
           const currentUser = useAuthStore.getState().user;
 
           if (!currentUser) {
             throw new Error('Google authentication was cancelled or failed.');
           }
 
-          const shopInput = el.querySelector('#shop-name');
-          const propInput = el.querySelector('#proprietor-name');
-          const addressInput = el.querySelector('#atelier-address');
-
           const storeName = shopInput?.value?.trim() || `${currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Nagpur'}'s Boutique`;
           const proprietorName = propInput?.value?.trim() || currentUser.displayName || 'Boutique Designer';
           const phone = `+91${rawPhone.slice(-10)}`;
           const email = currentUser.email || `${rawPhone.slice(-10)}@kyapehnu.boutique`;
-          const lat = vendorCoordsRef.current?.latitude || deliveryLocation.latitude || 21.1458;
-          const lng = vendorCoordsRef.current?.longitude || deliveryLocation.longitude || 79.0882;
-          const addressVal = addressInput?.value?.trim() || `${deliveryLocation.road ? deliveryLocation.road + ', ' : ''}${deliveryLocation.areaName || 'Nagpur Central'}`;
-          const selectedSpecialties = Array.from(el.querySelectorAll('.spec-chip[data-active="true"]'))
-            .map((c) => c.textContent.trim().replace(/^(check|add)\s*/, ''))
-            .filter(Boolean);
 
           const vendorPayload = {
             shopName: storeName,
@@ -3346,6 +3370,10 @@ export default function StitchScreenRenderer({
             await registerVendor(vendorPayload);
           } catch (regErr) {
             console.warn('[VendorRegister-Google] Backend sync note:', regErr?.message);
+          }
+
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem('kyapehnu_vendor_reg_draft');
           }
 
           useAuthStore.setState({

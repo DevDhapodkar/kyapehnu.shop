@@ -37,6 +37,31 @@ export const registerEmail = async (email, password, displayName) => {
   return cred;
 };
 
+export const isMobileOrSafari = () => {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  const ua = navigator.userAgent || '';
+
+  // Standalone PWA (iOS Home Screen or Android PWA)
+  const isStandalone =
+    window.matchMedia?.('(display-mode: standalone)')?.matches ||
+    window.navigator.standalone === true;
+
+  // iOS detection (iPhone, iPad, iPod, or iPad on iOS 13+ with touch)
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // Safari detection (WebKit Safari engine, excluding Chrome/CriOS, Edge/EdgiOS, Firefox/FxiOS on other platforms)
+  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|Android/.test(ua);
+
+  // General mobile detection
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+
+  return isIOS || isSafari || isMobile || isStandalone;
+};
+
 export const signInGoogle = async () => {
   const authInstance = ensureAuth();
   if (Platform.OS !== 'web') {
@@ -51,16 +76,34 @@ export const signInGoogle = async () => {
   provider.addScope('email');
   provider.addScope('profile');
   const resolver = browserPopupRedirectResolver || undefined;
+
+  // On iOS, Mobile Safari, Android browsers, and Standalone PWAs,
+  // never use signInWithPopup. Opening a popup tab on iOS triggers Apple's
+  // SOAuthorizationCoordinator which crashes Mobile Safari back to the SpringBoard / Home Screen.
+  // Using signInWithRedirect executes a top-level navigation, completely eliminating the crash.
+  if (isMobileOrSafari()) {
+    console.log('[auth] Mobile/Safari environment detected. Initiating top-level signInWithRedirect...');
+    await (resolver
+      ? signInWithRedirect(authInstance, provider, resolver)
+      : signInWithRedirect(authInstance, provider));
+    return null;
+  }
+
   try {
     return await (resolver
       ? signInWithPopup(authInstance, provider, resolver)
       : signInWithPopup(authInstance, provider));
   } catch (err) {
-    if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/internal-error') {
+    if (
+      err?.code === 'auth/popup-blocked' ||
+      err?.code === 'auth/internal-error' ||
+      err?.code === 'auth/cancelled-popup-request'
+    ) {
       console.warn('[auth] Popup unavailable, falling back to redirect:', err?.code, err?.message || err);
-      return await (resolver
+      await (resolver
         ? signInWithRedirect(authInstance, provider, resolver)
         : signInWithRedirect(authInstance, provider));
+      return null;
     }
     throw err;
   }

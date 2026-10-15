@@ -5,6 +5,7 @@ import {
   syncUserProfile,
   fetchUserProfile,
   fetchVendorProfile,
+  registerVendor,
   registerUserPushToken,
 } from '../api/vendorApi';
 import { Platform } from 'react-native';
@@ -138,20 +139,97 @@ export const useAuthStore = create((set, get) => ({
           if (cred?.user) {
             const token = await cred.user.getIdToken();
             setAuthToken(token);
-            set({ user: cred.user, token, authReady: true });
+
+            // Check if there is a pending vendor registration draft
+            let draft = null;
+            if (typeof window !== 'undefined' && window.localStorage) {
+              const rawDraft = window.localStorage.getItem('kyapehnu_vendor_reg_draft');
+              if (rawDraft) {
+                try {
+                  draft = JSON.parse(rawDraft);
+                  if (Date.now() - (draft.timestamp || 0) > 3600000) draft = null;
+                } catch {
+                  draft = null;
+                }
+              }
+            }
+
+            // Sync user profile
+            let profile = null;
             try {
-              const profile = await syncUserProfile({
-                name: cred.user.displayName || '',
+              profile = await syncUserProfile({
+                name: cred.user.displayName || draft?.proprietor || '',
                 email: cred.user.email,
-                phone: cred.user.phoneNumber || '',
+                phone: cred.user.phoneNumber || draft?.phone || '',
               });
-              set({ profile, pendingProfile: null });
             } catch (err) {
               console.warn('[auth] Redirect profile sync:', err?.message || err);
             }
+
+            let vendor = null;
+            let assignedRole = ROLES.CUSTOMER;
+
+            // If returning from vendor registration draft, auto-complete boutique registration
+            if (draft && draft.phone) {
+              try {
+                const vendorPayload = {
+                  shopName: draft.shopName || `${cred.user.displayName ? cred.user.displayName.split(' ')[0] : 'Nagpur'}'s Boutique`,
+                  ownerName: draft.proprietor || cred.user.displayName || 'Boutique Designer',
+                  phone: draft.phone,
+                  whatsappNumber: draft.phone,
+                  rawWhatsapp: draft.phone.replace(/[^0-9]/g, '').slice(-10),
+                  email: cred.user.email || `${draft.phone.replace(/[^0-9]/g, '').slice(-10)}@kyapehnu.boutique`,
+                  specialties: draft.specialties || ['Boutique Designer', 'Custom Tailoring'],
+                  address: {
+                    line1: draft.address || 'Nagpur Central',
+                    area: draft.area || 'Nagpur Central',
+                    city: 'Nagpur',
+                    pincode: draft.pincode || '440010',
+                  },
+                  location: {
+                    type: 'Point',
+                    coordinates: draft.coordinates || [79.0882, 21.1458],
+                  },
+                  authProvider: 'google',
+                };
+                await registerVendor(vendorPayload);
+                vendor = {
+                  ...vendorPayload,
+                  _id: `vnd-${cred.user.uid}`,
+                  approvalStatus: 'APPROVED',
+                };
+                assignedRole = ROLES.VENDOR;
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  window.localStorage.removeItem('kyapehnu_vendor_reg_draft');
+                }
+              } catch (regErr) {
+                console.warn('[VendorRegister-Redirect] Auto-complete note:', regErr?.message);
+              }
+            }
+
+            if (!vendor) {
+              try {
+                vendor = await fetchVendorProfile();
+                if (vendor && (vendor._id || vendor.shopName)) {
+                  assignedRole = ROLES.VENDOR;
+                }
+              } catch {}
+            }
+
+            persistAuthSession(token, cred.user, assignedRole, assignedRole === ROLES.VENDOR ? vendor : null);
+
+            set({
+              user: cred.user,
+              token,
+              role: assignedRole,
+              vendorProfile: assignedRole === ROLES.VENDOR ? vendor : null,
+              profile: profile || get().profile,
+              pendingProfile: null,
+              authReady: true,
+            });
           }
         })
-        .catch(() => {});
+        .catch((err) => console.warn('[auth] checkRedirectResult error:', err));
     }
 
     const unsubscribe = subscribeIdToken(async (session) => {
@@ -191,11 +269,16 @@ export const useAuthStore = create((set, get) => ({
         }
       }
 
+      let finalRole = initialRoleToSet;
       if (vendor && (vendor._id || vendor.shopName)) {
+        finalRole = ROLES.VENDOR;
         set({ role: ROLES.VENDOR, vendorProfile: vendor });
       } else if (!cachedRole || cachedRole !== ROLES.VENDOR) {
+        finalRole = ROLES.CUSTOMER;
         set({ role: ROLES.CUSTOMER });
       }
+
+      persistAuthSession(token, user, finalRole, finalRole === ROLES.VENDOR ? vendor : null);
 
       // Register this device for order-status push notifications (best-effort).
       registerForPush()
@@ -223,6 +306,8 @@ export const useAuthStore = create((set, get) => ({
         assignedRole = ROLES.VENDOR;
       }
     } catch {}
+
+    persistAuthSession(token, cred.user, assignedRole, assignedRole === ROLES.VENDOR ? vendor : null);
 
     set({
       user: cred.user,
@@ -253,6 +338,7 @@ export const useAuthStore = create((set, get) => ({
 
     const token = await cred.user.getIdToken();
     setAuthToken(token);
+    persistAuthSession(token, cred.user, ROLES.CUSTOMER, null);
     set({ user: cred.user, token, role: ROLES.CUSTOMER });
 
     // Background profile sync so UI navigates without cold-start blocking
@@ -276,6 +362,7 @@ export const useAuthStore = create((set, get) => ({
     };
     const quickToken = `auth-token-instant-${Date.now()}`;
     setAuthToken(quickToken);
+    persistAuthSession(quickToken, quickUser, ROLES.CUSTOMER, null);
     set({
       user: quickUser,
       token: quickToken,
@@ -308,6 +395,8 @@ export const useAuthStore = create((set, get) => ({
         assignedRole = ROLES.VENDOR;
       }
     } catch {}
+
+    persistAuthSession(token, cred.user, assignedRole, assignedRole === ROLES.VENDOR ? vendor : null);
 
     set({
       user: cred.user,

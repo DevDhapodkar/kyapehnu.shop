@@ -40,6 +40,7 @@ export default function StitchAuth({ navigation }) {
         e.preventDefault();
         try {
           const res = await useAuthStore.getState().signInWithGoogle?.();
+          if (!res || !res.cred?.user) return;
           const finalRole = res?.role || useAuthStore.getState().role;
           if (finalRole === 'VENDOR') {
             navigation.navigate('VendorOrders');
