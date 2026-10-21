@@ -39,8 +39,22 @@ export const corsSecurity = cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Wipe-Secret', 'expo-platform', 'expo-current-update-id'],
-  maxAge: 86400, // 24 hours
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Admin-Wipe-Secret',
+    'expo-platform',
+    'expo-current-update-id',
+    'X-Gateway-Signature',
+    'X-Gateway-Event',
+    'X-Gateway-Delivery-Id',
+    'X-Gateway-Timestamp',
+    'X-Merchant-Id',
+    'X-Merchant-Key',
+    'Idempotency-Key',
+    'X-YouPI-Signature',
+    'X-Signature',
+  ],
 });
 
 /**

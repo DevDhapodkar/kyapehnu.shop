@@ -128,9 +128,9 @@ const createOrder = async (req, res) => {
   try {
     const vendorId = req.body.vendor || req.body.vendorId;
     const { items, totalPrice, deliveryAddress, paymentMethod } = req.body;
-
-    if (paymentMethod && paymentMethod !== 'COD') {
-      return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
+    const resolvedMethod = (paymentMethod || 'COD').toUpperCase();
+    if (resolvedMethod !== 'COD' && resolvedMethod !== 'UPI') {
+      return res.status(400).json({ message: 'Only Cash on Delivery (COD) and Instant UPI (YouPI) are supported' });
     }
 
     const referenceError = validateOrderReferences(vendorId, items);
@@ -178,6 +178,8 @@ const createOrder = async (req, res) => {
         ? totalPrice
         : normalizedItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
+    const isPaid = resolvedMethod === 'UPI' && req.body.paymentStatus === 'PAID';
+
     const order = await Order.create({
       customer: req.user._id,
       vendor: vendorId,
@@ -186,10 +188,18 @@ const createOrder = async (req, res) => {
       deliveryInstructions: req.body.deliveryInstructions || normalizedAddress.deliveryInstructions || '',
       addressType: req.body.addressType || normalizedAddress.addressType || 'Home',
       deliveryAddress: normalizedAddress,
-      paymentMethod: 'COD',
-      paymentStatus: 'PENDING',
+      paymentMethod: resolvedMethod,
+      paymentStatus: isPaid ? 'PAID' : 'PENDING',
+      paymentId: req.body.paymentId || undefined,
+      paymentUtr: req.body.paymentUtr || undefined,
+      paymentMode: resolvedMethod === 'UPI' ? 'UPI' : 'COD',
+      paidAt: isPaid ? new Date() : undefined,
       status: ORDER_STATUS.PENDING,
-      statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
+      statusHistory: appendHistory(
+        [],
+        ORDER_STATUS.PENDING,
+        isPaid ? `Order placed (Instant UPI Paid via YouPI, UTR: ${req.body.paymentUtr || 'Verified'})` : 'Order placed'
+      ),
     });
 
     // Reserve stock, notify the shop (WhatsApp + push), all best-effort.
@@ -214,8 +224,9 @@ const createGuestOrder = async (req, res) => {
     const vendorId = req.body.vendor || req.body.vendorId;
     const { items, totalPrice, deliveryAddress, contact, paymentMethod } = req.body;
 
-    if (paymentMethod && paymentMethod !== 'COD') {
-      return res.status(400).json({ message: 'Only Cash on Delivery is supported right now' });
+    const resolvedMethod = (paymentMethod || 'COD').toUpperCase();
+    if (resolvedMethod !== 'COD' && resolvedMethod !== 'UPI') {
+      return res.status(400).json({ message: 'Only Cash on Delivery (COD) and Instant UPI (YouPI) are supported' });
     }
     if (!contact?.name || !contact?.phone) {
       return res.status(400).json({ message: 'Your name and phone number are required' });
@@ -272,6 +283,8 @@ const createGuestOrder = async (req, res) => {
         ? totalPrice
         : normalizedItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
 
+    const isPaid = resolvedMethod === 'UPI' && req.body.paymentStatus === 'PAID';
+
     const order = await Order.create({
       guestContact: { name: contact.name, phone: contact.phone },
       channel: 'WEB',
@@ -281,10 +294,18 @@ const createGuestOrder = async (req, res) => {
       deliveryInstructions: req.body.deliveryInstructions || normalizedAddress.deliveryInstructions || '',
       addressType: req.body.addressType || normalizedAddress.addressType || 'Home',
       deliveryAddress: normalizedAddress,
-      paymentMethod: 'COD',
-      paymentStatus: 'PENDING',
+      paymentMethod: resolvedMethod,
+      paymentStatus: isPaid ? 'PAID' : 'PENDING',
+      paymentId: req.body.paymentId || undefined,
+      paymentUtr: req.body.paymentUtr || undefined,
+      paymentMode: resolvedMethod === 'UPI' ? 'UPI' : 'COD',
+      paidAt: isPaid ? new Date() : undefined,
       status: ORDER_STATUS.PENDING,
-      statusHistory: appendHistory([], ORDER_STATUS.PENDING, 'Order placed'),
+      statusHistory: appendHistory(
+        [],
+        ORDER_STATUS.PENDING,
+        isPaid ? `Order placed (Instant UPI Paid via YouPI, UTR: ${req.body.paymentUtr || 'Verified'})` : 'Order placed'
+      ),
     });
 
     adjustStock(normalizedItems, -1);
@@ -298,6 +319,10 @@ const createGuestOrder = async (req, res) => {
       orderId: order._id,
       status: order.status,
       totalPrice: order.totalPrice,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      paymentId: order.paymentId,
+      paymentUtr: order.paymentUtr,
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to place order', error: error.message });

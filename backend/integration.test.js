@@ -13,6 +13,8 @@ import Order from './models/Order.js';
 import vendorRoutes from './routes/vendorRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import { generateHmac } from './utils/youpiClient.js';
 
 dotenv.config();
 
@@ -22,10 +24,17 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
   await ensureBootstrapData();
 
   const app = express();
-  app.use(express.json());
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        req.rawBody = buf.toString('utf8');
+      },
+    })
+  );
   app.use('/api/vendors', vendorRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/payments', paymentRoutes);
 
   let server;
   let baseUrl;
@@ -424,4 +433,182 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
     });
     assert.equal(del.status, 404);
   });
+
+  await t.test('14. YouPI-PG: Create payment session returns UPI URI and session data', async () => {
+    const res = await fetch(`${baseUrl}/api/payments/youpi/create-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: 'KP-TEST-UPI-101',
+        amount: 1499,
+        customer: { name: 'Devyani Joshi', phone: customerPhone },
+      }),
+    });
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.ok(data.paymentId);
+    assert.ok(data.upiUri.startsWith('upi://pay?'));
+    assert.ok(data.upiUri.includes('1499.00'));
+  });
+
+  let upiOrderId;
+  let upiPaymentId;
+
+  await t.test('15. Place guest order with paymentMethod: UPI and initial status PENDING', async () => {
+    const sellable = await createProductForVendor('YouPI Checkout Saree');
+    upiPaymentId = `youpi_test_${Date.now()}`;
+
+    const res = await fetch(`${baseUrl}/api/orders/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendor: vendorId,
+        items: [
+          {
+            productId: sellable._id,
+            name: sellable.name,
+            price: sellable.price,
+            size: 'Free',
+            quantity: 1,
+          },
+        ],
+        totalPrice: sellable.price,
+        deliveryAddress: {
+          line1: 'Near Shankar Nagar Square',
+          area: 'Dharampeth',
+          city: 'Nagpur',
+          pincode: '440010',
+          receiverName: 'Devyani Joshi',
+          receiverPhone: customerPhone,
+        },
+        contact: { name: 'Devyani Joshi', phone: customerPhone },
+        paymentMethod: 'UPI',
+        paymentStatus: 'PENDING',
+        paymentId: upiPaymentId,
+      }),
+    });
+
+    assert.equal(res.status, 201);
+    const order = await res.json();
+    upiOrderId = order._id;
+    assert.equal(order.paymentMethod, 'UPI');
+    assert.equal(order.paymentStatus, 'PENDING');
+    assert.equal(order.paymentId, upiPaymentId);
+  });
+
+  await t.test('16. YouPI Webhook rejects unauthorized requests (missing or invalid HMAC signature)', async () => {
+    const webhookPayload = JSON.stringify({
+      event: 'SUCCESS',
+      paymentId: upiPaymentId,
+      orderId: upiOrderId,
+      amount: 1999,
+      utr: 'UTR998877665544',
+    });
+
+    // 1. Without signature
+    const noSigRes = await fetch(`${baseUrl}/api/payments/youpi/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: webhookPayload,
+    });
+    assert.equal(noSigRes.status, 401);
+
+    // 2. With forged signature
+    const badSigRes = await fetch(`${baseUrl}/api/payments/youpi/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Gateway-Signature': 'sha256=0000000000000000000000000000000000000000000000000000000000000000',
+      },
+      body: webhookPayload,
+    });
+    assert.equal(badSigRes.status, 401);
+  });
+
+  await t.test('17. YouPI Webhook with valid HMAC signature marks order PAID and stamps UTR', async () => {
+    const webhookSecret = process.env.YOUPI_WEBHOOK_SECRET || 'kyapehnu_youpi_webhook_secret_nagpur_2026';
+    const testUtr = 'UTR847291038472';
+    const webhookPayload = JSON.stringify({
+      event: 'SUCCESS',
+      paymentId: upiPaymentId,
+      orderId: upiOrderId,
+      amount: 1999,
+      utr: testUtr,
+    });
+
+    const signature = `sha256=${generateHmac(webhookPayload, webhookSecret)}`;
+
+    const res = await fetch(`${baseUrl}/api/payments/youpi/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Gateway-Signature': signature,
+      },
+      body: webhookPayload,
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.received, true);
+    assert.equal(data.event, 'SUCCESS');
+
+    // Verify order was marked PAID in the database
+    const updatedOrder = await Order.findById(upiOrderId);
+    assert.equal(updatedOrder.paymentStatus, 'PAID');
+    assert.equal(updatedOrder.paymentMethod, 'UPI');
+    assert.equal(updatedOrder.paymentUtr, testUtr);
+    assert.ok(updatedOrder.paidAt);
+  });
+
+  await t.test('18. YouPI verify endpoint confirms order and payment details', async () => {
+    const secondSellable = await createProductForVendor('Verify Test Anarkali');
+    const orderRes = await fetch(`${baseUrl}/api/orders/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendor: vendorId,
+        items: [
+          {
+            productId: secondSellable._id,
+            name: secondSellable.name,
+            price: secondSellable.price,
+            size: 'L',
+            quantity: 1,
+          },
+        ],
+        totalPrice: secondSellable.price,
+        deliveryAddress: {
+          line1: 'Near Law College Square',
+          area: 'Civil Lines',
+          city: 'Nagpur',
+          pincode: '440001',
+          receiverName: 'Devyani Joshi',
+          receiverPhone: customerPhone,
+        },
+        contact: { name: 'Devyani Joshi', phone: customerPhone },
+        paymentMethod: 'UPI',
+        paymentStatus: 'PENDING',
+      }),
+    });
+    assert.equal(orderRes.status, 201);
+    const pendingOrder = await orderRes.json();
+    assert.equal(pendingOrder.paymentStatus, 'PENDING');
+
+    const verifyRes = await fetch(`${baseUrl}/api/payments/youpi/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: pendingOrder._id,
+        paymentId: 'youpi_manual_verify_123',
+        utr: 'UTR991122334455',
+      }),
+    });
+    assert.equal(verifyRes.status, 200);
+    const verifyData = await verifyRes.json();
+    assert.equal(verifyData.success, true);
+    assert.equal(verifyData.order.paymentStatus, 'PAID');
+    assert.equal(verifyData.order.paymentUtr, 'UTR991122334455');
+  });
 });
+

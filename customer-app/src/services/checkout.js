@@ -14,7 +14,15 @@ import { placeOrder, createGuestOrder } from '../api/vendorApi';
  * @param {number} params.deliveryFee   Flat fee added to each shop's order total.
  * @returns {Promise<Array>} Placed orders, normalised for the tracking screen.
  */
-export const placeCartOrders = async ({ items, deliveryAddress, deliveryFee = 0 }) => {
+export const placeCartOrders = async ({
+  items,
+  deliveryAddress,
+  deliveryFee = 0,
+  paymentMethod = 'COD',
+  paymentStatus = 'PENDING',
+  paymentId,
+  paymentUtr,
+}) => {
   // Group the bag by vendor (storeId) — one order per shop.
   const byVendor = new Map();
   for (const item of items) {
@@ -42,7 +50,10 @@ export const placeCartOrders = async ({ items, deliveryAddress, deliveryFee = 0 
       totalPrice:
         vendorItems.reduce((sum, it) => sum + it.price * it.quantity, 0) + deliveryFee,
       deliveryAddress,
-      paymentMethod: 'COD',
+      paymentMethod,
+      paymentStatus,
+      paymentId,
+      paymentUtr,
     });
 
     // Keep the original cart items (they carry storeName / storeCoordinates /
@@ -55,6 +66,10 @@ export const placeCartOrders = async ({ items, deliveryAddress, deliveryFee = 0 
       items: vendorItems,
       deliveryAddress: order.deliveryAddress || deliveryAddress,
       status: order.status || 'PENDING',
+      paymentMethod: order.paymentMethod || paymentMethod,
+      paymentStatus: order.paymentStatus || paymentStatus,
+      paymentId: order.paymentId || paymentId,
+      paymentUtr: order.paymentUtr || paymentUtr,
       placedAt: order.createdAt || new Date().toISOString(),
     });
   }
@@ -63,9 +78,18 @@ export const placeCartOrders = async ({ items, deliveryAddress, deliveryFee = 0 
 };
 
 /**
- * Guest COD checkout — no account required.
+ * Guest checkout with COD or YouPI UPI.
  */
-export const placeGuestCartOrders = async ({ items, deliveryAddress, contact, deliveryFee = 0 }) => {
+export const placeGuestCartOrders = async ({
+  items,
+  deliveryAddress,
+  contact,
+  deliveryFee = 0,
+  paymentMethod = 'COD',
+  paymentStatus = 'PENDING',
+  paymentId,
+  paymentUtr,
+}) => {
   const byVendor = new Map();
   for (const item of items) {
     const storeId = item.storeId || item.vendor?._id || item.vendor;
@@ -93,7 +117,10 @@ export const placeGuestCartOrders = async ({ items, deliveryAddress, contact, de
         vendorItems.reduce((sum, it) => sum + it.price * it.quantity, 0) + deliveryFee,
       deliveryAddress,
       contact,
-      paymentMethod: 'COD',
+      paymentMethod,
+      paymentStatus,
+      paymentId,
+      paymentUtr,
     });
 
     placed.push({
@@ -104,6 +131,10 @@ export const placeGuestCartOrders = async ({ items, deliveryAddress, contact, de
       items: vendorItems,
       deliveryAddress,
       status: order.status || 'PENDING',
+      paymentMethod: order.paymentMethod || paymentMethod,
+      paymentStatus: order.paymentStatus || paymentStatus,
+      paymentId: order.paymentId || paymentId,
+      paymentUtr: order.paymentUtr || paymentUtr,
       placedAt: new Date().toISOString(),
       guestContact: contact,
     });

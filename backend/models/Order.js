@@ -68,9 +68,14 @@ const orderSchema = new mongoose.Schema(
     // Immutable timeline the customer's "My Orders" screen renders.
     statusHistory: [historySchema],
 
-    // Cash on delivery is the only method for now.
-    paymentMethod: { type: String, enum: ['COD'], default: 'COD' },
-    paymentStatus: { type: String, enum: ['PENDING', 'PAID'], default: 'PENDING' },
+    // Payment configuration (COD or Instant UPI via YouPI-PG)
+    paymentMethod: { type: String, enum: ['COD', 'UPI'], default: 'COD' },
+    paymentStatus: { type: String, enum: ['PENDING', 'PAID', 'FAILED'], default: 'PENDING' },
+    paymentId: { type: String },
+    paymentUtr: { type: String },
+    paymentMode: { type: String, default: 'COD' },
+    paymentDetails: { type: mongoose.Schema.Types.Mixed },
+    paidAt: { type: Date },
 
     cancellation: {
       by: { type: String, enum: ['CUSTOMER', 'VENDOR'] },

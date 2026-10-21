@@ -344,4 +344,19 @@ export const updateProduct = (productId, updates) =>
 export const createProduct = (payload) =>
   request(() => client.post('/products', payload), 'Failed to create listing');
 
+/* ------------------------------------------------------------- payments -- */
+
+/** POST /api/payments/youpi/create-session — initiates a YouPI UPI payment session. */
+export const createYoupiSession = (payload) =>
+  request(() => client.post('/payments/youpi/create-session', payload), 'Failed to initialize payment session');
+
+/** GET /api/payments/youpi/:paymentId/status — check real-time payment observation status. */
+export const checkYoupiPaymentStatus = (paymentId) =>
+  request(() => client.get(`/payments/youpi/${paymentId}/status`), 'Failed to check payment status');
+
+/** POST /api/payments/youpi/verify — confirms payment with optional UTR / reference. */
+export const verifyYoupiPayment = (payload) =>
+  request(() => client.post('/payments/youpi/verify', payload), 'Failed to verify payment');
+
 export default client;
+

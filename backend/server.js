@@ -21,6 +21,7 @@ import whatsappRoutes from './routes/whatsappRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import updateRoutes from './routes/updateRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
 
@@ -30,8 +31,15 @@ app.use(helmetSecurity);
 // 2. Strict CORS whitelist
 app.use(corsSecurity);
 
-// 3. Payload size limiting against DoS
-app.use(express.json({ limit: '1mb' }));
+// 3. Payload size limiting against DoS (with rawBody retention for webhook HMAC verification)
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // 4. NoSQL injection sanitizer
@@ -52,6 +60,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/admin', adminRoutes);

@@ -42,6 +42,13 @@ import {
   searchNagpurLocation,
   loadGoogleMapsScript,
 } from '../utils/googleMapsService';
+import {
+  initiatePaymentSession,
+  queryPaymentStatus,
+  confirmPaymentUtr,
+  formatUpiExpiry,
+  getUpiAppLinks,
+} from '../services/youpiPayment';
 
 const DARK_PALETTE_CSS = `
   .hidden { display: none !important; }
@@ -297,6 +304,19 @@ export default function StitchScreenRenderer({
   const [isLiveMapModalOpen, setIsLiveMapModalOpen] = useState(false);
   const [isCustomInstructionsModalOpen, setIsCustomInstructionsModalOpen] = useState(false);
   const [customInstructionsDraft, setCustomInstructionsDraft] = useState('');
+
+  // Payment Preference & YouPI-PG Gateway State
+  const [paymentPreference, setPaymentPreference] = useState('UPI'); // 'UPI' (Instant 0% fee) | 'COD'
+  const [youpiPaymentState, setYoupiPaymentState] = useState({
+    isOpen: false,
+    session: null,
+    orderPayloads: null,
+    timeRemaining: 300,
+    status: 'PENDING', // 'PENDING' | 'SUCCESS' | 'EXPIRED' | 'FAILED'
+    utrInput: '',
+    isVerifying: false,
+    copied: false,
+  });
 
   // Profile modals & user settings
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
@@ -2129,6 +2149,129 @@ export default function StitchScreenRenderer({
       }
       if (user?.phoneNumber) {
         html = html.replace(/id="phoneNumber"([^>]*)value=""/i, `id="phoneNumber"$1value="${user.phoneNumber}"`);
+      }
+
+      // 7. Payment Preference Selection (YouPI-PG Instant UPI vs Cash on Delivery)
+      const upiSelected = paymentPreference === 'UPI';
+      const paymentSelectorLight = `
+        <div class="flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-eyebrow text-eyebrow uppercase tracking-widest text-text-ash font-semibold">Payment Preference</span>
+            <span class="font-tabular-caption text-tabular-caption text-accent-crimson font-bold uppercase tracking-wider bg-accent-crimson/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span class="material-symbols-outlined text-[12px]">bolt</span> 0% Fee Direct UPI
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="paymentOptions">
+            <div data-action="select-payment-method" data-payment-method="UPI" class="cursor-pointer p-3 rounded-xl border-2 ${upiSelected ? 'border-accent-crimson bg-accent-crimson/5 shadow-xs' : 'border-surface-container bg-surface-container-low/50 hover:border-surface-container-high'} transition-all flex items-start gap-3">
+              <div class="w-5 h-5 rounded-full border-2 ${upiSelected ? 'border-accent-crimson bg-accent-crimson' : 'border-text-ash/40'} flex items-center justify-center shrink-0 mt-0.5">
+                ${upiSelected ? '<div class="w-2 h-2 rounded-full bg-surface-porcelain"></div>' : ''}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-body-md text-body-md font-bold text-text-obsidian flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[17px] text-accent-crimson">qr_code_2</span> Instant UPI
+                  </span>
+                  <span class="font-eyebrow text-[10px] tracking-wider uppercase font-bold text-accent-gold-deep bg-accent-gold/15 px-1.5 py-0.5 rounded">YOUPI PG</span>
+                </div>
+                <p class="font-tabular-caption text-[11px] text-text-ash mt-0.5 leading-tight">GPay, PhonePe, Paytm, CRED · Direct to Bank</p>
+              </div>
+            </div>
+            <div data-action="select-payment-method" data-payment-method="COD" class="cursor-pointer p-3 rounded-xl border-2 ${!upiSelected ? 'border-accent-crimson bg-accent-crimson/5 shadow-xs' : 'border-surface-container bg-surface-container-low/50 hover:border-surface-container-high'} transition-all flex items-start gap-3">
+              <div class="w-5 h-5 rounded-full border-2 ${!upiSelected ? 'border-accent-crimson bg-accent-crimson' : 'border-text-ash/40'} flex items-center justify-center shrink-0 mt-0.5">
+                ${!upiSelected ? '<div class="w-2 h-2 rounded-full bg-surface-porcelain"></div>' : ''}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-body-md text-body-md font-bold text-text-obsidian flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[17px] text-accent-gold-deep">local_atm</span> Cash on Delivery
+                  </span>
+                </div>
+                <p class="font-tabular-caption text-[11px] text-text-ash mt-0.5 leading-tight">Concierge inspection &amp; cash payment</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="font-eyebrow text-eyebrow uppercase tracking-wider text-accent-gold font-semibold">Total Payable</span>
+            <span class="font-title-lg text-title-lg text-text-obsidian font-bold">₹${grandTotal.toLocaleString()}</span>
+          </div>
+        </div>
+      `;
+
+      const paymentSelectorDark = `
+        <div class="flex flex-col gap-space-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-label-md text-label-md text-secondary uppercase tracking-wider">Payment Preference</span>
+            <span class="font-label-sm text-label-sm text-secondary bg-secondary-container/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">bolt</span> 0% Fee Direct UPI
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-xs" id="paymentOptionsDark">
+            <div data-action="select-payment-method" data-payment-method="UPI" class="cursor-pointer p-space-sm rounded-xl border-2 ${upiSelected ? 'border-primary-container bg-primary-container/10 shadow-md' : 'border-surface-container bg-surface-container-high hover:border-surface-container-highest'} transition-all flex items-start gap-space-xs">
+              <div class="w-5 h-5 rounded-full border-2 ${upiSelected ? 'border-primary-container bg-primary-container' : 'border-outline'} flex items-center justify-center shrink-0 mt-0.5">
+                ${upiSelected ? '<div class="w-2 h-2 rounded-full bg-on-primary-container"></div>' : ''}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-title-md text-title-md font-bold text-on-surface flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base text-secondary">qr_code_2</span> Instant UPI
+                  </span>
+                  <span class="font-label-sm text-[10px] tracking-wider uppercase font-bold text-secondary bg-secondary-container/20 px-1.5 py-0.5 rounded">YOUPI PG</span>
+                </div>
+                <p class="font-label-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">GPay, PhonePe, Paytm, CRED · Direct to Bank</p>
+              </div>
+            </div>
+            <div data-action="select-payment-method" data-payment-method="COD" class="cursor-pointer p-space-sm rounded-xl border-2 ${!upiSelected ? 'border-primary-container bg-primary-container/10 shadow-md' : 'border-surface-container bg-surface-container-high hover:border-surface-container-highest'} transition-all flex items-start gap-space-xs">
+              <div class="w-5 h-5 rounded-full border-2 ${!upiSelected ? 'border-primary-container bg-primary-container' : 'border-outline'} flex items-center justify-center shrink-0 mt-0.5">
+                ${!upiSelected ? '<div class="w-2 h-2 rounded-full bg-on-primary-container"></div>' : ''}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-title-md text-title-md font-bold text-on-surface flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base text-secondary">local_atm</span> Cash on Delivery
+                  </span>
+                </div>
+                <p class="font-label-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">Concierge inspection &amp; cash payment</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="font-label-md text-label-md text-secondary uppercase tracking-widest block">Total Payable</span>
+            <span class="font-headline-md text-headline-md text-on-surface">₹${grandTotal.toLocaleString()}</span>
+          </div>
+        </div>
+      `;
+
+      // Replace light mode payment card
+      html = html.replace(
+        /<div class="flex items-center justify-between">\s*<div class="flex items-center gap-2">\s*<div class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-accent-gold-deep">\s*<span class="material-symbols-outlined text-\[16px\]">payments<\/span>\s*<\/div>\s*<div>\s*<span class="font-eyebrow text-eyebrow uppercase tracking-wider text-text-ash block">Payment Preference<\/span>\s*<span class="font-body-sm text-body-sm text-text-obsidian font-semibold">Cash on Delivery \(Concierge Inspection\)<\/span>\s*<\/div>\s*<\/div>\s*<div class="text-right">\s*<span class="font-eyebrow text-eyebrow uppercase tracking-wider text-accent-gold block font-semibold">Total Payable<\/span>\s*<span class="font-title-lg text-title-lg text-text-obsidian font-bold">[^<]*<\/span>\s*<\/div>\s*<\/div>/i,
+        paymentSelectorLight
+      );
+
+      // Replace dark mode payment card
+      html = html.replace(
+        /<div class="p-space-md rounded-xl bg-surface-container-high flex items-center justify-between shadow-md">\s*<div class="flex items-center gap-space-sm">\s*<span class="material-symbols-outlined text-secondary text-2xl"[^>]*>verified_user<\/span>\s*<div>\s*<p class="font-title-md text-title-md text-on-surface">Cash on Delivery<\/p>\s*<p class="font-label-sm text-label-sm text-on-surface-variant">Express &amp; Concierge Inspection First<\/p>\s*<\/div>\s*<\/div>\s*<div class="text-right">\s*<span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest block">Total Payable<\/span>\s*<span class="font-headline-md text-headline-md text-on-surface">[^<]*<\/span>\s*<\/div>\s*<\/div>/i,
+        paymentSelectorDark
+      );
+
+      // Update CTA buttons based on selected payment preference
+      if (upiSelected) {
+        html = html.replace(
+          /(<span[^>]*font-eyebrow text-eyebrow uppercase tracking-widest font-bold[^>]*>)Confirm Address &amp; Order(<\/span>)/i,
+          '$1Pay with YouPI UPI$2'
+        );
+        html = html.replace(
+          /(<span>)CONFIRM ADDRESS &amp; ORDER · ₹[^<]*(<\/span>)/i,
+          `$1PAY VIA YOUPI UPI · ₹${grandTotal.toLocaleString()}$2`
+        );
+      } else {
+        html = html.replace(
+          /(<span[^>]*font-eyebrow text-eyebrow uppercase tracking-widest font-bold[^>]*>)Confirm Address &amp; Order(<\/span>)/i,
+          '$1Confirm Address &amp; Order (COD)$2'
+        );
+        html = html.replace(
+          /(<span>)CONFIRM ADDRESS &amp; ORDER · ₹[^<]*(<\/span>)/i,
+          `$1CONFIRM ADDRESS &amp; ORDER (COD) · ₹${grandTotal.toLocaleString()}$2`
+        );
       }
     }
 
@@ -4079,6 +4222,21 @@ export default function StitchScreenRenderer({
         return;
       }
 
+      // --- 13f. DELIVERY ADDRESS: PAYMENT METHOD TOGGLE (YOUPI UPI vs COD) ---
+      const paymentMethodTarget = target.closest('[data-action="select-payment-method"], [data-payment-method]');
+      if (paymentMethodTarget && targetKey.includes('Delivery_Address')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const method = paymentMethodTarget.getAttribute('data-payment-method') || 'UPI';
+        setPaymentPreference(method);
+        showToast(
+          method === 'UPI'
+            ? 'Selected: Instant UPI (0% Fee via YouPI PG)'
+            : 'Selected: Cash on Delivery (Doorstep inspection)'
+        );
+        return;
+      }
+
       // --- 14. ADDRESS & CHECKOUT: SUBMIT MULTI-VENDOR ORDER TO REAL BACKEND ---
       if (
         btn &&
@@ -4088,7 +4246,12 @@ export default function StitchScreenRenderer({
           btn.textContent.includes('Confirm Address') ||
           btn.textContent.includes('Place Express Order') ||
           btn.textContent.includes('Place 45-Min Express Order') ||
-          btn.textContent.includes('Dispatch Courier'))
+          btn.textContent.includes('Dispatch Courier') ||
+          btn.textContent.includes('Pay with YouPI UPI') ||
+          btn.textContent.includes('PAY VIA YOUPI UPI') ||
+          btn.textContent.includes('Order (COD)') ||
+          btn.id === 'confirmOrderBtn' ||
+          btn.id === 'orderCtaBtn')
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -4134,15 +4297,16 @@ export default function StitchScreenRenderer({
           byVendor.get(storeId).push(item);
         }
 
-        const placedOrdersList = [];
-        let primaryOrder = null;
+        const allOrderPayloads = [];
+        let grandTotalAcrossVendors = 0;
 
         for (const [vendorId, vendorItems] of byVendor.entries()) {
           const subtotalVal = vendorItems.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0);
           const deliveryFee = subtotalVal >= 1999 ? 0 : 99;
           const totalVal = subtotalVal + deliveryFee;
+          grandTotalAcrossVendors += totalVal;
 
-          const orderPayload = {
+          allOrderPayloads.push({
             vendorId: vendorId,
             vendor: vendorId,
             items: vendorItems.map((it) => ({
@@ -4179,9 +4343,54 @@ export default function StitchScreenRenderer({
             },
             addressType: addressClassification,
             deliveryInstructions: deliveryInstructions,
-            paymentMethod: 'COD',
-          };
+            paymentMethod: paymentPreference === 'UPI' ? 'UPI' : 'COD',
+          });
+        }
 
+        // --- YOUPI UPI PAYMENT INITIATION ---
+        if (paymentPreference === 'UPI') {
+          const primaryId = `KP-${Date.now().toString().slice(-6)}`;
+          showToast('Initializing YouPI 0% Fee Instant UPI session...');
+
+          try {
+            const session = await initiatePaymentSession({
+              orderId: primaryId,
+              amount: grandTotalAcrossVendors,
+              customer: {
+                name: nameVal,
+                phone: phoneVal,
+              },
+              metadata: {
+                vendorCount: byVendor.size,
+                addressType: addressClassification,
+                area: deliveryLocation.areaName || 'Nagpur',
+              },
+            });
+
+            setYoupiPaymentState({
+              isOpen: true,
+              session,
+              orderPayloads: allOrderPayloads,
+              timeRemaining: 300,
+              status: 'PENDING',
+              utrInput: '',
+              isVerifying: false,
+              copied: false,
+            });
+            return;
+          } catch (sessionErr) {
+            console.warn('[YouPI-PG] Session creation notice:', sessionErr);
+            showToast('Payment gateway notice. Defaulting to Cash on Delivery.');
+            setPaymentPreference('COD');
+            return;
+          }
+        }
+
+        // --- CASH ON DELIVERY DIRECT ORDER PLACEMENT ---
+        const placedOrdersList = [];
+        let primaryOrder = null;
+
+        for (const orderPayload of allOrderPayloads) {
           let placedOrder = null;
           try {
             if (useAuthStore.getState().token) {
@@ -4190,15 +4399,17 @@ export default function StitchScreenRenderer({
               placedOrder = await createGuestOrder(orderPayload);
             }
           } catch (apiErr) {
-            console.warn('[StitchRenderer] Order API notice for vendor', vendorId, apiErr?.message);
+            console.warn('[StitchRenderer] Order API notice for vendor', orderPayload.vendorId, apiErr?.message);
             placedOrder = {
               _id: `KP-${Date.now().toString().slice(-6)}`,
               orderId: `KP-${Date.now().toString().slice(-6)}`,
               status: 'CONFIRMED',
               totalPrice: orderPayload.totalPrice,
-              items: vendorItems,
+              items: orderPayload.items,
               deliveryAddress: orderPayload.deliveryAddress,
               guestContact: orderPayload.contact,
+              paymentMethod: 'COD',
+              paymentStatus: 'PENDING',
               createdAt: new Date().toISOString(),
             };
           }
@@ -5926,6 +6137,135 @@ export default function StitchScreenRenderer({
     };
   }, [targetKey, isDark]);
 
+  // YouPI-PG: Success callback for observed/verified UPI payments
+  const handleYoupiPaymentSuccess = useCallback(
+    async (observedUtr = 'YOUPI-VERIFIED') => {
+      if (!youpiPaymentState.orderPayloads || youpiPaymentState.orderPayloads.length === 0) return;
+
+      setYoupiPaymentState((prev) => ({ ...prev, status: 'SUCCESS' }));
+
+      const placedOrdersList = [];
+      let primaryOrder = null;
+
+      for (const orderPayload of youpiPaymentState.orderPayloads) {
+        const finalPayload = {
+          ...orderPayload,
+          paymentMethod: 'UPI',
+          paymentStatus: 'PAID',
+          paymentId: youpiPaymentState.session?.paymentId,
+          paymentUtr: observedUtr,
+        };
+
+        let placedOrder = null;
+        try {
+          if (useAuthStore.getState().token) {
+            placedOrder = await placeOrder(finalPayload);
+          } else {
+            placedOrder = await createGuestOrder(finalPayload);
+          }
+        } catch (apiErr) {
+          console.warn('[StitchRenderer] Order API notice for YouPI order', orderPayload.vendorId, apiErr?.message);
+          placedOrder = {
+            _id: `KP-${Date.now().toString().slice(-6)}`,
+            orderId: `KP-${Date.now().toString().slice(-6)}`,
+            status: 'CONFIRMED',
+            totalPrice: finalPayload.totalPrice,
+            items: finalPayload.items,
+            deliveryAddress: finalPayload.deliveryAddress,
+            guestContact: finalPayload.contact,
+            paymentMethod: 'UPI',
+            paymentStatus: 'PAID',
+            paymentId: youpiPaymentState.session?.paymentId,
+            paymentUtr: observedUtr,
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        placedOrdersList.push(placedOrder);
+        if (!primaryOrder) primaryOrder = placedOrder;
+      }
+
+      // Persist orders in local history
+      try {
+        const currentOrders = JSON.parse(localStorage.getItem('kyapehnu_recent_orders') || '[]');
+        const updatedOrders = [
+          ...placedOrdersList.map((ord) => ({
+            ...ord,
+            orderId: ord.orderId || ord._id,
+          })),
+          ...currentOrders,
+        ].slice(0, 15);
+        localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updatedOrders));
+        setRecentOrders(updatedOrders);
+      } catch {}
+
+      clearCart();
+
+      const primaryId = primaryOrder?.orderId || primaryOrder?._id || `KP-${Date.now().toString().slice(-6)}`;
+      showToast(`Payment Verified! Order KP-${String(primaryId).slice(-6).toUpperCase()} placed.`);
+
+      setTimeout(() => {
+        setYoupiPaymentState((prev) => ({ ...prev, isOpen: false }));
+        navigateScreen('LiveTracking', { orderId: primaryId, order: primaryOrder });
+      }, 1200);
+    },
+    [youpiPaymentState.orderPayloads, youpiPaymentState.session?.paymentId, clearCart]
+  );
+
+  // YouPI Expiry Countdown Timer (5-minute session)
+  useEffect(() => {
+    if (!youpiPaymentState.isOpen || youpiPaymentState.status !== 'PENDING') return;
+
+    const timer = setInterval(() => {
+      setYoupiPaymentState((prev) => {
+        if (prev.timeRemaining <= 1) {
+          clearInterval(timer);
+          return { ...prev, timeRemaining: 0, status: 'EXPIRED' };
+        }
+        return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [youpiPaymentState.isOpen, youpiPaymentState.status]);
+
+  // YouPI Real-time Payment Status Poller (every 2.5s)
+  useEffect(() => {
+    if (
+      !youpiPaymentState.isOpen ||
+      youpiPaymentState.status !== 'PENDING' ||
+      !youpiPaymentState.session?.paymentId
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const paymentId = youpiPaymentState.session.paymentId;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await queryPaymentStatus(paymentId);
+        if (isCancelled) return;
+        if (res && res.status === 'SUCCESS') {
+          clearInterval(pollInterval);
+          handleYoupiPaymentSuccess(res.utr || 'YOUPI-OBSERVED');
+        }
+      } catch (e) {
+        // network lull or polling retry
+      }
+    }, 2500);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(pollInterval);
+    };
+  }, [
+    youpiPaymentState.isOpen,
+    youpiPaymentState.status,
+    youpiPaymentState.session?.paymentId,
+    handleYoupiPaymentSuccess,
+  ]);
+
   return (
     <div className={`stitch-screen-root relative w-full min-h-screen overflow-x-hidden ${isDark ? 'dark bg-[#131315]' : 'bg-[#FAF9F5]'}`}>
       <style dangerouslySetInnerHTML={{ __html: DARK_PALETTE_CSS }} />
@@ -7166,6 +7506,467 @@ export default function StitchScreenRenderer({
           </div>
         </div>
       ) : null}
+
+      {/* YouPI-PG: Sovereign Zero-Fee UPI Payment Gateway Modal */}
+      {youpiPaymentState.isOpen ? (
+        <div
+          id="youpiPaymentModal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: 'rgba(18, 18, 21, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+            padding: 16,
+            overflowY: 'auto',
+          }}
+          onClick={() => {
+            if (youpiPaymentState.status !== 'SUCCESS') {
+              setYoupiPaymentState((prev) => ({ ...prev, isOpen: false }));
+            }
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              backgroundColor: isDark ? '#1C1B1D' : '#FAF9F5',
+              borderRadius: 24,
+              padding: '22px 20px 24px 20px',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+              border: isDark ? '1px solid rgba(234, 193, 102, 0.25)' : '1px solid rgba(196, 36, 58, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: isDark ? 'rgba(234, 193, 102, 0.15)' : 'rgba(196, 36, 58, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isDark ? '#EAC166' : '#C4243A',
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>qr_code_2</span>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: isDark ? '#FFF' : '#121215' }}>
+                      YouPI Payment Gateway
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        backgroundColor: '#16A34A',
+                        color: '#FFF',
+                      }}
+                    >
+                      0% FEE
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: isDark ? '#A8A29E' : '#78716C', marginTop: 1 }}>
+                    Direct-to-Bank UPI · Nagpur Marketplace
+                  </p>
+                </div>
+              </div>
+
+              {youpiPaymentState.status !== 'SUCCESS' && (
+                <button
+                  type="button"
+                  id="btnCloseYoupiModal"
+                  onClick={() => setYoupiPaymentState((prev) => ({ ...prev, isOpen: false }))}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    backgroundColor: isDark ? '#2C2B2D' : 'rgba(0,0,0,0.06)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isDark ? '#FFF' : '#121215',
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                </button>
+              )}
+            </div>
+
+            {/* STATE: SUCCESS */}
+            {youpiPaymentState.status === 'SUCCESS' ? (
+              <div style={{ textAlign: 'center', padding: '24px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 60, color: '#16A34A', animation: 'scaleUp 0.3s ease-out' }}>
+                  verified
+                </span>
+                <h4 style={{ fontSize: 18, fontWeight: 700, color: isDark ? '#FFF' : '#121215' }}>
+                  Payment Verified!
+                </h4>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C', maxWidth: 280, lineHeight: 1.4 }}>
+                  Your instant UPI payment was observed via the YouPI banking mesh. Dispatching your order now!
+                </p>
+                <div style={{ padding: '6px 14px', borderRadius: 9999, backgroundColor: isDark ? '#2A292C' : '#EAE8E0', fontSize: 11, fontWeight: 600, color: '#16A34A' }}>
+                  Status: PAID &amp; CONFIRMED
+                </div>
+              </div>
+            ) : youpiPaymentState.status === 'EXPIRED' ? (
+              /* STATE: EXPIRED */
+              <div style={{ textAlign: 'center', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#D97706' }}>
+                  timer_off
+                </span>
+                <h4 style={{ fontSize: 16, fontWeight: 700, color: isDark ? '#FFF' : '#121215' }}>
+                  Payment Window Expired
+                </h4>
+                <p style={{ fontSize: 12, color: isDark ? '#A8A29E' : '#78716C' }}>
+                  The 5-minute UPI observation session has timed out.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYoupiPaymentState((prev) => ({
+                        ...prev,
+                        timeRemaining: 300,
+                        status: 'PENDING',
+                      }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: 12,
+                      backgroundColor: '#C4243A',
+                      color: '#FFF',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Retry UPI Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setYoupiPaymentState((prev) => ({ ...prev, isOpen: false }));
+                      setPaymentPreference('COD');
+                      showToast('Switched to Cash on Delivery. Please tap Confirm Order.');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: 12,
+                      backgroundColor: 'transparent',
+                      color: isDark ? '#EAC166' : '#C4243A',
+                      border: isDark ? '1px solid #EAC166' : '1px solid #C4243A',
+                      fontWeight: 600,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Switch to Cash on Delivery
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* STATE: PENDING */
+              <>
+                {/* Amount & Expiry Timer Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: 14,
+                    backgroundColor: isDark ? '#141416' : '#F0EFEA',
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDark ? '#A8A29E' : '#78716C', fontWeight: 600 }}>
+                      Amount Due
+                    </span>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#FFF' : '#121215' }}>
+                      ₹{Number(youpiPaymentState.session?.amount || 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '5px 10px',
+                      borderRadius: 9999,
+                      backgroundColor: youpiPaymentState.timeRemaining < 60 ? 'rgba(196, 36, 58, 0.15)' : 'rgba(234, 193, 102, 0.15)',
+                      color: youpiPaymentState.timeRemaining < 60 ? '#C4243A' : (isDark ? '#EAC166' : '#B38A2B'),
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span>
+                    <span>{formatUpiExpiry(youpiPaymentState.timeRemaining)}</span>
+                  </div>
+                </div>
+
+                {/* Dynamic Vector QR Code Card */}
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 16,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+                    border: '1px solid #E5E3DC',
+                  }}
+                >
+                  <img
+                    id="youpiQrCodeImg"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(youpiPaymentState.session?.upiUri || 'upi://pay?pa=kyapehnushop@okaxis&pn=Kya+Pehnu&am=0&cu=INR')}`}
+                    alt="Scan to Pay via UPI"
+                    style={{
+                      width: 180,
+                      height: 180,
+                      objectFit: 'contain',
+                      borderRadius: 8,
+                    }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#555', marginTop: 8 }}>
+                    Scan with Google Pay, PhonePe, Paytm or CRED
+                  </span>
+                </div>
+
+                {/* Copyable UPI VPA Badge */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: 12,
+                    backgroundColor: isDark ? '#141416' : '#F0EFEA',
+                    border: isDark ? '1px solid #2A292C' : '1px solid #E5E3DC',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: 10, color: isDark ? '#A8A29E' : '#78716C', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Boutique VPA (UPI ID)
+                    </span>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: isDark ? '#FFF' : '#121215', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {youpiPaymentState.session?.vpa || 'kyapehnushop@okaxis'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const vpa = youpiPaymentState.session?.vpa || 'kyapehnushop@okaxis';
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        navigator.clipboard.writeText(vpa);
+                        setYoupiPaymentState((prev) => ({ ...prev, copied: true }));
+                        setTimeout(() => {
+                          setYoupiPaymentState((prev) => ({ ...prev, copied: false }));
+                        }, 2000);
+                      }
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 8,
+                      backgroundColor: youpiPaymentState.copied ? '#16A34A' : (isDark ? '#2C2B2D' : '#E0DED7'),
+                      color: youpiPaymentState.copied ? '#FFF' : (isDark ? '#FFF' : '#121215'),
+                      border: 'none',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {youpiPaymentState.copied ? 'Copied! ✓' : 'Copy UPI'}
+                  </button>
+                </div>
+
+                {/* 1-Tap Mobile UPI Intent Deep Links */}
+                {(() => {
+                  const links = getUpiAppLinks(youpiPaymentState.session?.upiUri);
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 10, color: isDark ? '#A8A29E' : '#78716C', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                        Tap to Pay on Mobile App
+                      </span>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                        {[
+                          { name: 'GPay', href: links.gpay || links.upi, bg: '#4285F4', text: '#FFF' },
+                          { name: 'PhonePe', href: links.phonepe || links.upi, bg: '#5F259F', text: '#FFF' },
+                          { name: 'Paytm', href: links.paytm || links.upi, bg: '#00BAF2', text: '#FFF' },
+                          { name: 'Any UPI', href: links.upi, bg: isDark ? '#333' : '#121215', text: '#FFF' },
+                        ].map((app) => (
+                          <a
+                            key={app.name}
+                            href={app.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              padding: '8px 4px',
+                              borderRadius: 10,
+                              backgroundColor: app.bg,
+                              color: app.text,
+                              textDecoration: 'none',
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              fontSize: 11,
+                              display: 'block',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                            }}
+                          >
+                            {app.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Live Banking Observation Status Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    backgroundColor: isDark ? 'rgba(234, 193, 102, 0.08)' : 'rgba(196, 36, 58, 0.06)',
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 15,
+                      color: isDark ? '#EAC166' : '#C4243A',
+                      animation: 'spin 1.5s linear infinite',
+                    }}
+                  >
+                    sync
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#EAC166' : '#C4243A' }}>
+                    Listening for bank confirmation...
+                  </span>
+                </div>
+
+                {/* Manual UTR Fallback Verification */}
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    backgroundColor: isDark ? '#141416' : '#F4F3EE',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 10, color: isDark ? '#A8A29E' : '#78716C', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                    Already paid? Enter 12-digit UTR
+                  </span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. 523489102834"
+                      value={youpiPaymentState.utrInput}
+                      onChange={(e) => {
+                        const val = e.target.value.trim();
+                        setYoupiPaymentState((prev) => ({ ...prev, utrInput: val }));
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        border: isDark ? '1px solid #333' : '1px solid #CCC',
+                        backgroundColor: isDark ? '#1E1E22' : '#FFF',
+                        color: isDark ? '#FFF' : '#121215',
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={!youpiPaymentState.utrInput || youpiPaymentState.isVerifying}
+                      onClick={async () => {
+                        if (!youpiPaymentState.utrInput) return;
+                        setYoupiPaymentState((prev) => ({ ...prev, isVerifying: true }));
+                        try {
+                          await confirmPaymentUtr({
+                            orderId: youpiPaymentState.session?.orderId,
+                            paymentId: youpiPaymentState.session?.paymentId,
+                            utr: youpiPaymentState.utrInput,
+                          });
+                          handleYoupiPaymentSuccess(youpiPaymentState.utrInput);
+                        } catch (verErr) {
+                          showToast(`Verification notice: ${verErr.message || 'Please check UTR'}`);
+                        } finally {
+                          setYoupiPaymentState((prev) => ({ ...prev, isVerifying: false }));
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        backgroundColor: '#16A34A',
+                        color: '#FFF',
+                        border: 'none',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        opacity: !youpiPaymentState.utrInput || youpiPaymentState.isVerifying ? 0.5 : 1,
+                      }}
+                    >
+                      {youpiPaymentState.isVerifying ? 'Verifying...' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cancel / Switch to Cash on Delivery */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setYoupiPaymentState((prev) => ({ ...prev, isOpen: false }));
+                    setPaymentPreference('COD');
+                    showToast('Switched payment to Cash on Delivery');
+                  }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: isDark ? '#A8A29E' : '#78716C',
+                    fontSize: 11,
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: 4,
+                  }}
+                >
+                  Cancel &amp; Pay via Cash on Delivery
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
+
