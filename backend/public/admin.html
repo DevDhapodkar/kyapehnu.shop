@@ -43,6 +43,19 @@
       .title { font-size: 17px; font-weight: 400; }
       .sub { color: var(--ash); font-size: 13px; margin-top: 2px; }
       hr { border: none; border-top: 1px solid var(--line); margin: 14px 0; }
+      .porter-box { background: rgba(200, 162, 74, 0.05); border: 1px solid rgba(200, 162, 74, 0.25); border-radius: 10px; padding: 12px 14px; margin: 12px 0 10px; }
+      .porter-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed rgba(200, 162, 74, 0.2); }
+      .porter-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 6px; }
+      .porter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+      .porter-col { background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+      .porter-tag { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--ash); margin-bottom: 4px; display: flex; justify-content: space-between; }
+      .porter-col b { color: var(--ivory); }
+      .porter-col .addr { color: #d0ced8; margin-top: 3px; font-size: 12px; line-height: 1.4; }
+      .porter-col a { color: var(--gold); text-decoration: none; font-size: 11px; margin-top: 5px; display: inline-block; }
+      .porter-col a:hover { text-decoration: underline; }
+      .btn-copy { cursor: pointer; background: rgba(200, 162, 74, 0.15); border: 1px solid var(--gold); color: var(--gold); border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s ease; }
+      .btn-copy:hover { background: var(--gold); color: #050506; }
+      .items-summary { font-size: 12px; color: var(--ash); margin: 8px 0; padding: 6px 10px; background: var(--deep); border-radius: 6px; border: 1px solid var(--line); }
     </style>
   </head>
   <body>
@@ -369,26 +382,201 @@
       const NEXT_LABEL = { ACCEPTED:'Accept', PACKED:'Mark packed', READY_FOR_PICKUP:'Mark ready',
         IN_TRANSIT:'Out for delivery', DELIVERED:'Mark delivered', CANCELLED:'Cancel' };
 
+      let ORDERS_CACHE = {};
+
       async function loadOrders() {
         const panel = $('panel-orders');
         try {
           const orders = await api('/orders?limit=100');
           if (!orders.length) { panel.innerHTML = '<div class="card muted">No orders yet.</div>'; return; }
+          ORDERS_CACHE = {};
           panel.innerHTML = orders.map((o) => {
-            const who = o.customer?.name || o.guestContact?.name || 'Customer';
-            const phone = o.customer?.phone || o.guestContact?.phone || '';
+            ORDERS_CACHE[o._id] = o;
+            const who = o.deliveryAddress?.receiverName || o.customer?.name || o.guestContact?.name || 'Customer';
+            const phone = o.deliveryAddress?.receiverPhone || o.customer?.phone || o.guestContact?.phone || '';
+            const orderDate = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '';
+            
+            // Payment badge
+            let payBadge = '';
+            if (o.paymentMethod === 'UPI') {
+              if (o.paymentStatus === 'PAID') {
+                payBadge = '<span class="pill" style="border-color:var(--green);color:var(--green);background:rgba(63,178,127,0.15);font-weight:700">✓ UPI PAID · UTR: ' + esc(o.paymentUtr || 'VERIFIED') + '</span>';
+              } else {
+                payBadge = '<span class="pill" style="border-color:var(--gold);color:var(--gold);background:rgba(200,162,74,0.15)">⏳ UPI ' + esc(o.paymentStatus || 'PENDING') + (o.paymentUtr ? ' · UTR: ' + esc(o.paymentUtr) : '') + '</span>';
+              }
+            } else {
+              if (o.paymentStatus === 'PAID') {
+                payBadge = '<span class="pill" style="border-color:var(--green);color:var(--green)">✓ COD PAID</span>';
+              } else {
+                payBadge = '<span class="pill" style="border-color:var(--ash);color:var(--ivory);background:rgba(255,255,255,0.05)">💵 COD · Collect ₹' + esc(o.totalPrice) + '</span>';
+              }
+            }
+
+            // Status color & badge
+            const STATUS_COLORS = {
+              PENDING: 'color:var(--gold);border-color:var(--gold)',
+              ACCEPTED: 'color:var(--ivory);border-color:var(--ash)',
+              PACKED: 'color:var(--gold);border-color:var(--gold)',
+              READY_FOR_PICKUP: 'color:var(--green);border-color:var(--green);font-weight:700',
+              IN_TRANSIT: 'color:#5dade2;border-color:#5dade2;font-weight:700',
+              DELIVERED: 'color:var(--green);border-color:var(--green)',
+              CANCELLED: 'color:var(--crimson);border-color:var(--crimson)',
+            };
+            const statusBadge = '<span class="pill" style="' + (STATUS_COLORS[o.status] || '') + '">' + esc(STATUS_LABEL[o.status] || o.status) + '</span>';
+
+            // Items breakdown
+            const itemsHtml = (o.items && o.items.length)
+              ? '<div class="items-summary">🛍️ <b>Items:</b> ' + o.items.map(it => esc(it.name) + ' (' + esc(it.size || '') + (it.color ? ' · ' + esc(it.color) : '') + ') × ' + esc(it.quantity) + ' · ₹' + esc(it.price * it.quantity)).join(' &bull; ') + '</div>'
+              : '';
+
+            // Porter Pickup & Drop information
+            const shopName = o.vendor?.shopName || 'Boutique';
+            const ownerName = o.vendor?.ownerName || '';
+            const shopPhone = o.vendor?.phone || o.vendor?.whatsappNumber || '';
+            const sAddr = o.vendor?.address || {};
+            const shopAddr = [sAddr.line1, sAddr.area, sAddr.city, sAddr.pincode].filter(Boolean).join(', ') || 'Nagpur';
+            const sCoords = o.vendor?.location?.coordinates;
+            const sLat = Array.isArray(sCoords) && sCoords.length === 2 ? sCoords[1] : null;
+            const sLng = Array.isArray(sCoords) && sCoords.length === 2 ? sCoords[0] : null;
+            const shopMapUrl = (sLat && sLng)
+              ? 'https://www.google.com/maps/search/?api=1&query=' + sLat + ',' + sLng
+              : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(shopAddr);
+
+            const dAddr = o.deliveryAddress || {};
+            const dropAddr = [dAddr.line1, dAddr.line2, dAddr.locality, dAddr.city, dAddr.pincode].filter(Boolean).join(', ') || 'Nagpur';
+            const dCoords = o.deliveryAddress?.location?.coordinates;
+            const dLat = Array.isArray(dCoords) && dCoords.length === 2 ? dCoords[1] : null;
+            const dLng = Array.isArray(dCoords) && dCoords.length === 2 ? dCoords[0] : null;
+            const dropMapUrl = (dLat && dLng)
+              ? 'https://www.google.com/maps/search/?api=1&query=' + dLat + ',' + dLng
+              : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(dropAddr);
+            const instructions = o.deliveryAddress?.deliveryInstructions || o.deliveryInstructions || '';
+
+            const porterBoxHtml =
+              '<div class="porter-box">' +
+                '<div class="porter-head">' +
+                  '<div class="porter-title">🚚 PORTER DISPATCH (MANUAL BOOKING)</div>' +
+                  '<button id="cp-btn-' + o._id + '" class="btn-copy" onclick="copyPorterDetails(\'' + o._id + '\')">📋 Copy for Porter App</button>' +
+                '</div>' +
+                '<div class="porter-grid">' +
+                  '<div class="porter-col">' +
+                    '<div class="porter-tag"><span>📍 PICKUP (BOUTIQUE)</span></div>' +
+                    '<div><b>' + esc(shopName) + '</b>' + (ownerName ? ' (' + esc(ownerName) + ')' : '') + '</div>' +
+                    (shopPhone ? '<div style="color:var(--gold);font-weight:600;margin-top:2px">📞 <a href="tel:' + esc(shopPhone) + '" style="color:var(--gold);text-decoration:none">' + esc(shopPhone) + '</a></div>' : '') +
+                    '<div class="addr">' + esc(shopAddr) + '</div>' +
+                    '<a href="' + esc(shopMapUrl) + '" target="_blank" rel="noopener">🗺️ Open Pickup in Google Maps ↗</a>' +
+                  '</div>' +
+                  '<div class="porter-col">' +
+                    '<div class="porter-tag"><span>🏁 DROP (CUSTOMER)</span></div>' +
+                    '<div><b>' + esc(who) + '</b></div>' +
+                    (phone ? '<div style="color:var(--gold);font-weight:600;margin-top:2px">📞 <a href="tel:' + esc(phone) + '" style="color:var(--gold);text-decoration:none">' + esc(phone) + '</a></div>' : '') +
+                    '<div class="addr">' + esc(dropAddr) + '</div>' +
+                    (instructions ? '<div style="font-size:11px;color:var(--gold);margin-top:3px">⚠️ Note: ' + esc(instructions) + '</div>' : '') +
+                    '<a href="' + esc(dropMapUrl) + '" target="_blank" rel="noopener">🗺️ Open Drop in Google Maps ↗</a>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+
             const next = (NEXT_STATUS[o.status] || []).map((s) =>
               '<button class="' + (s === 'CANCELLED' ? '' : 'ok') + '" onclick="advanceOrder(\'' + o._id + '\',\'' + s + '\')">' + NEXT_LABEL[s] + '</button>').join(' ');
+
+            const porterTip = o.status === 'READY_FOR_PICKUP'
+              ? '<div class="sub" style="color:var(--gold);margin-top:6px;font-size:12px">💡 Order is ready for pickup! Book a Porter 2-Wheeler above, then click <b>"Out for delivery"</b> when rider picks it up.</div>'
+              : '';
+
             return '<div class="card" id="o-' + o._id + '">' +
-              '<div class="row" style="justify-content:space-between">' +
-                '<div><div class="title">#' + esc(String(o._id).slice(-6).toUpperCase()) + ' · ' + esc(o.vendor?.shopName || '') + '</div>' +
-                '<div class="sub">' + esc(who) + (phone ? ' · ' + esc(phone) : '') + ' · ₹' + esc(o.totalPrice) + ' · ' + esc(o.paymentMethod) + '</div></div>' +
-                '<span class="pill">' + esc(STATUS_LABEL[o.status] || o.status) + '</span></div>' +
-              (next ? '<hr /><div class="row">' + next + '</div>' : '') + '</div>';
+              '<div class="row" style="justify-content:space-between;align-items:flex-start">' +
+                '<div>' +
+                  '<div class="title" style="font-size:16px;font-weight:600">#' + esc(String(o._id).slice(-8).toUpperCase()) + ' · ' + esc(shopName) + '</div>' +
+                  '<div class="sub">' + esc(who) + (phone ? ' · ' + esc(phone) : '') + ' · ₹' + esc(o.totalPrice) + (orderDate ? ' · ' + esc(orderDate) : '') + '</div>' +
+                '</div>' +
+                '<div class="row" style="gap:6px">' + payBadge + statusBadge + '</div>' +
+              '</div>' +
+              itemsHtml +
+              porterBoxHtml +
+              (next ? '<hr /><div class="row" style="gap:8px">' + next + '</div>' : '') +
+              porterTip +
+            '</div>';
           }).join('');
         } catch (e) {
           if (/token/i.test(e.message)) return logout();
           panel.innerHTML = '<div class="card err">' + esc(e.message) + '</div>';
+        }
+      }
+
+      function copyPorterDetails(id) {
+        const o = ORDERS_CACHE[id];
+        if (!o) return;
+        const shopName = o.vendor?.shopName || 'Boutique';
+        const shopContact = o.vendor?.ownerName ? (o.vendor.ownerName + ' (' + (o.vendor.phone || o.vendor.whatsappNumber || '') + ')') : (o.vendor?.phone || '');
+        const sAddr = o.vendor?.address || {};
+        const shopAddr = [sAddr.line1, sAddr.area, sAddr.city, sAddr.pincode].filter(Boolean).join(', ') || 'Nagpur';
+        const sCoords = o.vendor?.location?.coordinates;
+        const sLat = Array.isArray(sCoords) && sCoords.length === 2 ? sCoords[1] : null;
+        const sLng = Array.isArray(sCoords) && sCoords.length === 2 ? sCoords[0] : null;
+        const shopMap = (sLat && sLng)
+          ? ('https://www.google.com/maps/search/?api=1&query=' + sLat + ',' + sLng)
+          : ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(shopAddr));
+
+        const receiverName = o.deliveryAddress?.receiverName || o.customer?.name || o.guestContact?.name || 'Customer';
+        const receiverPhone = o.deliveryAddress?.receiverPhone || o.customer?.phone || o.guestContact?.phone || '';
+        const dAddr = o.deliveryAddress || {};
+        const dropAddr = [dAddr.line1, dAddr.line2, dAddr.locality, dAddr.city, dAddr.pincode].filter(Boolean).join(', ') || 'Nagpur';
+        const dCoords = o.deliveryAddress?.location?.coordinates;
+        const dLat = Array.isArray(dCoords) && dCoords.length === 2 ? dCoords[1] : null;
+        const dLng = Array.isArray(dCoords) && dCoords.length === 2 ? dCoords[0] : null;
+        const dropMap = (dLat && dLng)
+          ? ('https://www.google.com/maps/search/?api=1&query=' + dLat + ',' + dLng)
+          : ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(dropAddr));
+        const instructions = o.deliveryAddress?.deliveryInstructions || o.deliveryInstructions || '';
+
+        const itemsList = (o.items || []).map(i => i.name + ' (' + (i.size || '') + (i.color ? ', ' + i.color : '') + ') x ' + i.quantity).join(' | ');
+
+        const isUpiPaid = o.paymentMethod === 'UPI' && o.paymentStatus === 'PAID';
+        const paymentLine = isUpiPaid
+          ? ('UPI - PAID (UTR: ' + (o.paymentUtr || 'VERIFIED') + ') [DO NOT COLLECT CASH]')
+          : ('COD - COLLECT ₹' + o.totalPrice + ' CASH FROM CUSTOMER');
+
+        const text = [
+          '📦 KYA PEHNU ORDER #' + String(o._id).slice(-8).toUpperCase(),
+          '--------------------------------------',
+          '📍 PICKUP (Boutique):',
+          'Shop: ' + shopName,
+          'Contact: ' + shopContact,
+          'Address: ' + shopAddr,
+          'Map: ' + shopMap,
+          '',
+          '🏁 DROP (Customer):',
+          'Receiver: ' + receiverName,
+          'Phone: ' + receiverPhone,
+          'Address: ' + dropAddr,
+          instructions ? ('Instructions: ' + instructions) : null,
+          'Map: ' + dropMap,
+          '',
+          '🛍️ ITEMS: ' + (itemsList || 'Apparel item(s)'),
+          '💳 PAYMENT: ' + paymentLine,
+          '💰 TOTAL: ₹' + o.totalPrice,
+        ].filter(line => line !== null).join('\n');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            const btn = $('cp-btn-' + id);
+            if (btn) {
+              const orig = btn.innerHTML;
+              btn.innerHTML = '✓ Copied to Clipboard!';
+              btn.style.background = 'var(--green)';
+              btn.style.color = '#04120c';
+              setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.style.background = '';
+                btn.style.color = '';
+              }, 2500);
+            }
+          }).catch(() => {
+            prompt('Copy Porter booking details:', text);
+          });
+        } else {
+          prompt('Copy Porter booking details:', text);
         }
       }
 

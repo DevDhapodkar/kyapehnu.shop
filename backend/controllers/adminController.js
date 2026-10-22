@@ -233,7 +233,7 @@ export const listOrders = async (req, res) => {
     const filter = req.query.status ? { status: req.query.status } : {};
     const limit = Math.min(Number(req.query.limit) || 50, 200);
     const orders = await Order.find(filter)
-      .populate('vendor', 'shopName')
+      .populate('vendor', 'shopName ownerName phone whatsappNumber address location')
       .populate('customer', 'name phone')
       .sort({ createdAt: -1 })
       .limit(limit);
