@@ -135,6 +135,8 @@ export const createPaymentSession = async ({
     });
     return {
       ...res.data,
+      vpa: config.vpa,
+      merchantName: config.merchantName,
       upiUri,
       isSimulated: false,
     };
@@ -149,6 +151,8 @@ export const createPaymentSession = async ({
       currency,
       status: 'PENDING',
       checkoutUrl: `${config.portalUrl}/pay/${generatedPaymentId}`,
+      vpa: config.vpa,
+      merchantName: config.merchantName,
       upiUri,
       isSimulated: true,
       note: 'YouPI standalone session ready (0% Fee Direct UPI)',
