@@ -13,6 +13,7 @@ const ALLOWED_ORIGINS = [
   'https://kyapehnu.website',
   'https://www.kyapehnu.website',
   'https://kya-pehnu.vercel.app',
+  'https://kyapehnu-backend.onrender.com',
   'http://localhost:3000',
   'http://localhost:4173',
   'http://localhost:5001',
@@ -31,7 +32,13 @@ export const corsSecurity = cors({
     // Allow non-browser requests (mobile apps, server-to-server, curl)
     if (!origin) return callback(null, true);
 
-    if (ALLOWED_ORIGINS.includes(origin) || (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:'))) {
+    if (
+      ALLOWED_ORIGINS.includes(origin) ||
+      origin.endsWith('.onrender.com') ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.kyapehnu.shop') ||
+      (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:'))
+    ) {
       return callback(null, true);
     }
 
