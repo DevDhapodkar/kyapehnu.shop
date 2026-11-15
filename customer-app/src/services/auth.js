@@ -62,14 +62,14 @@ export const isMobileOrSafari = () => {
   return isIOS || isSafari || isMobile || isStandalone;
 };
 
-export const signInGoogle = async () => {
+export const signInGoogle = () => {
   const authInstance = ensureAuth();
   if (Platform.OS !== 'web') {
     const err = new Error(
       'Google sign-in popup is only supported in web browsers. Please use 1-Tap Instant Sign-In or Email.'
     );
     err.code = 'auth/operation-not-supported-in-this-environment';
-    throw err;
+    return Promise.reject(err);
   }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
@@ -77,36 +77,12 @@ export const signInGoogle = async () => {
   provider.addScope('profile');
   const resolver = browserPopupRedirectResolver || undefined;
 
-  // On iOS, Mobile Safari, Android browsers, and Standalone PWAs,
-  // never use signInWithPopup. Opening a popup tab on iOS triggers Apple's
-  // SOAuthorizationCoordinator which crashes Mobile Safari back to the SpringBoard / Home Screen.
-  // Using signInWithRedirect executes a top-level navigation, completely eliminating the crash.
-  if (isMobileOrSafari()) {
-    console.log('[auth] Mobile/Safari environment detected. Initiating top-level signInWithRedirect...');
-    await (resolver
-      ? signInWithRedirect(authInstance, provider, resolver)
-      : signInWithRedirect(authInstance, provider));
-    return null;
-  }
-
-  try {
-    return await (resolver
-      ? signInWithPopup(authInstance, provider, resolver)
-      : signInWithPopup(authInstance, provider));
-  } catch (err) {
-    if (
-      err?.code === 'auth/popup-blocked' ||
-      err?.code === 'auth/internal-error' ||
-      err?.code === 'auth/cancelled-popup-request'
-    ) {
-      console.warn('[auth] Popup unavailable, falling back to redirect:', err?.code, err?.message || err);
-      await (resolver
-        ? signInWithRedirect(authInstance, provider, resolver)
-        : signInWithRedirect(authInstance, provider));
-      return null;
-    }
-    throw err;
-  }
+  // Execute signInWithPopup synchronously in the current turn to preserve the browser user activation gesture.
+  // signInWithPopup relies on window.opener.postMessage and completely bypasses third-party cookie
+  // and storage-partitioning issues that break cross-domain redirect flows on kyapehnu.com/app.
+  return resolver
+    ? signInWithPopup(authInstance, provider, resolver)
+    : signInWithPopup(authInstance, provider);
 };
 
 export const checkRedirectResult = async () => {

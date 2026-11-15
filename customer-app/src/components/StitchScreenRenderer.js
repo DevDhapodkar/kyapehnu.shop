@@ -3376,21 +3376,18 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        const origHtml = btn.innerHTML;
-        try {
-          btn.innerHTML = `
-            <span class="inline-flex items-center justify-center gap-2">
-              <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-              </svg>
-              <span>Connecting to Google...</span>
-            </span>
-          `;
 
-          const res = await useAuthStore.getState().signInWithGoogle();
+        // Trigger Google sign-in immediately in the click turn to guarantee user activation
+        const authPromise = useAuthStore.getState().signInWithGoogle();
+        btn.style.opacity = '0.7';
+        btn.style.pointerEvents = 'none';
+
+        try {
+          const res = await authPromise;
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+
           if (!res || !res.cred?.user) {
-            // Redirecting to Google on Mobile/Safari or popup cancelled
             return;
           }
           const finalRole = res?.role || useAuthStore.getState().role;
@@ -3400,16 +3397,25 @@ export default function StitchScreenRenderer({
 
           if (finalRole === ROLES.VENDOR) {
             showToast(`Welcome to your Vendor Desk, ${firstName}!`);
-            setTimeout(() => navigateScreen('VendorOrders'), 100);
+            setTimeout(() => {
+              try { navigateScreen('VendorOrders'); } catch {}
+            }, 100);
           } else {
             showToast(`Welcome to Kya Pehnu, ${firstName}!`);
             detectAndApplyUserLocation(true);
-            setTimeout(() => navigateScreen('Home'), 100);
+            setTimeout(() => {
+              try { navigateScreen('Home'); } catch {}
+            }, 100);
           }
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
-          btn.innerHTML = origHtml;
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
           if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            return;
+          }
+          if (err?.code === 'auth/popup-blocked') {
+            showToast('Popup was blocked by your browser. Please allow popups for kyapehnu.com.');
             return;
           }
           showToast(friendlyAuthError(err));
@@ -3432,18 +3438,6 @@ export default function StitchScreenRenderer({
           whatsappConfirmInput?.focus();
           return;
         }
-
-        const origHtml = vendorGoogleBtn.innerHTML;
-        vendorGoogleBtn.innerHTML = `
-          <span class="inline-flex items-center justify-center gap-2">
-            <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-            </svg>
-            <span>Connecting Google & WhatsApp...</span>
-          </span>
-        `;
-        vendorGoogleBtn.style.pointerEvents = 'none';
 
         const shopInput = el.querySelector('#shop-name');
         const propInput = el.querySelector('#proprietor-name');
@@ -3471,10 +3465,17 @@ export default function StitchScreenRenderer({
           window.localStorage.setItem('kyapehnu_vendor_reg_draft', JSON.stringify(draft));
         }
 
+        // Trigger Google sign-in immediately in the click turn to guarantee user activation
+        const authPromise = useAuthStore.getState().signInWithGoogle();
+        vendorGoogleBtn.style.opacity = '0.7';
+        vendorGoogleBtn.style.pointerEvents = 'none';
+
         try {
-          const res = await useAuthStore.getState().signInWithGoogle();
+          const res = await authPromise;
+          vendorGoogleBtn.style.opacity = '1';
+          vendorGoogleBtn.style.pointerEvents = 'auto';
+
           if (!res || !res.cred?.user) {
-            // Redirecting to Google on Mobile/Safari or cancelled
             return;
           }
           const currentUser = useAuthStore.getState().user;
@@ -3542,9 +3543,13 @@ export default function StitchScreenRenderer({
           }, 600);
         } catch (err) {
           console.error('[VendorRegister-Google Error]', err);
-          vendorGoogleBtn.innerHTML = origHtml;
+          vendorGoogleBtn.style.opacity = '1';
           vendorGoogleBtn.style.pointerEvents = 'auto';
           if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            return;
+          }
+          if (err?.code === 'auth/popup-blocked') {
+            showToast('Popup was blocked by your browser. Please allow popups for kyapehnu.com.');
             return;
           }
           showToast(err?.message || friendlyAuthError(err) || 'Google sign-in failed. Please try again.');

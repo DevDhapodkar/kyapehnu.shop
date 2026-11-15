@@ -20,6 +20,7 @@ import {
   subscribeIdToken,
   isFirebaseConfigured,
 } from '../services/auth';
+import { auth } from '../config/firebase';
 
 /**
  * Session + role state for the unified app.
@@ -232,9 +233,18 @@ export const useAuthStore = create((set, get) => ({
         .catch((err) => console.warn('[auth] checkRedirectResult error:', err));
     }
 
-    const unsubscribe = subscribeIdToken(async (session) => {
+    const unsubFirebase = subscribeIdToken(async (session) => {
       if (!session) {
+        // If there was an existing cached session, check if Firebase auth persistence is still resolving
+        const hadSession = Boolean(get().token || get().user);
+        if (hadSession && auth && typeof auth.authStateReady === 'function') {
+          try {
+            await auth.authStateReady();
+            if (auth.currentUser) return; // User successfully hydrated from persistence
+          } catch {}
+        }
         setAuthToken(null);
+        persistAuthSession(null, null, null, null);
         set({ user: null, token: null, profile: null, authReady: true });
         return;
       }
@@ -286,8 +296,13 @@ export const useAuthStore = create((set, get) => ({
         .catch(() => {});
     });
 
-    set({ _unsubscribe: unsubscribe });
-    return unsubscribe;
+    const cleanup = () => {
+      set({ _unsubscribe: null });
+      if (typeof unsubFirebase === 'function') unsubFirebase();
+    };
+
+    set({ _unsubscribe: cleanup });
+    return cleanup;
   },
 
   /** Email/password sign-in with instant vendor role detection. */
@@ -387,24 +402,27 @@ export const useAuthStore = create((set, get) => ({
 
     const cachedRole = (typeof window !== 'undefined' && window.localStorage?.getItem('kyapehnu_role')) || null;
     let assignedRole = (cachedRole && ROLES[cachedRole]) ? cachedRole : ROLES.CUSTOMER;
-    let vendor = null;
 
-    try {
-      vendor = await fetchVendorProfile();
-      if (vendor && (vendor._id || vendor.shopName)) {
-        assignedRole = ROLES.VENDOR;
-      }
-    } catch {}
-
-    persistAuthSession(token, cred.user, assignedRole, assignedRole === ROLES.VENDOR ? vendor : null);
-
+    // Immediately persist and activate authenticated state so UI routes without blocking
+    persistAuthSession(token, cred.user, assignedRole, null);
     set({
       user: cred.user,
       token,
       role: assignedRole,
-      vendorProfile: assignedRole === ROLES.VENDOR ? vendor : null,
+      authReady: true,
     });
 
+    // Background vendor detection
+    fetchVendorProfile()
+      .then((vendor) => {
+        if (vendor && (vendor._id || vendor.shopName)) {
+          persistAuthSession(token, cred.user, ROLES.VENDOR, vendor);
+          set({ role: ROLES.VENDOR, vendorProfile: vendor });
+        }
+      })
+      .catch(() => {});
+
+    // Background profile sync
     syncUserProfile({
       name: cred.user.displayName || '',
       email: cred.user.email,
@@ -413,7 +431,7 @@ export const useAuthStore = create((set, get) => ({
       .then((profile) => set({ profile, pendingProfile: null }))
       .catch((err) => console.warn('[auth] Profile sync:', err?.message || err));
 
-    return { cred, role: assignedRole, vendor };
+    return { cred, role: assignedRole };
   },
 
   sendPasswordReset: async (email) => {

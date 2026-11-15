@@ -43,9 +43,9 @@ export default function StitchAuth({ navigation }) {
           if (!res || !res.cred?.user) return;
           const finalRole = res?.role || useAuthStore.getState().role;
           if (finalRole === 'VENDOR') {
-            navigation.navigate('VendorOrders');
+            try { navigation.navigate('VendorOrders'); } catch {}
           } else {
-            navigation.navigate('Home');
+            try { navigation.navigate('Home'); } catch {}
           }
         } catch (err) {
           console.error('[Google Sign-In Error]', err);
