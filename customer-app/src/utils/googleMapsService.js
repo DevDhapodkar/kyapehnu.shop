@@ -117,24 +117,22 @@ export function loadGoogleMapsScript(apiKey = GOOGLE_MAPS_API_KEY) {
 }
 
 /**
- * Searches and geocodes a location in Nagpur using:
- * 1. Curated Nagpur area centroid index (instant, 0 latency).
+ * Searches and geocodes a location across India using:
+ * 1. Curated locality centroid index (instant, 0 latency).
  * 2. Google Places / Geocoder if active.
- * 3. OpenStreetMap Nominatim with Nagpur bounding box fallback.
+ * 3. OpenStreetMap Nominatim across India.
  */
-export async function searchNagpurLocation(queryText) {
+export async function searchLocation(queryText) {
   if (!queryText || typeof queryText !== 'string') return null;
   const clean = queryText.trim().toLowerCase();
   if (clean.length < 2) return null;
 
-  // 1. Direct match with curated Nagpur centroids and key educational hubs
-  // High-priority match for SIT Nagpur / Symbiosis Campus
+  // 1. Direct match with curated centroids and key educational hubs
   if (
     clean.includes('sit') ||
     clean.includes('symbi') ||
     clean.includes('sibm') ||
-    clean.includes('sspad') ||
-    clean.includes('sid nagpur')
+    clean.includes('sspad')
   ) {
     return {
       lat: 21.1272934,
@@ -155,47 +153,11 @@ export async function searchNagpurLocation(queryText) {
     };
   }
 
-  if (clean.includes('giddoba')) {
-    return {
-      lat: 21.131,
-      lng: 79.149,
-      name: 'Giddoba Nagar, Wathoda',
-      pincode: '440008',
-      source: 'curated_index',
-    };
-  }
-
-  if (clean.includes('bhandewadi')) {
-    return {
-      lat: 21.141,
-      lng: 79.155,
-      name: 'Bhandewadi',
-      pincode: '440008',
-      source: 'curated_index',
-    };
-  }
-
-  if (clean.includes('kharbi')) {
-    return {
-      lat: 21.122,
-      lng: 79.145,
-      name: 'Kharbi',
-      pincode: '440034',
-      source: 'curated_index',
-    };
-  }
-
   for (const area of NAGPUR_AREAS) {
     const areaNameLower = area.name.toLowerCase();
     if (
       clean.includes(areaNameLower) ||
-      areaNameLower.includes(clean) ||
-      (clean.includes('nandanvan') && areaNameLower === 'nandanvan') ||
-      (clean.includes('dharampeth') && areaNameLower === 'dharampeth') ||
-      (clean.includes('sadar') && areaNameLower === 'sadar') ||
-      (clean.includes('sitabuldi') && areaNameLower === 'sitabuldi') ||
-      (clean.includes('ramdaspeth') && areaNameLower === 'ramdaspeth') ||
-      (clean.includes('civil lines') && areaNameLower === 'civil lines')
+      areaNameLower.includes(clean)
     ) {
       return {
         lat: area.lat,
@@ -214,8 +176,8 @@ export async function searchNagpurLocation(queryText) {
       const results = await new Promise((resolve, reject) => {
         geocoder.geocode(
           {
-            address: `${queryText}, Nagpur, Maharashtra`,
-            componentRestrictions: { country: 'IN', administrativeArea: 'Maharashtra' },
+            address: `${queryText}, India`,
+            componentRestrictions: { country: 'IN' },
           },
           (res, status) => {
             if (status === 'OK' && res?.[0]) resolve(res[0]);
@@ -240,11 +202,11 @@ export async function searchNagpurLocation(queryText) {
     }
   }
 
-  // 3. Nominatim bounded to Nagpur metropolitan area
+  // 3. Nominatim bounded to India
   try {
-    const encoded = encodeURIComponent(`${queryText} Nagpur Maharashtra India`);
+    const encoded = encodeURIComponent(`${queryText} India`);
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encoded}&countrycodes=in&viewbox=78.90,21.32,79.28,20.95&bounded=1&limit=3`,
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encoded}&countrycodes=in&limit=5`,
       { headers: { 'User-Agent': 'KyaPehnuApp/1.0' } }
     );
     if (res.ok) {
@@ -269,3 +231,4 @@ export async function searchNagpurLocation(queryText) {
 
   return null;
 }
+export const searchNagpurLocation = searchLocation;

@@ -49,7 +49,7 @@ const orderSchema = new mongoose.Schema(
       // the door and calling from the gate.
       line2: { type: String },
       locality: { type: String },
-      city: { type: String, default: 'Nagpur' },
+      city: { type: String, default: 'India' },
       pincode: { type: String, required: true },
       // Who the rider hands the order to (defaults to the account holder).
       receiverName: { type: String },

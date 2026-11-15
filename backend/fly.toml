@@ -1,6 +1,6 @@
 # Fly.io config for the Kya Pehnu? backend.
 #
-# primary_region = bom (Mumbai) puts the API next to the Nagpur user base, and
+# primary_region = bom (Mumbai) puts the API centrally in India for lowest latency, and
 # auto_stop_machines = "off" + min_machines_running keep it always warm — no
 # free-tier cold start. Secrets are NOT stored here; set them with
 # `fly secrets set` (see DEPLOY.md). Change `app` to the name you secured with

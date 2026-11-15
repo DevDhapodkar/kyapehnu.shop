@@ -1,13 +1,18 @@
 /**
  * Checkout address builders — never invent phone, name, pincode, or coords.
- * Enforces Porter same-city delivery network boundary restrictions in Nagpur.
+ * Enforces Pan-India delivery network boundary validation.
  */
 
-const PLACEHOLDER_PHONE_DIGITS = '9999999999';
+const PLACEHOLDER_PHONE_DIGITS = "9999999999";
 
-export const NAGPUR_CENTER = { lat: 21.1458, lng: 79.0882 };
-export const MAX_PORTER_RADIUS_KM = 25;
-export const NAGPUR_PINCODE_REGEX = /^(4400\d{2}|441\d{3})$/;
+export const INDIA_CENTER = { lat: 20.5937, lng: 78.9629 };
+export const INDIA_BOUNDS = { minLat: 6.0, maxLat: 38.0, minLng: 68.0, maxLng: 98.0 };
+export const INDIAN_PINCODE_REGEX = /^[1-9][0-9]{5}$/;
+
+// Backward-compatible alias exports
+export const NAGPUR_CENTER = INDIA_CENTER;
+export const MAX_PORTER_RADIUS_KM = 35;
+export const NAGPUR_PINCODE_REGEX = INDIAN_PINCODE_REGEX;
 
 /**
  * Calculates distance between two latitude/longitude points in km using the Haversine formula.
@@ -28,12 +33,12 @@ export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Validates whether an address falls inside Porter's Nagpur same-city delivery network.
+ * Validates whether an address falls inside India delivery network.
  * Accepts either an address object or explicit { coords, pincode, city }.
  * @param {object} input
  * @returns {{ serviceable: boolean, valid: boolean, error?: string, reason?: string, distanceKm?: number }}
  */
-export function validateNagpurDeliveryBounds(input = {}) {
+export function validateDeliveryBounds(input = {}) {
   const city = input?.city;
   const pincode = input?.pincode || input?.postalCode;
   const coords =
@@ -41,47 +46,40 @@ export function validateNagpurDeliveryBounds(input = {}) {
     input?.location?.coordinates ||
     (Array.isArray(input?.coordinates) ? input.coordinates : null);
 
-  // 1. City check (if provided, must be Nagpur)
-  if (city && typeof city === 'string') {
-    const cleanCity = city.trim().toLowerCase();
-    if (cleanCity && cleanCity !== 'nagpur' && !cleanCity.includes('nagpur')) {
-      const errorMsg = `Delivery is currently available exclusively within Nagpur city (received: ${city}).`;
-      return {
-        serviceable: false,
-        valid: false,
-        error: errorMsg,
-        reason: errorMsg,
-      };
+  // 1. City check
+  if (city && typeof city === "string") {
+    const cleanCity = city.trim();
+    if (cleanCity.length < 2) {
+      const errorMsg = "Please enter a valid city name.";
+      return { serviceable: false, valid: false, error: errorMsg, reason: errorMsg };
     }
   }
 
-  // 2. Pincode check
+  // 2. Pincode check (Must be valid 6-digit Indian PIN)
   if (pincode) {
     const pin = String(pincode).trim();
-    if (!NAGPUR_PINCODE_REGEX.test(pin)) {
-      const errorMsg = `Pincode ${pin} is outside Porter's same-city delivery network in Nagpur. We currently deliver only within Nagpur (440001–440037, 441xxx).`;
-      return {
-        serviceable: false,
-        valid: false,
-        error: errorMsg,
-        reason: errorMsg,
-      };
+    if (!INDIAN_PINCODE_REGEX.test(pin)) {
+      const errorMsg = `Pincode ${pin} is not a valid 6-digit Indian postal code.`;
+      return { serviceable: false, valid: false, error: errorMsg, reason: errorMsg };
     }
   }
 
-  // 3. Map Pin Coordinates check
+  // 3. Map Pin Coordinates check (Must be within India territory)
   if (Array.isArray(coords) && coords.length >= 2) {
     const lng = coords[0];
     const lat = coords[1];
-    if (typeof lat === 'number' && typeof lng === 'number') {
-      const inBox = lat >= 20.95 && lat <= 21.32 && lng >= 78.90 && lng <= 79.28;
-      const distance = calculateDistanceKm(lat, lng, NAGPUR_CENTER.lat, NAGPUR_CENTER.lng);
-      if (!inBox || distance > MAX_PORTER_RADIUS_KM) {
-        const errorMsg = `Selected map pin is ${Math.round(distance)}km from Nagpur center, which is outside Porter's 25km same-city delivery network.`;
+    if (typeof lat === "number" && typeof lng === "number") {
+      const inBox =
+        lat >= INDIA_BOUNDS.minLat &&
+        lat <= INDIA_BOUNDS.maxLat &&
+        lng >= INDIA_BOUNDS.minLng &&
+        lng <= INDIA_BOUNDS.maxLng;
+      if (!inBox) {
+        const errorMsg = "Selected map pin is outside India service territory.";
         return {
           serviceable: false,
           valid: false,
-          distanceKm: distance,
+          distanceKm: calculateDistanceKm(lat, lng, INDIA_CENTER.lat, INDIA_CENTER.lng),
           error: errorMsg,
           reason: errorMsg,
         };
@@ -91,6 +89,7 @@ export function validateNagpurDeliveryBounds(input = {}) {
 
   return { serviceable: true, valid: true };
 }
+export const validateNagpurDeliveryBounds = validateDeliveryBounds;
 
 /**
  * @param {string} phone
@@ -98,9 +97,8 @@ export function validateNagpurDeliveryBounds(input = {}) {
  */
 export function isPlaceholderPhone(phone) {
   if (!phone) return true;
-  const digits = String(phone).replace(/\D/g, '');
+  const digits = String(phone).replace(/\D/g, "");
   if (digits.length < 10) return true;
-  // Trailing 10 digits all 9s (covers +91 99999 99999 and 9999999999)
   return digits.slice(-10) === PLACEHOLDER_PHONE_DIGITS;
 }
 
@@ -110,8 +108,8 @@ export function isPlaceholderPhone(phone) {
  */
 export function cleanPhoneOrNull(phone) {
   if (!phone) return null;
-  const cleaned = String(phone).replace(/[^0-9+]/g, '');
-  const digits = cleaned.replace(/\D/g, '');
+  const cleaned = String(phone).replace(/[^0-9+]/g, "");
+  const digits = cleaned.replace(/\D/g, "");
   if (digits.length < 10) return null;
   if (isPlaceholderPhone(cleaned)) return null;
   return cleaned;
@@ -119,52 +117,48 @@ export function cleanPhoneOrNull(phone) {
 
 /**
  * Build delivery address from a saved profile address. Hard-fails on gaps or out-of-bounds locations.
- *
- * @param {{ address: object, profile?: object, user?: object }} params
- * @returns {{ ok: true, address: object } | { ok: false, error: string, outOfBounds?: boolean }}
  */
 export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
   if (!address?.line1?.trim()) {
-    return { ok: false, error: 'Saved address is missing the street line. Please edit or add a new address.' };
+    return { ok: false, error: "Saved address is missing the street line. Please edit or add a new address." };
   }
 
-  const pincode = (address.pincode && String(address.pincode).trim()) || '';
-  if (!/^\d{6}$/.test(pincode)) {
-    return { ok: false, error: 'Saved address is missing a valid 6-digit pincode. Please edit the address.' };
+  const pincode = (address.pincode && String(address.pincode).trim()) || "";
+  if (!INDIAN_PINCODE_REGEX.test(pincode)) {
+    return { ok: false, error: "Saved address is missing a valid 6-digit pincode. Please edit the address." };
   }
 
   const receiverName =
     (address.receiverName && String(address.receiverName).trim()) ||
     (profile?.name && String(profile.name).trim()) ||
     (user?.displayName && String(user.displayName).trim()) ||
-    '';
-  if (!receiverName || /^nagpur\s+(patron|member)$/i.test(receiverName)) {
-    return { ok: false, error: 'Receiver name is required before placing the order.' };
+    "";
+  if (!receiverName || /^(patron|member)$/i.test(receiverName)) {
+    return { ok: false, error: "Receiver name is required before placing the order." };
   }
 
   const receiverPhone = cleanPhoneOrNull(
-    address.receiverPhone || profile?.phone || user?.phoneNumber || ''
+    address.receiverPhone || profile?.phone || user?.phoneNumber || ""
   );
   if (!receiverPhone) {
     return {
       ok: false,
-      error: 'A valid delivery mobile number is required. Please update the address or profile phone.',
+      error: "A valid delivery mobile number is required. Please update the address or profile phone.",
     };
   }
 
   const coords = address.location?.coordinates;
-  if (!Array.isArray(coords) || coords.length < 2 || coords.some((n) => typeof n !== 'number')) {
+  if (!Array.isArray(coords) || coords.length < 2 || coords.some((n) => typeof n !== "number")) {
     return {
       ok: false,
-      error: 'This address has no map pin. Please re-save it with Pin on Map.',
+      error: "This address has no map pin. Please re-save it with Pin on Map.",
     };
   }
 
-  // Restrict to Porter Nagpur same-city delivery network boundary
-  const bounds = validateNagpurDeliveryBounds({
+  const bounds = validateDeliveryBounds({
     coords,
     pincode,
-    city: address.city || 'Nagpur',
+    city: address.city || "India",
   });
   if (!bounds.serviceable) {
     return { ok: false, error: bounds.error, outOfBounds: true };
@@ -173,15 +167,15 @@ export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
   return {
     ok: true,
     address: {
-      label: address.label || 'HOME',
+      label: address.label || "HOME",
       line1: address.line1.trim(),
-      line2: (address.line2 && String(address.line2).trim()) || '',
-      city: (address.city && String(address.city).trim()) || 'Nagpur',
+      line2: (address.line2 && String(address.line2).trim()) || "",
+      city: (address.city && String(address.city).trim()) || "India",
       pincode,
       receiverName,
       receiverPhone,
       location: {
-        type: 'Point',
+        type: "Point",
         coordinates: coords,
       },
     },
@@ -190,40 +184,38 @@ export function buildCheckoutAddressFromSaved({ address, profile, user } = {}) {
 
 /**
  * Build delivery address from the new-address form. Hard-fails on gaps or out-of-bounds locations.
- *
- * @param {object} form
- * @returns {{ ok: true, address: object } | { ok: false, error: string, outOfBounds?: boolean }}
  */
 export function buildCheckoutAddressFromForm({
   flatNo,
   streetArea,
   detectedArea,
+  city,
   pincode,
   receiverName,
   phone,
   coords,
-  addressType = 'HOME',
+  addressType = "HOME",
 } = {}) {
   if (!flatNo?.trim() || !streetArea?.trim()) {
     return {
       ok: false,
-      error: 'Please fill out your delivery address particulars or select a saved address.',
+      error: "Please fill out your delivery address particulars or select a saved address.",
     };
   }
 
-  const pin = (pincode && String(pincode).trim()) || '';
-  if (!/^\d{6}$/.test(pin)) {
-    return { ok: false, error: 'Please enter a valid 6-digit Nagpur pincode.' };
+  const pin = (pincode && String(pincode).trim()) || "";
+  if (!INDIAN_PINCODE_REGEX.test(pin)) {
+    return { ok: false, error: "Please enter a valid 6-digit postal pincode." };
   }
 
-  const name = (receiverName && String(receiverName).trim()) || '';
+  const name = (receiverName && String(receiverName).trim()) || "";
   if (!name) {
-    return { ok: false, error: 'Please provide a receiver name and 10-digit mobile number.' };
+    return { ok: false, error: "Please provide a receiver name and 10-digit mobile number." };
   }
 
   const receiverPhone = cleanPhoneOrNull(phone);
   if (!receiverPhone) {
-    return { ok: false, error: 'Please enter a valid 10-digit mobile number.' };
+    return { ok: false, error: "Please enter a valid 10-digit mobile number." };
   }
 
   if (!Array.isArray(coords) || coords.length < 2) {
@@ -233,11 +225,12 @@ export function buildCheckoutAddressFromForm({
     };
   }
 
-  // Restrict to Porter Nagpur same-city delivery network boundary
-  const bounds = validateNagpurDeliveryBounds({
+  const resolvedCity = (city && String(city).trim()) || "India";
+
+  const bounds = validateDeliveryBounds({
     coords,
     pincode: pin,
-    city: 'Nagpur',
+    city: resolvedCity,
   });
   if (!bounds.serviceable) {
     return { ok: false, error: bounds.error, outOfBounds: true };
@@ -248,13 +241,13 @@ export function buildCheckoutAddressFromForm({
     address: {
       label: addressType,
       line1: `${flatNo.trim()}, ${streetArea.trim()}`,
-      line2: (detectedArea && String(detectedArea).trim()) || '',
-      city: 'Nagpur',
+      line2: (detectedArea && String(detectedArea).trim()) || "",
+      city: resolvedCity,
       pincode: pin,
       receiverName: name,
       receiverPhone,
       location: {
-        type: 'Point',
+        type: "Point",
         coordinates: coords,
       },
     },

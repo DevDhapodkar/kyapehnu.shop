@@ -19,7 +19,7 @@ import {
 
 const router = express.Router();
 
-// Public delivery serviceability pre-validation check (Nagpur bounds)
+// Public delivery serviceability pre-validation check (Pan-India bounds)
 router.post('/check-serviceability', checkOrderServiceability);
 
 // Public web storefront: guest COD checkout + order tracking (rate-limited).

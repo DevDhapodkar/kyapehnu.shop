@@ -42,7 +42,7 @@ export default function OutOfDeliveryZoneModal({
 
   const displayMessage =
     error ||
-    "Porter's intra-city rapid delivery network currently operates within a 25km radius of Nagpur. Kya Pehnu 45-minute express delivery is exclusively available in Nagpur city.";
+    'Selected address is outside our delivery network. Kya Pehnu fast delivery is available across all Indian cities and postal codes.';
 
   return (
     <Modal
@@ -65,7 +65,7 @@ export default function OutOfDeliveryZoneModal({
           <View style={styles.headerRow}>
             <View style={styles.tagBadge}>
               <MaterialIcons name="radar" size={12} color="#D92D20" />
-              <Text style={styles.tagBadgeText}>NAGPUR SAME-CITY ONLY</Text>
+              <Text style={styles.tagBadgeText}>PAN-INDIA SERVICE</Text>
             </View>
             <PressableScale
               onPress={onClose}

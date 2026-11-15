@@ -58,7 +58,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
   let orderId;
   let customerPhone = '9823011223';
 
-  await t.test('1. Discover nearby Nagpur boutiques', async () => {
+  await t.test('1. Discover nearby curated boutiques', async () => {
     const res = await fetch(`${baseUrl}/api/vendors/nearby?lat=21.1458&lng=79.0882`);
     assert.equal(res.status, 200);
     const vendors = await res.json();
@@ -87,7 +87,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
       brand: 'Studio Anamika',
       category: 'WOMEN',
       subCategory: 'Kurta',
-      description: 'Handwoven in Nagpur with pure mulberry silk and antique zari work.',
+      description: 'Handwoven with pure mulberry silk and antique zari work.',
       price: 5200,
       mrp: 6999,
       sizes: [
@@ -228,7 +228,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
         line1: 'Flat 301, Palm Court',
         line2: 'Civil Lines',
         area: 'Civil Lines',
-        city: 'Nagpur',
+        city: 'Mumbai',
         pincode: '440001',
         receiverName: 'Devyani Joshi',
         receiverPhone: customerPhone,
@@ -404,7 +404,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
         deliveryAddress: {
           line1: 'Flat 301, Palm Court',
           area: 'Civil Lines',
-          city: 'Nagpur',
+          city: 'Mumbai',
           pincode: '440001',
           receiverName: 'Devyani Joshi',
           receiverPhone: customerPhone,
@@ -477,7 +477,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
         deliveryAddress: {
           line1: 'Near Shankar Nagar Square',
           area: 'Dharampeth',
-          city: 'Nagpur',
+          city: 'Mumbai',
           pincode: '440010',
           receiverName: 'Devyani Joshi',
           receiverPhone: customerPhone,
@@ -527,7 +527,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
   });
 
   await t.test('17. YouPI Webhook with valid HMAC signature marks order PAID and stamps UTR', async () => {
-    const webhookSecret = process.env.YOUPI_WEBHOOK_SECRET || 'kyapehnu_youpi_webhook_secret_nagpur_2026';
+    const webhookSecret = process.env.YOUPI_WEBHOOK_SECRET || 'kyapehnu_youpi_webhook_secret_2026';
     const testUtr = 'UTR847291038472';
     const webhookPayload = JSON.stringify({
       event: 'SUCCESS',
@@ -581,7 +581,7 @@ test('E2E Storefront and Order Lifecycle Integration', async (t) => {
         deliveryAddress: {
           line1: 'Near Law College Square',
           area: 'Civil Lines',
-          city: 'Nagpur',
+          city: 'Mumbai',
           pincode: '440001',
           receiverName: 'Devyani Joshi',
           receiverPhone: customerPhone,

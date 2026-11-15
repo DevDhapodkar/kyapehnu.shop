@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 
-export const NAGPUR_CENTER = { latitude: 21.1458, longitude: 79.0882 };
+export const INDIA_CENTER = { latitude: 20.5937, longitude: 78.9629 };
+export const NAGPUR_CENTER = INDIA_CENTER;
 
 /**
  * Curated centroids and official postal codes for major Nagpur localities.
@@ -73,23 +74,13 @@ export function getDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Checks if the given coordinate is within Porter's Nagpur same-city delivery network (~25 km radius).
+ * Checks if the given coordinate is within India territory.
  */
-export function isWithinNagpur(latitude, longitude) {
+export function isWithinIndia(latitude, longitude) {
   if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) return false;
-  // Bounding box check for Nagpur metropolitan territory
-  if (latitude < 20.95 || latitude > 21.32 || longitude < 78.90 || longitude > 79.28) {
-    return false;
-  }
-  return (
-    getDistanceKm(
-      latitude,
-      longitude,
-      NAGPUR_CENTER.latitude,
-      NAGPUR_CENTER.longitude
-    ) <= 25
-  );
+  return latitude >= 6.0 && latitude <= 38.0 && longitude >= 68.0 && longitude <= 98.0;
 }
+export const isWithinNagpur = isWithinIndia;
 
 /**
  * Finds the nearest known Nagpur neighbourhood centroid.
@@ -264,18 +255,21 @@ export async function reverseGeocodeLocation({ latitude, longitude }) {
     // Network or timeout - fallback logic will handle gracefully
   }
 
-  // If in Nagpur:
-  if (inNagpur) {
+  const inIndia = isWithinIndia(latitude, longitude);
+
+  // If in India:
+  if (inIndia) {
     const addr = nominatim?.address;
     const road = addr?.road || '';
-    const osmSuburb = addr?.suburb || addr?.neighbourhood || addr?.residential;
-    const areaName = osmSuburb || closestNagpur.name;
-    const pincode = addr?.postcode || closestNagpur.pincode;
+    const osmCity = addr?.city || addr?.town || addr?.village || addr?.state_district || addr?.state || 'India';
+    const osmSuburb = addr?.suburb || addr?.neighbourhood || addr?.residential || osmCity;
+    const areaName = osmSuburb;
+    const pincode = addr?.postcode || '';
 
-    const areaLabel = `${areaName}, Nagpur`;
+    const areaLabel = areaName === osmCity ? osmCity : `${areaName}, ${osmCity}`;
     const formattedAddress = road
-      ? `${road}, ${areaName}, Nagpur (${pincode})`
-      : `${areaName}, Nagpur (${pincode})`;
+      ? `${road}, ${areaLabel}${pincode ? ` (${pincode})` : ''}`
+      : `${areaLabel}${pincode ? ` (${pincode})` : ''}`;
 
     const result = {
       areaLabel,
@@ -283,15 +277,16 @@ export async function reverseGeocodeLocation({ latitude, longitude }) {
       areaName,
       road,
       pincode,
-      city: 'Nagpur',
-      distanceKm: closestNagpur.distanceKm,
+      city: osmCity,
+      distanceKm: 0,
       isNagpur: true,
+      isDeliverable: true,
     };
     geocodeCache.set(cacheKey, result);
     return result;
   }
 
-  // If outside Nagpur (e.g. Pune, Mumbai, etc.):
+  // If outside India (e.g. international coordinates):
   const addr = nominatim?.address;
   const locality =
     addr?.suburb ||
@@ -299,8 +294,8 @@ export async function reverseGeocodeLocation({ latitude, longitude }) {
     addr?.residential ||
     addr?.town ||
     addr?.city ||
-    'Outside Nagpur';
-  const city = addr?.city || addr?.state_district || addr?.state || 'India';
+    'Outside India';
+  const city = addr?.city || addr?.country || 'International';
   const pincode = addr?.postcode || '';
   const areaLabel = locality === city ? city : `${locality}, ${city}`;
   const formattedAddress = `${areaLabel}${pincode ? ` (${pincode})` : ''}`;
@@ -311,8 +306,9 @@ export async function reverseGeocodeLocation({ latitude, longitude }) {
     areaName: locality,
     pincode,
     city,
-    distanceKm: closestNagpur.distanceKm,
+    distanceKm: 0,
     isNagpur: false,
+    isDeliverable: false,
   };
   geocodeCache.set(cacheKey, result);
   return result;

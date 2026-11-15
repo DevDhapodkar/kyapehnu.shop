@@ -5,7 +5,7 @@ const addressSchema = new mongoose.Schema(
     label: { type: String, default: 'Home' },
     line1: { type: String, required: true },
     line2: { type: String },
-    city: { type: String, default: 'Nagpur' },
+    city: { type: String, default: 'India' },
     pincode: { type: String, required: true },
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },

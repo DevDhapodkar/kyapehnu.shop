@@ -1,10 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from "node:test";
+import assert from "node:assert/strict";
 
-import { checkOrderServiceability } from '../controllers/orderController.js';
-import { checkServiceability } from '../controllers/porterController.js';
+import { checkOrderServiceability } from "../controllers/orderController.js";
+import { checkServiceability } from "../controllers/porterController.js";
 
-test('checkOrderServiceability: controller endpoint unit tests', async () => {
+test("checkOrderServiceability: controller endpoint unit tests", async () => {
   // Test 1: missing deliveryAddress returns 400
   {
     let status = null;
@@ -27,18 +27,18 @@ test('checkOrderServiceability: controller endpoint unit tests', async () => {
     assert.match(jsonResult.message, /deliveryAddress is required/i);
   }
 
-  // Test 2: valid Nagpur delivery location returns serviceable: true
+  // Test 2: valid Pan-India delivery location returns serviceable: true
   {
     let jsonResult = null;
     const req = {
       body: {
         deliveryAddress: {
-          line1: '10 Dharampeth Main Road',
-          city: 'Nagpur',
-          pincode: '440010',
+          line1: "10 Brigade Road",
+          city: "Bangalore",
+          pincode: "560001",
           location: {
-            type: 'Point',
-            coordinates: [79.0645, 21.1396],
+            type: "Point",
+            coordinates: [77.607, 12.9719],
           },
         },
       },
@@ -56,21 +56,21 @@ test('checkOrderServiceability: controller endpoint unit tests', async () => {
     await checkOrderServiceability(req, res);
     assert.equal(jsonResult.serviceable, true);
     assert.ok(jsonResult.distanceKm >= 0);
-    assert.equal(jsonResult.city, 'Nagpur');
-    assert.equal(jsonResult.pincode, '440010');
+    assert.equal(jsonResult.city, "Bangalore");
+    assert.equal(jsonResult.pincode, "560001");
   }
 
-  // Test 3: Out of delivery zone (Mumbai address) returns serviceable: false with reason
+  // Test 3: Invalid 6-digit PIN code returns serviceable: false with reason
   {
     let jsonResult = null;
     const req = {
       body: {
         deliveryAddress: {
-          line1: 'Bandra West',
-          city: 'Mumbai',
-          pincode: '400050',
+          line1: "Bandra West",
+          city: "Mumbai",
+          pincode: "012345",
           location: {
-            type: 'Point',
+            type: "Point",
             coordinates: [72.8258, 19.0596],
           },
         },
@@ -88,18 +88,18 @@ test('checkOrderServiceability: controller endpoint unit tests', async () => {
 
     await checkOrderServiceability(req, res);
     assert.equal(jsonResult.serviceable, false);
-    assert.match(jsonResult.reason, /Nagpur/i);
+    assert.match(jsonResult.reason, /pincode/i);
   }
 
-  // Test 4: Out of bounds distance (> 25km, e.g. Wardha) returns serviceable: false
+  // Test 4: Coordinates outside India service territory returns serviceable: false
   {
     const result = await checkServiceability({
-      pickup: { lat: 21.1458, lng: 79.0882 },
-      drop: { lat: 20.7453, lng: 78.6022 },
-      city: 'Nagpur',
-      pincode: '440010',
+      pickup: { lat: 19.076, lng: 72.8777 },
+      drop: { lat: 51.5074, lng: -0.1278 }, // London
+      city: "London",
+      pincode: "400001",
     });
     assert.equal(result.serviceable, false);
-    assert.match(result.reason, /exceeds|perimeter/i);
+    assert.match(result.reason, /India/i);
   }
 });

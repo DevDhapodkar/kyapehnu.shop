@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
-    <title>Kya Pehnu? — Shop Nagpur</title>
+    <title>Kya Pehnu? — Fast Fashion Delivery</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -121,7 +121,7 @@
   <body>
     <header>
       <div class="wrap bar">
-        <div class="brand" onclick="go('shop')">KYA PEHNU? <b>·</b> NAGPUR</div>
+        <div class="brand" onclick="go('shop')">KYA PEHNU?</div>
         <nav>
           <button class="navbtn" onclick="go('shop')">Shop</button>
           <button class="navbtn" onclick="go('track')">Track order</button>
@@ -135,7 +135,7 @@
       <section class="hero">
         <div class="eyebrow">HYPER-LOCAL FASHION</div>
         <h1>Wear it tonight.</h1>
-        <p>In-stock pieces from independent Nagpur shops, delivered to your door. Cash on delivery.</p>
+        <p>In-stock pieces from independent curated shops, delivered to your door. Cash on delivery.</p>
       </section>
       <div id="grid" class="grid"></div>
       <div id="gridEmpty" class="empty" style="display:none"></div>
@@ -191,7 +191,7 @@
       const STEP_LABEL = { PENDING:'Order placed', ACCEPTED:'Accepted by shop', PACKED:'Packed',
         READY_FOR_PICKUP:'Ready for pickup', IN_TRANSIT:'Out for delivery', DELIVERED:'Delivered', CANCELLED:'Cancelled' };
       const DELIVERY_FEE = 49;
-      const NAGPUR = [79.0882, 21.1458];
+      const DEFAULT_COORDS = [78.9629, 20.5937];
       let CART = [];
       try { CART = JSON.parse(localStorage.getItem('kp_cart') || '[]'); } catch {}
       let coords = null;
@@ -308,7 +308,7 @@
       function bump(i, d) { CART[i].qty += d; if (CART[i].qty <= 0) CART.splice(i,1); saveCart(); renderCart(); }
 
       /* ---------- checkout: free OpenStreetMap pin picker ---------- */
-      const NG = [21.1458, 79.0882]; // Nagpur centre [lat, lng]
+      const DEFAULT_CENTER = [20.5937, 78.9629]; // Default centre [lat, lng]
       let coMap, coMarker, trkMap;
 
       function osmTiles(map) {
@@ -318,7 +318,7 @@
       }
 
       function initCheckoutMap() {
-        const start = coords ? [coords[1], coords[0]] : NG;
+        const start = coords ? [coords[1], coords[0]] : DEFAULT_CENTER;
         if (!coMap) {
           coMap = L.map('coMap').setView(start, coords ? 16 : 13);
           osmTiles(coMap);
@@ -388,7 +388,7 @@
         if (!line1 || !pincode) return $('coErr').textContent = 'Enter your address and pincode.';
 
         const btn = $('placeBtn'); btn.disabled = true; btn.textContent = 'Placing order…';
-        const address = { line1, city: 'Nagpur', pincode, location: { type: 'Point', coordinates: coords || NAGPUR } };
+        const address = { line1, city: 'India', pincode, location: { type: 'Point', coordinates: coords || DEFAULT_COORDS } };
 
         // One order per shop.
         const byVendor = {};

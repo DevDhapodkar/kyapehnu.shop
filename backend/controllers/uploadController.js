@@ -48,14 +48,14 @@ const uploadBufferToCloudinary = (file, folder) =>
  * @returns {Promise<object>}
  */
 const saveFileLocally = async (file, req) => {
-  const ext = path.extname(file.originalname) || (isVideoMime(file.mimetype) ? '.mp4' : '.jpg');
+  const ext = path.extname(file.originalname || '') || (isVideoMime(file.mimetype) ? '.mp4' : '.jpg');
   const filename = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
   const filePath = path.join(LOCAL_UPLOADS_DIR, filename);
 
   await fs.promises.writeFile(filePath, file.buffer);
 
-  const protocol = req.protocol || 'http';
-  const host = req.get('host') || 'localhost:5001';
+  const protocol = req?.protocol || 'http';
+  const host = req?.get ? req.get('host') : `localhost:${process.env.PORT || 5001}`;
   const fileUrl = `${protocol}://${host}/uploads/${filename}`;
 
   return {
@@ -66,6 +66,21 @@ const saveFileLocally = async (file, req) => {
     bytes: file.size,
     resource_type: isVideoMime(file.mimetype) ? 'video' : 'image',
   };
+};
+
+/**
+ * Upload a raw buffer to storage (Cloudinary if configured, local disk fallback).
+ * Used by WhatsApp media download pipeline.
+ */
+export const uploadBufferToStorage = async ({ buffer, mimetype = 'image/jpeg', originalname = 'upload.jpg', vendorId }) => {
+  if (isCloudinaryConfigured) {
+    const folder = buildProductFolder(vendorId ? vendorId.toString() : 'whatsapp');
+    const result = await uploadBufferToCloudinary({ buffer, mimetype }, folder);
+    return result.secure_url;
+  } else {
+    const saved = await saveFileLocally({ buffer, mimetype, originalname, size: buffer.length });
+    return saved.secure_url;
+  }
 };
 
 const toImagePayload = (result) => ({

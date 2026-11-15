@@ -21,7 +21,7 @@ export function getDeliveryPillLabel({ savedAddresses } = {}) {
     (addr.line2 && String(addr.line2).trim()) ||
     (addr.area && String(addr.area).trim()) ||
     '';
-  if (locality && locality.toLowerCase() !== 'nagpur') {
+  if (locality) {
     return locality;
   }
 

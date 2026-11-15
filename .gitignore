@@ -25,6 +25,7 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 *.log
+backend/public/uploads/
 
 # Editor and OS noise
 .DS_Store

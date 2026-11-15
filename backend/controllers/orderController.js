@@ -110,7 +110,7 @@ const normalizeOrderItems = (items) =>
 
 const normalizeAddress = (address, deliveryInstructions, addressType) => ({
   ...address,
-  city: address?.city || 'Nagpur',
+  city: address?.city || 'India',
   deliveryInstructions: address?.deliveryInstructions || deliveryInstructions || '',
   addressType: address?.addressType || address?.label || addressType || 'Home',
   label: address?.label || address?.addressType || addressType || 'Home',
@@ -120,7 +120,7 @@ const normalizeAddress = (address, deliveryInstructions, addressType) => ({
     coordinates:
       Array.isArray(address?.location?.coordinates) && address.location.coordinates.length === 2
         ? address.location.coordinates
-        : [79.0882, 21.1458],
+        : [78.9629, 20.5937],
   },
 });
 
@@ -142,8 +142,8 @@ const createOrder = async (req, res) => {
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress, req.body.deliveryInstructions, req.body.addressType);
 
-    // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
-    const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
+    // Validate delivery address within delivery serviceability network
+    const vendorCoords = vendor.location?.coordinates || [78.9629, 20.5937];
     const serviceability = await checkServiceability({
       pickup: {
         lat: vendorCoords[1],
@@ -164,7 +164,7 @@ const createOrder = async (req, res) => {
         error: 'OUT_OF_DELIVERY_ZONE',
         message:
           serviceability.reason ||
-          "Delivery address is outside Porter's same-city delivery network in Nagpur. Kyapehnu currently operates only within Nagpur city limits.",
+          'Delivery address is outside the Kya Pehnu delivery service network.',
         details: {
           distanceKm: serviceability.distanceKm,
           pincode: normalizedAddress.pincode,
@@ -247,8 +247,8 @@ const createGuestOrder = async (req, res) => {
     const normalizedItems = normalizeOrderItems(items);
     const normalizedAddress = normalizeAddress(deliveryAddress, req.body.deliveryInstructions, req.body.addressType);
 
-    // Validate delivery address within Porter's Nagpur intra-city delivery perimeter
-    const vendorCoords = vendor.location?.coordinates || [79.0882, 21.1458];
+    // Validate delivery address within delivery serviceability network
+    const vendorCoords = vendor.location?.coordinates || [78.9629, 20.5937];
     const serviceability = await checkServiceability({
       pickup: {
         lat: vendorCoords[1],
@@ -269,7 +269,7 @@ const createGuestOrder = async (req, res) => {
         error: 'OUT_OF_DELIVERY_ZONE',
         message:
           serviceability.reason ||
-          "Delivery address is outside Porter's same-city delivery network in Nagpur. Kyapehnu currently operates only within Nagpur city limits.",
+          'Delivery address is outside the Kya Pehnu delivery service network.',
         details: {
           distanceKm: serviceability.distanceKm,
           pincode: normalizedAddress.pincode,
@@ -666,4 +666,6 @@ export {
   adminAdvanceOrder,
   cancelOrder,
   checkOrderServiceability,
+  transitionToReady,
+  adjustStock,
 };

@@ -13,6 +13,7 @@ import {
   generalLimiter,
   sanitizeNoSql,
 } from './middleware/securityMiddleware.js';
+import PlatformConfig from './models/PlatformConfig.js';
 import userRoutes from './routes/userRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
 import productRoutes from './routes/productRoutes.js';
@@ -24,6 +25,7 @@ import updateRoutes from './routes/updateRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. Security Headers via Helmet
 app.use(helmetSecurity);
@@ -55,6 +57,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+app.get('/api/config', async (req, res) => {
+  try {
+    const config = await PlatformConfig.getGlobal();
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch platform config', error: err.message });
+  }
+});
 
 app.use('/api/users', userRoutes);
 app.use('/api/vendors', vendorRoutes);

@@ -23,8 +23,8 @@ test('resolveSeedVendor: seed vendor identity', async (t) => {
     email,
     phone: '+91 90000 00000',
     whatsappNumber: '+91 90000 00000',
-    address: { line1: '1 Seed Rd', area: 'Sitabuldi', city: 'Nagpur', pincode: '440012' },
-    location: { type: 'Point', coordinates: [79.08, 21.14] },
+    address: { line1: '1 Seed Rd', area: 'Commercial District', city: 'Mumbai', pincode: '400001' },
+    location: { type: 'Point', coordinates: [72.83, 18.93] },
   };
   const createdIds = [];
 

@@ -24,8 +24,8 @@ export const createSession = async (req, res) => {
       orderId: resolvedOrderId,
       amount: Number(amount),
       customer: customer || {
-        name: req.user?.displayName || 'Nagpur Customer',
-        phone: req.user?.phoneNumber || '9823055443',
+        name: req.user?.displayName || 'Customer',
+        phone: req.user?.phoneNumber || '9876543210',
       },
       metadata: {
         ...(metadata || {}),

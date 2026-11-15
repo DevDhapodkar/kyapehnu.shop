@@ -26,8 +26,8 @@ const DEV_VENDOR = {
   email: 'dhapodkardev@gmail.com',
   phone: '+91 98765 43210',
   whatsappNumber: '+91 98765 43210',
-  address: { line1: 'Main Market, Variety Square', area: 'Sitabuldi', city: 'Nagpur', pincode: '440012' },
-  location: { type: 'Point', coordinates: [79.0833, 21.1466] },
+  address: { line1: 'Main Market, MG Road', area: 'Central Market', city: 'Mumbai', pincode: '400001' },
+  location: { type: 'Point', coordinates: [72.8347, 18.9388] },
   operatingHours: [
     { day: 'MON', open: '10:00', close: '21:00', closed: false },
     { day: 'TUE', open: '10:00', close: '21:00', closed: false },
@@ -47,8 +47,8 @@ const ANAMIKA_VENDOR = {
   phone: '+91 98230 44101',
   whatsappNumber: '+91 98230 44101',
   email: 'anamika@kyapehnu.local',
-  address: { line1: '14, West High Court Road', area: 'Dharampeth', city: 'Nagpur', pincode: '440010' },
-  location: { type: 'Point', coordinates: [79.061, 21.142] },
+  address: { line1: '14, Brigade Road', area: 'Commercial District', city: 'Bangalore', pincode: '560001' },
+  location: { type: 'Point', coordinates: [77.607, 12.9719] },
   rating: 4.9,
 };
 
@@ -107,7 +107,7 @@ const DEV_PRODUCTS = [
     sku: 'WM-1088',
     name: 'Chanderi Silk Banarasi Zari Saree',
     description:
-      'Handcrafted authentic Chanderi silk saree with intricate golden zari floral pallu and handcrafted borders. Handpicked and tailored in Sitabuldi, Nagpur.',
+      'Handcrafted authentic Chanderi silk saree with intricate golden zari floral pallu and handcrafted borders. Handpicked and tailored by master artisans.',
     category: 'WOMEN',
     subCategory: 'Saree',
     price: 3499,
@@ -133,7 +133,7 @@ const DEV_PRODUCTS = [
     highlights: [
       'Pure handloom Chanderi silk with golden zari',
       'Comes with matching unstitched blouse piece',
-      'Authentic Nagpur boutique craftsmanship',
+      'Authentic boutique craftsmanship',
     ],
   },
   {
@@ -179,8 +179,8 @@ const DEV_PRODUCTS = [
 
 const ANAMIKA_PRODUCT = {
   sku: 'AN-7701',
-  name: 'Sitabuldi Handloom Zari Kurta',
-  description: 'Handwoven in Nagpur with pure mulberry silk and antique zari work.',
+  name: 'Handloom Heritage Zari Kurta',
+  description: 'Handwoven with pure mulberry silk and antique zari work.',
   category: 'WOMEN',
   subCategory: 'Kurta',
   price: 5200,
@@ -231,13 +231,13 @@ export const ensureBootstrapData = async () => {
           savedAddresses: [
             {
               label: 'Shop',
-              line1: 'Main Market, Variety Square',
-              city: 'Nagpur',
-              pincode: '440012',
-              location: { type: 'Point', coordinates: [79.0833, 21.1466] },
+              line1: 'Main Market, MG Road',
+              city: 'Mumbai',
+              pincode: '400001',
+              location: { type: 'Point', coordinates: [72.8347, 18.9388] },
             },
           ],
-          currentLocation: { type: 'Point', coordinates: [79.0833, 21.1466] },
+          currentLocation: { type: 'Point', coordinates: [72.8347, 18.9388] },
         },
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }

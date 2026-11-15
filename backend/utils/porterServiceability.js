@@ -1,36 +1,40 @@
-import axios from 'axios';
+import axios from "axios";
 
 /**
- * Center coordinates for Nagpur, Maharashtra (Zero Mile Stone area)
+ * Center coordinates for India (Geographic Center)
  */
-export const NAGPUR_CENTER = {
-  lat: 21.1458,
-  lng: 79.0882,
+export const INDIA_CENTER = {
+  lat: 20.5937,
+  lng: 78.9629,
 };
 
 /**
- * Bounding box for Nagpur metropolitan & industrial belt
- * Covers Sitabuldi, Dharampeth, Sadar, Wardhaman Nagar, Itwari, Gandhibagh,
- * Hingna, Butibori, Wadi, Kamptee, and MIHAN corridors.
+ * Bounding box for India territory
+ * Latitude: ~6.0° N (Great Nicobar/Kanyakumari) to 38.0° N (Kashmir)
+ * Longitude: ~68.0° E (Gujarat) to 98.0° E (Arunachal Pradesh)
  */
-export const NAGPUR_BOUNDS = {
-  minLat: 20.95,
-  maxLat: 21.32,
-  minLng: 78.90,
-  maxLng: 79.25,
+export const INDIA_BOUNDS = {
+  minLat: 6.0,
+  maxLat: 38.0,
+  minLng: 68.0,
+  maxLng: 98.0,
 };
 
 /**
- * Maximum intra-city delivery radius in kilometers for 60-min Porter courier dispatch
+ * Maximum intra-city / hyperlocal courier radius in kilometers for 45-60 min dispatch
  */
-export const MAX_DELIVERY_RADIUS_KM = 25;
+export const MAX_HYPERLOCAL_RADIUS_KM = 35;
 
 /**
- * Valid Nagpur delivery pincodes:
- * - 440001 - 440037 (Urban Nagpur post offices)
- * - 441xxx (Nagpur district peri-urban corridors: Hingna 441110, Wadi 440023, Butibori 441108, Kamptee 441001/441002, Kalmeshwar 441501)
+ * Valid Indian delivery pincodes: Standard 6-digit PIN code starting with digits 1-9
  */
-export const NAGPUR_PINCODE_REGEX = /^(4400\d{2}|441\d{3})$/;
+export const INDIAN_PINCODE_REGEX = /^[1-9][0-9]{5}$/;
+
+// Backward-compatible alias exports
+export const NAGPUR_CENTER = INDIA_CENTER;
+export const NAGPUR_BOUNDS = INDIA_BOUNDS;
+export const NAGPUR_PINCODE_REGEX = INDIAN_PINCODE_REGEX;
+export const MAX_DELIVERY_RADIUS_KM = MAX_HYPERLOCAL_RADIUS_KM;
 
 /**
  * Haversine formula to compute great-circle distance between two coordinates in km
@@ -39,7 +43,7 @@ export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
     return 0;
   }
-  const R = 6371; // Earth's radius in km
+  const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -53,36 +57,38 @@ export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Check whether coordinates fall inside Nagpur's geographic boundary box
+ * Check whether coordinates fall inside India geographic boundary box
  */
-export function isWithinNagpurBounds(lat, lng) {
+export function isWithinIndiaBounds(lat, lng) {
   if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return false;
   return (
-    lat >= NAGPUR_BOUNDS.minLat &&
-    lat <= NAGPUR_BOUNDS.maxLat &&
-    lng >= NAGPUR_BOUNDS.minLng &&
-    lng <= NAGPUR_BOUNDS.maxLng
+    lat >= INDIA_BOUNDS.minLat &&
+    lat <= INDIA_BOUNDS.maxLat &&
+    lng >= INDIA_BOUNDS.minLng &&
+    lng <= INDIA_BOUNDS.maxLng
   );
 }
+export const isWithinNagpurBounds = isWithinIndiaBounds;
 
 /**
- * Validates city name string. Rejects other metro cities.
+ * Validates city name string. Accepts any Indian city or territory.
  */
-export function isValidNagpurCity(city) {
-  if (!city || typeof city !== 'string') return true; // fallback to pincode/coords if omitted
-  const clean = city.trim().toLowerCase();
-  // If explicitly specified, must be Nagpur
-  return clean === 'nagpur' || clean.includes('nagpur');
+export function isValidCity(city) {
+  if (!city || typeof city !== "string") return true;
+  const clean = city.trim();
+  return clean.length >= 2;
 }
+export const isValidNagpurCity = isValidCity;
 
 /**
- * Validates pincode against Nagpur delivery zones.
+ * Validates pincode against Indian delivery zones (6-digit PIN).
  */
-export function isValidNagpurPincode(pincode) {
+export function isValidIndianPincode(pincode) {
   if (!pincode) return false;
   const cleaned = String(pincode).trim();
-  return NAGPUR_PINCODE_REGEX.test(cleaned);
+  return INDIAN_PINCODE_REGEX.test(cleaned);
 }
+export const isValidNagpurPincode = isValidIndianPincode;
 
 /**
  * Calls Porter API quote/cost endpoint if API key is present in environment
@@ -91,7 +97,7 @@ async function callPorterApiCost(pickup, drop) {
   const apiKey = process.env.PORTER_API_KEY;
   if (!apiKey) return { fallback: true };
 
-  const apiBase = process.env.PORTER_API_BASE || 'https://pfe-apigw-uat.porter.in/v1';
+  const apiBase = process.env.PORTER_API_BASE || "https://pfe-apigw-uat.porter.in/v1";
 
   try {
     const response = await axios.post(
@@ -106,17 +112,17 @@ async function callPorterApiCost(pickup, drop) {
           lng: drop.lng,
         },
         customer: {
-          name: 'Kya Pehnu Delivery Check',
+          name: "Kya Pehnu Delivery Check",
           mobile: {
-            country_code: '+91',
-            number: '9999999999',
+            country_code: "+91",
+            number: "9999999999",
           },
         },
       },
       {
         headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json',
+          "X-API-KEY": apiKey,
+          "Content-Type": "application/json",
         },
         timeout: 4000,
       }
@@ -125,52 +131,44 @@ async function callPorterApiCost(pickup, drop) {
     if (response.data && response.data.serviceable === false) {
       return {
         ok: false,
-        reason: response.data.message || 'Porter two-wheeler delivery is unserviceable at this destination.',
+        reason: response.data.message || "Porter two-wheeler delivery is unserviceable at this destination.",
       };
     }
 
     return { ok: true, data: response.data };
   } catch (err) {
-    // If Porter returns 400 with unserviceable message
     if (err.response?.data?.message && /serviceable|out of/i.test(err.response.data.message)) {
       return {
         ok: false,
         reason: err.response.data.message,
       };
     }
-    // On network failure or sandbox timeout, fall back to geofence logic
     return { fallback: true };
   }
 }
 
 /**
- * Core Serviceability Checker for Nagpur Intra-City Delivery
- * @param {Object} params
- * @param {Object} [params.pickup] - { lat, lng, address }
- * @param {Object} [params.drop] - { lat, lng, address }
- * @param {string} [params.pincode] - e.g. "440010"
- * @param {string} [params.city] - e.g. "Nagpur"
- * @returns {Promise<{ serviceable: boolean, distanceKm: number, reason?: string, city?: string, pincode?: string }>}
+ * Core Serviceability Checker for Pan-India Delivery
  */
 export async function checkServiceability({ pickup, drop, pincode, city } = {}) {
   // 1. City Check
   const effectiveCity = city || drop?.address?.city;
-  if (effectiveCity && !isValidNagpurCity(effectiveCity)) {
+  if (effectiveCity && !isValidCity(effectiveCity)) {
     return {
       serviceable: false,
       distanceKm: 0,
-      reason: `Kya Pehnu currently operates only within Nagpur city limits. Orders to "${effectiveCity}" cannot be fulfilled.`,
+      reason: `Invalid delivery city name: "${effectiveCity}".`,
       city: effectiveCity,
     };
   }
 
-  // 2. Pincode Check
+  // 2. Pincode Check (Valid 6-digit Indian PIN)
   const effectivePincode = pincode || drop?.address?.pincode;
-  if (effectivePincode && !isValidNagpurPincode(effectivePincode)) {
+  if (effectivePincode && !isValidIndianPincode(effectivePincode)) {
     return {
       serviceable: false,
       distanceKm: 0,
-      reason: `Pincode ${effectivePincode} is outside Porter's same-city delivery network in Nagpur (must begin with 4400xx or 441xxx).`,
+      reason: `Pincode ${effectivePincode} is not a valid 6-digit Indian postal code.`,
       pincode: effectivePincode,
     };
   }
@@ -180,52 +178,42 @@ export async function checkServiceability({ pickup, drop, pincode, city } = {}) 
   const dropLng = drop?.lng ?? drop?.address?.location?.coordinates?.[0];
 
   let distanceKm = 0;
+  let tier = "HYPERLOCAL";
+  let estimatedDelivery = "45-60 mins";
 
   if (dropLat != null && dropLng != null) {
-    // Check bounding box
-    if (!isWithinNagpurBounds(dropLat, dropLng)) {
+    // Check bounding box for India
+    if (!isWithinIndiaBounds(dropLat, dropLng)) {
       return {
         serviceable: false,
-        distanceKm: calculateDistanceKm(NAGPUR_CENTER.lat, NAGPUR_CENTER.lng, dropLat, dropLng),
-        reason: "Delivery coordinates are outside Nagpur's urban delivery perimeter.",
+        distanceKm: calculateDistanceKm(INDIA_CENTER.lat, INDIA_CENTER.lng, dropLat, dropLng),
+        reason: "Delivery coordinates are outside India service territory.",
       };
     }
 
-    // Distance from center of Nagpur
-    const distanceFromCenter = calculateDistanceKm(
-      NAGPUR_CENTER.lat,
-      NAGPUR_CENTER.lng,
-      dropLat,
-      dropLng
-    );
+    const pickupLat = pickup?.lat ?? pickup?.address?.location?.coordinates?.[1] ?? INDIA_CENTER.lat;
+    const pickupLng = pickup?.lng ?? pickup?.address?.location?.coordinates?.[0] ?? INDIA_CENTER.lng;
 
-    // Distance from pickup/vendor (if provided)
-    const pickupLat = pickup?.lat ?? pickup?.address?.location?.coordinates?.[1] ?? NAGPUR_CENTER.lat;
-    const pickupLng = pickup?.lng ?? pickup?.address?.location?.coordinates?.[0] ?? NAGPUR_CENTER.lng;
+    distanceKm = calculateDistanceKm(pickupLat, pickupLng, dropLat, dropLng);
 
-    const distanceFromPickup = calculateDistanceKm(pickupLat, pickupLng, dropLat, dropLng);
-    distanceKm = distanceFromPickup || distanceFromCenter;
+    // Determine delivery tier
+    if (distanceKm > MAX_HYPERLOCAL_RADIUS_KM) {
+      tier = "PAN_INDIA_EXPRESS";
+      estimatedDelivery = "2-4 business days";
+    } else {
+      tier = "HYPERLOCAL";
+      estimatedDelivery = "45-60 mins";
 
-    if (distanceFromCenter > MAX_DELIVERY_RADIUS_KM || distanceFromPickup > MAX_DELIVERY_RADIUS_KM) {
-      return {
-        serviceable: false,
-        distanceKm,
-        reason: `Delivery distance (${distanceKm} km) exceeds the 25 km same-city courier limit for 60-minute delivery.`,
-      };
-    }
-
-    // 4. Live Porter API Check (if API key configured)
-    if (process.env.PORTER_API_KEY && pickupLat != null && pickupLng != null) {
-      const porterCheck = await callPorterApiCost(
-        { lat: pickupLat, lng: pickupLng },
-        { lat: dropLat, lng: dropLng }
-      );
-      if (porterCheck.ok === false) {
-        return {
-          serviceable: false,
-          distanceKm,
-          reason: porterCheck.reason || "Porter's courier network does not currently service this route.",
-        };
+      // Live Porter API Check for hyperlocal routes if API key configured
+      if (process.env.PORTER_API_KEY && pickupLat != null && pickupLng != null) {
+        const porterCheck = await callPorterApiCost(
+          { lat: pickupLat, lng: pickupLng },
+          { lat: dropLat, lng: dropLng }
+        );
+        if (porterCheck.ok === false) {
+          tier = "PAN_INDIA_EXPRESS";
+          estimatedDelivery = "2-4 business days";
+        }
       }
     }
   }
@@ -233,7 +221,9 @@ export async function checkServiceability({ pickup, drop, pincode, city } = {}) 
   return {
     serviceable: true,
     distanceKm,
-    city: 'Nagpur',
-    pincode: effectivePincode || '440001',
+    tier,
+    estimatedDelivery,
+    city: effectiveCity || "India",
+    pincode: effectivePincode || "400001",
   };
 }

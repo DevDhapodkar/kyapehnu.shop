@@ -19,7 +19,7 @@ const syncProfile = async (req, res) => {
         ? {
             line1: req.body.line1,
             area: req.body.area || '',
-            city: req.body.city || 'Nagpur',
+            city: req.body.city || 'India',
             pincode: req.body.pincode,
           }
         : null;
@@ -57,10 +57,10 @@ const syncProfile = async (req, res) => {
     } else {
       vendor = await Vendor.create({
         firebaseUid: req.firebaseUser.uid,
-        shopName: shopName || 'Nagpur Boutique',
+        shopName: shopName || 'Partner Boutique',
         ownerName: ownerName || 'Boutique Designer',
-        phone: phone || '+91 712 254 9900',
-        whatsappNumber: whatsappNumber || phone || '+91 712 254 9900',
+        phone: phone || '+91 98765 43210',
+        whatsappNumber: whatsappNumber || phone || '+91 98765 43210',
         email: userEmail,
         address: formattedAddress,
         location: formattedLocation,

@@ -56,7 +56,7 @@ async function runCybersecurityAudit() {
   }
 
   // Set up ephemeral Express instance with full security stack for testing
-  process.env.ADMIN_JWT_SECRET = 'cybersecurity_critic_audit_secret_nagpur_2026';
+  process.env.ADMIN_JWT_SECRET = 'cybersecurity_critic_audit_secret_2026';
   process.env.SYSTEM_WIPE_SECRET = 'secure_test_wipe_secret_entropy_998811';
   process.env.ALLOW_SYSTEM_WIPE = 'true';
 

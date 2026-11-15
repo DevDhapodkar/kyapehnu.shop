@@ -39,14 +39,14 @@ async function run() {
       phone,
       whatsappNumber: phone,
       address: {
-        line1: 'Main Market, Variety Square',
-        area: 'Sitabuldi',
-        city: 'Nagpur',
-        pincode: '440012',
+        line1: 'Main Market, MG Road',
+        area: 'Central Market',
+        city: 'Mumbai',
+        pincode: '400001',
       },
       location: {
         type: 'Point',
-        coordinates: [79.0833, 21.1466], // Sitabuldi, Nagpur
+        coordinates: [72.8347, 18.9388],
       },
       operatingHours: [
         { day: 'MON', open: '10:00', close: '21:00', closed: false },
@@ -88,10 +88,10 @@ async function run() {
       savedAddresses: [
         {
           label: 'Shop',
-          line1: 'Main Market, Variety Square',
-          city: 'Nagpur',
-          pincode: '440012',
-          location: { type: 'Point', coordinates: [79.0833, 21.1466] },
+          line1: 'Main Market, MG Road',
+          city: 'Mumbai',
+          pincode: '400001',
+          location: { type: 'Point', coordinates: [72.8347, 18.9388] },
         },
       ],
       currentLocation: { type: 'Point', coordinates: [79.0833, 21.1466] },
@@ -108,7 +108,7 @@ async function run() {
     vendor: vendor._id,
     name: 'Chanderi Silk Banarasi Zari Saree',
     description:
-      'Handcrafted authentic Chanderi silk saree with intricate golden zari floral pallu and handcrafted borders. Handpicked and tailored in Sitabuldi, Nagpur.',
+      'Handcrafted authentic Chanderi silk saree with intricate golden zari floral pallu and handcrafted borders. Handpicked and tailored by master artisans.',
     category: 'WOMEN',
     subCategory: 'Saree',
     price: 3499,
@@ -140,7 +140,7 @@ async function run() {
     highlights: [
       'Pure handloom Chanderi silk with golden zari',
       'Comes with matching unstitched blouse piece',
-      'Authentic Nagpur boutique craftsmanship',
+      'Authentic boutique craftsmanship',
     ],
   });
   console.log(`✓ Created Product 1: "${product1.name}" (SKU: ${product1.sku}, ₹${product1.price}, MRP: ₹${product1.mrp})`);

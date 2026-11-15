@@ -3,7 +3,7 @@ import axios from 'axios';
 
 /**
  * YOUPI PG V2 — Node.js Merchant Client & Cryptographic Signature Verifier
- * Official integration utility for Kya Pehnu Nagpur marketplace.
+ * Official integration utility for Kya Pehnu marketplace.
  *
  * Provides:
  * 1. createPaymentSession: Communicates with YouPI-PG to initiate UPI / COD payment sessions.
@@ -16,9 +16,9 @@ const getGatewayConfig = () => {
   const apiUrl = (process.env.YOUPI_API_URL || 'http://localhost:7000').replace(/\/+$/, '');
   const portalUrl = (process.env.YOUPI_PORTAL_URL || apiUrl).replace(/\/+$/, '');
   const merchantId = process.env.YOUPI_MERCHANT_ID || '00000000-0000-0000-0000-000000000001';
-  const webhookSecret = process.env.YOUPI_WEBHOOK_SECRET || 'kyapehnu_youpi_webhook_secret_nagpur_2026';
+  const webhookSecret = process.env.YOUPI_WEBHOOK_SECRET || 'kyapehnu_youpi_webhook_secret_2026';
   const vpa = process.env.YOUPI_VPA || 'kyapehnushop@okaxis';
-  const merchantName = process.env.YOUPI_MERCHANT_NAME || 'Kya Pehnu? Nagpur';
+  const merchantName = process.env.YOUPI_MERCHANT_NAME || 'Kya Pehnu';
 
   return { apiUrl, portalUrl, merchantId, webhookSecret, vpa, merchantName };
 };
@@ -109,7 +109,7 @@ export const createPaymentSession = async ({
     currency,
     returnUrl: returnUrl || `https://www.kyapehnu.shop/app/tracking/${orderId}`,
     customer: {
-      fullName: customer.name || customer.fullName || 'Nagpur Customer',
+      fullName: customer.name || customer.fullName || 'Customer',
       phoneNumber: customer.phone || customer.phoneNumber || '9823055443',
     },
     metadata: {

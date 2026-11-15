@@ -42,6 +42,7 @@ const requestDriver = async (order, vendor) => {
           'X-API-KEY': process.env.PORTER_API_KEY,
           'Content-Type': 'application/json',
         },
+        timeout: 3000,
       }
     );
 

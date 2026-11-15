@@ -39,14 +39,14 @@ async function seed() {
         whatsappNumber: '+91 98230 44101',
         email: 'anamika@kyapehnu.local',
         address: {
-          line1: '14, West High Court Road',
-          area: 'Dharampeth',
-          city: 'Nagpur',
-          pincode: '440010',
+          line1: '14, Linking Road',
+          area: 'Bandra West',
+          city: 'Mumbai',
+          pincode: '400050',
         },
         location: {
           type: 'Point',
-          coordinates: [79.0610, 21.1420],
+          coordinates: [72.834, 19.06],
         },
         isActive: true,
         approvalStatus: 'APPROVED',
@@ -60,14 +60,14 @@ async function seed() {
         whatsappNumber: '+91 98230 44102',
         email: 'maheshwari@kyapehnu.local',
         address: {
-          line1: '88, Cloth Market',
-          area: 'Gandhibagh',
-          city: 'Nagpur',
-          pincode: '440002',
+          line1: '88, Commercial Street',
+          area: 'Commercial District',
+          city: 'Bangalore',
+          pincode: '560001',
         },
         location: {
           type: 'Point',
-          coordinates: [79.1020, 21.1510],
+          coordinates: [77.61, 12.98],
         },
         isActive: true,
         approvalStatus: 'APPROVED',
@@ -81,10 +81,10 @@ async function seed() {
         whatsappNumber: '+91 98230 44103',
         email: 'kalaniketan@kyapehnu.local',
         address: {
-          line1: '52, Main Road',
-          area: 'Sitabuldi',
-          city: 'Nagpur',
-          pincode: '440012',
+          line1: '52, Connaught Place',
+          area: 'Central Corridor',
+          city: 'Delhi',
+          pincode: '110001',
         },
         location: {
           type: 'Point',
@@ -266,7 +266,7 @@ async function seed() {
       console.log(`Synced product: ${p.name} - ₹${p.price}`);
     }
 
-    console.log('Seeding complete! 3 Nagpur Boutiques & 5 Garments are live.');
+    console.log('Seeding complete! 3 Boutiques & 5 Garments are live.');
     await mongoose.disconnect();
     process.exit(0);
   } catch (err) {

@@ -24,8 +24,8 @@ const vendorSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     address: {
       line1: { type: String, required: true },
-      area: { type: String, required: true }, // e.g. Sitabuldi, Dharampeth
-      city: { type: String, default: 'Nagpur' },
+      area: { type: String, required: true }, // e.g. Commercial Street, Linking Road
+      city: { type: String, default: 'India' },
       pincode: { type: String, required: true },
     },
     location: {

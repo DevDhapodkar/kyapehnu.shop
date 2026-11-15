@@ -3,106 +3,108 @@ import assert from 'node:assert/strict';
 
 import {
   calculateDistanceKm,
-  isWithinNagpurBounds,
-  isValidNagpurCity,
-  isValidNagpurPincode,
+  isWithinIndiaBounds,
+  isValidCity,
+  isValidIndianPincode,
   checkServiceability,
-  NAGPUR_CENTER,
+  INDIA_CENTER,
 } from './porterServiceability.js';
 
 test('porterServiceability: Haversine distance calculation', () => {
-  // Sitabuldi to Dharampeth ~2.5km
-  const dist = calculateDistanceKm(21.1458, 79.0882, 21.1396, 79.0645);
-  assert.ok(dist >= 1.5 && dist <= 3.5, `Expected ~2.5km, got ${dist}`);
+  // Mumbai to Pune ~120km
+  const dist = calculateDistanceKm(19.076, 72.8777, 18.5204, 73.8567);
+  assert.ok(dist >= 100 && dist <= 150, `Expected ~120km, got ${dist}`);
 
   // Same coordinates = 0
-  assert.equal(calculateDistanceKm(21.1458, 79.0882, 21.1458, 79.0882), 0);
+  assert.equal(calculateDistanceKm(20.5937, 78.9629, 20.5937, 78.9629), 0);
 });
 
-test('porterServiceability: isWithinNagpurBounds', () => {
-  // Sitabuldi (Center)
-  assert.equal(isWithinNagpurBounds(21.1458, 79.0882), true);
-  // Dharampeth
-  assert.equal(isWithinNagpurBounds(21.1400, 79.0600), true);
-  // Butibori
-  assert.equal(isWithinNagpurBounds(20.9800, 79.0000), true);
-  // Mumbai coordinates (should fail)
-  assert.equal(isWithinNagpurBounds(19.0760, 72.8777), false);
-  // Delhi coordinates (should fail)
-  assert.equal(isWithinNagpurBounds(28.6139, 77.2090), false);
+test('porterServiceability: isWithinIndiaBounds', () => {
+  // Mumbai
+  assert.equal(isWithinIndiaBounds(19.076, 72.8777), true);
+  // Delhi
+  assert.equal(isWithinIndiaBounds(28.6139, 77.209), true);
+  // Bangalore
+  assert.equal(isWithinIndiaBounds(12.9716, 77.5946), true);
+  // Kolkata
+  assert.equal(isWithinIndiaBounds(22.5726, 88.3639), true);
+  // Outside India: New York (should fail)
+  assert.equal(isWithinIndiaBounds(40.7128, -74.006), false);
+  // Outside India: London (should fail)
+  assert.equal(isWithinIndiaBounds(51.5074, -0.1278), false);
 });
 
-test('porterServiceability: isValidNagpurCity', () => {
-  assert.equal(isValidNagpurCity('Nagpur'), true);
-  assert.equal(isValidNagpurCity('nagpur'), true);
-  assert.equal(isValidNagpurCity(' Nagpur '), true);
-  assert.equal(isValidNagpurCity('Nagpur, Maharashtra'), true);
+test('porterServiceability: isValidCity', () => {
+  assert.equal(isValidCity('Mumbai'), true);
+  assert.equal(isValidCity('Delhi'), true);
+  assert.equal(isValidCity('Bengaluru'), true);
+  assert.equal(isValidCity('Pune'), true);
+  assert.equal(isValidCity('Hyderabad'), true);
+  assert.equal(isValidCity('Jaipur'), true);
 
-  // Other cities must be rejected
-  assert.equal(isValidNagpurCity('Mumbai'), false);
-  assert.equal(isValidNagpurCity('Pune'), false);
-  assert.equal(isValidNagpurCity('Delhi'), false);
-  assert.equal(isValidNagpurCity('Bengaluru'), false);
+  // Non-string or too short
+  assert.equal(isValidCity('A'), false);
+  assert.equal(isValidCity(''), true); // omitted city defaults gracefully
 });
 
-test('porterServiceability: isValidNagpurPincode', () => {
-  // Urban Nagpur (440001 - 440037)
-  assert.equal(isValidNagpurPincode('440001'), true);
-  assert.equal(isValidNagpurPincode('440010'), true);
-  assert.equal(isValidNagpurPincode('440012'), true);
-  assert.equal(isValidNagpurPincode('440024'), true);
-  assert.equal(isValidNagpurPincode('440036'), true);
+test('porterServiceability: isValidIndianPincode', () => {
+  // Valid Indian 6-digit pincodes
+  assert.equal(isValidIndianPincode('400001'), true); // Mumbai
+  assert.equal(isValidIndianPincode('110001'), true); // Delhi
+  assert.equal(isValidIndianPincode('560001'), true); // Bangalore
+  assert.equal(isValidIndianPincode('700001'), true); // Kolkata
+  assert.equal(isValidIndianPincode('500001'), true); // Hyderabad
+  assert.equal(isValidIndianPincode('411001'), true); // Pune
 
-  // Peri-urban / Industrial Nagpur corridors (441xxx)
-  assert.equal(isValidNagpurPincode('441110'), true); // Hingna
-  assert.equal(isValidNagpurPincode('441108'), true); // Butibori
-  assert.equal(isValidNagpurPincode('441001'), true); // Kamptee
-
-  // Non-Nagpur pincodes
-  assert.equal(isValidNagpurPincode('400001'), false); // Mumbai
-  assert.equal(isValidNagpurPincode('411001'), false); // Pune
-  assert.equal(isValidNagpurPincode('110001'), false); // Delhi
-  assert.equal(isValidNagpurPincode('560001'), false); // Bangalore
-  assert.equal(isValidNagpurPincode('12345'), false);
-  assert.equal(isValidNagpurPincode(''), false);
+  // Invalid pincodes
+  assert.equal(isValidIndianPincode('012345'), false); // starts with 0
+  assert.equal(isValidIndianPincode('12345'), false); // 5 digits
+  assert.equal(isValidIndianPincode('1234567'), false); // 7 digits
+  assert.equal(isValidIndianPincode('ABCDEF'), false);
+  assert.equal(isValidIndianPincode(''), false);
 });
 
 test('porterServiceability: checkServiceability end-to-end', async () => {
-  // 1. Valid Nagpur address (Sitabuldi pickup, Dharampeth drop)
-  const validRes = await checkServiceability({
-    pickup: { lat: 21.1458, lng: 79.0882 },
-    drop: { lat: 21.1396, lng: 79.0645 },
-    pincode: '440010',
-    city: 'Nagpur',
-  });
-  assert.equal(validRes.serviceable, true);
-  assert.ok(validRes.distanceKm > 0 && validRes.distanceKm < 10);
-
-  // 2. Reject non-Nagpur city
-  const wrongCity = await checkServiceability({
-    drop: { lat: 19.0760, lng: 72.8777 },
-    pincode: '400001',
+  // 1. Hyperlocal delivery within city (<= 35km)
+  const hyperlocalRes = await checkServiceability({
+    pickup: { lat: 19.076, lng: 72.8777 },
+    drop: { lat: 19.0596, lng: 72.8258 },
+    pincode: '400050',
     city: 'Mumbai',
   });
-  assert.equal(wrongCity.serviceable, false);
-  assert.match(wrongCity.reason, /Nagpur/);
+  assert.equal(hyperlocalRes.serviceable, true);
+  assert.equal(hyperlocalRes.tier, 'HYPERLOCAL');
+  assert.equal(hyperlocalRes.estimatedDelivery, '45-60 mins');
+  assert.ok(hyperlocalRes.distanceKm > 0 && hyperlocalRes.distanceKm <= 35);
 
-  // 3. Reject invalid pincode
+  // 2. Pan-India Express delivery across cities (> 35km)
+  const panIndiaRes = await checkServiceability({
+    pickup: { lat: 19.076, lng: 72.8777 }, // Mumbai
+    drop: { lat: 28.6139, lng: 77.209 }, // Delhi
+    pincode: '110001',
+    city: 'Delhi',
+  });
+  assert.equal(panIndiaRes.serviceable, true);
+  assert.equal(panIndiaRes.tier, 'PAN_INDIA_EXPRESS');
+  assert.equal(panIndiaRes.estimatedDelivery, '2-4 business days');
+  assert.ok(panIndiaRes.distanceKm > 35);
+
+  // 3. Reject invalid 6-digit pincode
   const wrongPin = await checkServiceability({
-    drop: { lat: 21.1458, lng: 79.0882 },
-    pincode: '411001', // Pune
-    city: 'Nagpur',
+    drop: { lat: 19.076, lng: 72.8777 },
+    pincode: '012345',
+    city: 'Mumbai',
   });
   assert.equal(wrongPin.serviceable, false);
   assert.match(wrongPin.reason, /pincode/i);
 
-  // 4. Reject coordinates outside 25km radius (e.g. Wardha ~75km away)
-  const farCoords = await checkServiceability({
-    pickup: { lat: 21.1458, lng: 79.0882 },
-    drop: { lat: 20.7453, lng: 78.6022 }, // Wardha
-    pincode: '440010',
-    city: 'Nagpur',
+  // 4. Reject coordinates outside India (e.g. London)
+  const outsideIndia = await checkServiceability({
+    pickup: { lat: 19.076, lng: 72.8777 },
+    drop: { lat: 51.5074, lng: -0.1278 }, // London
+    pincode: '400001',
+    city: 'London',
   });
-  assert.equal(farCoords.serviceable, false);
-  assert.match(farCoords.reason, /perimeter|exceeds/);
+  assert.equal(outsideIndia.serviceable, false);
+  assert.match(outsideIndia.reason, /India/);
 });
