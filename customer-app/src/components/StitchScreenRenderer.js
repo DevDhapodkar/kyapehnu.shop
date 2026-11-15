@@ -7,6 +7,7 @@ import { useAuthStore, ROLES } from '../store/useAuthStore';
 import { friendlyAuthError } from '../services/auth';
 import { useStorefrontStore } from '../store/useStorefrontStore';
 import { useVendorStore } from '../store/useVendorStore';
+import { useOrderStore, ACTIVE_STATUSES } from '../store/useOrderStore';
 import {
   createGuestOrder,
   placeOrder,
@@ -228,6 +229,15 @@ export default function StitchScreenRenderer({
   const profile = useAuthStore((state) => state.profile);
   const vendorProfile = useAuthStore((state) => state.vendorProfile);
 
+  // Global Orders Store (Real-time synced)
+  const recentOrders = useOrderStore((state) => state.orders);
+  const getActiveOrder = useOrderStore((state) => state.getActiveOrder);
+  const hasActiveDispatch = useOrderStore((state) => state.hasActiveDispatch);
+  const fetchOrders = useOrderStore((state) => state.fetchOrders);
+  const addOrder = useOrderStore((state) => state.addOrder);
+  const updateOrderStatusStore = useOrderStore((state) => state.updateOrderStatus);
+  const setRecentOrders = useOrderStore((state) => state.setOrders);
+
   // Storefront live products & filtering
   const storefrontProducts = useStorefrontStore((state) => state.products || []);
   const vendorProducts = useVendorStore((state) => state.products || []);
@@ -416,48 +426,16 @@ export default function StitchScreenRenderer({
 
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Recent orders list stored locally for instant order tracking
-  const [recentOrders, setRecentOrders] = useState(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
-        if (Array.isArray(saved) && saved.length > 0) {
-          const cleaned = saved.filter(o => {
-            const name = (o.items?.[0]?.name || o.title || '').toLowerCase();
-            const id = (o.orderId || o._id || '').toUpperCase();
-            return !name.includes('shirt black') && !id.includes('40E483');
-          });
-          if (cleaned.length !== saved.length) {
-            window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(cleaned));
-          }
-          return cleaned;
-        }
-      } catch {
-        // fallback to default
-      }
-    }
-    return [];
-  });
-
-  // Startup cleanup for stale test orders from deleted accounts
+  // Real-time order listeners & polling
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem('kyapehnu_recent_orders') || '[]');
-        if (Array.isArray(saved) && saved.length > 0) {
-          const cleaned = saved.filter(o => {
-            const name = (o.items?.[0]?.name || o.title || '').toLowerCase();
-            const id = (o.orderId || o._id || '').toUpperCase();
-            return !name.includes('shirt black') && !id.includes('40E483');
-          });
-          if (cleaned.length !== saved.length) {
-            window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(cleaned));
-            setRecentOrders(cleaned);
-          }
-        }
-      } catch (e) {}
-    }
-  }, []);
+    fetchOrders();
+    const interval = setInterval(() => {
+      if (useAuthStore.getState().token || useOrderStore.getState().hasActiveDispatch()) {
+        fetchOrders();
+      }
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [user, fetchOrders]);
 
   useEffect(() => {
     if (screenKey.includes('Auth') || screenKey.includes('Sign_In')) return;
@@ -465,41 +443,6 @@ export default function StitchScreenRenderer({
       loadStorefront();
     }
   }, [products.length, loadStorefront, screenKey]);
-
-  useEffect(() => {
-    if (useAuthStore.getState().token) {
-      fetchMyOrders()
-        .then((orders) => {
-          if (Array.isArray(orders)) {
-            if (orders.length === 0) {
-              setRecentOrders([]);
-              if (typeof window !== 'undefined' && window.localStorage) {
-                try {
-                  window.localStorage.removeItem('kyapehnu_recent_orders');
-                } catch {}
-              }
-            } else {
-              setRecentOrders((prev) => {
-                const ids = new Set(orders.map((o) => String(o.orderId || o._id)));
-                const merged = [...orders];
-                prev.forEach((p) => {
-                  if (!ids.has(String(p.orderId || p._id))) {
-                    merged.push(p);
-                  }
-                });
-                if (typeof window !== 'undefined' && window.localStorage) {
-                  try {
-                    window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(merged));
-                  } catch {}
-                }
-                return merged;
-              });
-            }
-          }
-        })
-        .catch(() => {});
-    }
-  }, [user]);
 
 
   // Match light or dark equivalent based on current theme
@@ -1104,7 +1047,11 @@ export default function StitchScreenRenderer({
     }
 
     // Update or hide cart badge numbers across all bottom navs & headers
+    const cartBadgePattern = /(<span[^>]*class="[^"]*(?:absolute -top-[^"]*(?:rounded-full|min-w|h-4|w-4)|pdp-bag-badge|bg-primary-container text-on-primary font-label-sm)[^"]*"[^>]*>)\s*\d+\s*(<\/span>)/gi;
+    const cartBadgeStripPattern = /<span[^>]*class="[^"]*(?:absolute -top-[^"]*(?:rounded-full|min-w|h-4|w-4)|pdp-bag-badge|bg-primary-container text-on-primary font-label-sm)[^"]*"[^>]*>\s*\d+\s*<\/span>/gi;
+
     if (cartCount > 0) {
+      html = html.replace(cartBadgePattern, `$1${cartCount}$2`);
       html = html.replace(
         /(<span[^>]*class="[^"]*min-w-\[\d+px\][^"]*"[^>]*>)\d+(<\/span>)/gi,
         `$1${cartCount}$2`
@@ -1119,6 +1066,7 @@ export default function StitchScreenRenderer({
       );
     } else {
       // When cart is empty (0 items), remove floating notification badge over Bag tab completely
+      html = html.replace(cartBadgeStripPattern, '');
       html = html.replace(
         /<span[^>]*class="[^"]*min-w-\[\d+px\][^"]*"[^>]*>\d+<\/span>/gi,
         ''
@@ -1882,7 +1830,7 @@ export default function StitchScreenRenderer({
               </div>
               <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Orders Placed Yet</h3>
               <p class="font-body-md text-text-slate max-w-xs">Your boutique orders and express deliveries will appear here once placed.</p>
-              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2 cursor-pointer">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
               </button>
@@ -1898,7 +1846,7 @@ export default function StitchScreenRenderer({
               </div>
               <h3 class="font-title-md text-xl text-on-surface font-bold">No Orders Placed Yet</h3>
               <p class="font-body-md text-on-surface-variant max-w-xs">Your boutique orders and express deliveries will appear here once placed.</p>
-              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2 cursor-pointer">
                 <span class="material-symbols-outlined text-[18px]">explore</span>
                 <span>Explore Nagpur Storefront</span>
               </button>
@@ -1914,12 +1862,13 @@ export default function StitchScreenRenderer({
         }
 
         // Update tab badges from 1 / 3 to 0
-        html = html.replace(/Active\s*\(1\)/gi, 'Active (0)');
-        html = html.replace(/All\s*\(3\)/gi, 'All (0)');
-        html = html.replace(/Nagpur Active\s*·\s*1/gi, 'Nagpur Active · 0');
+        html = html.replace(/Active\s*\(\d+\)/gi, 'Active (0)');
+        html = html.replace(/All\s*\(\d+\)/gi, 'All (0)');
+        html = html.replace(/Nagpur Active\s*·\s*\d+/gi, 'Nagpur Active · 0');
       } else {
-        const activeOrder = recentOrders[0];
-        const pastOrders = recentOrders.slice(1);
+        const inFlightOrders = recentOrders.filter(o => ACTIVE_STATUSES.includes(String(o.status || '').toUpperCase()) || (!o.status && o.createdAt));
+        const activeOrder = inFlightOrders[0] || recentOrders[0];
+        const pastOrders = recentOrders.filter(o => !inFlightOrders.includes(o));
 
         const activeIdStr = `KP-${(activeOrder.orderId || activeOrder._id || '8291').slice(-6).toUpperCase()}`;
         const activeTotalStr = `₹${(activeOrder.totalPrice || activeOrder.total || 2800).toLocaleString()}`;
@@ -1944,7 +1893,7 @@ export default function StitchScreenRenderer({
                     }">${activeStatusStr}</span>
                   </div>
                 </div>
-                <button data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}" class="px-3.5 py-1.5 rounded-full bg-accent-crimson text-white font-semibold text-xs shadow-sm flex items-center gap-1">
+                <button data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}" class="px-3.5 py-1.5 rounded-full bg-accent-crimson text-white font-semibold text-xs shadow-sm flex items-center gap-1 cursor-pointer">
                   <span>Track Live</span>
                   <span class="material-symbols-outlined text-[14px]">near_me</span>
                 </button>
@@ -2002,31 +1951,126 @@ export default function StitchScreenRenderer({
           html = html.replace(lightOrdersActiveRegex, `${liveActiveSectionLight}${livePastSectionLight}`);
         }
 
+        const liveActiveSectionDark = `
+          <article class="relative flex flex-col rounded-xl bg-surface-container-low shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden border border-border-hairline mb-4">
+            <div class="p-space-md flex flex-col space-y-space-sm">
+              <div class="flex items-center justify-between">
+                <span class="font-label-sm text-label-sm text-secondary tracking-widest uppercase font-bold">ACTIVE 45-MIN DELIVERY</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase ${
+                  activeStatusStr === 'DELIVERED' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/50' :
+                  activeStatusStr === 'CANCELLED' ? 'bg-rose-900/40 text-rose-300 border border-rose-700/50' :
+                  'bg-primary-container/20 text-secondary border border-secondary/30 animate-pulse'
+                }">${activeStatusStr}</span>
+              </div>
+              <div class="flex items-start justify-between">
+                <div>
+                  <h3 class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">#${activeIdStr}</h3>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Nagpur Metro Express Courier</p>
+                </div>
+                <button data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}" class="flex items-center space-x-1.5 px-space-md py-space-xs rounded-full bg-secondary text-surface font-label-md text-label-md font-semibold shadow-md active:scale-95 transition-transform cursor-pointer">
+                  <span>Track Live</span>
+                  <span class="material-symbols-outlined text-base">near_me</span>
+                </button>
+              </div>
+              <div class="flex items-center space-x-space-md pt-space-xs cursor-pointer border-t border-border-hairline/60" data-action="track-order" data-order-id="${activeOrder.orderId || activeOrder._id}">
+                <img src="${activeItemImg}" alt="${activeItemName}" class="w-16 h-20 object-cover rounded-lg bg-surface-container-high" onerror="this.src='/app/apple-touch-icon.png';" />
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-title-md text-title-md text-on-surface font-bold truncate">${activeItemName}</h4>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">${activeItemCount} Garment${activeItemCount > 1 ? 's' : ''} · Verified Boutique</p>
+                  <p class="font-title-md text-title-md text-secondary font-bold mt-1">${activeTotalStr}</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+
+        const pastCardsDarkHtml = pastOrders.map((ord) => {
+          const idStr = `KP-${(ord.orderId || ord._id || '8291').slice(-6).toUpperCase()}`;
+          const totalStr = `₹${(ord.totalPrice || ord.total || 2800).toLocaleString()}`;
+          const statusStr = ord.status || 'DELIVERED';
+          const firstItem = ord.items?.[0] || {};
+          const itemName = firstItem.name || 'Artisanal streetwear Garment';
+          const itemImg = firstItem.image || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900';
+          const itemCount = ord.items?.length || 1;
+
+          return `
+            <div class="bg-surface-container-low rounded-xl p-space-md border border-border-hairline shadow-sm flex items-center space-x-space-md cursor-pointer mb-3" data-action="track-order" data-order-id="${ord.orderId || ord._id}">
+              <img src="${itemImg}" alt="${itemName}" class="w-14 h-16 object-cover rounded-lg bg-surface-container-high" onerror="this.src='/app/apple-touch-icon.png';"/>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-label-md text-xs font-bold text-on-surface">#${idStr}</span>
+                  <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">${statusStr}</span>
+                </div>
+                <h4 class="font-title-md text-sm font-bold text-on-surface truncate mt-1">${itemName}</h4>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="font-label-sm text-xs text-on-surface-variant">${itemCount} piece${itemCount > 1 ? 's' : ''}</span>
+                  <span class="font-label-md text-xs font-bold text-secondary">${totalStr}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const livePastSectionDark = pastOrders.length > 0 ? `
+          <section class="flex flex-col space-y-space-md pt-space-xs">
+            <div class="flex items-center justify-between mb-1">
+              <h2 class="font-headline-md text-headline-md text-on-surface font-bold">Past Orders</h2>
+              <span class="font-label-sm text-xs text-on-surface-variant">${pastOrders.length} Completed</span>
+            </div>
+            ${pastCardsDarkHtml}
+          </section>
+        ` : '';
+
+        if (darkOrdersActiveRegex.test(html)) {
+          html = html.replace(darkOrdersActiveRegex, `${liveActiveSectionDark}${livePastSectionDark}`);
+        }
+
         // Update tab badges
-        html = html.replace(/Active\s*\(\d+\)/gi, 'Active (1)');
+        html = html.replace(/Active\s*\(\d+\)/gi, `Active (${inFlightOrders.length})`);
         html = html.replace(/All\s*\(\d+\)/gi, `All (${recentOrders.length})`);
+        html = html.replace(/Nagpur Active\s*·\s*\d+/gi, `Nagpur Active · ${inFlightOrders.length}`);
       }
     }
 
     // 5. LIVE TRACKING: Inject active order ID and items
     if (targetKey.includes('Live_Tracking')) {
-      const activeOrder = (params.orderId && recentOrders.find(o => o.orderId === params.orderId || o._id === params.orderId)) || params.order || (recentOrders.length > 0 ? recentOrders[0] : null);
+      const activeOrder = (params?.orderId && recentOrders.find(o => o.orderId === params.orderId || o._id === params.orderId)) || params?.order || (getActiveOrder ? getActiveOrder() : null);
 
       if (!activeOrder) {
-        const emptyTrackingHtml = `
-          <div class="px-gutter-md py-12 text-center flex flex-col items-center justify-center gap-3 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high my-8">
-            <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
-              <span class="material-symbols-outlined text-[32px]">local_shipping</span>
+        const isDarkTrack = targetKey.includes('dark');
+        const emptyTrackingHtmlLight = `
+          <main class="flex-1 flex flex-col relative w-full pt-16 pb-48 px-gutter-md">
+            <div class="px-gutter-md py-16 text-center flex flex-col items-center justify-center gap-4 bg-surface-porcelain rounded-2xl shadow-sm border border-surface-container-high my-8 max-w-md mx-auto">
+              <div class="w-16 h-16 rounded-full bg-accent-crimson/10 flex items-center justify-center text-accent-crimson">
+                <span class="material-symbols-outlined text-[32px]">local_shipping</span>
+              </div>
+              <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Active Deliveries</h3>
+              <p class="font-body-md text-text-slate max-w-xs text-sm">You do not have any express deliveries currently in progress.</p>
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">explore</span>
+                <span>Explore Nagpur Storefront</span>
+              </button>
             </div>
-            <h3 class="font-title-md text-xl text-text-obsidian font-bold">No Active Deliveries</h3>
-            <p class="font-body-md text-text-slate max-w-xs">You do not have any express deliveries currently in progress.</p>
-            <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-accent-crimson text-white font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">explore</span>
-              <span>Explore Nagpur Storefront</span>
-            </button>
-          </div>
+          </main>
         `;
-        html = html.replace(/(<div class="relative -mt-8 px-gutter-md[\s\S]*?<\/main>)/i, `${emptyTrackingHtml}</main>`);
+
+        const emptyTrackingHtmlDark = `
+          <main class="flex-1 flex flex-col relative w-full pt-16 pb-48 px-gutter-md">
+            <div class="px-margin py-16 text-center flex flex-col items-center justify-center gap-4 bg-surface-container-low rounded-2xl shadow-sm border border-border-hairline my-8 max-w-md mx-auto">
+              <div class="w-16 h-16 rounded-full bg-secondary/15 flex items-center justify-center text-secondary">
+                <span class="material-symbols-outlined text-[32px]">local_shipping</span>
+              </div>
+              <h3 class="font-title-md text-xl text-on-surface font-bold">No Active Deliveries</h3>
+              <p class="font-body-md text-on-surface-variant max-w-xs text-sm">You do not have any express deliveries currently in progress.</p>
+              <button data-action="explore-storefront" class="mt-2 px-6 py-3 rounded-full bg-secondary text-surface font-semibold shadow-md active:scale-95 transition-transform flex items-center gap-2 cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">explore</span>
+                <span>Explore Nagpur Storefront</span>
+              </button>
+            </div>
+          </main>
+        `;
+
+        html = html.replace(/<main[^>]*>[\s\S]*?<\/main>/i, isDarkTrack ? emptyTrackingHtmlDark : emptyTrackingHtmlLight);
         html = html.replace(/#KP-\d+|KP-\d+|ORD-\d+/gi, 'NO-ACTIVE-ORDER');
       } else {
         const activeId = activeOrder?.orderId || activeOrder?._id || '8291';
@@ -2036,7 +2080,7 @@ export default function StitchScreenRenderer({
         const activeItems = activeOrder.items || [];
         const totalAmount = activeOrder.totalPrice || activeOrder.total || activeItems.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 1), 0);
 
-        html = html.replace(/Garments in Transit \(\d+\)/i, `Garments in Transit (${activeItems.length})`);
+        html = html.replace(/Garments in Transit \(\d+\)/gi, `Garments in Transit (${activeItems.length})`);
         html = html.replace(/₹8,340/g, `₹${Number(totalAmount).toLocaleString()}`);
 
         if (activeItems.length > 0) {
@@ -2392,11 +2436,12 @@ export default function StitchScreenRenderer({
       html = html.replace(/<span>Nagpur<\/span>/g, `<span>${currentArea}</span>`);
 
       // 4. Patron Tier & Real Order Count
-      const orderCount = recentOrders.length;
+      const completedOrders = recentOrders.filter(o => o.status === 'DELIVERED');
+      const orderCount = completedOrders.length;
       const orderCountText = `${orderCount} ${orderCount === 1 ? 'Order' : 'Orders'} Completed`;
       const tierTitle = orderCount >= 3 ? 'Couture Patron' : orderCount >= 1 ? 'Heritage Patron' : 'Silver Patron';
 
-      html = html.replace(/4 Orders Completed/g, orderCountText);
+      html = html.replace(/\d+\s+Orders? Completed/gi, orderCountText);
       html = html.replace(/Fashion Member/g, tierTitle);
       html = html.replace(/Couture Patron/g, tierTitle);
 
@@ -2425,8 +2470,10 @@ export default function StitchScreenRenderer({
       }
 
       // 6. Active Order Spotlight vs Nagpur 45-Min Express Discovery Card
-      if (recentOrders.length > 0) {
-        const topOrd = recentOrders[0];
+      const inFlightOrder = getActiveOrder ? getActiveOrder() : null;
+
+      if (inFlightOrder) {
+        const topOrd = inFlightOrder;
         const topId = `KP-${String(topOrd.orderId || topOrd._id || '101').slice(-6).toUpperCase()}`;
         const topItemName = topOrd.items?.[0]?.name || 'Heavyweight Streetwear Graphic Silhouette';
         const topItemSubtitle = topOrd.items?.length > 1
@@ -2439,6 +2486,8 @@ export default function StitchScreenRenderer({
           : 'ETA 38 mins';
 
         html = html.replace(/Order #KP-8492/g, `Order #${topId}`);
+        html = html.replace(/Heavyweight Oversized Hoodie \(Nagpur Express\)/g, topItemSubtitle);
+        html = html.replace(/Zari Paithani Drape \(Try-at-Doorstep\)/g, topItemSubtitle);
         html = html.replace(/Graphic Heavyweight Streetwear Drape \(Nagpur Express\)/g, topItemSubtitle);
         html = html.replace(/ETA 38 mins/g, etaText);
 
@@ -2450,8 +2499,14 @@ export default function StitchScreenRenderer({
             return match.replace('<button', `<button data-action="track-order" data-order-id="${topOrd.orderId || topOrd._id}"`);
           }
         );
+
+        // Header pill in Profile
+        html = html.replace(
+          /(<span class="w-1\.5 h-1\.5 rounded-full bg-(?:accent-)?crimson) animate-pulse("><\/span>\s*<span[^>]*>)60m Dispatch(<\/span>)/gi,
+          '$1 animate-pulse$2Dispatch Active$3'
+        );
       } else {
-        // No active order: Show discovery card for 45-min express delivery
+        // No in-flight active order: Replace Active Dispatch card with discovery / SLA guarantee card
         const darkDiscovery = `
           <article class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 via-[#1c1316] to-[#251216] border border-gold/30 p-4 shadow-lg">
             <div class="flex items-center justify-between text-xs mb-1.5">
@@ -2463,10 +2518,10 @@ export default function StitchScreenRenderer({
             </div>
             <div class="flex items-end justify-between mt-2">
               <div>
-                <h4 class="font-garamond text-lg font-bold text-white tracking-normal">Experience Luxury Silk at Home</h4>
-                <p class="text-xs text-neutral-300 mt-0.5">Authentic Paithanis &amp; Tees & Hoodies delivered in 45 mins</p>
+                <h4 class="font-garamond text-lg font-bold text-white tracking-normal">Experience Luxury Fits at Home</h4>
+                <p class="text-xs text-neutral-300 mt-0.5">Authentic Paithanis &amp; Streetwear delivered in 45 mins</p>
               </div>
-              <button class="flex items-center space-x-1 px-3 py-1.5 bg-crimson hover:bg-crimson-dark active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition" data-action="explore-store">
+              <button class="flex items-center space-x-1 px-3 py-1.5 bg-crimson hover:bg-crimson-dark active:scale-95 text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer" data-action="explore-store" type="button">
                 <span>Explore</span>
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
               </button>
@@ -2484,19 +2539,33 @@ export default function StitchScreenRenderer({
             </div>
             <div class="flex items-center justify-between mt-1">
               <div class="flex flex-col">
-                <span class="font-body-lg text-body-lg font-semibold text-text-obsidian">Experience Luxury Silk at Home</span>
-                <span class="font-body-sm text-body-sm text-text-slate">Authentic Paithanis &amp; Tees & Hoodies delivered in 45 mins</span>
+                <span class="font-body-lg text-body-lg font-semibold text-text-obsidian">Experience Luxury Fits at Home</span>
+                <span class="font-body-sm text-body-sm text-text-slate">Authentic Paithanis &amp; Streetwear delivered in 45 mins</span>
               </div>
-              <button class="px-3 py-1.5 rounded-full bg-accent-crimson text-on-primary font-tabular-caption text-tabular-caption active:scale-95 transition-transform flex items-center gap-1" data-action="explore-store" type="button">
-                Explore
+              <button class="px-3 py-1.5 rounded-full bg-accent-crimson text-on-primary font-tabular-caption text-tabular-caption active:scale-95 transition-transform flex items-center gap-1 cursor-pointer" data-action="explore-store" type="button">
+                <span>Explore</span>
                 <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
               </button>
             </div>
           </div>
         `;
 
-        html = html.replace(/<!-- BEGIN: ActiveDispatchBanner -->[\s\S]*?<!-- END: ActiveDispatchBanner -->/i, `<!-- BEGIN: ActiveDispatchBanner -->${darkDiscovery}<!-- END: ActiveDispatchBanner -->`);
-        html = html.replace(/<!-- Active Express Order Spotlight -->[\s\S]*?(?=<!-- Account Hub Navigation Section -->)/i, `<!-- Active Express Order Spotlight -->${lightDiscovery}\n`);
+        // Direct replacement of dark and light active dispatch containers
+        const darkDispatchCardRegex = /<article class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 via-\[#1c1316\] to-\[#251216\] border border-crimson\/30 p-4 shadow-lg">[\s\S]*?<\/article>/i;
+        const lightDispatchCardRegex = /<div class="rounded-xl bg-gradient-to-r from-primary\/10 via-surface-porcelain to-surface-porcelain p-4 shadow-sm flex flex-col gap-2 relative overflow-hidden">[\s\S]*?<\/button>\s*<\/div>\s*<\/div>/i;
+
+        if (darkDispatchCardRegex.test(html)) {
+          html = html.replace(darkDispatchCardRegex, darkDiscovery);
+        }
+        if (lightDispatchCardRegex.test(html)) {
+          html = html.replace(lightDispatchCardRegex, lightDiscovery);
+        }
+
+        // Header pill in Profile: Calm delivery promise when no active dispatch
+        html = html.replace(
+          /(<span class="w-1\.5 h-1\.5 rounded-full )bg-(?:accent-)?crimson animate-pulse("><\/span>\s*<span[^>]*>)60m Dispatch(<\/span>)/gi,
+          '$1bg-accent-gold$2Nagpur Express$3'
+        );
       }
 
       // 7. Preferences Rows: Dynamic Data & Interactive Click Handlers
@@ -4460,7 +4529,8 @@ export default function StitchScreenRenderer({
           if (!primaryOrder) primaryOrder = placedOrder;
         }
 
-        // Persist orders in local history
+        // Persist orders in local history & order store
+        placedOrdersList.forEach((ord) => addOrder(ord));
         const currentOrders = JSON.parse(localStorage.getItem('kyapehnu_recent_orders') || '[]');
         const updatedOrders = [
           ...placedOrdersList.map((ord) => ({
@@ -4709,6 +4779,7 @@ export default function StitchScreenRenderer({
         e.preventDefault();
         e.stopPropagation();
         await useAuthStore.getState().signOut();
+        useOrderStore.getState().clearOrders();
         showToast('Signed out of Kya Pehnu.');
         navigateScreen('Home');
         return;
@@ -5288,21 +5359,16 @@ export default function StitchScreenRenderer({
         const ordCard = acceptBtn.closest('[data-order-id]');
         const ordId = acceptBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-849201';
         updateOrderStatus(ordId, 'ACCEPTED').catch(() => {});
+        updateOrderStatusStore(ordId, 'ACCEPTED');
 
-        setRecentOrders((prev) => {
-          const updated = prev.map((o) => {
+        setRecentOrders(
+          recentOrders.map((o) => {
             if ((o.orderId || o._id) === ordId) {
               return { ...o, status: 'ACCEPTED' };
             }
             return o;
-          });
-          if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-              window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updated));
-            } catch {}
-          }
-          return updated;
-        });
+          })
+        );
 
         acceptBtn.textContent = 'Order Accepted';
         acceptBtn.disabled = true;
@@ -5317,21 +5383,16 @@ export default function StitchScreenRenderer({
         const ordCard = markReadyBtn.closest('[data-order-id]');
         const ordId = markReadyBtn.getAttribute('data-order-id') || ordCard?.getAttribute('data-order-id') || 'ord-live';
         markOrderReady(ordId).catch(() => {});
+        updateOrderStatusStore(ordId, 'DISPATCHED');
 
-        setRecentOrders((prev) => {
-          const updated = prev.map((o) => {
+        setRecentOrders(
+          recentOrders.map((o) => {
             if ((o.orderId || o._id) === ordId) {
               return { ...o, status: 'DISPATCHED' };
             }
             return o;
-          });
-          if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-              window.localStorage.setItem('kyapehnu_recent_orders', JSON.stringify(updated));
-            } catch {}
-          }
-          return updated;
-        });
+          })
+        );
 
         markReadyBtn.textContent = 'Courier Dispatched';
         markReadyBtn.disabled = true;
@@ -6231,8 +6292,9 @@ export default function StitchScreenRenderer({
         if (!primaryOrder) primaryOrder = placedOrder;
       }
 
-      // Persist orders in local history
+      // Persist orders in local history & order store
       try {
+        placedOrdersList.forEach((ord) => addOrder(ord));
         const currentOrders = JSON.parse(localStorage.getItem('kyapehnu_recent_orders') || '[]');
         const updatedOrders = [
           ...placedOrdersList.map((ord) => ({
