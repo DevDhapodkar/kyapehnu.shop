@@ -68,24 +68,28 @@
       <section id="setup" class="card hidden" style="max-width: 380px; margin: 40px auto;">
         <div class="title">Create your admin account</div>
         <div class="sub" style="margin-bottom: 8px">First-run setup — this is the only time you'll see this.</div>
-        <label>NAME</label>
-        <input id="setupName" type="text" placeholder="Your name" />
-        <label>EMAIL</label>
-        <input id="setupEmail" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" />
-        <label>PASSWORD (min 8 chars)</label>
-        <input id="setupPassword" type="password" autocomplete="new-password" placeholder="••••••••" />
-        <div style="margin-top: 16px"><button class="primary" onclick="setup()">Create account</button></div>
+        <form id="setupForm" onsubmit="setup(event)">
+          <label>NAME</label>
+          <input id="setupName" type="text" placeholder="Your name" required />
+          <label>EMAIL</label>
+          <input id="setupEmail" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" required />
+          <label>PASSWORD (min 8 chars)</label>
+          <input id="setupPassword" type="password" autocomplete="new-password" placeholder="••••••••" required />
+          <div style="margin-top: 16px"><button id="setupBtn" type="submit" class="primary">Create account</button></div>
+        </form>
         <div id="setupErr" class="err"></div>
       </section>
 
       <!-- Login -->
       <section id="login" class="card hidden" style="max-width: 380px; margin: 40px auto;">
         <div class="title">Admin sign in</div>
-        <label>EMAIL</label>
-        <input id="email" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" />
-        <label>PASSWORD</label>
-        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
-        <div style="margin-top: 16px"><button class="primary" onclick="login()">Log in</button></div>
+        <form id="loginForm" onsubmit="login(event)">
+          <label>EMAIL</label>
+          <input id="email" type="email" autocomplete="username" placeholder="admin@kyapehnu.shop" required />
+          <label>PASSWORD</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
+          <div style="margin-top: 16px"><button id="loginBtn" type="submit" class="primary">Log in</button></div>
+        </form>
         <div id="loginErr" class="err"></div>
       </section>
 
@@ -187,37 +191,50 @@
         $('login').classList.toggle('hidden', needsSetup);
       }
 
-      async function setup() {
+      async function setup(e) {
+        if (e && e.preventDefault) e.preventDefault();
         $('setupErr').textContent = '';
+        const btn = $('setupBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Creating account...'; }
         try {
+          const name = ($('setupName')?.value || '').trim();
+          const email = ($('setupEmail')?.value || '').trim();
+          const password = $('setupPassword')?.value || '';
+          if (!email || !password) throw new Error('Email and password are required.');
           const { token: t } = await api('/setup', {
             method: 'POST',
-            body: JSON.stringify({
-              name: $('setupName').value.trim(),
-              email: $('setupEmail').value.trim(),
-              password: $('setupPassword').value,
-            }),
+            body: JSON.stringify({ name, email, password }),
           });
           token = t;
           try { localStorage.setItem(TOKEN_KEY, t); } catch {}
-          enterDashboard();
+          await enterDashboard();
         } catch (e) {
           $('setupErr').textContent = e.message;
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Create account'; }
         }
       }
 
-      async function login() {
+      async function login(e) {
+        if (e && e.preventDefault) e.preventDefault();
         $('loginErr').textContent = '';
+        const btn = $('loginBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Signing in...'; }
         try {
+          const email = ($('email')?.value || '').trim();
+          const password = $('password')?.value || '';
+          if (!email || !password) throw new Error('Please enter both email and password.');
           const { token: t } = await api('/login', {
             method: 'POST',
-            body: JSON.stringify({ email: $('email').value.trim(), password: $('password').value }),
+            body: JSON.stringify({ email, password }),
           });
           token = t;
           try { localStorage.setItem(TOKEN_KEY, t); } catch {}
-          enterDashboard();
+          await enterDashboard();
         } catch (e) {
           $('loginErr').textContent = e.message;
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Log in'; }
         }
       }
 
@@ -587,6 +604,12 @@
           loadOrders();
         } catch (e) { alert(e.message); }
       }
+
+      // Direct event listeners for reliable submit/click handling
+      $('loginForm')?.addEventListener('submit', login);
+      $('loginBtn')?.addEventListener('click', login);
+      $('setupForm')?.addEventListener('submit', setup);
+      $('setupBtn')?.addEventListener('click', setup);
 
       // Auto-enter if a stored token still works; otherwise show setup or login.
       if (token) enterDashboard().catch(showAuthScreen);
