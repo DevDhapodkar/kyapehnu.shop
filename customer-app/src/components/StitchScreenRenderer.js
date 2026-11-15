@@ -1103,19 +1103,35 @@ export default function StitchScreenRenderer({
       return authHtml;
     }
 
-    // Update cart badge numbers
-    html = html.replace(
-      /(<span[^>]*class="[^"]*min-w-\[15px\][^"]*"[^>]*>)\d+(<\/span>)/g,
-      `$1${cartCount}$2`
-    );
-    html = html.replace(
-      /(id="pdp-bag-badge"[^>]*>)\d+(<\/span>)/g,
-      `$1${cartCount}$2`
-    );
-    html = html.replace(
-      /(<span[^>]*class="[^"]*min-w-\[16px\][^"]*"[^>]*>)\d+(<\/span>)/g,
-      `$1${cartCount}$2`
-    );
+    // Update or hide cart badge numbers across all bottom navs & headers
+    if (cartCount > 0) {
+      html = html.replace(
+        /(<span[^>]*class="[^"]*min-w-\[\d+px\][^"]*"[^>]*>)\d+(<\/span>)/gi,
+        `$1${cartCount}$2`
+      );
+      html = html.replace(
+        /(id="pdp-bag-badge"[^>]*>)\d+(<\/span>)/gi,
+        `$1${cartCount}$2`
+      );
+      html = html.replace(
+        /(<span[^>]*class="[^"]*rounded-full[^"]*bg-primary-container[^"]*"[^>]*>)\d+(<\/span>)/gi,
+        `$1${cartCount}$2`
+      );
+    } else {
+      // When cart is empty (0 items), remove floating notification badge over Bag tab completely
+      html = html.replace(
+        /<span[^>]*class="[^"]*min-w-\[\d+px\][^"]*"[^>]*>\d+<\/span>/gi,
+        ''
+      );
+      html = html.replace(
+        /<span[^>]*id="pdp-bag-badge"[^>]*>\d+<\/span>/gi,
+        ''
+      );
+      html = html.replace(
+        /<span[^>]*class="[^"]*rounded-full[^"]*bg-primary-container[^"]*"[^>]*>\d+<\/span>/gi,
+        ''
+      );
+    }
 
     // Global Header Profile Avatar: Replace blank / broken profile images with initials monogram disc
     const userDisplayName = user?.displayName || profile?.name || '';
@@ -1813,7 +1829,12 @@ export default function StitchScreenRenderer({
       html = html.replace(/onclick="removeItem\([^)]*\)"/gi, '');
       html = html.replace(/onclick="incrementCount\([^)]*\)"/gi, '');
 
-      // Update Light Theme summaries
+      // Update items count labels and badges
+      const itemsBadgeText = totalPieces === 0
+        ? '0 ITEMS'
+        : `${totalPieces} ${totalPieces === 1 ? 'ITEM' : 'ITEMS'}`;
+      html = html.replace(/\b\d+\s+Items\b/gi, itemsBadgeText);
+      html = html.replace(/id="items-badge"[^>]*>[^<]*<\/span>/gi, `id="items-badge">${itemsBadgeText}</span>`);
       html = html.replace(/2 pieces · 2 ateliers/g, `${totalPieces} piece${totalPieces !== 1 ? 's' : ''}`);
       html = html.replace(/Items Subtotal \(\d+\)/g, `Items Subtotal (${totalPieces})`);
       html = html.replace(/(id="subtotal-display">)₹[\d,]+(<\/span>)/g, `$1₹${subtotal.toLocaleString()}$2`);
@@ -1827,9 +1848,21 @@ export default function StitchScreenRenderer({
       html = html.replace(/(id="cta-price">)₹[\d,]+(<\/span>)/g, `$1₹${grandTotal.toLocaleString()}$2`);
       html = html.replace(/₹6,300/g, `₹${grandTotal.toLocaleString()}`);
 
-      // Ensure the sticky Proceed to Delivery CTA container is elevated and never occluded by fixed bottom nav
-      html = html.replace(/sticky bottom-16 z-20/gi, 'sticky bottom-[calc(4rem+env(safe-area-inset-bottom,20px)+8px)] sm:bottom-24 z-40');
-      html = html.replace(/fixed bottom-20 left-0 w-full z-40/gi, 'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,20px))] sm:bottom-24 left-0 w-full z-40');
+      // When bag is empty, remove the floating bottom checkout bar (Payable ₹0 / Add Delivery Address)
+      if (cartItems.length === 0) {
+        html = html.replace(
+          /<div class="fixed bottom-(?:20|\[calc\(4\.5rem\+env\(safe-area-inset-bottom,20px\)\)\])[^"]*z-40[^"]*">[\s\S]*?<\/button>\s*<\/div>\s*<\/div>/gi,
+          ''
+        );
+        html = html.replace(
+          /<div class="sticky bottom-16 z-20[^"]*">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi,
+          ''
+        );
+      } else {
+        // Ensure the sticky Proceed to Delivery CTA container is elevated and never occluded by fixed bottom nav
+        html = html.replace(/sticky bottom-16 z-20/gi, 'sticky bottom-[calc(4rem+env(safe-area-inset-bottom,20px)+8px)] sm:bottom-24 z-40');
+        html = html.replace(/fixed bottom-20 left-0 w-full z-40/gi, 'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,20px))] sm:bottom-24 left-0 w-full z-40');
+      }
       // Ensure main content has generous padding bottom to scroll past the CTA
       html = html.replace(/(<main[^>]*class="[^"]*pb-)24([^"]*")/i, '$152$2');
       html = html.replace(/(<main[^>]*class="[^"]*pb-)20([^"]*")/i, '$152$2');
@@ -4117,6 +4150,10 @@ export default function StitchScreenRenderer({
       ) {
         e.preventDefault();
         e.stopPropagation();
+        if (cartItems.length === 0) {
+          showToast('Your shopping bag is empty! Please add items first.');
+          return;
+        }
         navigateScreen('Address');
         return;
       }
@@ -4560,6 +4597,10 @@ export default function StitchScreenRenderer({
       if (viewAddressAction) {
         e.preventDefault();
         e.stopPropagation();
+        if (cartItems.length === 0) {
+          showToast('Your shopping bag is empty! Please add items first.');
+          return;
+        }
         navigateScreen('Address');
         return;
       }
